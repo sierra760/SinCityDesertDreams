@@ -1,0 +1,122 @@
+{
+  "kind": "user-supplied custom cities",
+  "inclusion_authorization": "Supplied for inclusion by the project owner: the eight classic .sc2 cities on 2026-10-05 and the owner's own city Adaven on 2026-10-06. Every included city ships as a fully imported native .sc2d save.",
+  "license": "CC-BY-NC-SA-4.0; see LICENSING.md",
+  "cities": [
+    {
+      "name": "Adaven",
+      "file": "Adaven.sc2d",
+      "bytes": 159915,
+      "sha256": "e20d9d3f60b1bfed492aac719b77a77f66331c705893d39437d7cbef28e7b61d",
+      "source": {
+        "file": "Adaven.sc2d",
+        "conversion": "native save copied byte-for-byte"
+      }
+    },
+    {
+      "name": "Aliso Niguel",
+      "file": "Aliso Niguel.sc2d",
+      "bytes": 50184,
+      "sha256": "61ddb4185ffb14a62ec4c11800bb1712cb05875f674274128ba87f457521da98",
+      "source": {
+        "file": "Aliso Niguel.sc2",
+        "bytes": 100619,
+        "sha256": "61172660a75762512b5e4f50d3ed7bf834206554e8648c541faa849524943a66",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save"
+      }
+    },
+    {
+      "name": "Foothills Ranch",
+      "file": "Foothills Ranch.sc2d",
+      "bytes": 59776,
+      "sha256": "fe29d9b6a872823637b79fba3ae546841cec8ad9c737c3549ae3d157fbd35a80",
+      "source": {
+        "file": "Foothills Ranch.sc2",
+        "bytes": 103043,
+        "sha256": "8d18a5b5cb2d537e2112a93a137ff3c92f45383c05bd3b24f3c51789ae43a26e",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save"
+      }
+    },
+    {
+      "name": "Grant Pass - Soledad",
+      "file": "Grant Pass - Soledad.sc2d",
+      "bytes": 85911,
+      "sha256": "4ed38d57a18c0b426d64168f4c09218735ecb3a6354b13b2971757bb23b26e30",
+      "source": {
+        "file": "Grant Pass - Soledad.sc2",
+        "bytes": 102453,
+        "sha256": "95efadc6ee1b3521773151d87513874d4632a3f3922455d53b62b966468bd9b2",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
+        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      }
+    },
+    {
+      "name": "La Presa",
+      "file": "La Presa.sc2d",
+      "bytes": 84894,
+      "sha256": "e0e441b0ec72a5d144d2ae48326fe8003754ba0d47bc0eea36d7f5b4f93273a9",
+      "source": {
+        "file": "La Presa.sc2",
+        "bytes": 105873,
+        "sha256": "66cd855b9d68fa119d3d81c0d326f79bc25430db87f86a1b24c7aca247a2ef20",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
+        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      }
+    },
+    {
+      "name": "Lawndale",
+      "file": "Lawndale.sc2d",
+      "bytes": 72482,
+      "sha256": "8ef151da06841b0a88abc5841591e999289cda5ec8b8a78289fe6b1b12625694",
+      "source": {
+        "file": "Lawndale.sc2",
+        "bytes": 113771,
+        "sha256": "fa4b15e0a6ac8bf0816bddadabb4f74aad20ad8e898b9229ef89cd7e20134e4a",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
+        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      }
+    },
+    {
+      "name": "Oro Canyon",
+      "file": "Oro Canyon.sc2d",
+      "bytes": 63248,
+      "sha256": "24c85e64a917d8860a1a0d0ec843fbc09bec890badb317934c344f97da4d79af",
+      "source": {
+        "file": "Oro Canyon.sc2",
+        "bytes": 92300,
+        "sha256": "ce8b648eb7356ccd935b18f4ae97a9a84a8f05b5da8ee2674cf2d25a1383cb63",
+        "conversion": "imported with GameHost.import_city, given its catalog city name, then saved paused with SaveFormat.save",
+        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      }
+    },
+    {
+      "name": "Salton Shores",
+      "file": "Salton Shores.sc2d",
+      "bytes": 24901,
+      "sha256": "b175ccaa385aaff416f74b48f39d64f101cb98463108b9d40d08542a59f72d64",
+      "source": {
+        "file": "Salton Shores.sc2",
+        "bytes": 56430,
+        "sha256": "bd277eef9a4364678c4462f190d82b3fb58da63b463bbedc195443aed900aff0",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
+        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      }
+    },
+    {
+      "name": "Valle del Mar",
+      "file": "Valle del Mar.sc2d",
+      "bytes": 74190,
+      "sha256": "1a27492c82522fc04313336d8ac31992975114ff81b3ccda72137f616e0f8cfd",
+      "source": {
+        "file": "Valle del Mar.sc2",
+        "bytes": 110142,
+        "sha256": "439569c5053059650c92b963ab81a5f71fe07174532111bc58918ef4d4788916",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
+        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      }
+    }
+  ],
+  "format": "sc2d",
+  "engine": "4.6.1.stable.official.14d19694e",
+  "sources_note": "Classic .sc2 sources remain in this directory as conversion inputs and test fixtures; export presets include only the .sc2d files and this provenance."
+}

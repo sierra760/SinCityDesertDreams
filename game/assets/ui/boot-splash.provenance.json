@@ -1,0 +1,15 @@
+{
+  "title": "Boot splash — reduced copy of the Oro Canyon main-menu still",
+  "created_date": "2026-10-06",
+  "source": "oro-canyon-splash.png",
+  "provenance": "Derived from oro-canyon-splash.png (sha256 4400948e5fa3ba69d17e52b63970daa09f04303d78d4c0a6c755e8f09ae29989) by Lanczos downscale to 1536x1024 and a 256-color median-cut palette with Floyd-Steinberg dithering (Pillow). No other edits; terms follow the source still.",
+  "files": [
+    {
+      "file": "boot-splash.png",
+      "bytes": 710671,
+      "sha256": "4acf1758c1ff65b85761ce1b473cb867f09e3ddabe94b23914258236b6f79c17",
+      "width": 1536,
+      "height": 1024
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "source_metres_min": [
+    -39.14459991455078,
+    -39.1922721862793,
+    0.6916667222976685
+  ],
+  "source_metres_max": [
+    39.1865348815918,
+    39.218345642089844,
+    23.013622283935547
+  ],
+  "triangles": 12368,
+  "editable_meshes": 37,
+  "materials": [
+    "cloud",
+    "cloud_shadow",
+    "cloud_top",
+    "rain"
+  ],
+  "godot_tile_size": [
+    4.895695924758911,
+    1.3951222226023674,
+    4.900663614273071
+  ],
+  "skeletons": 0,
+  "bones": 0,
+  "morph_meshes": 5,
+  "duration_seconds": 8.0,
+  "animation_metres_min": [
+    -41.9634895324707,
+    -41.979671478271484,
+    0.6916667222976685
+  ],
+  "animation_metres_max": [
+    41.93491744995117,
+    41.979679107666016,
+    23.72357940673828
+  ],
+  "loop_seam_metres": 9.5367431640625e-06,
+  "maximum_sampled_vertex_motion_metres": 83.24244921180832,
+  "sampled_poses": 17,
+  "runtime_triangles": 12368,
+  "runtime_meshes": 13,
+  "runtime_materials": 4,
+  "animation_channels": 26,
+  "animation_paths": [
+    "rotation",
+    "translation",
+    "weights"
+  ],
+  "runtime_skins": 0,
+  "master": "assets/disaster-models/hurricane.blend",
+  "runtime": "game/assets/desert-dreams-disasters/hurricane.glb",
+  "master_sha256": "c2f5d1587cfb244f446308fde8df843fbf02310b3f837956c4843d7309b5aeaa",
+  "runtime_sha256": "3b18474e583985987d35fd6485e7fc89135cbdac13a77a95f27ed6bac14be727"
+}

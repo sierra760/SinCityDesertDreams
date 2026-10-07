@@ -1,0 +1,43 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Sin City - Desert Dreams"
+config/version="0.1"
+run/main_scene="res://scenes/main.tscn"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="SinCityDesertDreams"
+config/features=PackedStringArray("4.6", "Mobile")
+boot_splash/bg_color=Color(0.09019608, 0.24313726, 0.22352941, 1)
+boot_splash/stretch_mode=4
+boot_splash/image="res://assets/ui/boot-splash.png"
+config/icon="res://assets/ui/app_icon.svg"
+config/macos_native_icon="res://assets/ui/app-icon/desktop/macos.icns"
+config/windows_native_icon="res://assets/ui/app-icon/desktop/windows.ico"
+config/name.ios="SC2D"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=800
+window/energy_saving/keep_screen_on=false
+window/handheld/orientation=6
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/apple_share/plugin.cfg", "res://addons/scdd_geometry/plugin.cfg")
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
+gl_compatibility/item_buffer_size=262144

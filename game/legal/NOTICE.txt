@@ -1,0 +1,29 @@
+Sin City: Desert Dreams
+Developed by Sierra Burkhart (sierra760)
+Copyright (C) 2026 Bristlecone Artists LLC
+
+Project-authored code is licensed under GNU GPL version 3 or, at your option,
+any later version (SPDX: GPL-3.0-or-later). You may redistribute and modify it
+under that license. The full license is bundled in COPYING.txt.
+
+This program is distributed WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Project-owned art and assets, including 3D models, textures, illustrations,
+icons, editable masters, screenshots and the nine included cities, are licensed
+under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+(SPDX: CC-BY-NC-SA-4.0). You may share and adapt them for non-commercial
+purposes with credit, under the same license. The full license is bundled in
+CC-BY-NC-SA-4.0.txt. Suggested credit: "Sin City: Desert Dreams art by Sierra
+Burkhart (sierra760), (C) 2026 Bristlecone Artists LLC, CC BY-NC-SA 4.0".
+Commercial use of the assets requires separate permission from Bristlecone
+Artists LLC.
+
+Fonts, Godot, real-world terrain and map data and other third-party material
+retain their own terms. Font license notices are bundled under assets/fonts/.
+Real-world terrain and map data credits (Mapzen/Joerd terrain tiles, ESA
+WorldCover 2021 under CC BY 4.0, OpenStreetMap contributors under ODbL 1.0)
+are bundled in data/real_world_terrain_notices.txt.
+Player saves belong to their players. No third-party game content or trademark
+rights are granted. See LICENSING.md in the source repository for the full
+scope.

@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/exploration/explore_actor_visual.gd" id="1_visual"]
+[ext_resource type="PackedScene" path="res://assets/desert-dreams-exploration/pedestrian_woman.glb" id="2_model"]
+
+[node name="pedestrian_woman" type="Node3D"]
+script = ExtResource("1_visual")
+
+[node name="ImportedModel" parent="." instance=ExtResource("2_model")]
+scale = Vector3(0.0625, 0.0625, 0.0625)

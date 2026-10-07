@@ -1,0 +1,58 @@
+{
+  "source_metres_min": [
+    -9.561366081237793,
+    -9.561366081237793,
+    -0.23709428310394287
+  ],
+  "source_metres_max": [
+    9.561366081237793,
+    9.561366081237793,
+    75.13706970214844
+  ],
+  "triangles": 9770,
+  "editable_meshes": 45,
+  "materials": [
+    "amber",
+    "beam_gold",
+    "beam_pale",
+    "core",
+    "orange"
+  ],
+  "godot_tile_size": [
+    1.1951707601547241,
+    4.710885249078274,
+    1.1951707601547241
+  ],
+  "skeletons": 0,
+  "bones": 0,
+  "morph_meshes": 19,
+  "duration_seconds": 8.0,
+  "animation_metres_min": [
+    -11.499602317810059,
+    -11.499602317810059,
+    -0.29399698972702026
+  ],
+  "animation_metres_max": [
+    11.499602317810059,
+    11.499602317810059,
+    75.13706970214844
+  ],
+  "loop_seam_metres": 1.922192036699903e-06,
+  "maximum_sampled_vertex_motion_metres": 65.99212784491799,
+  "sampled_poses": 17,
+  "runtime_triangles": 9770,
+  "runtime_meshes": 37,
+  "runtime_materials": 5,
+  "animation_channels": 85,
+  "animation_paths": [
+    "rotation",
+    "scale",
+    "translation",
+    "weights"
+  ],
+  "runtime_skins": 0,
+  "master": "assets/disaster-models/beam.blend",
+  "runtime": "game/assets/desert-dreams-disasters/beam.glb",
+  "master_sha256": "8dbe95d30520cc1e1b3a487be9638d70c1e7b52f55341c489feed2c95f184342",
+  "runtime_sha256": "c718597809c57c19fbc0cd5c89f57c085f7802a23414c4e21324e52bd417b4c8"
+}

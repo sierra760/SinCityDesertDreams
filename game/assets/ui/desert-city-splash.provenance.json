@@ -1,0 +1,17 @@
+{
+  "title": "Sin City: Desert Dreams — main-menu desert city illustration",
+  "created_date": "2026-10-05",
+  "source": "game/assets/ui/desert-city-splash.png",
+  "provenance": "Original image made for the main menu without a reference image. No external image, traced artwork, licensed landmark or third-party logo was used.",
+  "prompt": "desert-city-splash.prompt.txt",
+  "typography": "Artwork has no text. Live menu typography reuses the existing BioRhyme asset and license with the system fallback font for the edition line.",
+  "files": [
+    {
+      "file": "desert-city-splash.png",
+      "bytes": 3480752,
+      "sha256": "6bd1e2d350e657527ceca69f0470fd6b98d98153ed36381b45d8f965f8e18da4",
+      "width": 1536,
+      "height": 1024
+    }
+  ]
+}

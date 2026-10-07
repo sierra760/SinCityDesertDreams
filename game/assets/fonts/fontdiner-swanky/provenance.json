@@ -1,0 +1,27 @@
+{
+  "family": "Fontdiner Swanky",
+  "designer": "Font Diner",
+  "license": "Apache License 2.0",
+  "google_fonts_commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "modified": false,
+  "files": [
+    {
+      "file": "FontdinerSwanky-Regular.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/apache/fontdinerswanky/FontdinerSwanky-Regular.ttf",
+      "sha256": "847229fbf58c7f7479f93fd7cf9fc269b54c0c9f6465abcb65a206fb261be41b",
+      "bytes": 45524
+    },
+    {
+      "file": "LICENSE.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/apache/fontdinerswanky/LICENSE.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "file": "METADATA.pb",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/apache/fontdinerswanky/METADATA.pb",
+      "sha256": "f5924b75b4172abf4552f3a84857b7b553067d31c4d3d69b881912a7269d80a8",
+      "bytes": 590
+    }
+  ]
+}

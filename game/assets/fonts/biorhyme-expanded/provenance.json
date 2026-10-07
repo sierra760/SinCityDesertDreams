@@ -1,0 +1,29 @@
+{
+  "family": "BioRhyme Expanded",
+  "designer": "Aoife Mooney",
+  "license": "SIL OFL 1.1",
+  "retrieved": "2026-10-05",
+  "files": [
+    {
+      "file": "BioRhymeExpanded-Bold.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/biorhymeexpanded/BioRhymeExpanded-Bold.ttf",
+      "upstream_git_blob": "c3f894135433e21dda1108a7f47745447c140850",
+      "sha256": "b90136544a46250d2c366d8fdb3268419f0433ba6a6c96998baafe0d17319a77",
+      "bytes": 101904
+    },
+    {
+      "file": "BioRhymeExpanded-Regular.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/biorhymeexpanded/BioRhymeExpanded-Regular.ttf",
+      "upstream_git_blob": "8d41c82a06d359e9136278fdbc57b98704e364cb",
+      "sha256": "e75a7c996c8884d3d26c0823e7cfbf3cf404d27a36ddff715f6dfd95389affa7",
+      "bytes": 100672
+    },
+    {
+      "file": "OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/biorhymeexpanded/OFL.txt",
+      "upstream_git_blob": "5d65b2b1e88c3ddbe081acdd035a99a4d4d60b70",
+      "sha256": "0b7eae990329ac175a2e1c329060b3a4d6876e4e0cd7e5235511578352f7b191",
+      "bytes": 4468
+    }
+  ]
+}

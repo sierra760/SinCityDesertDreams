@@ -1,0 +1,826 @@
+{
+  "authoring_tool": "Blender 5.2.2 LTS",
+  "source_units": "metres",
+  "runtime_scale": 0.0625,
+  "forward": "Godot -Z",
+  "animation": "Incident_loop; authored transforms, skeletons and morphs",
+  "provenance": "Original geometry, UVs, vertex-color materials, rigs and animation; no external artwork",
+  "models": {
+    "tornado": {
+      "source_metres_min": [
+        -26.114883422851562,
+        -26.671592712402344,
+        0.0
+      ],
+      "source_metres_max": [
+        25.17290687561035,
+        24.953397750854492,
+        73.59490203857422
+      ],
+      "triangles": 10758,
+      "editable_meshes": 22,
+      "materials": [
+        "dust",
+        "stone",
+        "storm",
+        "storm_dark",
+        "storm_light"
+      ],
+      "godot_tile_size": [
+        3.2054868936538696,
+        4.599681377410889,
+        3.2265619039535522
+      ],
+      "skeletons": 0,
+      "bones": 0,
+      "morph_meshes": 8,
+      "duration_seconds": 8.0,
+      "animation_metres_min": [
+        -27.291677474975586,
+        -27.99700164794922,
+        0.0
+      ],
+      "animation_metres_max": [
+        27.51923370361328,
+        27.24382781982422,
+        74.13275146484375
+      ],
+      "loop_seam_metres": 5.3947966093944364e-06,
+      "maximum_sampled_vertex_motion_metres": 55.2170563381676,
+      "sampled_poses": 17,
+      "runtime_triangles": 10758,
+      "runtime_meshes": 22,
+      "runtime_materials": 5,
+      "animation_channels": 57,
+      "animation_paths": [
+        "rotation",
+        "scale",
+        "translation",
+        "weights"
+      ],
+      "runtime_skins": 0,
+      "master": "assets/disaster-models/tornado.blend",
+      "runtime": "game/assets/desert-dreams-disasters/tornado.glb",
+      "master_sha256": "0d227f1b26d2069d6a65893c392f02b832289cd8cc8e20d4b36086c9bad56088",
+      "runtime_sha256": "5dc4e911294ed9b90a2a2c9eb6982791e3ab3c7633e4026c3344c7f342c22633"
+    },
+    "hurricane": {
+      "source_metres_min": [
+        -39.14459991455078,
+        -39.1922721862793,
+        0.6916667222976685
+      ],
+      "source_metres_max": [
+        39.1865348815918,
+        39.218345642089844,
+        23.013622283935547
+      ],
+      "triangles": 12368,
+      "editable_meshes": 37,
+      "materials": [
+        "cloud",
+        "cloud_shadow",
+        "cloud_top",
+        "rain"
+      ],
+      "godot_tile_size": [
+        4.895695924758911,
+        1.3951222226023674,
+        4.900663614273071
+      ],
+      "skeletons": 0,
+      "bones": 0,
+      "morph_meshes": 5,
+      "duration_seconds": 8.0,
+      "animation_metres_min": [
+        -41.9634895324707,
+        -41.979671478271484,
+        0.6916667222976685
+      ],
+      "animation_metres_max": [
+        41.93491744995117,
+        41.979679107666016,
+        23.72357940673828
+      ],
+      "loop_seam_metres": 9.5367431640625e-06,
+      "maximum_sampled_vertex_motion_metres": 83.24244921180832,
+      "sampled_poses": 17,
+      "runtime_triangles": 12368,
+      "runtime_meshes": 13,
+      "runtime_materials": 4,
+      "animation_channels": 26,
+      "animation_paths": [
+        "rotation",
+        "translation",
+        "weights"
+      ],
+      "runtime_skins": 0,
+      "master": "assets/disaster-models/hurricane.blend",
+      "runtime": "game/assets/desert-dreams-disasters/hurricane.glb",
+      "master_sha256": "c2f5d1587cfb244f446308fde8df843fbf02310b3f837956c4843d7309b5aeaa",
+      "runtime_sha256": "3b18474e583985987d35fd6485e7fc89135cbdac13a77a95f27ed6bac14be727"
+    },
+    "monster": {
+      "source_metres_min": [
+        -19.563608169555664,
+        -26.02272605895996,
+        0.0
+      ],
+      "source_metres_max": [
+        19.57849884033203,
+        11.708569526672363,
+        62.1562385559082
+      ],
+      "triangles": 15760,
+      "editable_meshes": 160,
+      "materials": [
+        "basket_edge",
+        "basket_reed",
+        "canyon_skin",
+        "dark",
+        "mouth_shadow",
+        "rough_cloth",
+        "shaggy_hair",
+        "weathered_skin"
+      ],
+      "godot_tile_size": [
+        2.446381688117981,
+        3.8847649097442627,
+        2.3582059741020203
+      ],
+      "skeletons": 1,
+      "bones": 29,
+      "morph_meshes": 0,
+      "duration_seconds": 8.0,
+      "animation_metres_min": [
+        -21.898799896240234,
+        -26.420291900634766,
+        -1.7885924989968771e-06
+      ],
+      "animation_metres_max": [
+        20.857486724853516,
+        24.38133430480957,
+        62.78321075439453
+      ],
+      "loop_seam_metres": 3.6122832561593733e-16,
+      "maximum_sampled_vertex_motion_metres": 29.85935271864638,
+      "sampled_poses": 17,
+      "display_name": "Tsawhawbitts",
+      "inspiration": "Original stylized interpretation of the Jarbidge giant; appearance and animation are artistic inventions.",
+      "legend_reference": "https://travelnevada.com/ghost-town/journey-to-jarbidge/",
+      "runtime_triangles": 15760,
+      "runtime_meshes": 1,
+      "runtime_materials": 8,
+      "animation_channels": 87,
+      "animation_paths": [
+        "rotation",
+        "scale",
+        "translation"
+      ],
+      "runtime_skins": 1,
+      "master": "assets/disaster-models/monster.blend",
+      "runtime": "game/assets/desert-dreams-disasters/monster.glb",
+      "master_sha256": "fb7263f6a427a589bec67caf0f6db87531824a86e005b658ae98a5a09942c61b",
+      "runtime_sha256": "bb02ff8887555dbb6b24b54e314ebba18f566565293197c755d677378d4082f5"
+    },
+    "beam": {
+      "source_metres_min": [
+        -9.561366081237793,
+        -9.561366081237793,
+        -0.23709428310394287
+      ],
+      "source_metres_max": [
+        9.561366081237793,
+        9.561366081237793,
+        75.13706970214844
+      ],
+      "triangles": 9770,
+      "editable_meshes": 45,
+      "materials": [
+        "amber",
+        "beam_gold",
+        "beam_pale",
+        "core",
+        "orange"
+      ],
+      "godot_tile_size": [
+        1.1951707601547241,
+        4.710885249078274,
+        1.1951707601547241
+      ],
+      "skeletons": 0,
+      "bones": 0,
+      "morph_meshes": 19,
+      "duration_seconds": 8.0,
+      "animation_metres_min": [
+        -11.499602317810059,
+        -11.499602317810059,
+        -0.29399698972702026
+      ],
+      "animation_metres_max": [
+        11.499602317810059,
+        11.499602317810059,
+        75.13706970214844
+      ],
+      "loop_seam_metres": 1.922192036699903e-06,
+      "maximum_sampled_vertex_motion_metres": 65.99212784491799,
+      "sampled_poses": 17,
+      "runtime_triangles": 9770,
+      "runtime_meshes": 37,
+      "runtime_materials": 5,
+      "animation_channels": 85,
+      "animation_paths": [
+        "rotation",
+        "scale",
+        "translation",
+        "weights"
+      ],
+      "runtime_skins": 0,
+      "master": "assets/disaster-models/beam.blend",
+      "runtime": "game/assets/desert-dreams-disasters/beam.glb",
+      "master_sha256": "8dbe95d30520cc1e1b3a487be9638d70c1e7b52f55341c489feed2c95f184342",
+      "runtime_sha256": "c718597809c57c19fbc0cd5c89f57c085f7802a23414c4e21324e52bd417b4c8"
+    },
+    "riot": {
+      "source_metres_min": [
+        -3.7261476516723633,
+        -1.5587139129638672,
+        0.0028200000524520874
+      ],
+      "source_metres_max": [
+        4.152154922485352,
+        2.6082851886749268,
+        2.945000171661377
+      ],
+      "triangles": 15444,
+      "editable_meshes": 265,
+      "materials": [
+        "blue",
+        "crowd_rust",
+        "crowd_skin_dark",
+        "dark",
+        "skin",
+        "stone",
+        "teal",
+        "white"
+      ],
+      "godot_tile_size": [
+        0.4923939108848572,
+        0.1838862607255578,
+        0.2604374438524246
+      ],
+      "skeletons": 1,
+      "bones": 105,
+      "morph_meshes": 0,
+      "duration_seconds": 8.0,
+      "animation_metres_min": [
+        -3.777693271636963,
+        -1.6223628520965576,
+        0.0028198882937431335
+      ],
+      "animation_metres_max": [
+        4.206634998321533,
+        2.7028651237487793,
+        3.012075185775757
+      ],
+      "loop_seam_metres": 0.0,
+      "maximum_sampled_vertex_motion_metres": 0.7667529186273284,
+      "sampled_poses": 17,
+      "runtime_triangles": 15444,
+      "runtime_meshes": 1,
+      "runtime_materials": 8,
+      "animation_channels": 315,
+      "animation_paths": [
+        "rotation",
+        "scale",
+        "translation"
+      ],
+      "runtime_skins": 1,
+      "master": "assets/disaster-models/riot.blend",
+      "runtime": "game/assets/desert-dreams-disasters/riot.glb",
+      "master_sha256": "1b2a524b906791ee9d7d12b5f033505cf32e635361bcebca04cef29dcdd43a06",
+      "runtime_sha256": "cc18bb105489cd50969ca8e059157bd3446a98ae5b9476a2a1215f24cc1b3608"
+    },
+    "plane": {
+      "source_metres_min": [
+        -15.0,
+        -38.34254837036133,
+        32.25627517700195
+      ],
+      "source_metres_max": [
+        15.0,
+        15.991950988769531,
+        43.92993927001953
+      ],
+      "triangles": 7860,
+      "editable_meshes": 78,
+      "materials": [
+        "amber",
+        "copper",
+        "dark",
+        "metal",
+        "orange",
+        "storm",
+        "teal",
+        "white"
+      ],
+      "godot_tile_size": [
+        1.875,
+        0.7296040058135986,
+        3.3959062099456787
+      ],
+      "skeletons": 0,
+      "bones": 0,
+      "morph_meshes": 0,
+      "duration_seconds": 8.0,
+      "animation_metres_min": [
+        -15.133893013000488,
+        -38.37579345703125,
+        31.365768432617188
+      ],
+      "animation_metres_max": [
+        15.152226448059082,
+        15.9967679977417,
+        44.254188537597656
+      ],
+      "loop_seam_metres": 3.814697265625e-06,
+      "maximum_sampled_vertex_motion_metres": 35.098799558771844,
+      "sampled_poses": 17,
+      "runtime_triangles": 7860,
+      "runtime_meshes": 24,
+      "runtime_materials": 8,
+      "animation_channels": 58,
+      "animation_paths": [
+        "rotation",
+        "scale",
+        "translation"
+      ],
+      "runtime_skins": 0,
+      "master": "assets/disaster-models/plane.blend",
+      "runtime": "game/assets/desert-dreams-disasters/plane.glb",
+      "master_sha256": "95a40e6a8251d8d8d46f535d3f47e3b707228afbb6d9dc11f89d7640c7946979",
+      "runtime_sha256": "ce48c41d08f73ddae0605c732ed927c85c2269c6576b5ac6dbaf447a174544a5"
+    },
+    "fire": {
+      "source_metres_min": [
+        -3.6535518169403076,
+        -4.993608474731445,
+        -0.012399107217788696
+      ],
+      "source_metres_max": [
+        6.23333215713501,
+        5.336891174316406,
+        25.61174201965332
+      ],
+      "triangles": 9128,
+      "editable_meshes": 55,
+      "materials": [
+        "amber",
+        "core",
+        "ember_red",
+        "orange",
+        "smoke_dark",
+        "smoke_light"
+      ],
+      "godot_tile_size": [
+        0.6179302483797073,
+        1.6015088204294443,
+        0.6456562280654907
+      ],
+      "skeletons": 0,
+      "bones": 0,
+      "morph_meshes": 11,
+      "duration_seconds": 8.0,
+      "animation_metres_min": [
+        -5.377250671386719,
+        -5.167436599731445,
+        -0.012399107217788696
+      ],
+      "animation_metres_max": [
+        7.9367852210998535,
+        5.911608695983887,
+        26.369369506835938
+      ],
+      "loop_seam_metres": 5.960464477539063e-08,
+      "maximum_sampled_vertex_motion_metres": 19.217178404523874,
+      "sampled_poses": 17,
+      "runtime_batch_verification": {
+        "source_meshes": 55,
+        "runtime_meshes": 1,
+        "materials": 1,
+        "source_materials": 6,
+        "material_palette": [
+          {
+            "name": "ember_red",
+            "emission_strength": 0.15000000596046448,
+            "emission_color": [
+              0.5799999833106995,
+              0.07500000298023224,
+              0.01600000075995922
+            ],
+            "roughness": 0.800000011920929
+          },
+          {
+            "name": "orange",
+            "emission_strength": 0.30000001192092896,
+            "emission_color": [
+              0.9800000190734863,
+              0.23000000417232513,
+              0.03500000014901161
+            ],
+            "roughness": 0.5799999833106995
+          },
+          {
+            "name": "core",
+            "emission_strength": 1.2000000476837158,
+            "emission_color": [
+              1.0,
+              0.8999999761581421,
+              0.5099999904632568
+            ],
+            "roughness": 0.41999998688697815
+          },
+          {
+            "name": "amber",
+            "emission_strength": 0.6000000238418579,
+            "emission_color": [
+              1.0,
+              0.5299999713897705,
+              0.07999999821186066
+            ],
+            "roughness": 0.47999998927116394
+          },
+          {
+            "name": "smoke_light",
+            "emission_strength": 0.0,
+            "emission_color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "roughness": 1.0
+          },
+          {
+            "name": "smoke_dark",
+            "emission_strength": 0.0,
+            "emission_color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "roughness": 1.0
+          }
+        ],
+        "material_encoding": "COLOR albedo; TEXCOORD_1.xy emission_strength and one_minus_roughness",
+        "bones": 30,
+        "morph_targets": 6,
+        "source_morph_targets": 22,
+        "independent_flames": 11,
+        "waveform_reconstruction_error": 2.6858374746474567e-08,
+        "sculpt_opposition_error_m": 4.915124923727108e-07,
+        "phase_basis": [
+          {
+            "flame": "Curled orange tongue 00",
+            "cycles": 4,
+            "sin_coefficient": 1.0000000031246876,
+            "cos_coefficient": 4.0343001019599656e-16,
+            "waveform_error": 2.074545167619645e-08
+          },
+          {
+            "flame": "Curled orange tongue 01",
+            "cycles": 5,
+            "sin_coefficient": 0.8412535264118152,
+            "cos_coefficient": 0.5406408136223227,
+            "waveform_error": 1.7371333371762887e-08
+          },
+          {
+            "flame": "Curled orange tongue 02",
+            "cycles": 6,
+            "sin_coefficient": 0.4154150071273231,
+            "cos_coefficient": 0.9096319851953028,
+            "waveform_error": 2.208606697529092e-08
+          },
+          {
+            "flame": "Curled orange tongue 03",
+            "cycles": 4,
+            "sin_coefficient": -0.14231483658917987,
+            "cos_coefficient": 0.9898214415969949,
+            "waveform_error": 2.2343005778857616e-08
+          },
+          {
+            "flame": "Curled orange tongue 04",
+            "cycles": 5,
+            "sin_coefficient": -0.6548607368400327,
+            "cos_coefficient": 0.7557495836543887,
+            "waveform_error": 1.9004580138541276e-09
+          },
+          {
+            "flame": "Curled orange tongue 05",
+            "cycles": 6,
+            "sin_coefficient": -0.9594929664298891,
+            "cos_coefficient": 0.28173255387237534,
+            "waveform_error": 1.6326128338128854e-08
+          },
+          {
+            "flame": "Curled orange tongue 06",
+            "cycles": 4,
+            "sin_coefficient": -0.9594929774975129,
+            "cos_coefficient": -0.2817325571569139,
+            "waveform_error": 2.2595989190854482e-08
+          },
+          {
+            "flame": "Curled orange tongue 07",
+            "cycles": 5,
+            "sin_coefficient": -0.6548607368400313,
+            "cos_coefficient": -0.7557495836543897,
+            "waveform_error": 1.900458162428592e-09
+          },
+          {
+            "flame": "Curled orange tongue 08",
+            "cycles": 6,
+            "sin_coefficient": -0.14231482937845827,
+            "cos_coefficient": -0.9898214279618348,
+            "waveform_error": 6.059161949956149e-09
+          },
+          {
+            "flame": "Curled orange tongue 09",
+            "cycles": 4,
+            "sin_coefficient": 0.4154150080824475,
+            "cos_coefficient": -0.9096319944029285,
+            "waveform_error": 2.6858374746474567e-08
+          },
+          {
+            "flame": "Curled orange tongue 10",
+            "cycles": 5,
+            "sin_coefficient": 0.841253526411816,
+            "cos_coefficient": -0.5406408136223215,
+            "waveform_error": 1.737133081824993e-08
+          }
+        ],
+        "triangles": 9128,
+        "vertex_count": 4674,
+        "maximum_vertex_error_m": 0.012063125213834656,
+        "maximum_integer_vertex_error_m": 5.6121753416239824e-05,
+        "maximum_half_frame_vertex_error_m": 0.012063125213834656,
+        "verified_frames": 481,
+        "worst": {
+          "frame": 28.5,
+          "source": "Smoke lobe 07-2",
+          "vertex": 35,
+          "expected": [
+            1.7221308946609497,
+            0.2121582329273224,
+            20.42249870300293
+          ],
+          "actual": [
+            1.7205524444580078,
+            0.21192669868469238,
+            20.410541534423828
+          ],
+          "bone_matrix_error": 0.004012067802250385
+        }
+      },
+      "vertex_animation": {
+        "vertex_count": 4674,
+        "atlas_width": 1024,
+        "atlas_height": 2405,
+        "rows_per_frame": 5,
+        "frames": 481,
+        "frame_count": 481,
+        "fps": 60,
+        "source_fps": 30,
+        "duration_seconds": 8.0,
+        "position_space": "Godot axes (source.x, source.z, -source.y), source metres before runtime /16",
+        "logical_row_order": "top-to-bottom; row=frame*rows_per_frame+vertex_index//atlas_width",
+        "blender_pixel_order": "logical rows vertically reversed for bottom-up Blender pixel API",
+        "uv0_encoding": "imported UV.x=(vertex_index%width+.5)/width; imported UV.y=vertex_index//width",
+        "sampling": "nearest texels; explicitly interpolate adjacent frame positions and normalize interpolated normals",
+        "smooth_vertex_normals": true,
+        "all_frame_positions_min": [
+          -5.525310516357422,
+          -0.012399107217788696,
+          -5.921875
+        ],
+        "all_frame_positions_max": [
+          7.9375,
+          26.375,
+          5.270881652832031
+        ],
+        "max_half_position_error_source_metres": 0.008146810345351696,
+        "max_half_normal_vector_error": 0.0004191899497527629,
+        "max_half_normal_length_error": 0.00041866302490234375,
+        "loop_position_seam_source_metres": 3.912064018541349e-17,
+        "landmarks": [
+          {
+            "frame": 0,
+            "source_frame": 0.0,
+            "vertex0_position": [
+              2.19921875,
+              0.7900390625,
+              -0.0
+            ],
+            "vertex0_normal": [
+              0.008544921875,
+              1.0,
+              0.0121917724609375
+            ],
+            "last_vertex_position": [
+              1.2119140625,
+              17.234375,
+              3.505859375
+            ]
+          },
+          {
+            "frame": 1,
+            "source_frame": 0.5,
+            "vertex0_position": [
+              2.19921875,
+              0.7900390625,
+              -0.0
+            ],
+            "vertex0_normal": [
+              0.008544921875,
+              1.0,
+              0.0121917724609375
+            ],
+            "last_vertex_position": [
+              1.2470703125,
+              17.3125,
+              3.529296875
+            ]
+          },
+          {
+            "frame": 60,
+            "source_frame": 30.0,
+            "vertex0_position": [
+              2.19921875,
+              0.7900390625,
+              -0.0
+            ],
+            "vertex0_normal": [
+              0.008544921875,
+              1.0,
+              0.0121917724609375
+            ],
+            "last_vertex_position": [
+              -1.2548828125,
+              4.453125,
+              -0.1982421875
+            ]
+          },
+          {
+            "frame": 120,
+            "source_frame": 60.0,
+            "vertex0_position": [
+              2.19921875,
+              0.7900390625,
+              -0.0
+            ],
+            "vertex0_normal": [
+              0.008544921875,
+              1.0,
+              0.0121917724609375
+            ],
+            "last_vertex_position": [
+              -1.310546875,
+              8.8359375,
+              0.748046875
+            ]
+          },
+          {
+            "frame": 180,
+            "source_frame": 90.0,
+            "vertex0_position": [
+              2.19921875,
+              0.7900390625,
+              -0.0
+            ],
+            "vertex0_normal": [
+              0.008544921875,
+              1.0,
+              0.0121917724609375
+            ],
+            "last_vertex_position": [
+              -0.49267578125,
+              13.0859375,
+              2.171875
+            ]
+          },
+          {
+            "frame": 240,
+            "source_frame": 120.0,
+            "vertex0_position": [
+              2.19921875,
+              0.7900390625,
+              -0.0
+            ],
+            "vertex0_normal": [
+              0.008544921875,
+              1.0,
+              0.0121917724609375
+            ],
+            "last_vertex_position": [
+              1.2119140625,
+              17.234375,
+              3.505859375
+            ]
+          }
+        ],
+        "half_frame_interpolation": {
+          "sample_count": 480,
+          "max_position_error_source_metres": 0.021456578746438026,
+          "worst": {
+            "frame": 28.25,
+            "atlas_frame": 56.5,
+            "vertex_index": 4365,
+            "motion_group": "Motion_19",
+            "source_position": [
+              2.545072078704834,
+              22.588356018066406,
+              -0.22814783453941345
+            ],
+            "texture_interpolated_position": [
+              2.5283203125,
+              22.578125,
+              -0.219482421875
+            ]
+          },
+          "max_normal_angle_error_degrees": 4.5458807945251465,
+          "minimum_mixed_normal_length": 0.8624839186668396,
+          "normal_fallback_count": 0,
+          "normal_fallback_rule": "normalize(first_frame_normal) if length(mix(normal0,normal1,t))<0.0001"
+        },
+        "frame0_vertex0_position": [
+          2.19921875,
+          0.7900390625,
+          -0.0
+        ],
+        "frame120_vertex0_position": [
+          2.19921875,
+          0.7900390625,
+          -0.0
+        ],
+        "bounds_include_half_quantized_positions": true,
+        "position_texture": {
+          "path": "fire-motion-positions.exr",
+          "sha256": "5a6e3e2dd37ae421d396e40dfe839dc61286619bf83d484f7cf19adbe4f65275",
+          "bytes": 7613436,
+          "half_float": true,
+          "compression": "ZIP",
+          "color_space": "Non-Color",
+          "readback_max_component_error": 0.0,
+          "blender_pixel_api_top_left": [
+            2.19921875,
+            0.7900390625,
+            -0.0,
+            1.0
+          ],
+          "blender_pixel_api_bottom_left": [
+            1.7783203125,
+            19.234375,
+            0.1883544921875,
+            1.0
+          ]
+        },
+        "normal_texture": {
+          "path": "fire-motion-normals.exr",
+          "sha256": "0bc064229b622e2c956e1204b318ba6ac754e9cf97a75f72e3f83a2902094c2f",
+          "bytes": 6348468,
+          "half_float": true,
+          "compression": "ZIP",
+          "color_space": "Non-Color",
+          "readback_max_component_error": 0.0,
+          "blender_pixel_api_top_left": [
+            0.008544921875,
+            1.0,
+            0.0121917724609375,
+            1.0
+          ],
+          "blender_pixel_api_bottom_left": [
+            0.3359375,
+            -0.93408203125,
+            -0.11956787109375,
+            1.0
+          ]
+        }
+      },
+      "runtime_triangles": 9128,
+      "runtime_meshes": 1,
+      "runtime_materials": 1,
+      "animation_channels": 91,
+      "animation_paths": [
+        "rotation",
+        "scale",
+        "translation",
+        "weights"
+      ],
+      "runtime_skins": 1,
+      "master": "assets/disaster-models/fire.blend",
+      "runtime": "game/assets/desert-dreams-disasters/fire.glb",
+      "master_sha256": "bcc21b50c2a8d4b01702b79a9e72c49dda1545d4ac9a192baac3656271ce9509",
+      "runtime_sha256": "f1cae06a1fdb2a57f7b823e86bc51bcdfec54926ecbe983c8b550a4d198c6a35",
+      "presentation_material_sha256": "d7a3a222ee086451571f6df6a7b97f970388109edbad89258377cf92306ed0f2",
+      "presentation_shader_sha256": "ce8b98082c12d171f9a7aea2786cd31f75b31f5d2104ac2813a05d7230c94873"
+    }
+  }
+}

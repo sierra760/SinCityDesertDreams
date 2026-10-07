@@ -1,0 +1,41 @@
+{
+  "title": "Oro Canyon \u2014 main-menu Explore-mode oblique perspective",
+  "created_date": "2026-10-05",
+  "source": "oro-canyon-splash.png",
+  "provenance": "Unretouched in-game render from Explore mode, using its perspective camera and desert sky, with the camera posed at a canyon overlook. The city keeps the terms recorded in assets/cities/provenance.json, and the models and textures keep their own. No third-party screenshot was used.",
+  "city": "assets/cities/Oro Canyon.sc2",
+  "city_sha256": "ce8b648eb7356ccd935b18f4ae97a9a84a8f05b5da8ee2674cf2d25a1383cb63",
+  "capture": {
+    "engine": "Godot 4.6.1",
+    "renderer": "Mobile / Metal",
+    "width": 3072,
+    "height": 2048,
+    "mode": "Explore, paused, posed camera",
+    "projection": "perspective",
+    "eye": [
+      37,
+      13,
+      30
+    ],
+    "target": [
+      63,
+      4,
+      63
+    ],
+    "fov": 65,
+    "environment": "existing Explore desert sky",
+    "tile_grid": false,
+    "HUD": "excluded by capturing the 3D SubViewport",
+    "traffic": false,
+    "water_animation": false
+  },
+  "files": [
+    {
+      "file": "oro-canyon-splash.png",
+      "bytes": 7100034,
+      "sha256": "4400948e5fa3ba69d17e52b63970daa09f04303d78d4c0a6c755e8f09ae29989",
+      "width": 3072,
+      "height": 2048
+    }
+  ]
+}

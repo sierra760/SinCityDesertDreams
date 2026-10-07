@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="440" viewBox="0 0 720 440">
+  <!-- Original vector illustration: desert skyline, folded roofs, palms and atomic stars. -->
+  <rect width="720" height="440" fill="#20584f"/>
+  <circle cx="557" cy="112" r="61" fill="#d8b36b"/>
+  <path d="M0 263L111 145L202 224L326 111L476 256L587 185L720 255V440H0Z" fill="#376b5c"/>
+  <path d="M0 310L88 260L195 282L281 237L379 280L526 249L720 304V440H0Z" fill="#b4a178"/>
+  <path d="M0 350Q197 313 384 344T720 347V440H0Z" fill="#ddc59b"/>
+  <path d="M0 394Q196 357 354 390T720 388V440H0Z" fill="#ede0c2"/>
+  <path d="M347 440L402 325L431 325L509 440" fill="#366d63"/>
+  <path d="M429 428L422 406M418 392L414 376M411 365L408 350" stroke="#ede0c2" stroke-width="4"/>
+  <g stroke="#173e39" stroke-width="3" stroke-linejoin="round">
+    <path d="M124 317V246H224V316" fill="#f3e5c7"/>
+    <path d="M111 247L170 226L236 245L229 254H118Z" fill="#a45c43"/>
+    <path d="M135 267H154V285H135ZM168 267H186V285H168ZM199 267H216V285H199Z" fill="#286c60"/>
+    <path d="M288 319V207H345V321" fill="#eee5d3"/>
+    <path d="M281 207L318 189L352 207Z" fill="#a45c43"/>
+    <path d="M299 219H307V232H299ZM321 219H329V232H321ZM299 242H307V255H299ZM321 242H329V255H321ZM299 265H307V278H299ZM321 265H329V278H321Z" fill="#286c60" stroke="none"/>
+    <path d="M482 331V239H579V331" fill="#f3e5c7"/>
+    <path d="M467 233L533 250L595 219L584 248L533 266L478 251Z" fill="#a45c43"/>
+    <path d="M493 278H510V309H493ZM520 278H539V309H520ZM549 278H566V309H549Z" fill="#286c60"/>
+    <path d="M236 330V181H258V330" fill="#286c60"/>
+    <path d="M230 184L247 158L264 184L258 197H236Z" fill="#d8b36b"/>
+    <path d="M244 202V281" stroke="#d8b36b" stroke-width="4"/>
+  </g>
+  <g fill="none" stroke="#173e39" stroke-width="5" stroke-linecap="round">
+    <path d="M80 330Q84 270 70 226M69 226Q49 201 23 216M69 226Q44 222 30 246M69 226Q78 197 101 200M69 226Q101 217 116 235"/>
+    <path d="M634 344Q638 284 628 260M628 260Q609 239 589 247M628 260Q605 260 594 279M628 260Q635 235 654 239M628 260Q650 252 672 268"/>
+  </g>
+  <g fill="#eedfb9">
+    <path d="M96 65L101 82L119 87L101 92L96 109L91 92L73 87L91 82Z"/>
+    <path d="M434 66L438 78L451 82L438 86L434 99L430 86L417 82L430 78Z"/>
+    <path d="M645 157L648 168L660 171L648 174L645 186L642 174L630 171L642 168Z"/>
+  </g>
+  <g fill="#c49a50"><circle cx="167" cy="98" r="3"/><circle cx="371" cy="52" r="3"/><circle cx="662" cy="69" r="3"/></g>
+  <path d="M38 422H181M540 422H682" stroke="#b29b73" stroke-width="1"/>
+</svg>

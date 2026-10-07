@@ -1,0 +1,60 @@
+{
+  "source_metres_min": [
+    -15.0,
+    -38.34254837036133,
+    32.25627517700195
+  ],
+  "source_metres_max": [
+    15.0,
+    15.991950988769531,
+    43.92993927001953
+  ],
+  "triangles": 7860,
+  "editable_meshes": 78,
+  "materials": [
+    "amber",
+    "copper",
+    "dark",
+    "metal",
+    "orange",
+    "storm",
+    "teal",
+    "white"
+  ],
+  "godot_tile_size": [
+    1.875,
+    0.7296040058135986,
+    3.3959062099456787
+  ],
+  "skeletons": 0,
+  "bones": 0,
+  "morph_meshes": 0,
+  "duration_seconds": 8.0,
+  "animation_metres_min": [
+    -15.133893013000488,
+    -38.37579345703125,
+    31.365768432617188
+  ],
+  "animation_metres_max": [
+    15.152226448059082,
+    15.9967679977417,
+    44.254188537597656
+  ],
+  "loop_seam_metres": 3.814697265625e-06,
+  "maximum_sampled_vertex_motion_metres": 35.098799558771844,
+  "sampled_poses": 17,
+  "runtime_triangles": 7860,
+  "runtime_meshes": 24,
+  "runtime_materials": 8,
+  "animation_channels": 58,
+  "animation_paths": [
+    "rotation",
+    "scale",
+    "translation"
+  ],
+  "runtime_skins": 0,
+  "master": "assets/disaster-models/plane.blend",
+  "runtime": "game/assets/desert-dreams-disasters/plane.glb",
+  "master_sha256": "95a40e6a8251d8d8d46f535d3f47e3b707228afbb6d9dc11f89d7640c7946979",
+  "runtime_sha256": "ce48c41d08f73ddae0605c732ed927c85c2269c6576b5ac6dbaf447a174544a5"
+}

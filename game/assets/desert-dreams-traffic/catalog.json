@@ -1,0 +1,1896 @@
+{
+  "source_units": "metres",
+  "runtime_units": "tile = 16 metres",
+  "forward": "Godot -Z",
+  "provenance": "Original procedural geometry and flat colors; no external artwork or models",
+  "models": {
+    "car": {
+      "triangles": 428,
+      "parts": 19,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.0205000638961792,
+        0.016640782356262207,
+        -2.3968000411987305
+      ],
+      "max_godot": [
+        1.0205000638961792,
+        1.524999976158142,
+        2.354300022125244
+      ],
+      "size_godot": [
+        2.0410001277923584,
+        1.5083591938018799,
+        4.751100063323975
+      ]
+    },
+    "car_far": {
+      "triangles": 124,
+      "parts": 7,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.006500005722046,
+        0.0455513596534729,
+        -2.299999952316284
+      ],
+      "max_godot": [
+        1.006500005722046,
+        1.524999976158142,
+        2.299999952316284
+      ],
+      "size_godot": [
+        2.013000011444092,
+        1.4794486165046692,
+        4.599999904632568
+      ]
+    },
+    "compact": {
+      "triangles": 428,
+      "parts": 19,
+      "materials": [
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.9175999760627747,
+        0.016640782356262207,
+        -1.68559992313385
+      ],
+      "max_godot": [
+        0.9175999760627747,
+        1.524999976158142,
+        1.6431000232696533
+      ],
+      "size_godot": [
+        1.8351999521255493,
+        1.5083591938018799,
+        3.3286999464035034
+      ]
+    },
+    "compact_far": {
+      "triangles": 124,
+      "parts": 7,
+      "materials": [
+        "traffic_glass",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.9036000370979309,
+        0.0455513596534729,
+        -1.600000023841858
+      ],
+      "max_godot": [
+        0.9036000370979309,
+        1.524999976158142,
+        1.600000023841858
+      ],
+      "size_godot": [
+        1.8072000741958618,
+        1.4794486165046692,
+        3.200000047683716
+      ]
+    },
+    "sedan": {
+      "triangles": 428,
+      "parts": 19,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.054800033569336,
+        0.016640782356262207,
+        -2.5999999046325684
+      ],
+      "max_godot": [
+        1.054800033569336,
+        1.4950000047683716,
+        2.557499885559082
+      ],
+      "size_godot": [
+        2.109600067138672,
+        1.4783592224121094,
+        5.15749979019165
+      ]
+    },
+    "sedan_far": {
+      "triangles": 124,
+      "parts": 7,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.0407999753952026,
+        0.0455513596534729,
+        -2.5
+      ],
+      "max_godot": [
+        1.0407999753952026,
+        1.4950000047683716,
+        2.5
+      ],
+      "size_godot": [
+        2.0815999507904053,
+        1.4494486451148987,
+        5.0
+      ]
+    },
+    "taxi": {
+      "triangles": 440,
+      "parts": 20,
+      "materials": [
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.0352001190185547,
+        0.016640782356262207,
+        -2.3968000411987305
+      ],
+      "max_godot": [
+        1.0352001190185547,
+        1.8000000715255737,
+        2.354300022125244
+      ],
+      "size_godot": [
+        2.0704002380371094,
+        1.7833592891693115,
+        4.751100063323975
+      ]
+    },
+    "taxi_far": {
+      "triangles": 136,
+      "parts": 8,
+      "materials": [
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_light",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.0211999416351318,
+        0.0455513596534729,
+        -2.299999952316284
+      ],
+      "max_godot": [
+        1.0211999416351318,
+        1.8000000715255737,
+        2.299999952316284
+      ],
+      "size_godot": [
+        2.0423998832702637,
+        1.7544487118721008,
+        4.599999904632568
+      ]
+    },
+    "pickup": {
+      "triangles": 432,
+      "parts": 20,
+      "materials": [
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.1038000583648682,
+        0.016640782356262207,
+        -2.6507999897003174
+      ],
+      "max_godot": [
+        1.1038000583648682,
+        1.7949999570846558,
+        2.608299970626831
+      ],
+      "size_godot": [
+        2.2076001167297363,
+        1.7783591747283936,
+        5.259099960327148
+      ]
+    },
+    "pickup_far": {
+      "triangles": 152,
+      "parts": 10,
+      "materials": [
+        "traffic_glass",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.0898000001907349,
+        0.0455513596534729,
+        -2.549999952316284
+      ],
+      "max_godot": [
+        1.0898000001907349,
+        1.7949999570846558,
+        2.549999952316284
+      ],
+      "size_godot": [
+        2.1796000003814697,
+        1.7494485974311829,
+        5.099999904632568
+      ]
+    },
+    "van": {
+      "triangles": 432,
+      "parts": 20,
+      "materials": [
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.1185001134872437,
+        0.021535128355026245,
+        -2.8539998531341553
+      ],
+      "max_godot": [
+        1.1185001134872437,
+        2.302999973297119,
+        2.811499834060669
+      ],
+      "size_godot": [
+        2.2370002269744873,
+        2.281464844942093,
+        5.665499687194824
+      ]
+    },
+    "van_far": {
+      "triangles": 152,
+      "parts": 10,
+      "materials": [
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.1045000553131104,
+        0.058948814868927,
+        -2.75
+      ],
+      "max_godot": [
+        1.1045000553131104,
+        2.302999973297119,
+        2.75
+      ],
+      "size_godot": [
+        2.2090001106262207,
+        2.244051158428192,
+        5.5
+      ]
+    },
+    "bus": {
+      "triangles": 588,
+      "parts": 33,
+      "materials": [
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.3390001058578491,
+        0.021535128355026245,
+        -4.631999969482422
+      ],
+      "max_godot": [
+        1.3390001058578491,
+        3.049999952316284,
+        4.5894999504089355
+      ],
+      "size_godot": [
+        2.6780002117156982,
+        3.028464823961258,
+        9.221499919891357
+      ]
+    },
+    "bus_far": {
+      "triangles": 152,
+      "parts": 10,
+      "materials": [
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.3250000476837158,
+        0.058948814868927,
+        -4.555999755859375
+      ],
+      "max_godot": [
+        1.3250000476837158,
+        3.049999952316284,
+        4.545000076293945
+      ],
+      "size_godot": [
+        2.6500000953674316,
+        2.991051137447357,
+        9.10099983215332
+      ]
+    },
+    "truck": {
+      "triangles": 576,
+      "parts": 24,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3390001058578491,
+        0.021535128355026245,
+        -4.225599765777588
+      ],
+      "max_godot": [
+        1.3390001058578491,
+        3.136000156402588,
+        4.183099746704102
+      ],
+      "size_godot": [
+        2.6780002117156982,
+        3.1144650280475616,
+        8.40869951248169
+      ]
+    },
+    "truck_far": {
+      "triangles": 192,
+      "parts": 12,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3250000476837158,
+        0.058948814868927,
+        -4.099999904632568
+      ],
+      "max_godot": [
+        1.3250000476837158,
+        3.136000156402588,
+        4.099999904632568
+      ],
+      "size_godot": [
+        2.6500000953674316,
+        3.077051341533661,
+        8.199999809265137
+      ]
+    },
+    "police": {
+      "triangles": 452,
+      "parts": 21,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_white"
+      ],
+      "min_godot": [
+        -1.0695000886917114,
+        0.016640782356262207,
+        -2.4983999729156494
+      ],
+      "max_godot": [
+        1.0695000886917114,
+        1.75,
+        2.455899953842163
+      ],
+      "size_godot": [
+        2.139000177383423,
+        1.7333592176437378,
+        4.9542999267578125
+      ]
+    },
+    "police_far": {
+      "triangles": 148,
+      "parts": 9,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_white"
+      ],
+      "min_godot": [
+        -1.0555000305175781,
+        0.0455513596534729,
+        -2.4000000953674316
+      ],
+      "max_godot": [
+        1.0555000305175781,
+        1.75,
+        2.4000000953674316
+      ],
+      "size_godot": [
+        2.1110000610351562,
+        1.704448640346527,
+        4.800000190734863
+      ]
+    },
+    "fire_engine": {
+      "triangles": 792,
+      "parts": 42,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3390001058578491,
+        0.021535128355026245,
+        -4.124000072479248
+      ],
+      "max_godot": [
+        1.3390001058578491,
+        3.1999998092651367,
+        4.081500053405762
+      ],
+      "size_godot": [
+        2.6780002117156982,
+        3.1784646809101105,
+        8.20550012588501
+      ]
+    },
+    "fire_engine_far": {
+      "triangles": 264,
+      "parts": 18,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3250000476837158,
+        0.058948814868927,
+        -4.0
+      ],
+      "max_godot": [
+        1.3250000476837158,
+        3.1999998092651367,
+        4.0
+      ],
+      "size_godot": [
+        2.6500000953674316,
+        3.1410509943962097,
+        8.0
+      ]
+    },
+    "ambulance": {
+      "triangles": 504,
+      "parts": 26,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_white"
+      ],
+      "min_godot": [
+        -1.2655000686645508,
+        0.021535128355026245,
+        -3.1080000400543213
+      ],
+      "max_godot": [
+        1.2655000686645508,
+        3.0,
+        3.065500020980835
+      ],
+      "size_godot": [
+        2.5310001373291016,
+        2.9784648716449738,
+        6.173500061035156
+      ]
+    },
+    "ambulance_far": {
+      "triangles": 224,
+      "parts": 16,
+      "materials": [
+        "traffic_blue",
+        "traffic_glass",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_white"
+      ],
+      "min_godot": [
+        -1.2515000104904175,
+        0.058948814868927,
+        -3.0
+      ],
+      "max_godot": [
+        1.2515000104904175,
+        3.0,
+        3.0
+      ],
+      "size_godot": [
+        2.503000020980835,
+        2.941051185131073,
+        6.0
+      ]
+    },
+    "military": {
+      "triangles": 600,
+      "parts": 26,
+      "materials": [
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_olive",
+        "traffic_red",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3390001058578491,
+        0.021535128355026245,
+        -3.311199903488159
+      ],
+      "max_godot": [
+        1.3390001058578491,
+        2.695000171661377,
+        3.268699884414673
+      ],
+      "size_godot": [
+        2.6780002117156982,
+        2.6734650433063507,
+        6.579899787902832
+      ]
+    },
+    "military_far": {
+      "triangles": 216,
+      "parts": 14,
+      "materials": [
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_olive",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3250000476837158,
+        0.058948814868927,
+        -3.200000047683716
+      ],
+      "max_godot": [
+        1.3250000476837158,
+        2.695000171661377,
+        3.200000047683716
+      ],
+      "size_godot": [
+        2.6500000953674316,
+        2.63605135679245,
+        6.400000095367432
+      ]
+    },
+    "train": {
+      "triangles": 660,
+      "parts": 29,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_metal",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3253999948501587,
+        0.0185985267162323,
+        -5.525000095367432
+      ],
+      "max_godot": [
+        1.3253999948501587,
+        3.2799999713897705,
+        5.525000095367432
+      ],
+      "size_godot": [
+        2.6507999897003174,
+        3.261401444673538,
+        11.050000190734863
+      ]
+    },
+    "train_far": {
+      "triangles": 192,
+      "parts": 12,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_metal",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -1.3253999948501587,
+        0.050910353660583496,
+        -5.0
+      ],
+      "max_godot": [
+        1.3253999948501587,
+        3.2799999713897705,
+        5.0
+      ],
+      "size_godot": [
+        2.6507999897003174,
+        3.229089617729187,
+        10.0
+      ]
+    },
+    "subway": {
+      "triangles": 696,
+      "parts": 34,
+      "materials": [
+        "traffic_glass",
+        "traffic_metal",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.3279999494552612,
+        0.0185985267162323,
+        -5.525000095367432
+      ],
+      "max_godot": [
+        1.3279999494552612,
+        3.375,
+        5.525000095367432
+      ],
+      "size_godot": [
+        2.6559998989105225,
+        3.3564014732837677,
+        11.050000190734863
+      ]
+    },
+    "subway_far": {
+      "triangles": 240,
+      "parts": 16,
+      "materials": [
+        "traffic_glass",
+        "traffic_metal",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.3279999494552612,
+        0.050910353660583496,
+        -5.199999809265137
+      ],
+      "max_godot": [
+        1.3279999494552612,
+        3.375,
+        5.199999809265137
+      ],
+      "size_godot": [
+        2.6559998989105225,
+        3.3240896463394165,
+        10.399999618530273
+      ]
+    },
+    "ship": {
+      "triangles": 364,
+      "parts": 19,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_metal",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.7000000476837158,
+        -0.6499999761581421,
+        -5.699999809265137
+      ],
+      "max_godot": [
+        1.7000000476837158,
+        3.200000047683716,
+        5.0
+      ],
+      "size_godot": [
+        3.4000000953674316,
+        3.850000023841858,
+        10.699999809265137
+      ]
+    },
+    "ship_far": {
+      "triangles": 108,
+      "parts": 7,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.7000000476837158,
+        -0.6499999761581421,
+        -5.699999809265137
+      ],
+      "max_godot": [
+        1.7000000476837158,
+        3.200000047683716,
+        5.0
+      ],
+      "size_godot": [
+        3.4000000953674316,
+        3.850000023841858,
+        10.699999809265137
+      ]
+    },
+    "sailboat": {
+      "triangles": 92,
+      "parts": 6,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_gold",
+        "traffic_metal",
+        "traffic_white"
+      ],
+      "min_godot": [
+        -1.2000000476837158,
+        -0.44999998807907104,
+        -3.700000047683716
+      ],
+      "max_godot": [
+        1.2000000476837158,
+        6.0,
+        3.0
+      ],
+      "size_godot": [
+        2.4000000953674316,
+        6.449999988079071,
+        6.700000047683716
+      ]
+    },
+    "sailboat_far": {
+      "triangles": 84,
+      "parts": 6,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_gold",
+        "traffic_metal",
+        "traffic_white"
+      ],
+      "min_godot": [
+        -1.2000000476837158,
+        -0.44999998807907104,
+        -3.700000047683716
+      ],
+      "max_godot": [
+        1.2000000476837158,
+        6.0,
+        3.0
+      ],
+      "size_godot": [
+        2.4000000953674316,
+        6.449999988079071,
+        6.700000047683716
+      ]
+    },
+    "helicopter": {
+      "triangles": 276,
+      "parts": 15,
+      "materials": [
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_metal",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -4.0,
+        -1.0947196216193333e-07,
+        -3.8499999046325684
+      ],
+      "max_godot": [
+        4.0,
+        2.492500066757202,
+        4.920000076293945
+      ],
+      "size_godot": [
+        8.0,
+        2.4925001762291643,
+        8.769999980926514
+      ]
+    },
+    "helicopter_far": {
+      "triangles": 260,
+      "parts": 15,
+      "materials": [
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_metal",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -4.0,
+        -1.0947196216193333e-07,
+        -3.8499999046325684
+      ],
+      "max_godot": [
+        4.0,
+        2.492500066757202,
+        4.920000076293945
+      ],
+      "size_godot": [
+        8.0,
+        2.4925001762291643,
+        8.769999980926514
+      ]
+    },
+    "plane": {
+      "triangles": 492,
+      "parts": 30,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_metal",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -6.0,
+        0.007830947637557983,
+        -5.900000095367432
+      ],
+      "max_godot": [
+        6.0,
+        3.0999999046325684,
+        6.0
+      ],
+      "size_godot": [
+        12.0,
+        3.0921689569950104,
+        11.900000095367432
+      ]
+    },
+    "plane_far": {
+      "triangles": 172,
+      "parts": 10,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_metal",
+        "traffic_rubber",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -6.0,
+        0.0214359313249588,
+        -5.900000095367432
+      ],
+      "max_godot": [
+        6.0,
+        3.0999999046325684,
+        6.0
+      ],
+      "size_godot": [
+        12.0,
+        3.0785639733076096,
+        11.900000095367432
+      ]
+    },
+    "pedestrian_00": {
+      "triangles": 320,
+      "parts": 15,
+      "materials": [
+        "traffic_blue",
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin0",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.3406703770160675,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.3406703770160675,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.681340754032135,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_00_far": {
+      "triangles": 212,
+      "parts": 13,
+      "materials": [
+        "traffic_blue",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin0",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.3406703770160675,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.3406703770160675,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.681340754032135,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_01": {
+      "triangles": 264,
+      "parts": 15,
+      "materials": [
+        "traffic_blue",
+        "traffic_copper",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.34171509742736816,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.34171509742736816,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.6834301948547363,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_01_far": {
+      "triangles": 196,
+      "parts": 13,
+      "materials": [
+        "traffic_blue",
+        "traffic_copper",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.34171509742736816,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.34171509742736816,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.6834301948547363,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_02": {
+      "triangles": 252,
+      "parts": 14,
+      "materials": [
+        "traffic_blue",
+        "traffic_gold",
+        "traffic_rubber",
+        "traffic_skin2"
+      ],
+      "min_godot": [
+        -0.34229740500450134,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.34229740500450134,
+        1.8900001049041748,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.6845948100090027,
+        1.8900001049041748,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_02_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_blue",
+        "traffic_gold",
+        "traffic_rubber",
+        "traffic_skin2"
+      ],
+      "min_godot": [
+        -0.34229740500450134,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.34229740500450134,
+        1.8700000047683716,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.6845948100090027,
+        1.8700000047683716,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_03": {
+      "triangles": 252,
+      "parts": 14,
+      "materials": [
+        "traffic_blue",
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.34118664264678955,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.3479999899864197,
+        1.7300000190734863,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.6891866326332092,
+        1.7300000190734863,
+        0.39499999582767487
+      ]
+    },
+    "pedestrian_03_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_blue",
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.34118664264678955,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.3479999899864197,
+        1.709999918937683,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.6891866326332092,
+        1.709999918937683,
+        0.39499999582767487
+      ]
+    },
+    "pedestrian_04": {
+      "triangles": 320,
+      "parts": 15,
+      "materials": [
+        "traffic_blue",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin0"
+      ],
+      "min_godot": [
+        -0.38567039370536804,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.38567039370536804,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.7713407874107361,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_04_far": {
+      "triangles": 212,
+      "parts": 13,
+      "materials": [
+        "traffic_blue",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin0"
+      ],
+      "min_godot": [
+        -0.38567039370536804,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.38567039370536804,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.7713407874107361,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_05": {
+      "triangles": 264,
+      "parts": 15,
+      "materials": [
+        "traffic_cream",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.3867151141166687,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.3867151141166687,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.7734302282333374,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_05_far": {
+      "triangles": 196,
+      "parts": 13,
+      "materials": [
+        "traffic_cream",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.3867151141166687,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.3867151141166687,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.7734302282333374,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_06": {
+      "triangles": 252,
+      "parts": 14,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_olive",
+        "traffic_rubber",
+        "traffic_skin2",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.38729745149612427,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.38729745149612427,
+        1.8900001049041748,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.7745949029922485,
+        1.8900001049041748,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_06_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_cream",
+        "traffic_olive",
+        "traffic_rubber",
+        "traffic_skin2",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.38729745149612427,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.38729745149612427,
+        1.8700000047683716,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.7745949029922485,
+        1.8700000047683716,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_07": {
+      "triangles": 252,
+      "parts": 14,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_purple",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.3861866593360901,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.41100001335144043,
+        1.7300000190734863,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.7971866726875305,
+        1.7300000190734863,
+        0.39499999582767487
+      ]
+    },
+    "pedestrian_07_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_purple",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.3861866593360901,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.41100001335144043,
+        1.709999918937683,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.7971866726875305,
+        1.709999918937683,
+        0.39499999582767487
+      ]
+    },
+    "pedestrian_08": {
+      "triangles": 332,
+      "parts": 16,
+      "materials": [
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_rubber",
+        "traffic_skin0",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.3706703782081604,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.3706703782081604,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.7413407564163208,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_08_far": {
+      "triangles": 212,
+      "parts": 13,
+      "materials": [
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin0",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -0.3706703782081604,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.3706703782081604,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.7413407564163208,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_09": {
+      "triangles": 276,
+      "parts": 16,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.37171509861946106,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.37171509861946106,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.7434301972389221,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_09_far": {
+      "triangles": 196,
+      "parts": 13,
+      "materials": [
+        "traffic_copper",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.37171509861946106,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.37171509861946106,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.7434301972389221,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_10": {
+      "triangles": 264,
+      "parts": 15,
+      "materials": [
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_rubber",
+        "traffic_skin2"
+      ],
+      "min_godot": [
+        -0.37229740619659424,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.37229740619659424,
+        1.8900001049041748,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.7445948123931885,
+        1.8900001049041748,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_10_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_gold",
+        "traffic_rubber",
+        "traffic_skin2"
+      ],
+      "min_godot": [
+        -0.37229740619659424,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.37229740619659424,
+        1.8700000047683716,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.7445948123931885,
+        1.8700000047683716,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_11": {
+      "triangles": 264,
+      "parts": 15,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.37118664383888245,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.38999998569488525,
+        1.7300000190734863,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.7611866295337677,
+        1.7300000190734863,
+        0.39499999582767487
+      ]
+    },
+    "pedestrian_11_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.37118664383888245,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.38999998569488525,
+        1.709999918937683,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.7611866295337677,
+        1.709999918937683,
+        0.39499999582767487
+      ]
+    },
+    "pedestrian_12": {
+      "triangles": 332,
+      "parts": 16,
+      "materials": [
+        "traffic_blue",
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_glass",
+        "traffic_rubber",
+        "traffic_skin0"
+      ],
+      "min_godot": [
+        -0.41567039489746094,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.41567039489746094,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.8313407897949219,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_12_far": {
+      "triangles": 212,
+      "parts": 13,
+      "materials": [
+        "traffic_blue",
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_rubber",
+        "traffic_skin0"
+      ],
+      "min_godot": [
+        -0.41567039489746094,
+        0.0,
+        -0.25999999046325684
+      ],
+      "max_godot": [
+        0.41567039489746094,
+        1.8050000667572021,
+        0.25999999046325684
+      ],
+      "size_godot": [
+        0.8313407897949219,
+        1.8050000667572021,
+        0.5199999809265137
+      ]
+    },
+    "pedestrian_13": {
+      "triangles": 276,
+      "parts": 16,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.4167151153087616,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.4167151153087616,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.8334302306175232,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_13_far": {
+      "triangles": 196,
+      "parts": 13,
+      "materials": [
+        "traffic_copper",
+        "traffic_red",
+        "traffic_rubber",
+        "traffic_skin1"
+      ],
+      "min_godot": [
+        -0.4167151153087616,
+        0.0,
+        -0.2800000011920929
+      ],
+      "max_godot": [
+        0.4167151153087616,
+        1.84499990940094,
+        0.14499999582767487
+      ],
+      "size_godot": [
+        0.8334302306175232,
+        1.84499990940094,
+        0.42499999701976776
+      ]
+    },
+    "pedestrian_14": {
+      "triangles": 264,
+      "parts": 15,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_gold",
+        "traffic_olive",
+        "traffic_rubber",
+        "traffic_skin2"
+      ],
+      "min_godot": [
+        -0.4172974228858948,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.4172974228858948,
+        1.8900001049041748,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.8345948457717896,
+        1.8900001049041748,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_14_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_copper",
+        "traffic_gold",
+        "traffic_olive",
+        "traffic_rubber",
+        "traffic_skin2"
+      ],
+      "min_godot": [
+        -0.4172974228858948,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.4172974228858948,
+        1.8700000047683716,
+        0.33500000834465027
+      ],
+      "size_godot": [
+        0.8345948457717896,
+        1.8700000047683716,
+        0.5400000065565109
+      ]
+    },
+    "pedestrian_15": {
+      "triangles": 264,
+      "parts": 15,
+      "materials": [
+        "traffic_copper",
+        "traffic_glass",
+        "traffic_purple",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.416186660528183,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.453000009059906,
+        1.7300000190734863,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.869186669588089,
+        1.7300000190734863,
+        0.39499999582767487
+      ]
+    },
+    "pedestrian_15_far": {
+      "triangles": 184,
+      "parts": 12,
+      "materials": [
+        "traffic_copper",
+        "traffic_purple",
+        "traffic_rubber",
+        "traffic_skin3"
+      ],
+      "min_godot": [
+        -0.416186660528183,
+        0.0,
+        -0.20499999821186066
+      ],
+      "max_godot": [
+        0.453000009059906,
+        1.709999918937683,
+        0.1899999976158142
+      ],
+      "size_godot": [
+        0.869186669588089,
+        1.709999918937683,
+        0.39499999582767487
+      ]
+    },
+    "transit/passenger_carriage": {
+      "triangles": 1100,
+      "parts": 81,
+      "materials": [
+        "traffic_ceiling",
+        "traffic_floor",
+        "traffic_gold",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_panel",
+        "traffic_rubber",
+        "traffic_seat",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.9199999570846558,
+        0.0058732107281684875,
+        -5.0
+      ],
+      "max_godot": [
+        1.9199999570846558,
+        3.5,
+        5.0
+      ],
+      "size_godot": [
+        3.8399999141693115,
+        3.4941267892718315,
+        10.0
+      ]
+    },
+    "transit/passenger_door": {
+      "triangles": 72,
+      "parts": 6,
+      "materials": [
+        "traffic_gold",
+        "traffic_teal",
+        "traffic_walnut"
+      ],
+      "min_godot": [
+        -0.07000000029802322,
+        0.4099999964237213,
+        -1.2000000476837158
+      ],
+      "max_godot": [
+        0.07000000029802322,
+        2.879999876022339,
+        1.2000000476837158
+      ],
+      "size_godot": [
+        0.14000000059604645,
+        2.4699998795986176,
+        2.4000000953674316
+      ]
+    },
+    "transit/platform": {
+      "triangles": 160,
+      "parts": 12,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_gold",
+        "traffic_metal",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -2.5,
+        -0.07999999821186066,
+        -8.0
+      ],
+      "max_godot": [
+        2.5,
+        3.0999999046325684,
+        8.0
+      ],
+      "size_godot": [
+        5.0,
+        3.179999902844429,
+        16.0
+      ]
+    },
+    "transit/stairs": {
+      "triangles": 624,
+      "parts": 44,
+      "materials": [
+        "traffic_cream",
+        "traffic_gold",
+        "traffic_metal",
+        "traffic_teal"
+      ],
+      "min_godot": [
+        -1.0546411275863647,
+        0.0,
+        -4.501630783081055
+      ],
+      "max_godot": [
+        1.0546411275863647,
+        3.8136467933654785,
+        0.02500000037252903
+      ],
+      "size_godot": [
+        2.1092822551727295,
+        3.8136467933654785,
+        4.526630783453584
+      ]
+    },
+    "transit/tunnel": {
+      "triangles": 348,
+      "parts": 29,
+      "materials": [
+        "traffic_copper",
+        "traffic_cream",
+        "traffic_light",
+        "traffic_metal",
+        "traffic_rubber"
+      ],
+      "min_godot": [
+        -3.3000001907348633,
+        -0.3199999928474426,
+        -8.0
+      ],
+      "max_godot": [
+        3.3000001907348633,
+        5.300000190734863,
+        8.0
+      ],
+      "size_godot": [
+        6.600000381469727,
+        5.620000183582306,
+        16.0
+      ]
+    }
+  }
+}

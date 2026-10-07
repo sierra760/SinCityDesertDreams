@@ -1,0 +1,63 @@
+{
+  "source_metres_min": [
+    -19.563608169555664,
+    -26.02272605895996,
+    0.0
+  ],
+  "source_metres_max": [
+    19.57849884033203,
+    11.708569526672363,
+    62.1562385559082
+  ],
+  "triangles": 15760,
+  "editable_meshes": 160,
+  "materials": [
+    "basket_edge",
+    "basket_reed",
+    "canyon_skin",
+    "dark",
+    "mouth_shadow",
+    "rough_cloth",
+    "shaggy_hair",
+    "weathered_skin"
+  ],
+  "godot_tile_size": [
+    2.446381688117981,
+    3.8847649097442627,
+    2.3582059741020203
+  ],
+  "skeletons": 1,
+  "bones": 29,
+  "morph_meshes": 0,
+  "duration_seconds": 8.0,
+  "animation_metres_min": [
+    -21.898799896240234,
+    -26.420291900634766,
+    -1.7885924989968771e-06
+  ],
+  "animation_metres_max": [
+    20.857486724853516,
+    24.38133430480957,
+    62.78321075439453
+  ],
+  "loop_seam_metres": 3.6122832561593733e-16,
+  "maximum_sampled_vertex_motion_metres": 29.85935271864638,
+  "sampled_poses": 17,
+  "display_name": "Tsawhawbitts",
+  "inspiration": "Original stylized interpretation of the Jarbidge giant; appearance and animation are artistic inventions.",
+  "legend_reference": "https://travelnevada.com/ghost-town/journey-to-jarbidge/",
+  "runtime_triangles": 15760,
+  "runtime_meshes": 1,
+  "runtime_materials": 8,
+  "animation_channels": 87,
+  "animation_paths": [
+    "rotation",
+    "scale",
+    "translation"
+  ],
+  "runtime_skins": 1,
+  "master": "assets/disaster-models/monster.blend",
+  "runtime": "game/assets/desert-dreams-disasters/monster.glb",
+  "master_sha256": "fb7263f6a427a589bec67caf0f6db87531824a86e005b658ae98a5a09942c61b",
+  "runtime_sha256": "bb02ff8887555dbb6b24b54e314ebba18f566565293197c755d677378d4082f5"
+}

@@ -1,0 +1,234 @@
+{
+  "font": "res://assets/fonts/biorhyme/BioRhyme-Medium.ttf",
+  "meters_per_tile": 16,
+  "runtime_axes": "Godot +Y up, +Z front; mount local XY is lettering plane",
+  "schema": 1,
+  "source_axes": "Blender Z up, -Y front",
+  "templates": {
+    "highway-exit": {
+      "base_board_size_m": [
+        4.8,
+        1.8,
+        0.07
+      ],
+      "base_safe_face_m": [
+        4.58,
+        1.6
+      ],
+      "board_node": "Board",
+      "board_pivot_m": [
+        0,
+        3.4,
+        0
+      ],
+      "bounds_m": {
+        "max": [
+          2.4000000953674316,
+          4.300000190734863,
+          0.05147000029683113
+        ],
+        "min": [
+          -2.4000000953674316,
+          0.0,
+          -0.20999999344348907
+        ],
+        "size": [
+          4.800000190734863,
+          4.300000190734863,
+          0.2614699900150299
+        ]
+      },
+      "faces": {
+        "back": "Board/BlankFaceBack",
+        "front": "Board/BlankFaceFront"
+      },
+      "layout": {
+        "arrow_center_m": [
+          2.15,
+          0.66
+        ],
+        "arrow_em_m": 0.2,
+        "arrow_options": [
+          "\u2190",
+          "\u2192"
+        ],
+        "arrow_safe_m": [
+          0.6,
+          0.4
+        ],
+        "coordinate_space": "maximum-scaled face-centred metres; preserve positive inset; scale lettering independently",
+        "destination_center_m": [
+          0,
+          -0.22
+        ],
+        "destination_em_m": 0.075,
+        "destination_safe_m": [
+          5.3,
+          1.0
+        ],
+        "header_center_m": [
+          -1.7,
+          0.66
+        ],
+        "header_em_m": 0.2,
+        "header_safe_m": [
+          1.5,
+          0.4
+        ],
+        "header_text": "EXIT",
+        "line_gap_m": 0.04,
+        "max_destination_characters": 99,
+        "max_destination_lines": 2
+      },
+      "maximum_assembly_envelope_m": {
+        "max": [
+          3,
+          4.5,
+          0.07
+        ],
+        "min": [
+          -3,
+          0,
+          -0.21
+        ]
+      },
+      "maximum_board_scale": [
+        1.25,
+        1.2222222222222223,
+        1
+      ],
+      "maximum_safe_face_m": [
+        5.725,
+        1.9555555555555557
+      ],
+      "mounts": {
+        "back": "Board/TextMountBack",
+        "front": "Board/TextMountFront"
+      },
+      "operational_faces": [
+        "front"
+      ],
+      "sha256": "cc817de5c0265ac69a5e4611a749ffbc84f70447ee673fdfbd9a6eff9a19b74b",
+      "source_sha256": "efa194db68d7617a36cdb7e05c500604c56bdd31c08c9dce42bb76e56cbfcc03"
+    },
+    "street-blade": {
+      "base_board_size_m": [
+        2.4,
+        0.6,
+        0.07
+      ],
+      "base_safe_face_m": [
+        2.1799999999999997,
+        0.39999999999999997
+      ],
+      "board_node": "Board",
+      "board_pivot_m": [
+        0,
+        0,
+        0
+      ],
+      "bounds_m": {
+        "max": [
+          1.2000000476837158,
+          0.30000001192092896,
+          0.05147000029683113
+        ],
+        "min": [
+          -1.2000000476837158,
+          -0.30000001192092896,
+          -0.05147000029683113
+        ],
+        "size": [
+          2.4000000953674316,
+          0.6000000238418579,
+          0.10294000059366226
+        ]
+      },
+      "faces": {
+        "back": "Board/BlankFaceBack",
+        "front": "Board/BlankFaceFront"
+      },
+      "layout": {
+        "coordinate_space": "maximum-scaled face-centred metres; preserve positive inset; scale lettering independently",
+        "destination_center_m": [
+          0,
+          0
+        ],
+        "destination_em_m": 0.09,
+        "destination_safe_m": [
+          3.35,
+          0.48
+        ],
+        "line_gap_m": 0.04,
+        "max_destination_characters": 48,
+        "max_destination_lines": 2
+      },
+      "maximum_assembly_envelope_m": {
+        "max": [
+          1.9,
+          0.4,
+          0.052
+        ],
+        "min": [
+          -1.9,
+          -0.4,
+          -0.052
+        ]
+      },
+      "maximum_board_scale": [
+        1.5833333333333333,
+        1.3333333333333333,
+        1
+      ],
+      "maximum_safe_face_m": [
+        3.451666666666666,
+        0.5333333333333332
+      ],
+      "mounts": {
+        "back": "Board/TextMountBack",
+        "front": "Board/TextMountFront"
+      },
+      "operational_faces": [
+        "front",
+        "back"
+      ],
+      "sha256": "67eff8aeac1277845d9537ac63749e761d5a2ed4ee9ffc349952e66bd903f4eb",
+      "source_sha256": "d9804aa5720b1ff1d4dbe719a1da4d0fa90f1a8f5f079db306bb666585ea69f4"
+    },
+    "street-post": {
+      "blade_mount": "BladeMount",
+      "bounds_m": {
+        "max": [
+          0.10999999940395355,
+          2.752500057220459,
+          0.10999999940395355
+        ],
+        "min": [
+          -0.10999999940395355,
+          0.0,
+          -0.10999999940395355
+        ],
+        "size": [
+          0.2199999988079071,
+          2.752500057220459,
+          0.2199999988079071
+        ]
+      },
+      "maximum_assembly_envelope_m": {
+        "max": [
+          1.9,
+          2.85,
+          0.11
+        ],
+        "min": [
+          -1.9,
+          0,
+          -0.11
+        ]
+      },
+      "sha256": "e561691cb6a13e74d3d19779420ce7b570dae1e976b78c358c6317ea204e99ed",
+      "source_sha256": "2a0b7a3df1fd695e0485f688f5535471deeb11b36a82a0f501818a273fe3860f"
+    }
+  },
+  "text_policy": "Retain complete spelling; fit actual glyph bounds, at most two destination lines. Never truncate. Face expansion is bounded. Separate header/arrow rectangles."
+}

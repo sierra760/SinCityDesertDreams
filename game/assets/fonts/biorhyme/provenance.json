@@ -1,0 +1,20 @@
+{
+  "family": "BioRhyme",
+  "designer": "Aoife Mooney",
+  "license": "SIL OFL 1.1",
+  "author_commit": "b3c0488559ad7c42e11b71e65d255344faff63b9",
+  "files": [
+    {
+      "file": "BioRhyme-Medium.ttf",
+      "source": "https://raw.githubusercontent.com/aoifemooney/makingbiorhyme/b3c0488559ad7c42e11b71e65d255344faff63b9/fonts/ttf/BioRhyme-Medium.ttf",
+      "sha256": "a09f815afc20fc15aa4921559dd7cbca841908f68f4fefdc20285c2a31bbb4bd",
+      "bytes": 101888
+    },
+    {
+      "file": "OFL.txt",
+      "source": "https://raw.githubusercontent.com/aoifemooney/makingbiorhyme/b3c0488559ad7c42e11b71e65d255344faff63b9/OFL.txt",
+      "sha256": "b14f883330579c3373e41c7c0acdfde91b2e812edfe1e6c5af91bd32a5fa7d13",
+      "bytes": 4489
+    }
+  ]
+}

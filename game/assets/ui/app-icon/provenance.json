@@ -1,0 +1,153 @@
+{
+  "title": "Sin City: Desert Dreams — Googie app icon",
+  "approved_date": "2026-10-05",
+  "source": "assets/branding/app-icon/source/master.svg",
+  "generator": "tools/build_app_icon.cjs",
+  "provenance": "Project-authored vector geometry, refined from a concept sketch. No third-party image or logo references.",
+  "apple_native_layers": "Unmasked vector layers, kept for future Icon Composer use.",
+  "files": [
+    {
+      "file": "android/background-432.png",
+      "bytes": 3932,
+      "sha256": "10750d02243ec4672e176fb40def9a8dccef284ec8964f47f04cc46d2d6515cb",
+      "width": 432,
+      "height": 432,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "android/foreground-432.png",
+      "bytes": 10277,
+      "sha256": "3810cbed13a2572ccdb8240ff0d63c0596b8ce33dc7e118b2e643cef2bdd159f",
+      "width": 432,
+      "height": 432,
+      "space": "srgb",
+      "has_alpha": true
+    },
+    {
+      "file": "android/legacy-192.png",
+      "bytes": 5855,
+      "sha256": "7ddcea9bc8a06bb95e262e281a026cfafc7fd4347c0c3cc2941a6cadfe44f6d6",
+      "width": 192,
+      "height": 192,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "android/monochrome-432.png",
+      "bytes": 5332,
+      "sha256": "07f3454bcde9863026c99faf7a64782d4209bee939ae1095093f96fb3d3dfd33",
+      "width": 432,
+      "height": 432,
+      "space": "srgb",
+      "has_alpha": true
+    },
+    {
+      "file": "apple/background.svg",
+      "bytes": 146,
+      "sha256": "17daf37251dcd50afde0f7ab5aa93c348c71340f50ac79afe4eabd58f1de638a"
+    },
+    {
+      "file": "apple/dark-1024.png",
+      "bytes": 44948,
+      "sha256": "0b826370dedf8a0967992bb4d95058866f6eeb702e00421c50acf12727f27673",
+      "width": 1024,
+      "height": 1024,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "apple/layers/01-sun.svg",
+      "bytes": 191,
+      "sha256": "9bbfaf645042e23f433b3ff54a3fdf1f05013b08054e0cdc943d4d3dd1e4bda8"
+    },
+    {
+      "file": "apple/layers/02-googie-city.svg",
+      "bytes": 962,
+      "sha256": "7c506614e53dd2491c789f571768c9f6a24d1284906cca6748f385adc2f0faa5"
+    },
+    {
+      "file": "apple/layers/03-atomic-sparkle.svg",
+      "bytes": 340,
+      "sha256": "4a856a0119b4b91afee23b15f5f20632bb117696b69969c0c5101ec50360de04"
+    },
+    {
+      "file": "apple/tinted-1024.png",
+      "bytes": 30968,
+      "sha256": "464103ca6fccb0f3ead19f8f9486623736d3dbc70305870862d228522b56fc9e",
+      "width": 1024,
+      "height": 1024,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "desktop/macos-1024.png",
+      "bytes": 49148,
+      "sha256": "b501353b9e30c09442ca568c7c0da2a066b69ab82f70692c4457f4a1803198b2",
+      "width": 1024,
+      "height": 1024,
+      "space": "srgb",
+      "has_alpha": true
+    },
+    {
+      "file": "desktop/macos.icns",
+      "bytes": 115379,
+      "sha256": "3b831e3d7b1c4df61eaafcab97778cb41539a01bc675301903d2a82e40bc29a8"
+    },
+    {
+      "file": "desktop/windows.ico",
+      "bytes": 21472,
+      "sha256": "64e70deef6652385a9f34996d88ebe313d690284d24a306f4beb48dd6f4f4d11"
+    },
+    {
+      "file": "master.png",
+      "bytes": 44692,
+      "sha256": "57a49e69c2e16c2819097ae94a458dae595df7d0a1347a5b49ad380f6389634f",
+      "width": 1024,
+      "height": 1024,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "web/favicon.ico",
+      "bytes": 6805,
+      "sha256": "898f1e9bd2620ab676013f8088701ced79843ae530b029cfae9e951c04f43b1a"
+    },
+    {
+      "file": "web/icon-180.png",
+      "bytes": 5553,
+      "sha256": "c159fc5c5c62be151e9e790415230e23bbb5919e9a11c8786eeb8c5e3d532085",
+      "width": 180,
+      "height": 180,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "web/icon-192.png",
+      "bytes": 5855,
+      "sha256": "7ddcea9bc8a06bb95e262e281a026cfafc7fd4347c0c3cc2941a6cadfe44f6d6",
+      "width": 192,
+      "height": 192,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "web/icon-32.png",
+      "bytes": 911,
+      "sha256": "934d1d18ae7c639f304a3b4ba6db13ab7543b70092e981d7e5b241857ba5bba5",
+      "width": 32,
+      "height": 32,
+      "space": "srgb",
+      "has_alpha": false
+    },
+    {
+      "file": "web/icon-512.png",
+      "bytes": 17790,
+      "sha256": "73adcb5effa6ca2ab71e77a981073665558f620b527bc9aa04f05fcff85b39f8",
+      "width": 512,
+      "height": 512,
+      "space": "srgb",
+      "has_alpha": false
+    }
+  ]
+}

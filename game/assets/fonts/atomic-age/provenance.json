@@ -1,0 +1,27 @@
+{
+  "family": "Atomic Age",
+  "designer": "James Grieshaber",
+  "license": "SIL OFL 1.1",
+  "google_fonts_commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "modified": false,
+  "files": [
+    {
+      "file": "AtomicAge-Regular.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/atomicage/AtomicAge-Regular.ttf",
+      "sha256": "5ea6111180af882b0799a1e1c04b7acc557807ff76e0cc24258b259a06f67ed2",
+      "bytes": 62592
+    },
+    {
+      "file": "OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/atomicage/OFL.txt",
+      "sha256": "96d82a96abc02fb457ddde0227833dbde9d1d02876c91f0a4e27845ca0d692fa",
+      "bytes": 4404
+    },
+    {
+      "file": "METADATA.pb",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/atomicage/METADATA.pb",
+      "sha256": "a5677ca63b86228fc180b43a2ea5d8363588a822f06020115c071c3811678b92",
+      "bytes": 557
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "created": "2026-10-01",
+  "prompts": "ground-texture-prompts.json",
+  "purpose": "Albedo materials for the 3D terrain. Source images are used unedited; the renderer normalizes their color variation to the terrain palette.",
+  "textures": [
+    {
+      "file": "desert-sand.png",
+      "sha256": "619f466777fa55737274f8c10ea2d5d05e13016dff69eb6faeeac18c2c9f467d",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "mean_rgb": [
+        205.4821871446777,
+        159.02408306179396,
+        104.02588590513547
+      ]
+    },
+    {
+      "file": "desert-rock.png",
+      "sha256": "61449d73a7ad7fea69ddc5a391e0db813eadcd000253e0b49fd31ce29d1fe968",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "mean_rgb": [
+        185.52891671690463,
+        148.2392357216079,
+        104.78297708894536
+      ]
+    },
+    {
+      "file": "road-grain.png",
+      "sha256": "b5fa5b5fb2cc1c819091efbabd798b5b1d511f3e5f0d040a341730860f00406a",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "mean_rgb": [
+        106.57963607365521,
+        109.72454461512633,
+        110.56874206685337
+      ]
+    }
+  ]
+}

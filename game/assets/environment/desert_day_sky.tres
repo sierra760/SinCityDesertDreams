@@ -1,0 +1,18 @@
+[gd_resource type="Sky" load_steps=2 format=3]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_desert"]
+resource_name = "Nevada clear daytime"
+sky_top_color = Color(0.19, 0.43, 0.68, 1)
+sky_horizon_color = Color(0.82, 0.82, 0.75, 1)
+sky_curve = 0.19
+ground_bottom_color = Color(0.55, 0.47, 0.36, 1)
+ground_horizon_color = Color(0.82, 0.82, 0.75, 1)
+ground_curve = 0.12
+sun_angle_max = 7.0
+sun_curve = 0.08
+
+[resource]
+resource_name = "Explore desert sky"
+radiance_size = 0
+process_mode = 2
+sky_material = SubResource("ProceduralSkyMaterial_desert")

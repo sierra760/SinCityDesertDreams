@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-01",
+  "textures": [
+    {
+      "file": "stucco.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeating PBR base-color/albedo texture for a polished low-poly desert city building wall. Generate one square flat texture only: fine hand-troweled lime stucco, tiny sparse plaster pores and gentle granular variation. NEUTRAL OFF-WHITE grayscale, dominant RGB around 235,235,235 with restrained detail roughly 210-248; no colored tint. Material swatch fills entire canvas edge to edge, orthographic front-on. Represent a 3-meter-square wall. Carefully seamless left/right and top/bottom. Uniform diffuse unlit albedo, no cast shadows, no light gradient, no vignette, no perspective, no cracks or heavy damage, no objects, windows, bricks, symbols, typography or border. Quiet painterly-real surface grain that remains clean at a distance, suitable as a multiplicative color map."
+    },
+    {
+      "file": "limestone.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeating PBR base-color/albedo texture for warm desert low-poly architecture. Generate one square flat texture only: precision-cut limestone ashlar wall, 4 courses with staggered rectangular blocks, thin subtle mortar joints, each block has restrained tiny mineral pores and gentle natural variation. NEUTRAL OFF-WHITE grayscale dominant around RGB230,230,230; joints gentle medium-gray, not black. Material covers whole canvas edge to edge, orthographic front-on, 3-meter-square surface. Seamless left/right and top/bottom including coursing. Uniform unlit albedo, no baked directional shadows, lighting gradients, perspective, borders, text, windows, vegetation, grime, deep gouges. Elegant mid-century desert resort stone facing with clean low-poly-friendly readability."
+    },
+    {
+      "file": "concrete.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeating base-color texture for architectural concrete and terrazzo paving in a low-poly mid-century Vegas city. One square flat material swatch only: fine pale concrete with sparse very small stone aggregate, occasional subtle warm-neutral flecks but essentially neutral light gray/off-white dominant RGB230,230,230. No grid or slabs because geometry supplies joints. Covers entire canvas edge to edge, orthographic top-down, represents4meters square, perfectly even unlit diffuse albedo. Seamless across both edge pairs. No cast shadows, no baked lighting, no gradient/vignette, no perspective, no objects, no border, no typography, no footprints, no cracks, no oversized pebbles. Fine restrained surface detail, clean at city zoom, tactile at walking height."
+    }
+  ]
+}

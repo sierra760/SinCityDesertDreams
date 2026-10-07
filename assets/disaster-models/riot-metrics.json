@@ -1,0 +1,60 @@
+{
+  "source_metres_min": [
+    -3.7261476516723633,
+    -1.5587139129638672,
+    0.0028200000524520874
+  ],
+  "source_metres_max": [
+    4.152154922485352,
+    2.6082851886749268,
+    2.945000171661377
+  ],
+  "triangles": 15444,
+  "editable_meshes": 265,
+  "materials": [
+    "blue",
+    "crowd_rust",
+    "crowd_skin_dark",
+    "dark",
+    "skin",
+    "stone",
+    "teal",
+    "white"
+  ],
+  "godot_tile_size": [
+    0.4923939108848572,
+    0.1838862607255578,
+    0.2604374438524246
+  ],
+  "skeletons": 1,
+  "bones": 105,
+  "morph_meshes": 0,
+  "duration_seconds": 8.0,
+  "animation_metres_min": [
+    -3.777693271636963,
+    -1.6223628520965576,
+    0.0028198882937431335
+  ],
+  "animation_metres_max": [
+    4.206634998321533,
+    2.7028651237487793,
+    3.012075185775757
+  ],
+  "loop_seam_metres": 0.0,
+  "maximum_sampled_vertex_motion_metres": 0.7667529186273284,
+  "sampled_poses": 17,
+  "runtime_triangles": 15444,
+  "runtime_meshes": 1,
+  "runtime_materials": 8,
+  "animation_channels": 315,
+  "animation_paths": [
+    "rotation",
+    "scale",
+    "translation"
+  ],
+  "runtime_skins": 1,
+  "master": "assets/disaster-models/riot.blend",
+  "runtime": "game/assets/desert-dreams-disasters/riot.glb",
+  "master_sha256": "1b2a524b906791ee9d7d12b5f033505cf32e635361bcebca04cef29dcdd43a06",
+  "runtime_sha256": "cc18bb105489cd50969ca8e059157bd3446a98ae5b9476a2a1215f24cc1b3608"
+}

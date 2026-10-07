@@ -1,0 +1,21 @@
+[gd_resource type="ShaderMaterial" load_steps=4 format=3]
+
+[ext_resource type="Shader" path="res://assets/desert-dreams-disasters/fire.gdshader" id="1_fire"]
+
+[ext_resource type="Texture2D" path="res://assets/desert-dreams-disasters/fire-motion-positions.exr" id="2_positions"]
+[ext_resource type="Texture2D" path="res://assets/desert-dreams-disasters/fire-motion-normals.exr" id="3_normals"]
+
+[resource]
+shader = ExtResource("1_fire")
+shader_parameter/core_emission = Vector3(1, 0.9, 0.51)
+shader_parameter/amber_emission = Vector3(1, 0.53, 0.08)
+shader_parameter/orange_emission = Vector3(0.98, 0.23, 0.035)
+shader_parameter/coal_emission = Vector3(0.58, 0.075, 0.016)
+shader_parameter/motion_positions = ExtResource("2_positions")
+shader_parameter/motion_normals = ExtResource("3_normals")
+shader_parameter/playback_seconds = 0.0
+shader_parameter/rows_per_frame = 5.0
+shader_parameter/atlas_height = 2405.0
+shader_parameter/playback_fps = 60.0
+shader_parameter/atlas_flip_v = false
+metadata/motion_bounds = AABB(-5.5453105163574214, -0.0323991072177887, -5.941875, 13.502810516357421, 26.427399107217788, 11.23275665283203)

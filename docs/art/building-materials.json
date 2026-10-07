@@ -1,0 +1,1341 @@
+{
+  "revision": "model-first-v2",
+  "created": "2026-10-01",
+  "runtime_image_policy": "Shared owned content-addressed textures; standalone authoring GLBs remain self-contained.",
+  "models": [
+    {
+      "code": 112,
+      "name": "cream-cottages-a",
+      "master_blend_sha256": "2368b910d8c8423883e1f1c56074ad13fe5b8fec6fc68b4b1932b91ca45496d4",
+      "standalone_glb_sha256": "bbd5a6cac2d233a14c5391cad027149a37f24c6e40dd84a75609dd94a02fc4f3",
+      "runtime_glb_sha256": "ad5f8f7e65a49df4631d2242c309c2d5a6c092ef2d46aa270d8b0c669d80e539",
+      "textured_materials": 6,
+      "runtime_bytes": 241348
+    },
+    {
+      "code": 113,
+      "name": "cream-cottages-b",
+      "master_blend_sha256": "ffcf466467a7d0a585e452aada7f722ec98f55b1ca0b0bc17c744d467f59deb4",
+      "standalone_glb_sha256": "06e28351bc391c374c1de3f60ca7d2f0fc57a238dd90912167b86cd7f2da5a8b",
+      "runtime_glb_sha256": "a53bb50d92165d662caba9b20a5d610bf9922cb24e550d8ccdc94f00d367c1fe",
+      "textured_materials": 5,
+      "runtime_bytes": 235408
+    },
+    {
+      "code": 114,
+      "name": "adobe-courtyard-homes",
+      "master_blend_sha256": "fc91ea3f75a40304626a89daf35ad49436e6e6e196bbb54c454c19157b1031e2",
+      "standalone_glb_sha256": "ce1e66b533c82f9a44b11af7b1cce443b96badb6358b717d095f23cce407fe4b",
+      "runtime_glb_sha256": "111492185ee152d199c523d58174f0179462534fcb1b0153c7bb04be45a6dd58",
+      "textured_materials": 5,
+      "runtime_bytes": 202340
+    },
+    {
+      "code": 115,
+      "name": "rose-cottages",
+      "master_blend_sha256": "ffe7751935b93b4ae90728deb86541ffb610519e052e5758cd4fa60cd65f6822",
+      "standalone_glb_sha256": "dfc8ab591fc27477ea61275c8fc2bf6c423bbb261f790bbae2992e11f9d3069f",
+      "runtime_glb_sha256": "a4db168a9aa75ad940b50d860235580e9d1b4d9e1459c96dd73d1e6b52a5f514",
+      "textured_materials": 6,
+      "runtime_bytes": 241244
+    },
+    {
+      "code": 116,
+      "name": "paired-cream-cottages-a",
+      "master_blend_sha256": "76a505288096bc58006c408f541bdf72a90356e48cb51193f873067dd478582c",
+      "standalone_glb_sha256": "4929a6e5e75f1688f70080b836d3f186c81af0e6c87e224e7aabb994b301660a",
+      "runtime_glb_sha256": "1506a8d275738e1ac449410c69376bc1456bcbef9a6935661a6729181373afc5",
+      "textured_materials": 8,
+      "runtime_bytes": 437676
+    },
+    {
+      "code": 117,
+      "name": "paired-cream-cottages-b",
+      "master_blend_sha256": "62ab54573f02a2c5c0a213a7918f4e13a183b0f0bec8315c51db4663afbac134",
+      "standalone_glb_sha256": "02ec7450ed51a07ea7843c501ec9fe526eef9f410783c7bd8eb12c9a9759414a",
+      "runtime_glb_sha256": "f651a93d64f0b5839cdba1109f3e6ce7d762615991e9da71713f79bcc372b836",
+      "textured_materials": 8,
+      "runtime_bytes": 443796
+    },
+    {
+      "code": 118,
+      "name": "paired-low-roof-cottages",
+      "master_blend_sha256": "520a05d3cb8b40abad483ea129048eb66796d20b5ee8eeaa545b8109c8213b8b",
+      "standalone_glb_sha256": "310c0e50a4367ce6b9cd2b42b6a0cdeceb1b6c48d5db6aea4c3dde05f8802fc3",
+      "runtime_glb_sha256": "2ac95a644147c21f119759ed965694be2271cb357ba69c006a49e41ca7d47622",
+      "textured_materials": 8,
+      "runtime_bytes": 427336
+    },
+    {
+      "code": 119,
+      "name": "paired-garden-cottages",
+      "master_blend_sha256": "9b507a1662243182d7f2cc18044a4afb5564559595d8691d084a4b4ccde3180e",
+      "standalone_glb_sha256": "82d59a17374c93d42a03eaf17429eb03da97b03ef427993145c32c2988bfb4e4",
+      "runtime_glb_sha256": "87265414018917429cc8e89043ba031e7af083763fc8905ae8c988c31b268035",
+      "textured_materials": 8,
+      "runtime_bytes": 443780
+    },
+    {
+      "code": 120,
+      "name": "terracotta-cypress-villa",
+      "master_blend_sha256": "dc3a2ac2a96e7c691c17032fbc30e76010473923bd8453c014ca0ed8b4585df7",
+      "standalone_glb_sha256": "091388b4445a6b7b5e99d288cb20bf347816de1f102a6e1358782c062ff77d61",
+      "runtime_glb_sha256": "fdaa9a335dbc770a7789c2f562a1cada270057878b7640a0dc7a9a56097848d0",
+      "textured_materials": 7,
+      "runtime_bytes": 247088
+    },
+    {
+      "code": 121,
+      "name": "east-pool-villa",
+      "master_blend_sha256": "a115a2a5c762b797e8573933037278d28242c01e70b4c7ed3378597009b476b1",
+      "standalone_glb_sha256": "b16919ab5b26769d53fa41be409b1ede9d9aa58ea93afcd74f311f0d04d9e590",
+      "runtime_glb_sha256": "964ae65ecc1964e0d7997306a31bee0e1568913a54cfb69c8312683fca95eaa9",
+      "textured_materials": 8,
+      "runtime_bytes": 280468
+    },
+    {
+      "code": 122,
+      "name": "adobe-terrace-villa",
+      "master_blend_sha256": "58224b8389e4d050c9e4c078cbcea0d09efad1151ff3f29bc6c3b690a822f212",
+      "standalone_glb_sha256": "a56c62861b0b7252c0fd78cf58dfa559261922754a66ac4366b29f257f435363",
+      "runtime_glb_sha256": "01472c4b39bb598eb2d45bd72f0cec31d910440379c210c8ec5a3734fd85a217",
+      "textured_materials": 6,
+      "runtime_bytes": 239700
+    },
+    {
+      "code": 123,
+      "name": "front-pool-villa",
+      "master_blend_sha256": "b134cb58eb7e5bda283c3656c4e0096a78aabb8ce2cbee53b03ab25b625eca39",
+      "standalone_glb_sha256": "2380041492e9a5a075352be74aae4fd6d396613b9046c7fd478635db614a2a3b",
+      "runtime_glb_sha256": "f11fae35ee2cf45bd98c6d4f9a5f05be7a05187b0c987ec7b4d6ac413bc5b74c",
+      "textured_materials": 8,
+      "runtime_bytes": 274332
+    },
+    {
+      "code": 124,
+      "name": "red-canopy-station",
+      "master_blend_sha256": "c5b2dffb35c0c44722731740368b68a1e66fc5929d38e9126b7c23ef9eebbfdb",
+      "standalone_glb_sha256": "d3324e24a672380e2a478c45aa396a4b9cbac83562bb5ebab49b268a885743e0",
+      "runtime_glb_sha256": "f1e2dab4f9411a6e96f98b2bbb22932f01d0b86c6dc56268a95513bd7dc39e92",
+      "textured_materials": 4,
+      "runtime_bytes": 184052
+    },
+    {
+      "code": 125,
+      "name": "terracotta-bed-and-breakfast",
+      "master_blend_sha256": "a5a8f0cf91d4112b75d0aba18380bfd255e2dec1d75bb24051b757ef6a97529e",
+      "standalone_glb_sha256": "b4a5143f69a55b358960c5fe7cdfb132f438ef0b5b0d8eeb32c73003e975700c",
+      "runtime_glb_sha256": "ed5684078bc387770c5f67e6a9a61e091d85f4db13564bace251eb92670ac0e1",
+      "textured_materials": 6,
+      "runtime_bytes": 276372
+    },
+    {
+      "code": 126,
+      "name": "convenience-store",
+      "master_blend_sha256": "304b475b1c4ea6c370ed6f18250fd86aae2d2db4b579fcff07a43c3476676076",
+      "standalone_glb_sha256": "45855d9c24833a6719bcd9dddce31473dfc8753baee04af7140990e29d0b9a6f",
+      "runtime_glb_sha256": "988bad1dbcdc01ca144460d9b87f1db184f8f3d802f7f76d00a392c3b497fb8a",
+      "textured_materials": 4,
+      "runtime_bytes": 397732
+    },
+    {
+      "code": 127,
+      "name": "teal-side-canopy-station",
+      "master_blend_sha256": "3879de293e84d15089997c2356c04ffca189ba40604b2ea836614732e1ae1dce",
+      "standalone_glb_sha256": "23976266846b9d954ab6390d8dc835ab9406236448a2858542202510d96b4936",
+      "runtime_glb_sha256": "d026c64b97059fe52d2e0be6e04a44371dd2f4d06b2c9c2b3631c895db453bc6",
+      "textured_materials": 6,
+      "runtime_bytes": 305004
+    },
+    {
+      "code": 128,
+      "name": "teal-trim-two-storey-office",
+      "master_blend_sha256": "b53f42ddc55c75e66fe108e305991ad7eb00d08642200ebe243ea7674f6f5dda",
+      "standalone_glb_sha256": "7ebebb5504a32ce627e056665b8c7fcd50387ba4c986ccaffc5c0394a1b25d3c",
+      "runtime_glb_sha256": "a60b3b34e32417c1f6cd3411697aab208c96c5a850f27a872b8969e44424eb65",
+      "textured_materials": 4,
+      "runtime_bytes": 180908
+    },
+    {
+      "code": 129,
+      "name": "slender-five-storey-office",
+      "master_blend_sha256": "be546e4a282383f3d9631849c0a3d8e29f949cce1bf660265db6ab27c81694c0",
+      "standalone_glb_sha256": "2ed3c577aac496ac7447cc0a1de05c9554141e9d24213ca26582a886a61a8ca1",
+      "runtime_glb_sha256": "f11a9504641c1dab480df79b34155fde3c5d6f06e511c7729311afa7c8012281",
+      "textured_materials": 4,
+      "runtime_bytes": 281080
+    },
+    {
+      "code": 130,
+      "name": "timber-corrugated-warehouse",
+      "master_blend_sha256": "3355706d354fd3fcd88563776ec2397acbd0a63ab1695dafd240db3e0cbe2b7e",
+      "standalone_glb_sha256": "6c286373fd969b10ab9e94ed01450ccd5d3ee619090de65d066f4bb1f7d0efb8",
+      "runtime_glb_sha256": "dc015bc8bcba6dc20a1ce4f37a34a0fdedae228def27e4cdb5275b2a92379bd4",
+      "textured_materials": 3,
+      "runtime_bytes": 148832
+    },
+    {
+      "code": 131,
+      "name": "teal-awning-toy-store",
+      "master_blend_sha256": "99ca329d0dc0952317afa526a9e1c2c24aaba050962527b0d74062aebaeade19",
+      "standalone_glb_sha256": "0e379eb26ff29a14a16203695e4a4467079fbc3f57ee642fbb88c12ee87b402e",
+      "runtime_glb_sha256": "e7f2933f0dcdcd474373bb5d1739475b854c0920a354f59f6b50176883bb951e",
+      "textured_materials": 5,
+      "runtime_bytes": 290408
+    },
+    {
+      "code": 132,
+      "name": "cream-roof-open-warehouse",
+      "master_blend_sha256": "f17db9fee6914875558903d6013412b056a0fa02f2066a5d64de8b94d82d25d6",
+      "standalone_glb_sha256": "78ec910610770640a9979c7c6ae35ead64a142112d40277d402c42c457f31196",
+      "runtime_glb_sha256": "c347b2d2549425f17ecce59996b5a31c80dc97bf674b43c8a6689ed3f54413b1",
+      "textured_materials": 8,
+      "runtime_bytes": 136392
+    },
+    {
+      "code": 133,
+      "name": "paired-silver-chemical-tanks",
+      "master_blend_sha256": "cafb1c87d9f787d7d34a1a5a18b1c6969cec3fe55de5dcf480ca7a7251733d2a",
+      "standalone_glb_sha256": "d5516d28711612058a4662de71ceaad778ad6122500b966f0d70e1f0d62f231c",
+      "runtime_glb_sha256": "1af0fd1fe9a5acf7c57d91acd9ba56bcef718d6225ebeaf598c33ef63cf141ab",
+      "textured_materials": 3,
+      "runtime_bytes": 379876
+    },
+    {
+      "code": 134,
+      "name": "red-hood-loading-warehouse",
+      "master_blend_sha256": "46d23c2430aa9de575bd27bf22da99abaf8ff08b04c81ef90c5a618c40fcbea8",
+      "standalone_glb_sha256": "1570cffd6f1d9b5aa75eec0429b93fa2b2925350252191fa8eff4f326733f146",
+      "runtime_glb_sha256": "b59e6c724e31f4ed2cd3d9268c438dcc688f616434951f035ac0144dadb6e7af",
+      "textured_materials": 6,
+      "runtime_bytes": 122892
+    },
+    {
+      "code": 135,
+      "name": "orange-bus-industrial-substation",
+      "master_blend_sha256": "4219f783c3ef22b61a9fc12e1402988397da99f6888ae64bc2bd79045c3b89a7",
+      "standalone_glb_sha256": "92798693534f11b27ee3d7f6d49d5cc07f0030d2eecf73cd642eb042d6c4d162",
+      "runtime_glb_sha256": "3c98ffad94b9ae9b119b95ac586aeb45e1ea9f68084273db8a0f32529d2d9fa2",
+      "textured_materials": 3,
+      "runtime_bytes": 640572
+    },
+    {
+      "code": 136,
+      "name": "formed-foundations",
+      "master_blend_sha256": "829d96a7cbb67d55e719529c970fc29e744f7b2a662d82bd8f87aa4c6a538f1e",
+      "standalone_glb_sha256": "b2b859e7f41d18fbb09a3aaab2d2dce97dd3bfd60b88fb136637a1efa6e0bed1",
+      "runtime_glb_sha256": "9b7cacbaeba1018116a2dce0ab6548212db5e367e29326c9e3affb632704308c",
+      "textured_materials": 4,
+      "runtime_bytes": 98572
+    },
+    {
+      "code": 137,
+      "name": "bungalow-timber-framing",
+      "master_blend_sha256": "a08fb9455e2159cf6ce30a3e16864712f12acd323b6ab58fe7dea99b201fa157",
+      "standalone_glb_sha256": "437fbae6236ffeb7f1afbfa188f759f5de126db8293f6dbea1e57cce4c476262",
+      "runtime_glb_sha256": "51f83ff49bc6065f0a1a976826e7db1ab16c50bd770b50a543fee72d638828f2",
+      "textured_materials": 3,
+      "runtime_bytes": 127088
+    },
+    {
+      "code": 138,
+      "name": "boarded-desert-bungalow",
+      "master_blend_sha256": "adfdfb636fbfec90dcf5c8b6993179fd6e9f24ad409542df2b2621c243d57e19",
+      "standalone_glb_sha256": "f470fcc7d83e352518ad2b0157a12873cd1c818d5cd9e5061a4f027b112be316",
+      "runtime_glb_sha256": "bd308751a8e9160780b7d0dd6b39b2433808f8d86f5a45ec7541e8322adcb41f",
+      "textured_materials": 7,
+      "runtime_bytes": 287444
+    },
+    {
+      "code": 139,
+      "name": "vacant-corner-shop",
+      "master_blend_sha256": "973a7f3004082b7e84d6461dbea73868aa62a84f567e889ea1fb67eafb863f06",
+      "standalone_glb_sha256": "91f7ef743e54c19caeece1a53ea23fe44e6b235bf6cb48b4eae83a379f648d4f",
+      "runtime_glb_sha256": "101353b6333edd079ad5ca4021172614be89593ba317dd7e266b4faca4c725d5",
+      "textured_materials": 6,
+      "runtime_bytes": 354700
+    },
+    {
+      "code": 140,
+      "name": "timber-gallery-courtyard",
+      "master_blend_sha256": "b5317e903fde6027d31a7f89267f91481e273088acc5904f8007e04c7bc13b51",
+      "standalone_glb_sha256": "93f32b9a4d8f2f530b837b441242a578a636c88835e84d0504a7899689319325",
+      "runtime_glb_sha256": "38fd956ed40cb5b8e78df13ae1dc627a88519fe2377da93a184d76b4832610ae",
+      "textured_materials": 6,
+      "runtime_bytes": 359208
+    },
+    {
+      "code": 141,
+      "name": "paired-flat-center-apartments",
+      "master_blend_sha256": "50cde31542d253f9581500a2a8825ee10b88db64864edfbafcaf0d805d0367d7",
+      "standalone_glb_sha256": "c0a04176a3678f8828f354e2dc10076888fd83f1d1144ee5f58e29ef33159416",
+      "runtime_glb_sha256": "8ccea637c1a63d47ad2210313142177ef20ea3cf9109899bf535cf7301b574b7",
+      "textured_materials": 6,
+      "runtime_bytes": 422448
+    },
+    {
+      "code": 142,
+      "name": "u-courtyard-apartments",
+      "master_blend_sha256": "1181cb6893fcd98447b163a08a3cc9b2aad961748269779e9427c62f99d17614",
+      "standalone_glb_sha256": "e12a1f231adf72bdcb16915d1fc54e07dbd17c39c86013a252ffe85f905795ed",
+      "runtime_glb_sha256": "ce3874329f1bfccf07faaeb8b5ae5f1eb212cee6ab42d89c5e65063be87999b6",
+      "textured_materials": 5,
+      "runtime_bytes": 311340
+    },
+    {
+      "code": 143,
+      "name": "four-storey-l-apartments",
+      "master_blend_sha256": "ea713e8721156a2c027b310f96ac16df05c458da8f611a3e1c97500902dd7474",
+      "standalone_glb_sha256": "edf95a3539d1ad9fa20c917869b859c2dd3906a553b1c87cd856647e74c1bf6e",
+      "runtime_glb_sha256": "03060592bdb7eed7b39326f7c6a9d2e86c34cd658c05002163fd5bdf57ef82ba",
+      "textured_materials": 6,
+      "runtime_bytes": 406380
+    },
+    {
+      "code": 144,
+      "name": "split-height-balcony-apartments",
+      "master_blend_sha256": "f587486053bea595e8ddb7ef86c13f0d92aed6777b8b4af2c82bd3714fd3fd4d",
+      "standalone_glb_sha256": "34085f54ad8343becfa17deac77ad843bfd86ff74bdcfe1d69be05fc3b4a6236",
+      "runtime_glb_sha256": "0d4f2fbe158f4e9977d51f14b4b8d6f17bbeb296d004e08e879ef4b586198bd0",
+      "textured_materials": 6,
+      "runtime_bytes": 492052
+    },
+    {
+      "code": 145,
+      "name": "flat-roof-palm-courtyard-condos",
+      "master_blend_sha256": "47ae7f2de59811db3b0aa2eb47e4fac34ae583a50e76b3aa3b34bf338fbedcdb",
+      "standalone_glb_sha256": "b2e3e9f90ce89b5b5042a09108285726ae31e576162c5bc969a0f68804eb3933",
+      "runtime_glb_sha256": "9cb59a5f939be202dac56b1c7ff33a2f13d01bd2994dfad26f27ef57226c2887",
+      "textured_materials": 6,
+      "runtime_bytes": 878672
+    },
+    {
+      "code": 146,
+      "name": "slender-teal-grid-condo-tower",
+      "master_blend_sha256": "2873862d403c1d9344e4f06d16898ff27e4eca378ec3ca939df149fcbc8dcf0b",
+      "standalone_glb_sha256": "db4a727f4f305833797cea6a52838d257afbb481550cae069680d33b87220b8a",
+      "runtime_glb_sha256": "bf0a202e4cd2fc7117403e61f6ae894e6f05cf7f4134e6ecac08018f64060503",
+      "textured_materials": 4,
+      "runtime_bytes": 469988
+    },
+    {
+      "code": 147,
+      "name": "split-height-teal-balcony-condos",
+      "master_blend_sha256": "aab06d3fc40b4b3af3142a644ec0525eca4529925293624f18e47c6e821b2d0b",
+      "standalone_glb_sha256": "027d8c1de075cbb44a18ef418979a57a9624c1b40e93f63ccf4dfb8d89152bbd",
+      "runtime_glb_sha256": "26546bcc1d1fa443d4f79af95bc238161d2e688ea2babe6a3cfb56cac8e9a25a",
+      "textured_materials": 5,
+      "runtime_bytes": 531200
+    },
+    {
+      "code": 148,
+      "name": "teal-l-shopping-center",
+      "master_blend_sha256": "fa3fe30c624d129a4307d3164ad26be63280c72a883b1a408be373704b4cf853",
+      "standalone_glb_sha256": "f576cf1cc73c48b792420b60ad73bf166cb2b0032de16e6bb2df884f750c81c7",
+      "runtime_glb_sha256": "06b23836ee884d449f8495ba6c584dd159fccff0b4c8836cbc39995f48f30b0a",
+      "textured_materials": 5,
+      "runtime_bytes": 379464
+    },
+    {
+      "code": 149,
+      "name": "red-fascia-glass-grocery",
+      "master_blend_sha256": "ed0ce2240631b55de8c7d901da5a5182d10f0fc1f9683e30577ca76086e1449a",
+      "standalone_glb_sha256": "de8d519b6554f3d65ebcbe4fc2e8e02930f5460f6e4aecb6cb7ccd92d20bbc29",
+      "runtime_glb_sha256": "7f8ec5645c91a001ca3d72740db42c41feb5f3d63d8b55a82bff21fe3b73f7cb",
+      "textured_materials": 6,
+      "runtime_bytes": 193876
+    },
+    {
+      "code": 150,
+      "name": "cream-awning-office",
+      "master_blend_sha256": "2cb2210635af0c0c2f2b2111cb436a388b905a47003f456d5d49dd19f4175625",
+      "standalone_glb_sha256": "c50272316c8bf9e8e9ed2bfb166630945e2d530c6d388b15761d3ba4e4324d84",
+      "runtime_glb_sha256": "578df3a3eeca51186bdd5479e8284ef6cc43f06400487c99e36804ce77eae4db",
+      "textured_materials": 5,
+      "runtime_bytes": 273296
+    },
+    {
+      "code": 151,
+      "name": "arched-pool-courtyard-resort",
+      "master_blend_sha256": "db9b04a3e828782aa46f336addb5b09e05ab4e30018e140a7b76ed0959f6ff23",
+      "standalone_glb_sha256": "b933102a3abf98ff39c22a5d92e610d33c176a39851d50cff2481d69864a11bf",
+      "runtime_glb_sha256": "8b40a98866686bd958442df369b99d7ae2ad169dacc48d6c5e7e5152906727aa",
+      "textured_materials": 5,
+      "runtime_bytes": 674328
+    },
+    {
+      "code": 152,
+      "name": "split-height-cream-office",
+      "master_blend_sha256": "7b3bd2cd94ea8ff07e1657680b6af6ee49ef7e785255c78f41246c9a43fba810",
+      "standalone_glb_sha256": "a6ed61aff2d5aa4b393c7a645d90e5e24f2ac3143b4094e558e738381c9a0a3b",
+      "runtime_glb_sha256": "045b8e16de9707fd4785389f42ef4ad3292501804d634c5c78409324d4694048",
+      "textured_materials": 4,
+      "runtime_bytes": 244888
+    },
+    {
+      "code": 153,
+      "name": "upper-office-glazed-retail",
+      "master_blend_sha256": "42c09c9e5cf263e8caef3fe0c982ec83aba94d0c4cc8db088803112db90f6978",
+      "standalone_glb_sha256": "2e47f71ecb83e102a851f1dacddfb78a286fd0eff3c38866ed0183134a2b6268",
+      "runtime_glb_sha256": "811c31ace2aad7c2dd55d7fbac042c868bbda62fe3990fe8b7f1be18dad25e19",
+      "textured_materials": 4,
+      "runtime_bytes": 250720
+    },
+    {
+      "code": 154,
+      "name": "horizontal-teal-band-office",
+      "master_blend_sha256": "18614bc467bf8a7521db3abffbafdc903957a4fb738812e3a701cb0928da3f0b",
+      "standalone_glb_sha256": "0e437f98fa8e0f0a102a6fdbb91de1a43b75e3037add075106126cf981629011",
+      "runtime_glb_sha256": "a679d947bb0765e83b8c49d3f0a384ce9cd41cb2e5ee821f43f7c2825a349df6",
+      "textured_materials": 5,
+      "runtime_bytes": 444388
+    },
+    {
+      "code": 155,
+      "name": "split-height-arcade-offices",
+      "master_blend_sha256": "3bc919f7fba7fef1379e27c97967d7fa45e3925dc9af2f13ef5f41a4503b141a",
+      "standalone_glb_sha256": "ba3c8496a75729afff82439e331d51c9a76c5d71f468d90eb08085aff4e4dec5",
+      "runtime_glb_sha256": "1ce2c001b153ad77988b282266fab318f2aa9d41bd04062f5c98b5c092ee39aa",
+      "textured_materials": 4,
+      "runtime_bytes": 345752
+    },
+    {
+      "code": 156,
+      "name": "red-pilaster-office-tower",
+      "master_blend_sha256": "24a5287addabcbc0440438ea87d62e8755e99060d039fb5943714119582ddd24",
+      "standalone_glb_sha256": "93edff47172eba75f8faad7b4146449df04e420b72c825a029c4949c71b6384d",
+      "runtime_glb_sha256": "2c114d21d45cf06a844ec259aae5d4b95470171a647194f88f28e2ea4ddd24f4",
+      "textured_materials": 6,
+      "runtime_bytes": 713772
+    },
+    {
+      "code": 157,
+      "name": "cream-grid-office-tower",
+      "master_blend_sha256": "ca3d1a92b52dad9b92063a054c1f973c75fc6b5c676493d44eed1573201f549e",
+      "standalone_glb_sha256": "a8d38f376071e15fcce5e87e27f549df75af6335e79e6f7fe454d96df50fbaab",
+      "runtime_glb_sha256": "3517a58b39c4483de0cc5051923502a75adac6c86b4f274e691892e7d11fbbb6",
+      "textured_materials": 6,
+      "runtime_bytes": 721128
+    },
+    {
+      "code": 158,
+      "name": "cream-corrugated-loading-warehouse",
+      "master_blend_sha256": "9bc130f6066814c74339d4e2806cd07c7d9c19116f6c3d6b6fd8ffabfbfc032b",
+      "standalone_glb_sha256": "834d877685247fea745fc502d5c5062692abf728a454e6c4aaa6405c19f5f34f",
+      "runtime_glb_sha256": "a7eed988b126c993ff6bb4bb3d28239c8af758209e5e58bbb247bd5a5ec8dd73",
+      "textured_materials": 5,
+      "runtime_bytes": 216840
+    },
+    {
+      "code": 159,
+      "name": "weathered-tanks-processing-hall",
+      "master_blend_sha256": "fa1a4a88117553d4a509d67a0fa3c048fe683934678159cb58c04de0fae5f3f6",
+      "standalone_glb_sha256": "6d1419854bac49a8c9cff7a9b4102e7601bb19279cfefde669f1645ddac57a01",
+      "runtime_glb_sha256": "c668221124191278626b0f053257ce499dd5c572804f35d349288b4ed21ce731",
+      "textured_materials": 3,
+      "runtime_bytes": 775964
+    },
+    {
+      "code": 160,
+      "name": "teal-panel-roof-brick-factory",
+      "master_blend_sha256": "aa1cf4d51a4375289110ef23155b4389221dc0fdbbcc7c00b2d5981485ec17df",
+      "standalone_glb_sha256": "9d30307077a6cfaf4dfd3c1a837cd0b91b56dc7163b5f195780f42405790f140",
+      "runtime_glb_sha256": "8b789aca1d652473f28fbdd24538c6d93f7325ba7d0980258fd94874447d64bc",
+      "textured_materials": 5,
+      "runtime_bytes": 322508
+    },
+    {
+      "code": 161,
+      "name": "cream-hip-teal-window-factory",
+      "master_blend_sha256": "2b657f98acc7fc0d6142b115431f28661db4ba46d161dcaf74f1cf696e72a0ec",
+      "standalone_glb_sha256": "9b7d2a7615235801a2eaba28f6229c032eecc8330b61ba7f6968e269fe38cd48",
+      "runtime_glb_sha256": "ed7578f680b2b361a2d0d79e0ae2dc2748caf4ef2fea3223ad1e5433e0287ba0",
+      "textured_materials": 5,
+      "runtime_bytes": 144740
+    },
+    {
+      "code": 162,
+      "name": "broken-roof-stepped-blue-factory",
+      "master_blend_sha256": "da212d4545e45db1ff8890a33c387bf95ad659d516b9b837cc5cb77bbe176b06",
+      "standalone_glb_sha256": "86ac9f659d000d1052fb628950140969057a1f7963a65753288d65c359cbc9a1",
+      "runtime_glb_sha256": "5a95b96ca52b47fc20220183c7cd9867e7c066e799922fe9a6c03dc385d6ccf8",
+      "textured_materials": 3,
+      "runtime_bytes": 1061108
+    },
+    {
+      "code": 163,
+      "name": "flat-roof-brick-chimney-factory",
+      "master_blend_sha256": "aeaf1037143e6ba06273d01a1b404176f3dd5fd76de6e3a40d61ca6f21401383",
+      "standalone_glb_sha256": "d3ba27b53e318ea56d638ef5b8716dbcb300b7f3f098f8681d335069ad34de73",
+      "runtime_glb_sha256": "b480edba2fdb7b8cebf1388a81fa2b5ac3618ab3de51ef2ab2602bc7d6b1b274",
+      "textured_materials": 5,
+      "runtime_bytes": 343924
+    },
+    {
+      "code": 164,
+      "name": "stepped-brick-roof-pipe-factory",
+      "master_blend_sha256": "dc8e391a25ebb3cfc76b276906dd24f1f575364ec3aa528a61ef1b32c80eea74",
+      "standalone_glb_sha256": "8824474825e7f32cf0774e966bae46979baebece53a993b89b4dd6c1273aa3dd",
+      "runtime_glb_sha256": "f3fce74dbfa644e52d6ca0ef84f7c335a29a735b5745427d55bd3b674742c9c9",
+      "textured_materials": 3,
+      "runtime_bytes": 1058924
+    },
+    {
+      "code": 165,
+      "name": "tall-brick-flat-roof-chimney-factory",
+      "master_blend_sha256": "d9f06c3fcd016e11d78aeb7fb2df4d75daab71f6ea6d8d0ad9361e19259ef764",
+      "standalone_glb_sha256": "8920f53e9dfc4c4769079ca29286e7e23d44bf6b1c42c26cc8c284baa1d60e98",
+      "runtime_glb_sha256": "9ba651f0d68aedef84727404cc2115a8bac3fcbc6095f0bd5b2ead0b3c1e04e4",
+      "textured_materials": 4,
+      "runtime_bytes": 677100
+    },
+    {
+      "code": 166,
+      "name": "open-cross-grid-concrete-foundation",
+      "master_blend_sha256": "6480603c0b628f5df96222abbee18bbfcc41b5790213930a4f31203e984afd0f",
+      "standalone_glb_sha256": "d64f27505f34a100a5e5e42051fdbc8e82938949f602423098bfc7019c3503f8",
+      "runtime_glb_sha256": "d2129e25c743e4f09a94fbdbe2d6922c8e2fc40f084e425ab1628d1336df533c",
+      "textured_materials": 4,
+      "runtime_bytes": 315704
+    },
+    {
+      "code": 167,
+      "name": "courtyard-timber-framing",
+      "master_blend_sha256": "4a189b697bd487778b1ad272036d8b0ac57cf46af513b4baf812c8f37be00855",
+      "standalone_glb_sha256": "ef219744c766dc96aec36166559c3c8285f9f9c5645a52f046878d39a96c41eb",
+      "runtime_glb_sha256": "079c5bd6ebd30e51a6a7a52f7c183c4bb756084a7a3d5be61a450050486fc410",
+      "textured_materials": 3,
+      "runtime_bytes": 413500
+    },
+    {
+      "code": 168,
+      "name": "lowrise-steel-framing",
+      "master_blend_sha256": "d8d1e5df974090328eecfa67f322301e7c846f62b2f65a26266d401c13a24798",
+      "standalone_glb_sha256": "6c2ea703451f2db53ff52397d2e08487cf5693599cb15ad617af98f5c00404c0",
+      "runtime_glb_sha256": "4e863058a109f49d3a976d881262113b579e414f540961e20463a79f461d44f8",
+      "textured_materials": 4,
+      "runtime_bytes": 322832
+    },
+    {
+      "code": 169,
+      "name": "concrete-midrise-shell",
+      "master_blend_sha256": "084482443f9a38f143e25ae91ff782f58d81c01867908be60712915b4390cac1",
+      "standalone_glb_sha256": "5912ccb1f5c7f10bab4cfa643470fd5f6a6bb4f9ee5af90c5c47b1e763fb1eb5",
+      "runtime_glb_sha256": "1730883eecd7bb7562007df6b5a7511512122761cbd6fcb8876cebe9afc31f20",
+      "textured_materials": 4,
+      "runtime_bytes": 627256
+    },
+    {
+      "code": 170,
+      "name": "vacant-courtyard-lodge",
+      "master_blend_sha256": "63699508937324aa4cea3a814e81dba7a7ffc89a571693396cdb9761ffed6229",
+      "standalone_glb_sha256": "d477a75a8632c8ba1da3cc2c9e140835946a903f98b5e641352a0ebb75cd7713",
+      "runtime_glb_sha256": "45def5657167eaecc3fb2e0252d510968c1769eec6807fc470d6ba401befaa99",
+      "textured_materials": 7,
+      "runtime_bytes": 741792
+    },
+    {
+      "code": 171,
+      "name": "closed-desert-workshop",
+      "master_blend_sha256": "6aced88bf34894ecf0a735f8022c539721f73c9a10bd33d244be4faa61a95b72",
+      "standalone_glb_sha256": "94d30d7e6186d2ffe3f2d568012d29755219ed9e878fbe9096ec69d9b622fb14",
+      "runtime_glb_sha256": "b51f8175c2744dfb9b06835e0acfba79382c4f459aef68220f96f068ce4fdc7f",
+      "textured_materials": 7,
+      "runtime_bytes": 954132
+    },
+    {
+      "code": 172,
+      "name": "weathered-court-apartments",
+      "master_blend_sha256": "2790eb5344bce823c1e48f0f03175ee8a8cdf54c1537fb7198702d93e331e03e",
+      "standalone_glb_sha256": "2352e837a5f11be5ad2ac8734ceb5983fec52857f377aced797f0ac75c5c98a3",
+      "runtime_glb_sha256": "b309e5533bb107732ef6f06e6df9855dcb317bd47a3f97ad00bca3ba16cac162",
+      "textured_materials": 6,
+      "runtime_bytes": 1411800
+    },
+    {
+      "code": 173,
+      "name": "shuttered-midcentury-hotel",
+      "master_blend_sha256": "9108a9994c0ed8a47212c1fd688c8a1f2b688f91aca491a6fb374c9a385f7808",
+      "standalone_glb_sha256": "6b8a018af83df136b2cdea9fa4d89c379b0cdf7f16a0b16f557a51938c94a789",
+      "runtime_glb_sha256": "03bed02d8e58b3b3d3ac1fe5ff19eda083cbd02e15f60fa8fb7315beb1e36240",
+      "textured_materials": 7,
+      "runtime_bytes": 1653880
+    },
+    {
+      "code": 174,
+      "name": "three-tier-clay-roof-apartments",
+      "master_blend_sha256": "57f7bf624a26684d5ac79616adf3d2666eebaac53a86819bc08ec5ba88f5285a",
+      "standalone_glb_sha256": "74a738c5672a347686f4a90b958cfc723afad6acd3910b37bce0861c044c8c4c",
+      "runtime_glb_sha256": "21e89ea5e3377d65f6d64e7ab47bd1e93e9a150410995c34b6bb3f8df7fd88ba",
+      "textured_materials": 7,
+      "runtime_bytes": 1283008
+    },
+    {
+      "code": 175,
+      "name": "offset-flat-roof-balcony-apartments",
+      "master_blend_sha256": "e4236c11f68562595a58c393479932b7c9ec732a48c7e86328a271a2f3d44c90",
+      "standalone_glb_sha256": "3041ea6f3c60f69751899544ff91d88253cd80a1cf23165c3e22726bdce0e658",
+      "runtime_glb_sha256": "4e8b79b8074263ad29a6730b39a901cc9c682cb58c05a574ae5b614442fd2b31",
+      "textured_materials": 6,
+      "runtime_bytes": 1277184
+    },
+    {
+      "code": 176,
+      "name": "clay-rim-open-courtyard-condos",
+      "master_blend_sha256": "1f6566a3080e5a140da06d896b0f1ed4399b3e508bb15088fff6beabe5bc2366",
+      "standalone_glb_sha256": "bd4f60ccd0b1cb6ca29929370f6cd8a125964163359c6373f5147e948189d764",
+      "runtime_glb_sha256": "d27e10dee98ef0ca64918c7777f2636cfbddc009f1362339a1c53f5c32df67ac",
+      "textured_materials": 6,
+      "runtime_bytes": 962780
+    },
+    {
+      "code": 177,
+      "name": "paired-ivy-glazed-condo-towers",
+      "master_blend_sha256": "e78e04742aeaeece5c6feda271f62c32ef6e0f0527b94c6c8489c93a18cd42dd",
+      "standalone_glb_sha256": "aeedea2826109c2fccdafe0e4e4ba1bdca842c59c8bef83587cdf09aa078f63f",
+      "runtime_glb_sha256": "5685da67a96a95933c8a39a59c152d9a214e04387594ec5635d034f54f8eea5d",
+      "textured_materials": 7,
+      "runtime_bytes": 1379692
+    },
+    {
+      "code": 178,
+      "name": "three-level-sandstone-office-park",
+      "master_blend_sha256": "d2668dd4fb4f032e65a9fc236611cdbca64dce3ea6c363158aa4278ceb06c93a",
+      "standalone_glb_sha256": "df308f50cc2e48947e15191813c4788a69df121a23fc8546ef4d31f1dac157d9",
+      "runtime_glb_sha256": "33115e9b910826ceae9258f13a78575564cf89ef21b73010bbe1ba050a903b32",
+      "textured_materials": 6,
+      "runtime_bytes": 1275736
+    },
+    {
+      "code": 179,
+      "name": "vertical-ribbon-teal-office-tower",
+      "master_blend_sha256": "f18337735a9af5c9b4f012cac54ee03fb9517b530b776d6478834a0e08cf09f8",
+      "standalone_glb_sha256": "2afd3406cd1b709915ed11529cc2e859e872c3ac67f7924c37c67413bc27dda9",
+      "runtime_glb_sha256": "819ed053cfa98d3afd024a7b89192de5a719d1281b0769561f3309371c6c1d68",
+      "textured_materials": 7,
+      "runtime_bytes": 884248
+    },
+    {
+      "code": 180,
+      "name": "l-court-teal-canopy-mini-mall",
+      "master_blend_sha256": "20b4b79576ea40c1c5b33b29e51dc226dbb50bafe1e56680a2185590efda0e6c",
+      "standalone_glb_sha256": "dda53bf4413f0215eb5365f9f85ee3b7230972d777850811b9d49e99fcc17a63",
+      "runtime_glb_sha256": "e16cfa7536cffd5d220d3b8c4d965963c57b92ef6c91b827344071a76f8eba63",
+      "textured_materials": 6,
+      "runtime_bytes": 360812
+    },
+    {
+      "code": 181,
+      "name": "stepped-teal-art-deco-theater",
+      "master_blend_sha256": "c397697c1724af4b0678c3700a584e6ba5a494570b0b1bf72d2d17cc6877ffa2",
+      "standalone_glb_sha256": "f6be2ab8d6fa80d2c71337741a92d3af6f20bb006b5241f6d2760f21db3c5142",
+      "runtime_glb_sha256": "48bb38ff9682ef1231c89664a67c5a3dc7643743f63772ff84ddfa34a8a715dd",
+      "textured_materials": 5,
+      "runtime_bytes": 451184
+    },
+    {
+      "code": 182,
+      "name": "ivory-screen-outdoor-drive-in",
+      "master_blend_sha256": "0ee827bac91d5e6da127c5b745fa444e9312a93667cc882a796d87f412af11d0",
+      "standalone_glb_sha256": "34a7a07a2819160a6af99b80989621ae363f6efa0d4f3e22eb43cf5dd550cbff",
+      "runtime_glb_sha256": "7e5ea925ee72e110bb756d370a2ca34fba0a962e090e8bbdaf75685e5c222b2d",
+      "textured_materials": 3,
+      "runtime_bytes": 642464
+    },
+    {
+      "code": 183,
+      "name": "cream-stepped-crown-office-tower",
+      "master_blend_sha256": "3748ad561a84fb0da6f8e374cd46d650c99944d158e725f1bd489bb3ad6adac6",
+      "standalone_glb_sha256": "a985affe48520c4e2d2499775b33829f0d26f6d85699fd801b1be343339d3fb4",
+      "runtime_glb_sha256": "263984eea6bb7fbd5206866a7f6077cfdc1def0ea9da5b14342001a7ffd7e875",
+      "textured_materials": 4,
+      "runtime_bytes": 617912
+    },
+    {
+      "code": 184,
+      "name": "split-height-glazed-office-towers",
+      "master_blend_sha256": "abadd0577c45d398e94e71381f89dca4b316f73905cbe90ec3fa4b7dba692a7f",
+      "standalone_glb_sha256": "7a4aabf6f82208a5294d645d100fcb090baa856f05b355b2d2baef5071cfd447",
+      "runtime_glb_sha256": "6c35efeb57576690e65764b61b6321ddad9098fba4da00f0aabc3e7966940af5",
+      "textured_materials": 4,
+      "runtime_bytes": 615184
+    },
+    {
+      "code": 185,
+      "name": "open-four-deck-parking-garage",
+      "master_blend_sha256": "53ec9e734f6926f1f5665b3e552ca483420698cbdf871572545f0ea0d785e4ea",
+      "standalone_glb_sha256": "702f9849649c6d65fa619ea4b7257b0544128014ca5fbb4e4bd7776d5f8835a5",
+      "runtime_glb_sha256": "3f55fdfbee6c2d93b5b3fe7387ea570fefd0d4d530410471f21e8d1b5d4f406d",
+      "textured_materials": 4,
+      "runtime_bytes": 761484
+    },
+    {
+      "code": 186,
+      "name": "warm-monumental-stepped-historic-office",
+      "master_blend_sha256": "37871bab0cd1d4b7f845bdae25346a2fea0dba901b96014883ca7d5e5aedb338",
+      "standalone_glb_sha256": "5a3e54009618d2a942bbd9e0aed6419fe5d455de890e747b834094d019138a6a",
+      "runtime_glb_sha256": "3b52e23cba6724e4c9f35a002dfe7ebf9382cae746b23aedf9d6f4dada6c6de6",
+      "textured_materials": 4,
+      "runtime_bytes": 472640
+    },
+    {
+      "code": 187,
+      "name": "cream-teal-stepped-corporate-headquarters",
+      "master_blend_sha256": "0d0e0bc9ebf3a573ecdf6029449514460dfbe6d753076f4f10c8377f2fdf0ee3",
+      "standalone_glb_sha256": "440da62f4df9f7e5d3dd42a30ed655a7ad9d5072d2239ac97e6efdfa97eb0d94",
+      "runtime_glb_sha256": "95f97e212f53753200a16c57583862e021df481f4ee549a7d914c6d7e39c8cad",
+      "textured_materials": 5,
+      "runtime_bytes": 595408
+    },
+    {
+      "code": 188,
+      "name": "three-silver-tank-chemical-plant",
+      "master_blend_sha256": "44c227c9f0808a60b495251d817e71c4a40a06e93ec2c756208dcb2a50f44301",
+      "standalone_glb_sha256": "12cd4523e6e18bfb697d9f3caab561838e92aa881ed52a3e17810638e455e125",
+      "runtime_glb_sha256": "891a1e56c41e40a6a0042e0ee16e5425b9e5646d0614211e16a54ad82b7ffdf4",
+      "textured_materials": 5,
+      "runtime_bytes": 1185296
+    },
+    {
+      "code": 189,
+      "name": "tall-brick-teal-roof-round-chimney-factory",
+      "master_blend_sha256": "6dd49a954a0ab5e9c72c625f0298cb56162ce29f64f0fbd70f8626b4129c1f39",
+      "standalone_glb_sha256": "33bb14ed81e617c6cbf32a06bddc97c3aab5cd49963d1d6b3d3d3aa17e114923",
+      "runtime_glb_sha256": "9bccb4c6ea86abb4ee746e9d613615e719559b2ec6ab864f7ad6307cca309dde",
+      "textured_materials": 5,
+      "runtime_bytes": 1736600
+    },
+    {
+      "code": 190,
+      "name": "roofless-rusty-industrial-processing-cells",
+      "master_blend_sha256": "6e7e0b0408aea8101a1bff6801359614e2c4b752b22f5111344d8d085dbb0fb3",
+      "standalone_glb_sha256": "c88d221732c3c509699ba89b6a6109dfb7ca50de544294312b152b8eb68e52fe",
+      "runtime_glb_sha256": "ad74ad5fd8a5cfddec4ebc58bd6ca5f54ac3447cbbdab63197ed2735aaf6c9c5",
+      "textured_materials": 3,
+      "runtime_bytes": 754696
+    },
+    {
+      "code": 191,
+      "name": "stepped-gray-two-door-factory",
+      "master_blend_sha256": "b4098cce462a272e485bfd353029cd4dc3ab7f88bf522c0366a8501948b7b860",
+      "standalone_glb_sha256": "93655cfce6e9226d8d911492d1f9c74fa773546bd52987c8b57bb55f48e40574",
+      "runtime_glb_sha256": "13841558522406e6c21d0716ccee2ea22fc0b22dce2ac2eac593fdd7f5b38060",
+      "textured_materials": 3,
+      "runtime_bytes": 607888
+    },
+    {
+      "code": 192,
+      "name": "broad-gravel-roof-teal-front-warehouse",
+      "master_blend_sha256": "d357992ba943a04e9f684cd89938fb8c1880f7dcec9187ea5a19b3884d7d8bf7",
+      "standalone_glb_sha256": "2f0140af129918957c93ef81c638a6afe0f3c480d11773ab3472c51bee0a3a75",
+      "runtime_glb_sha256": "dfe2316542fba53e7f661d785a2769c08928db5f0271840e075d92529c7528a0",
+      "textured_materials": 6,
+      "runtime_bytes": 711816
+    },
+    {
+      "code": 193,
+      "name": "paired-orange-silver-gabled-warehouses",
+      "master_blend_sha256": "9fdf27e01d10c4f3e2f9171f15b614d114b82e4ca40b5b78d7c34c981b4b5ffc",
+      "standalone_glb_sha256": "0251bd006b1bdb7f07df771edbc0f15f39d27ef1e22ee401072368dd18621b2a",
+      "runtime_glb_sha256": "a8ee1392232326a7da923be2950572ec60f04ec607748ad31825c37de002d91b",
+      "textured_materials": 4,
+      "runtime_bytes": 801496
+    },
+    {
+      "code": 194,
+      "name": "stepped-concrete-tower-site",
+      "master_blend_sha256": "3a1d1a7b47d735d274449ec5b4f0af1f1f303b7d50e3c8ebc2c98c7d8df34419",
+      "standalone_glb_sha256": "d97bcd8b9bfa2ccb7a4aac6270d058f821e6f2b2b5a10d616e692b4ffc31ad29",
+      "runtime_glb_sha256": "69eea347f37f91f9700ec2a66c10afc0338f9919ddb0fe7633bc9df4d1ede268",
+      "textured_materials": 4,
+      "runtime_bytes": 1630292
+    },
+    {
+      "code": 195,
+      "name": "steel-commercial-site",
+      "master_blend_sha256": "2be0ec745d5f35c12e31392986ba4b8d02cbf562ccd8e7bc620d01691417cda9",
+      "standalone_glb_sha256": "88ca5600f7f49bd20c8c9d27b94d62b90ce1c1e3456994df26c0cef657b13694",
+      "runtime_glb_sha256": "2f0027034fb8f18e875b492959cd5cae8b1520f2a0eafc1619d6b16259f9efe0",
+      "textured_materials": 5,
+      "runtime_bytes": 1136036
+    },
+    {
+      "code": 196,
+      "name": "vacant-stepped-apartments",
+      "master_blend_sha256": "fac73ace43fde394379d7620cce4dc7dbf55d1e75cf4fc9450f598f5a4ebc1b6",
+      "standalone_glb_sha256": "3393597737f54c6ebd574c06c518b58135e9c94d6f10943040c86c21e677192e",
+      "runtime_glb_sha256": "4c820ad97186914674a3de2639ebacffea94b9c6b309bfda70779e6141bfc8bd",
+      "textured_materials": 7,
+      "runtime_bytes": 2792848
+    },
+    {
+      "code": 197,
+      "name": "abandoned-commercial-block",
+      "master_blend_sha256": "6cbdc978f68e0c0e170919f2a44f0d969ff9606986042573c127c3e5545a10b8",
+      "standalone_glb_sha256": "960ed62161fd6d4562fd6d1f30329353c222e9e486af83bc0378b8847442d065",
+      "runtime_glb_sha256": "bad773811998a9e25e8610b5cd10879e3e314c0367aeb66285e2a2ce1c859be9",
+      "textured_materials": 7,
+      "runtime_bytes": 3379208
+    },
+    {
+      "code": 198,
+      "name": "open-crown-gray-stair-hydro",
+      "master_blend_sha256": "975baf1dbf99c424ac62324e9a15f84f0baaa231c06f7168aa046739d8083d88",
+      "standalone_glb_sha256": "ec3afc493b363264be822f90f53678d5834fee3d3d611c49c0e52a581167be29",
+      "runtime_glb_sha256": "146c40e4250d326c560e63a6d1d79d09aea40e1fbf9db26ce29df76231559e36",
+      "textured_materials": 5,
+      "runtime_bytes": 211756
+    },
+    {
+      "code": 199,
+      "name": "warm-stair-limestone-hydro",
+      "master_blend_sha256": "c33879c347db1d16ebe585e3c8792403ff34be31d236bd179568d6ea69d42772",
+      "standalone_glb_sha256": "714f061bf723fa07a2e185393d834811185865a7782f046295ee95d1a41f7a35",
+      "runtime_glb_sha256": "850f736881d1b7e7175f06da2d9b9ef63e60b4d32f6dcd88e452b976030b16c7",
+      "textured_materials": 6,
+      "runtime_bytes": 227328
+    },
+    {
+      "code": 200,
+      "name": "cream-three-blade-wind-turbine",
+      "master_blend_sha256": "a6cb91c38439308962516dc5587dc469f264a880eb5a706f8210e5e9e26532a2",
+      "standalone_glb_sha256": "9dc2918f4b20b54a1de770fe162bae39d1ee172e852b5e1fee08e55185c4b95b",
+      "runtime_glb_sha256": "65330388d46a151980eb94a42ce04ebb8269e27589c9b00cc87d19276a01814f",
+      "textured_materials": 5,
+      "runtime_bytes": 76976
+    },
+    {
+      "code": 201,
+      "name": "teal-clad-silver-stack-gas-plant",
+      "master_blend_sha256": "3fd224ff10fb9b39e43baafad5a1eabf9675bf21d765f2c640752bd7f9d65925",
+      "standalone_glb_sha256": "7314311ef51ed0ab2905be9e54cb927452437a8482db8cf80db9e143d5970ec5",
+      "runtime_glb_sha256": "83b7883b85a8aa544d6a8087dc3010c2cd1589f1ac24ed1e5efb9839098bc51d",
+      "textured_materials": 5,
+      "runtime_bytes": 902288
+    },
+    {
+      "code": 202,
+      "name": "twin-teal-vessel-warm-oil-plant",
+      "master_blend_sha256": "6995b8aedad32334e50609a56aefa850e93f78cc3dce97b440cc315cc53aa5ec",
+      "standalone_glb_sha256": "be3628b4b29a1c5f32bf34fbfc9a28e085018867380a82b50928d69eed28e986",
+      "runtime_glb_sha256": "e37026780ce792086e01331174143e2a321fa36f378995addc41a4b6faa4ad36",
+      "textured_materials": 4,
+      "runtime_bytes": 760344
+    },
+    {
+      "code": 203,
+      "name": "warm-reactor-hollow-cooling-tower",
+      "master_blend_sha256": "0e1877f9061cec90fc160e10c52313c69c282b31212547075562cabbb77abf2c",
+      "standalone_glb_sha256": "64c4c3b443374784eba24d9756d14aa84d67136ca423a950eaa7260a7878019d",
+      "runtime_glb_sha256": "73f26a5f45366803f05f6bda0e0768639aba36b8b8d80b4fa1a109af15d799a0",
+      "textured_materials": 7,
+      "runtime_bytes": 875136
+    },
+    {
+      "code": 204,
+      "name": "four-array-navy-solar-farm",
+      "master_blend_sha256": "2dd7a1d218d1808db18a2cba9c970e9c68d36d4e2491ce93154377c04cb61c71",
+      "standalone_glb_sha256": "6f10f202e70669a5be5461a1ab01c85c674b8395f4c629a742cd2483022bbe02",
+      "runtime_glb_sha256": "0f6951bd91a382db1f00f395fea2492652766d2480010825a8fb5b44b0d4d84d",
+      "textured_materials": 3,
+      "runtime_bytes": 404320
+    },
+    {
+      "code": 205,
+      "name": "block-receiver-transformer-microwave-plant",
+      "master_blend_sha256": "cd571dde9bdcef49516ed2211087d44a0df24066b2e4f75fde659ffbd4316867",
+      "standalone_glb_sha256": "728f478a5592989f783e51c58b1427a1f1c218f673fd06d81b7f80ce57d4f54f",
+      "runtime_glb_sha256": "612ea3ffc9b1f41a9b37aba004068973618ec546f0cd3644fd74c28ae54937e1",
+      "textured_materials": 4,
+      "runtime_bytes": 609388
+    },
+    {
+      "code": 206,
+      "name": "open-well-teal-turbine-fusion-plant",
+      "master_blend_sha256": "2403f8bcdca1310b10567bea45ffdf46e8914d40ee3f7293cfc3f3f809785542",
+      "standalone_glb_sha256": "08a8b9be2a5002a220b39c16961c6a79dd924dbf5861c7060326c3ca85f025aa",
+      "runtime_glb_sha256": "85a5921a738054fe5c3367541d89da5932bdcababd455eb2ce8c40187da4ad7a",
+      "textured_materials": 6,
+      "runtime_bytes": 498036
+    },
+    {
+      "code": 207,
+      "name": "barrel-hall-twin-stack-coal-plant",
+      "master_blend_sha256": "099a8915e1d3902e616860d268a1fa9cc020aa1d223f7648e89b85824eb646ad",
+      "standalone_glb_sha256": "cf47e03d6e666f25b0e8bbb7f4eade647f582e5020b3b8f600aceab65bec3658",
+      "runtime_glb_sha256": "6698a5d23839c5720129c3d07b67fcbc3633258433ba15dfcfa05199bff9b127",
+      "textured_materials": 8,
+      "runtime_bytes": 819064
+    },
+    {
+      "code": 208,
+      "name": "domed-vegas-city-hall",
+      "master_blend_sha256": "67be3d4b925bf26d860953aad862f8f5987fa6a567e77dafb8276734fafa4dd8",
+      "standalone_glb_sha256": "81266a10198048ba4433c62641ecaac333996dcd73e11ec0553d796c1e760a63",
+      "runtime_glb_sha256": "37e6e032e9ee409b4978e84671c5ef867dc1250b104eb6f1491f4efb1f083498",
+      "textured_materials": 7,
+      "runtime_bytes": 633212
+    },
+    {
+      "code": 209,
+      "name": "cream-hospital-red-emergency-canopy",
+      "master_blend_sha256": "47c9d9dcdfa178b2f54bd4a79a21d4f8ef9ae0820c49a28b9e02deffcb415445",
+      "standalone_glb_sha256": "5cb9503f848f4ba5c429d1d09d68fdb8e793004dd230d5749188ff568f2fa202",
+      "runtime_glb_sha256": "b3ee53363666858b3309519edddd1c7f93292f355a8a50223f9ed49e8e7872ef",
+      "textured_materials": 6,
+      "runtime_bytes": 629344
+    },
+    {
+      "code": 210,
+      "name": "sandstone-police-station-two-patrol-cars",
+      "master_blend_sha256": "69ec290e923901ed8180930be78d338cf4b6ece723ac31464c06cdf793d43371",
+      "standalone_glb_sha256": "127820c9d4b6a857a380310edb4cca33a66cf44f12b55105f01ace7d64e2ab51",
+      "runtime_glb_sha256": "d05f3854f71dbb5ae74a2f0df1124ef381c28bb494e4745440b2b0444c37aeec",
+      "textured_materials": 5,
+      "runtime_bytes": 420892
+    },
+    {
+      "code": 211,
+      "name": "cream-fire-station-red-double-bays",
+      "master_blend_sha256": "8f41f1a1d5137d39c55dd613821ca75022737cd95a6d39ef5b483c9db4f1d58d",
+      "standalone_glb_sha256": "95d79d611738530ff56f74c7c2a0791dc8c047017da20f80958b229578b65f08",
+      "runtime_glb_sha256": "6516401b7d7ffbb0024f86cf1efc33d5fa4cc1dc87f93ae9d616810166caa79a",
+      "textured_materials": 5,
+      "runtime_bytes": 501120
+    },
+    {
+      "code": 212,
+      "name": "stepped-gallery-museum",
+      "master_blend_sha256": "c1b5a2ee305c15c0fa539dd911717b2d108d09e5a8015d1131f09179fc13281f",
+      "standalone_glb_sha256": "4896691ca8cf77b4294ee5fff59923ee2081f8d2d2df8292daf7c2fa88e95fde",
+      "runtime_glb_sha256": "e7388d05d5322eab698859896c33c6e1b683eeeb37600d4bab3d37bd8fb29750",
+      "textured_materials": 6,
+      "runtime_bytes": 635220
+    },
+    {
+      "code": 213,
+      "name": "green-square-loop-shade-park",
+      "master_blend_sha256": "08c52cb511278fd1d6565d263cab364f4e1676332ff2117e5bb8a9d7bb6f78b4",
+      "standalone_glb_sha256": "e57299facf394fb8a31818fe4a393baf0bda65f0a7ffccf6cce709e2b4a7b8b5",
+      "runtime_glb_sha256": "e37000275350fd82ac33f3de48f505d5de883c96e76eabad3beea1292c2eecc3",
+      "textured_materials": 3,
+      "runtime_bytes": 844788
+    },
+    {
+      "code": 214,
+      "name": "red-coped-l-school-fountain-court",
+      "master_blend_sha256": "5c36dd6d7ee8e835eac58638c2726229eee84cd25d7b93027f916c28db8b71ba",
+      "standalone_glb_sha256": "a956b83a16173b169e0326c46ca799cff580fff539193fe9c1d35372872ab2f7",
+      "runtime_glb_sha256": "99b5d1bc6dde5424ba3329dfbd0608ccd99a5aee49106c2df5cf186aa6915d1e",
+      "textured_materials": 6,
+      "runtime_bytes": 855308
+    },
+    {
+      "code": 215,
+      "name": "open-oval-teal-seating-stadium",
+      "master_blend_sha256": "451722a2c200334906b0a683b8a87016d17db17eceaa193f430623fefc0d2b02",
+      "standalone_glb_sha256": "1f9fb6a2b716f0c2a59d817821a82d8ea15a7c2f82c51072b4c14196418b0766",
+      "runtime_glb_sha256": "daed44fdc0532783632a2ec4e07245ee0d63a8e332049ddb11d47aeda8d4e237",
+      "textured_materials": 4,
+      "runtime_bytes": 2883896
+    },
+    {
+      "code": 216,
+      "name": "three-tower-sandstone-prison-court",
+      "master_blend_sha256": "b46ac622c651cdd6f9c631dabe74741521f374417bb376babd82e4e827be6354",
+      "standalone_glb_sha256": "ef37245080010db71510fcf6c4759928338337ce14ee0ddd25099f844cf8afbe",
+      "runtime_glb_sha256": "dd731d335ecc086b86f1eee6da01ed5fc6dfac98260208bb94638ccdffeeb02c",
+      "textured_materials": 6,
+      "runtime_bytes": 770412
+    },
+    {
+      "code": 217,
+      "name": "stepped-three-wing-sandstone-college",
+      "master_blend_sha256": "5f17665e50104fb48dc32e8c883461989e3c9bad7a16eb873aa46aad6379f901",
+      "standalone_glb_sha256": "99f2971351f1738e9d34cc2c9a3b3114b19ba8db6ecc8b06068c7d4b8a879e6e",
+      "runtime_glb_sha256": "ba227ac77a5f0e4d7ea7d4e5b40d1829c2dd34bb85204b28dbed6bd01c0ca419",
+      "textured_materials": 6,
+      "runtime_bytes": 1064904
+    },
+    {
+      "code": 218,
+      "name": "three-adobe-hut-zoo-garden-enclosures",
+      "master_blend_sha256": "1a862a4cf09ec116ffc44595899356354a109072fbbdf9b6dde25ecdd276a28b",
+      "standalone_glb_sha256": "dc691719e4692fc6a0db6608c28cf7dd9ad2de8594923830651f39897d33660b",
+      "runtime_glb_sha256": "42fc9ca35a1ac72f9dc068d1573c3f99ab94d02948bcb3082874a6319fd92069",
+      "textured_materials": 4,
+      "runtime_bytes": 1744896
+    },
+    {
+      "code": 219,
+      "name": "bronze-pioneer-map-statue",
+      "master_blend_sha256": "3b48dcc4843150219cd5bd397d229649ef3be3048d7091bea75b87b80c2d3e3d",
+      "standalone_glb_sha256": "fab1cd43a824def6a3e887631e9847a8f9f40bb81accbf878eeeadd3e40ea331",
+      "runtime_glb_sha256": "284734fcdbcd6964d229eb563e7f833e7ea1943ceddd93af2210eadc4378b351",
+      "textured_materials": 3,
+      "runtime_bytes": 106808
+    },
+    {
+      "code": 220,
+      "name": "open-sandstone-teal-water-pump",
+      "master_blend_sha256": "c10f14e2eca9f3a0fa6d1bfed64669884793f6439f9017b39cd6dad966f5cb09",
+      "standalone_glb_sha256": "b67eead0f1a5b68237b6f783ad764314786e52715c254e723da64206fdc21637",
+      "runtime_glb_sha256": "be954e5be3bfe9141301397878b60a553ae8c3aa9a6ecc60cae7d4a8c337861b",
+      "textured_materials": 6,
+      "runtime_bytes": 229728
+    },
+    {
+      "code": 221,
+      "name": "white-edged-straight-runway",
+      "master_blend_sha256": "a5d0c22617cd1fbf24a8a72961d4a1830d1c8c039119f9b8bd8e1ebab8d101a7",
+      "standalone_glb_sha256": "3915eb81c9ceebf2161526772604382b119401f38a6f6fc072f82a725c90d345",
+      "runtime_glb_sha256": "8dc59c98bb10390d7242bfbcb31f7979a522468403ba6c6e583fffd6122336bb",
+      "textured_materials": 1,
+      "runtime_bytes": 4868
+    },
+    {
+      "code": 222,
+      "name": "four-arrow-runway-intersection",
+      "master_blend_sha256": "95879d50f4c02eefd5d16bb8e27372b009f109756278a1a31764e2ac12b4350a",
+      "standalone_glb_sha256": "524b065221a8dd267764576dc34cfec92171320c46b128c5a85d06091bfa3493",
+      "runtime_glb_sha256": "e3d84367fa16763d6a90b9a238d790a35a13d46c4666e396e95ec729e68cb2e4",
+      "textured_materials": 1,
+      "runtime_bytes": 16988
+    },
+    {
+      "code": 223,
+      "name": "six-post-timber-water-pier",
+      "master_blend_sha256": "fd56a679ba7353250b44102bea7ee2ecbce8ecc19bce196f677ffd7d9d82291a",
+      "standalone_glb_sha256": "9d3cc863764fc4af6abab76d48eb312ce25b3fc65562dc453f2cf1a6be95c534",
+      "runtime_glb_sha256": "9d3cc863764fc4af6abab76d48eb312ce25b3fc65562dc453f2cf1a6be95c534",
+      "textured_materials": 0,
+      "runtime_bytes": 130148
+    },
+    {
+      "code": 224,
+      "name": "sandstone-pedestal-teal-lattice-crane",
+      "master_blend_sha256": "14bcab00639e63f05e98bbf4cbd79709887b2af36ddc676441dee9b192d82b6f",
+      "standalone_glb_sha256": "c1f5c30904ce0abe70657671641bd6a424cf95c65f5b7ccd87be772ec974646e",
+      "runtime_glb_sha256": "2858c07271ad922ac4821a126d1b1990c0195b61546d68911c59bda5e725ea6e",
+      "textured_materials": 4,
+      "runtime_bytes": 211396
+    },
+    {
+      "code": 225,
+      "name": "warm-square-glazed-civilian-control-tower",
+      "master_blend_sha256": "bf3e82acedd7897e51cfcd12f3bc9b7e9129666d3a1fc2e77d1494fefae9752e",
+      "standalone_glb_sha256": "2f95da851b895da76b122f9885275a5f80538d7b0fa9158cbf4b9a7783b41046",
+      "runtime_glb_sha256": "a04c687c9ab7d110ef6696ec697fff8b7bb034ec0c960d94dceecb9abe0dfee5",
+      "textured_materials": 5,
+      "runtime_bytes": 135348
+    },
+    {
+      "code": 226,
+      "name": "gray-octagonal-military-control-tower",
+      "master_blend_sha256": "579ab498e5f2224b324b250c94f362bb8c5a75968c9e01787ca07244ba5012f4",
+      "standalone_glb_sha256": "dcc4d43cf176a794fa3e14846c6511f7d499d78c350250e55660b080f597dea3",
+      "runtime_glb_sha256": "024d4782feaffd7764c68bceccf2f1968a304b3d96d760cfaace3b13229b03d9",
+      "textured_materials": 6,
+      "runtime_bytes": 177756
+    },
+    {
+      "code": 227,
+      "name": "palm-lined-three-door-flat-warehouse",
+      "master_blend_sha256": "695fe10b3566e9c49751ef4c564b205d6b3e172715d82b2d2531d4b3d0602f1b",
+      "standalone_glb_sha256": "7a629ba756d6c22c5390ef8158451a6aca35419f18128141eea5348030bdd3e6",
+      "runtime_glb_sha256": "9681601936cead056e49d8764c5f5b16f72773d87eef43e33dfa3fc082539850",
+      "textured_materials": 5,
+      "runtime_bytes": 403396
+    },
+    {
+      "code": 228,
+      "name": "palm-shaded-flat-roof-service-building",
+      "master_blend_sha256": "a8e80d34d0ab8cf67ef067305a4f7194cd45caf9d111b15c70718de8a0f367b5",
+      "standalone_glb_sha256": "c221d671b976e78d56daefb409e11f3624a0890770e0308d81b715ed5c17a77d",
+      "runtime_glb_sha256": "cb32a36cefa5470f13a5b26209f4b6f7af213c84a3641a4f103de19162321453",
+      "textured_materials": 8,
+      "runtime_bytes": 501812
+    },
+    {
+      "code": 229,
+      "name": "twin-teal-door-clay-roof-building",
+      "master_blend_sha256": "d2aa38fdae851c19eb14b0f4c6c41be91197f096d9e8044bbfc701485669bf9b",
+      "standalone_glb_sha256": "b7c6f1e2f2f7d1bc7d08af7a40dd7f219bbc7e2a9ddf2e9fa00bbcd676291a6a",
+      "runtime_glb_sha256": "4ce82d8f49eac31fd7eddc0a6b6502ecd72354825f4de78ae1b8eb5a6dcf588b",
+      "textured_materials": 9,
+      "runtime_bytes": 240416
+    },
+    {
+      "code": 230,
+      "name": "cracked-concrete-yellow-cross-tarmac",
+      "master_blend_sha256": "106c3b8ff528fdae270b69fbc9c60a9ec10bd952f0440bef1b9d45958dca3512",
+      "standalone_glb_sha256": "9a8128b15b35f8cbd1fe47bdd246b66caf0a0bba019cb38f28e92be87a004658",
+      "runtime_glb_sha256": "668e96a74af3b25b4cb93df087238e74c0e25deb75c4ae7d545e8c8f6c05b53b",
+      "textured_materials": 3,
+      "runtime_bytes": 37176
+    },
+    {
+      "code": 231,
+      "name": "twin-tail-gray-fighter-on-apron",
+      "master_blend_sha256": "a3416180269a21f00fb72a49be609483578436f10009ba66273bcf4fdc5df452",
+      "standalone_glb_sha256": "96844a7efaa47f91781ee5b3246c0b5d32d57bab3a03fe2a4ec891b8e19a0ae4",
+      "runtime_glb_sha256": "0d05a3452ec8e098061e067c37a38a865be369e5d08882b83d6efb718cd78cd6",
+      "textured_materials": 3,
+      "runtime_bytes": 179796
+    },
+    {
+      "code": 232,
+      "name": "open-ribbed-metal-hangar-with-van",
+      "master_blend_sha256": "981004c78203365fd4fdfd99bbbc8a68a6cadd87a34a01f6255a26e705dfc11f",
+      "standalone_glb_sha256": "6ac311731718726a6dcf69902fb565c6c43c42001907cb3632cfb0f09f7c8fb6",
+      "runtime_glb_sha256": "1aa34f22685b586f4cfa16483e72f586e9272da24d9b6032857bf3ea2176d118",
+      "textured_materials": 5,
+      "runtime_bytes": 245780
+    },
+    {
+      "code": 233,
+      "name": "vegas-subway-station",
+      "master_blend_sha256": "e8f17093acf103c19e56ec981f6ec439cfc11ccbfbbd2c00305beb6ca87bc72d",
+      "standalone_glb_sha256": "4564bbf128f66c882c73af0a8d7871638732d36c77ac2052568bda21ca7e2f16",
+      "runtime_glb_sha256": "0962edfc6c608fa7a4ba59f4bf224c063f75bcebe1ff6f3641f7556caff8bc87",
+      "textured_materials": 3,
+      "runtime_bytes": 1236496
+    },
+    {
+      "code": 234,
+      "name": "ochre-radar-house-concave-roof-dish",
+      "master_blend_sha256": "dca18a61a69e62e94ede20333ac819711fd32f067283bd41b06366757d37018d",
+      "standalone_glb_sha256": "5ed457b7f9504433e58bfb380af18c3df3645be16ebdd82ea2a9b7152ae02e8f",
+      "runtime_glb_sha256": "38e30a01630dfc587a09fdc042ad564be2ba1f4a460222dbff63554ba6fa3581",
+      "textured_materials": 7,
+      "runtime_bytes": 292416
+    },
+    {
+      "code": 235,
+      "name": "sandstone-water-tank-teal-cross-braced-tower",
+      "master_blend_sha256": "9375e457c93d8de62dfe818ec1692eeb912f3ede953f88ccee5bc792cd2292ab",
+      "standalone_glb_sha256": "550c96440f46cca27ad89b78463af7c0883b468b1000f927c0606730e7be6994",
+      "runtime_glb_sha256": "162a290dca8478f58e16b34918165d36163808cf2ff0e32e3f2c76a8b8174ded",
+      "textured_materials": 5,
+      "runtime_bytes": 886900
+    },
+    {
+      "code": 236,
+      "name": "teal-glazed-sandstone-bus-station",
+      "master_blend_sha256": "8ae52b77f21986153e0ffd11f2f633be134ae73c81a15dbcd68db1424904fcd9",
+      "standalone_glb_sha256": "c261c7abd93bedc55dcd36adc3cf2ff1a3ae63c836c9c92c8e9ebe1364fdcbf6",
+      "runtime_glb_sha256": "a5f0c4ea7c84947a23eabb8904512a09abb661c506f7aa5aa9559fbeacdf9ba4",
+      "textured_materials": 6,
+      "runtime_bytes": 445368
+    },
+    {
+      "code": 237,
+      "name": "desert-transit-rail-hall",
+      "master_blend_sha256": "e2a4991fd9beaf1dbee7173156db50ca90dbfa56d462fc82dfba097e770c837d",
+      "standalone_glb_sha256": "693e7320102868f2dddc2f73cb057fd2c2e3e1f5860762c68f3bd9f902f4d517",
+      "runtime_glb_sha256": "46bc6f0d4376e587ac7dff3878c31e6072bd9480b5550e42f7e1c49f401d201f",
+      "textured_materials": 6,
+      "runtime_bytes": 1196892
+    },
+    {
+      "code": 238,
+      "name": "civilian-parking-lot",
+      "master_blend_sha256": "63a6fc5e229fa26cb9817e8aa014b5ff06cd589036ea4ca95aa16177e94ef7bc",
+      "standalone_glb_sha256": "0e1d7b10e19e7778df88e0b45ee8ffa8d1aefac9684d29eb92fdd7921371af67",
+      "runtime_glb_sha256": "51992bd6bbe93ea97a57299dd21225a200c3413634c9694c19a2cfee24d1728d",
+      "textured_materials": 3,
+      "runtime_bytes": 289640
+    },
+    {
+      "code": 239,
+      "name": "military-vehicle-compound",
+      "master_blend_sha256": "6629d303c6095c59b54b528c7f9fcf3592f68665ae222f8737c773919e5d6379",
+      "standalone_glb_sha256": "5f78fd8d97b16ef6807380ab54c31d4dc695887ab3cbf5847a43d054c917f510",
+      "runtime_glb_sha256": "dd26e18a929733a657a17054d83e50bb23f3f716b6cd29bd31812203bcff7eb9",
+      "textured_materials": 3,
+      "runtime_bytes": 493440
+    },
+    {
+      "code": 240,
+      "name": "three-gray-shutter-loading-bay-with-van",
+      "master_blend_sha256": "7078333b1e5ccecc2c16f10ae6fd79e57362fc17bc2bed70ec16cec99d83bde5",
+      "standalone_glb_sha256": "afbf8b9a772510c1ed462ac085e908acd35754566a42323f1c4f3fe8bb73d628",
+      "runtime_glb_sha256": "5dfe9c527aff9bd932e7ab396cb8abf835b6cf34736a69886dd19e5647329d48",
+      "textured_materials": 6,
+      "runtime_bytes": 418644
+    },
+    {
+      "code": 241,
+      "name": "crenellated-teal-antenna-secure-facility",
+      "master_blend_sha256": "69c7dc7ed5e2d6560e989d4f395ae573edbbfb6b99b3b8866f533af312bbd2f3",
+      "standalone_glb_sha256": "48019d6c80f6d85a91a98692cb02ea6c2ec2de8f2e2ab315861a1518e1db38ca",
+      "runtime_glb_sha256": "d8054e01ac219bd95047eeecd760d1f20b8c53d6084979bf69298748bfa1a0de",
+      "textured_materials": 5,
+      "runtime_bytes": 909016
+    },
+    {
+      "code": 242,
+      "name": "two-teal-containers-four-wood-crates-cargo-yard",
+      "master_blend_sha256": "f3468800f5e9625bd205f79be766ab3209e75b193dd42faf7a1a1a29964ea857",
+      "standalone_glb_sha256": "a30a195c3eceb1aa664a574137303ab46d23099eee2ab3a18238791b9dbe3364",
+      "runtime_glb_sha256": "ed71b954cd226dafd8610c3b090814348335599c1cb0bff6d2a13961e2f6f1b8",
+      "textured_materials": 3,
+      "runtime_bytes": 447324
+    },
+    {
+      "code": 243,
+      "name": "red-hip-roof-raised-porch-mayors-house",
+      "master_blend_sha256": "88929af584fc83530705c9a0dda75c474da5d44cc6162701bce021328b8ef8c8",
+      "standalone_glb_sha256": "ff332c1148e19e0bde5ff1eec2ececdcf276a7fbd1b401001903cdcc48601fff",
+      "runtime_glb_sha256": "fa3805d74dff55d3277076b2b1aaf5d07704312846d53fc57280f4f033d7d552",
+      "textured_materials": 5,
+      "runtime_bytes": 652660
+    },
+    {
+      "code": 244,
+      "name": "three-round-turquoise-treatment-basins",
+      "master_blend_sha256": "f3c38c7e84a22290015a1261edf51d7454558aa20bf8389d9eabf62cd10b2b93",
+      "standalone_glb_sha256": "0a5fdcb38bf69d8184610199510a34deaed5da940f3111352c35e8c6e2fc284f",
+      "runtime_glb_sha256": "8b4aba0eb4448ba422ce756a6dfd663abd0540411b773d6ab014ea10810f06d3",
+      "textured_materials": 7,
+      "runtime_bytes": 1111968
+    },
+    {
+      "code": 245,
+      "name": "rotunda-public-library",
+      "master_blend_sha256": "79173fec84756b6cd436c656d8f8bc68a5a7f8bac02058cf120e8c4e382307a0",
+      "standalone_glb_sha256": "da45a9118a2e7bf9ade7c7f635af01038ae509d341e0bdbcc024b683c34a9562",
+      "runtime_glb_sha256": "012b105f6f02bcccab2edcba15515663c548bb729be3d53ebc4181a8aa4e04c7",
+      "textured_materials": 7,
+      "runtime_bytes": 731844
+    },
+    {
+      "code": 246,
+      "name": "curved-metal-open-aircraft-hangar",
+      "master_blend_sha256": "f18477256c6852b2bfb37c48e8d6e779ae97eff67b1d4d057d1cf7cedb058653",
+      "standalone_glb_sha256": "a6194e00ea4d75d111dc13803a7853e4fd783404c049077f05cf4d3fd07ee0aa",
+      "runtime_glb_sha256": "1e32bf0b3a3fcb7651de2ceaaf5f8e9d60c7689ee8d37398c1c04f8504f1f563",
+      "textured_materials": 4,
+      "runtime_bytes": 647172
+    },
+    {
+      "code": 247,
+      "name": "terracotta-gable-church-bell-tower",
+      "master_blend_sha256": "82cbc33e64d580f66c9f2806b3887e6180b0a0bd58414ad49189fad563f704f6",
+      "standalone_glb_sha256": "8a13594f279211a4153050364c6ca138ac0bea248277463ed13dc95687150976",
+      "runtime_glb_sha256": "937eb38283fc51c799a8732f4d3ce6dee762f541a2b2dbf8b19ecb20ec93551c",
+      "textured_materials": 4,
+      "runtime_bytes": 1624632
+    },
+    {
+      "code": 248,
+      "name": "timber-three-finger-marina-four-launches",
+      "master_blend_sha256": "867706dbede1785484b13e9b986a8f9abeeec9ac66a637cdd9a8bd115063ad8c",
+      "standalone_glb_sha256": "82224f346ad74738f1641bdb6f024dd3322d866241eb116d05d3566072762fa5",
+      "runtime_glb_sha256": "e46ab0318d812628e0f090e4a13e7bd98b823e2a496896e4e238835291fa0bde",
+      "textured_materials": 2,
+      "runtime_bytes": 878952
+    },
+    {
+      "code": 249,
+      "name": "open-stone-missile-silo-gated-compound",
+      "master_blend_sha256": "4ddce7d126a4655d2682e4226437495b836ea62512fb4080c5dd6abda61830a2",
+      "standalone_glb_sha256": "0767f37594760bb457a0bd8330b1b3f189286380a428f2ac1ff1b957db5271a2",
+      "runtime_glb_sha256": "04596158fa7237775d49c0c1ec856a55c8ddf33acd916b7ca85f4555219b86a5",
+      "textured_materials": 5,
+      "runtime_bytes": 1013020
+    },
+    {
+      "code": 250,
+      "name": "desalination-processing-plant",
+      "master_blend_sha256": "6d5508aecf617b1ccbe2f3d3287d2c6e3f98619f2ea6838bd6331c286e5ea85a",
+      "standalone_glb_sha256": "089d22d727b2bbc714c3f94cf71df493065b1d1b8aa6a4163361c51892b9105f",
+      "runtime_glb_sha256": "79751ba41ad23c461786a49cfe7c38bc5ec8438862120888b6683ebaec05f5d2",
+      "textured_materials": 3,
+      "runtime_bytes": 942120
+    },
+    {
+      "code": 251,
+      "name": "comstock-grand",
+      "master_blend_sha256": "ee835e423b4d45c89a6c8fad13ed9dce370a1f150dd80b4a24f9d3a6c23f119b",
+      "standalone_glb_sha256": "185d677efb09e7073c111c324a811be17774365ef6223f79543ead67191b9fcc",
+      "runtime_glb_sha256": "dfec70b42270d5cd7fb93025315d24abce625085b14130546d027d51e1c47863",
+      "textured_materials": 3,
+      "runtime_bytes": 1697908
+    },
+    {
+      "code": 252,
+      "name": "silver-junction",
+      "master_blend_sha256": "58c114d98c5dd2a1664d7371f5cc5b07c2f2cf06ae8fd789a2a5959bee8a5cca",
+      "standalone_glb_sha256": "65c8703cff62319488247e62a860f3ee4c9fda77429594b815b040fc79ec3c5d",
+      "runtime_glb_sha256": "f75b5c45388e1023f4ca70f02adf689fc056ce0b7c99f5ebd7b4d658c18c7302",
+      "textured_materials": 2,
+      "runtime_bytes": 811568
+    },
+    {
+      "code": 253,
+      "name": "boulder-crown",
+      "master_blend_sha256": "f799c5510252d7e50b0920618f0faf4a620fed85e3cd23e02f178c43d086db61",
+      "standalone_glb_sha256": "44e2a85071f7cafb20efb059e7ef17020b42c5ac47944b1087fa8f93a1262fdd",
+      "runtime_glb_sha256": "688f4e5c15f3591f95134a84eb85427a64bc833d93ae488322f2f82b30e467b9",
+      "textured_materials": 4,
+      "runtime_bytes": 638192
+    },
+    {
+      "code": 254,
+      "name": "desert-orbit",
+      "master_blend_sha256": "1feb27502091222cafe174fe48ae444ad5503b32900106f2e6a460ef0a059d94",
+      "standalone_glb_sha256": "96f967b1c14ef41c3b29aa5b5ad7874d010e6d5b44a4eb43e182ac1bb87e31b1",
+      "runtime_glb_sha256": "1fe640644681c3b716a17c60087550a9c4ce23569f6e8345d312df957ff987f4",
+      "textured_materials": 2,
+      "runtime_bytes": 892756
+    },
+    {
+      "code": 255,
+      "name": "bronze-framed-turquoise-geodesic-dome",
+      "master_blend_sha256": "e6e17f37c43de5ed3763d0d8cacf8ec128a11dacd82a8d2c614f3f207fd0d988",
+      "standalone_glb_sha256": "2447bf7b74bb0bd3dee7f5a5fcff47795dc127b91f3fd6bd26024c43aef4b19a",
+      "runtime_glb_sha256": "f0556a0f2939f4e09fb59cc706c5567c2822d5c8e68f4e0db54bb6508f19e1c4",
+      "textured_materials": 4,
+      "runtime_bytes": 1891348
+    }
+  ],
+  "textures": [
+    {
+      "path": "surfaces/d311a21dcca171b27aab58333bdc2523952be377ea21fab5ae8a60a6849b6103.jpg",
+      "sha256": "d311a21dcca171b27aab58333bdc2523952be377ea21fab5ae8a60a6849b6103",
+      "bytes": 493523,
+      "source_name": "concrete"
+    },
+    {
+      "path": "surfaces/9568c549b28836b24fc2cae94a996057e030c49fbd19f895f6878a8c5d7b98ff.jpg",
+      "sha256": "9568c549b28836b24fc2cae94a996057e030c49fbd19f895f6878a8c5d7b98ff",
+      "bytes": 452401,
+      "source_name": "stucco"
+    },
+    {
+      "path": "surfaces/e8ff86d8cbcad67453f121e0ef12e23b98b8bdd967db7a1fb748a3ff5db953e5.jpg",
+      "sha256": "e8ff86d8cbcad67453f121e0ef12e23b98b8bdd967db7a1fb748a3ff5db953e5",
+      "bytes": 369258,
+      "source_name": "desert-sand"
+    },
+    {
+      "path": "surfaces/dde409fe69f175c1a69f81f801002a4d2e0527dc793f9e90ad52159bc5d1fdaf.jpg",
+      "sha256": "dde409fe69f175c1a69f81f801002a4d2e0527dc793f9e90ad52159bc5d1fdaf",
+      "bytes": 600311,
+      "source_name": "road-grain"
+    },
+    {
+      "path": "surfaces/fbf0c6182317e0e5f5bed48d71b01ac9ac6a9b939c64b30f8e81cef84dcda16a.jpg",
+      "sha256": "fbf0c6182317e0e5f5bed48d71b01ac9ac6a9b939c64b30f8e81cef84dcda16a",
+      "bytes": 433733,
+      "source_name": "limestone"
+    },
+    {
+      "path": "surfaces/1497bcaffb7bd8c0af6e0b7f16e246fda7132e09fc1e668488110aa47f16dc84.jpg",
+      "sha256": "1497bcaffb7bd8c0af6e0b7f16e246fda7132e09fc1e668488110aa47f16dc84",
+      "bytes": 484910,
+      "source_name": "desert-rock"
+    }
+  ]
+}

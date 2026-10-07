@@ -1,0 +1,17 @@
+{
+  "title": "Sin City: Desert Dreams \u2014 title postcard",
+  "created_date": "2026-10-05",
+  "source": "game/assets/ui/desert-postcard.svg",
+  "provenance": "Original SVG geometry drawn for the mid-century interface. No third-party image, logo, game screenshot or traced artwork was used.",
+  "generation": "Drawn directly as editable SVG.",
+  "fonts": "The SVG contains no embedded fonts or text. Interface typography reuses the existing BioRhyme asset and license.",
+  "files": [
+    {
+      "file": "desert-postcard.svg",
+      "bytes": 2537,
+      "sha256": "01bf3b7932db45bf80fdcd46fef74f9c99fb452970d075fbe3d7348b37ab59ee",
+      "width": 720,
+      "height": 440
+    }
+  ]
+}

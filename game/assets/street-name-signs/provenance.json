@@ -1,0 +1,60 @@
+{
+  "asset_terms": "CC-BY-NC-SA-4.0; see LICENSING.md; code GPL-3.0-or-later",
+  "builder": "street_name_signs.py (Blender authoring script, kept outside this repository)",
+  "builder_sha256": "9651911752f650a37c97f29e7b6d7d7d610401962f177028de4ce3c658d0f450",
+  "copyright": "\u00a9 2026 Bristlecone Artists LLC",
+  "creator": "Bristlecone Artists LLC",
+  "files": {
+    "highway-exit.blend": "efa194db68d7617a36cdb7e05c500604c56bdd31c08c9dce42bb76e56cbfcc03",
+    "highway-exit.glb": "cc817de5c0265ac69a5e4611a749ffbc84f70447ee673fdfbd9a6eff9a19b74b",
+    "metrics.json": "48a503e0221e1acee12b27256db03652799c9552f6b5ec9d0a11ff37909e1022",
+    "street-blade.blend": "d9804aa5720b1ff1d4dbe719a1da4d0fa90f1a8f5f079db306bb666585ea69f4",
+    "street-blade.glb": "67eff8aeac1277845d9537ac63749e761d5a2ed4ee9ffc349952e66bd903f4eb",
+    "street-post.blend": "2a0b7a3df1fd695e0485f688f5535471deeb11b36a82a0f501818a273fe3860f",
+    "street-post.glb": "e561691cb6a13e74d3d19779420ce7b570dae1e976b78c358c6317ea204e99ed",
+    "templates.json": "06316988ff142659501178d9ba722db98935f87929c156760d05d43c13800d49"
+  },
+  "font": {
+    "license": "SIL OFL 1.1; bundled adjacent OFL.txt; runtime lettering only",
+    "path": "res://assets/fonts/biorhyme/BioRhyme-Medium.ttf",
+    "sha256": "a09f815afc20fc15aa4921559dd7cbca841908f68f4fefdc20285c2a31bbb4bd"
+  },
+  "origin": "Original scripted geometry and deterministic 32\u00d732 enamel/metal texture pixels; no imported art",
+  "palette": {
+    "Brass": {
+      "linear_color": [
+        0.53,
+        0.32,
+        0.105
+      ],
+      "metallic": 0.65,
+      "roughness": 0.36,
+      "sha256": "85386e66131e1e2bd3c8837d9a11f6ce635731c78f598a6fc99065c6e8bfe1f4",
+      "texture": "textures/Brass.png"
+    },
+    "DeepTeal": {
+      "linear_color": [
+        0.022,
+        0.105,
+        0.102
+      ],
+      "metallic": 0.12,
+      "roughness": 0.42,
+      "sha256": "a556a967c16ec9b75ecdbeec8149b89437e7009e81b1374acc5224f138d85f75",
+      "texture": "textures/DeepTeal.png"
+    },
+    "Ivory": {
+      "linear_color": [
+        0.92,
+        0.86,
+        0.7
+      ],
+      "metallic": 0.02,
+      "roughness": 0.56,
+      "sha256": "93395eeb4af1f2f5965cfb14e591fc8213707785504beccd57ee784e5cc95944",
+      "texture": "textures/Ivory.png"
+    }
+  },
+  "runtime_exports": "Byte-identical GLBs; each embeds its shared palette textures. No building catalog registration.",
+  "schema": 1
+}

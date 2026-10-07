@@ -1,0 +1,210 @@
+# SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See LICENSE and LICENSING.md in the repository root.
+extends "res://tests/exploration/async_test_case.gd"
+const MAIN := preload("res://scenes/main.tscn")
+var host: GameHost
+func before_each() -> void:
+	host = MAIN.instantiate()
+	host.preferences_path = "user://street-ui.cfg"
+	root.add_child(host)
+	host.begin_city(flat_city(),{},42,CityStats.new())
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+	host.select_tool(Tools.Kind.ROAD)
+	check(host.handle_drag(Vector2i(50,60),Vector2i(56,60)).ok)
+func after_each() -> void:
+	host.free()
+	await process_frame
+func session() -> Node:
+	var value: Node = host.get("street_names")
+	check(value != null,"Main provides integrated Street Names session")
+	return value
+func test_mode_restores_view_tool_focus_and_speed() -> void:
+	var s := session()
+	if s == null: return
+	host.presentation.set_overlay(&"crime")
+	host.presentation.set_view_mode(CityPresentationController.ViewMode.UNDERGROUND)
+	host.toolbar.button_for(Tools.Kind.ROAD).grab_focus()
+	var focused := root.gui_get_focus_owner()
+	host.sim.set_speed(GameClock.Speed.FAST)
+	var before := host.sim.snapshot().duplicate(true)
+	check(s.enter())
+	check(not host.sim.is_processing())
+	check_eq(host.sim.snapshot(),before)
+	check(not host.presentation.is_underground())
+	check_eq(host.presentation.get_overlay(),&"")
+	host.select_tool(Tools.Kind.BULLDOZE)
+	check_eq(host.tool,GameHost.NO_TOOL,"placement suspended")
+	check(not host.enter_explore())
+	s.leave()
+	check(host.sim.is_processing())
+	check_eq(host.sim.snapshot(),before)
+	check_eq(host.tool,Tools.Kind.ROAD)
+	check(host.presentation.is_underground())
+	check_eq(host.presentation.get_overlay(),&"crime")
+	check_eq(root.gui_get_focus_owner(),focused)
+func test_loading_background_hold_does_not_restart_clock() -> void:
+	var s := session()
+	if s == null: return
+	host.sim.set_speed(GameClock.Speed.FAST)
+	check(s.enter())
+	await host.run_loading("Naming fixture","",func():
+		s.leave()
+		check(not host.sim.is_processing(),"loading keeps its hold after naming leaves"))
+	check(host.sim.is_processing(),"last owner restores original processing")
+	check_eq(host.sim.speed,GameClock.Speed.FAST)
+	check(s.enter())
+	await host.run_loading("Nested","",func(): pass)
+	check(not host.sim.is_processing(),"loading release cannot remove naming hold")
+	host.push_modal()
+	host.suspend_for_background("user://street-recovery.sc2d")
+	s.leave()
+	check_eq(host.sim.speed,GameClock.Speed.PAUSED)
+	host.pop_modal()
+	host.resume_from_background()
+	check_eq(host.sim.speed,GameClock.Speed.PAUSED)
+	check(host.sim.is_processing(),"no orphaned false processing after background resume")
+func test_entry_guard_and_panel_actions() -> void:
+	var s := session()
+	if s == null: return
+	check(host.menu_bar.is_enabled(&"street_names"))
+	host.stage = GameHost.Stage.EDITING
+	check(not s.enter())
+	host.stage = GameHost.Stage.PLAY
+	check(s.enter())
+	var panel: Control = s.get("panel")
+	check(panel.visible)
+	check_eq(panel.get("hint").text,"Changes save when you press Apply.")
+	for key: String in ["apply_button","remove_button","entire_button","clear_button","done_button"]:
+		check(panel.get(key).custom_minimum_size.y >= 44)
+	check(panel.get("entire_button").disabled)
+	panel.get("name_edit").text = "Unapplied"
+	s.leave()
+	check_eq(panel.call("draft_text"),"")
+	check(host.sim.city.street_naming.links.is_empty())
+func test_atomic_apply_remove_whole_street_and_city_replacement() -> void:
+	var s := session()
+	if s == null: return
+	host.city_view_3d.set_camera_state(Vector3(53.5,1,60.5),0,14)
+	check(s.enter())
+	var picked: Dictionary = s.toggle_segment_at(host.city_view_3d.project_cell(Vector2i(53,60)))
+	check(picked.has("segment"))
+	var panel: Control = s.get("panel")
+	panel.get("name_edit").text = "  Desert   Rose  "
+	var funds := host.sim.city.funds
+	var simulation := host.sim.snapshot().duplicate(true)
+	var selected: Array = s.selected_links()
+	check(not selected.is_empty())
+	var applied: Dictionary = s.apply_draft()
+	check(applied.ok)
+	check_eq(host.sim.city.funds,funds)
+	check_eq(host.sim.snapshot(),simulation)
+	check_eq(s.selected_links(),selected)
+	check(not panel.get("entire_button").disabled)
+	check_eq(panel.get("name_edit").text,"Desert Rose")
+	panel.get("name_edit").text = "x".repeat(49)
+	var committed: Dictionary = host.sim.city.street_naming.duplicate(true)
+	check(not s.apply_draft().ok)
+	check_eq(host.sim.city.street_naming,committed)
+	check_eq(panel.get("name_edit").text,"x".repeat(49))
+	check(s.is_active())
+	panel.get("name_edit").text = "Unapplied"
+	check_eq(SaveFormat.save("user://street-applied.sc2d",host.sim.city,host.sim.snapshot()),OK)
+	check_eq(SaveFormat.load("user://street-applied.sc2d").city.street_naming,committed)
+	panel.get("remove_button").pressed.emit()
+	check(host.sim.city.street_naming.links.is_empty())
+	check_eq(s.selected_links(),selected)
+	s.clear_selection()
+	check_eq(panel.call("draft_text"),"")
+	host.begin_city(flat_city(),{},77,CityStats.new())
+	check(not s.is_active())
+	check(s.selected_links().is_empty())
+	check(host.sim.is_processing())
+func test_panel_fits_safe_keyboard_bounds_and_footer_is_natural() -> void:
+	var s := session()
+	if s == null: return
+	check(s.enter())
+	var panel: Control = s.get("panel")
+	# Drain Main's deferred initial shell layout before testing explicit panel bounds.
+	await process_frame
+	await process_frame
+	for bounds: Rect2 in [Rect2(8,40,374,720),Rect2(8,40,374,320),Rect2(8,40,620,240)]:
+		panel.apply_layout(bounds,true)
+		await process_frame
+		await process_frame
+		check(bounds.encloses(panel.get_global_rect()),"panel stays in safe keyboard bounds: %s contains %s" % [bounds,panel.get_global_rect()])
+		check(panel.get("footer").size.y < 70,"footer keeps its natural height")
+		check(panel.get("scroll").size.y > 0,"content remains scrollable")
+func test_partial_remove_whole_selection_saved_spelling_and_stale_failure() -> void:
+	var s := session()
+	if s == null: return
+	host.select_tool(Tools.Kind.ROAD)
+	check(host.handle_drag(Vector2i(70,60),Vector2i(73,60)).ok)
+	host.city_view_3d.set_camera_state(Vector3(62,1,60.5),0,30)
+	check(s.enter())
+	s.toggle_segment_at(host.city_view_3d.project_cell(Vector2i(53,60)))
+	s.toggle_segment_at(host.city_view_3d.project_cell(Vector2i(71,60)))
+	var all: Array = s.selected_links()
+	check_eq(all.size(),9,"disconnected selections share identity deliberately")
+	var panel: Control = s.get("panel")
+	panel.set_draft("Palm Avenue")
+	var first: Dictionary = s.apply_draft()
+	check(first.ok)
+	s.clear_selection()
+	s.toggle_segment_at(host.city_view_3d.project_cell(Vector2i(71,60)))
+	panel.set_draft("pALM avenue")
+	check_eq(panel.get("_matching").text,"Use existing street: Palm Avenue","saved display spelling shown before Apply")
+	check(s.apply_draft().ok)
+	check_eq(panel.draft_text(),"Palm Avenue","partial reuse preserves saved spelling")
+	panel.entire_button.pressed.emit()
+	check_eq(s.selected_links().size(),all.size())
+	panel.set_draft("PALM AVENUE")
+	var renamed: Dictionary = s.apply_draft()
+	check_eq(renamed.street_id,first.street_id,"whole rename retains identity")
+	check_eq(panel.draft_text(),"PALM AVENUE","whole capitalization is intentional")
+	s.clear_selection()
+	s.toggle_segment_at(host.city_view_3d.project_cell(Vector2i(71,60)))
+	panel.remove_button.pressed.emit()
+	check_eq(host.sim.city.street_naming.links.size(),6,"remove affects only selected disconnected portion")
+	s.clear_selection()
+	s.toggle_segment_at(host.city_view_3d.project_cell(Vector2i(53,60)))
+	panel.set_draft("Keep this failed draft")
+	var selected: Array = s.selected_links()
+	host.sim.city.building.put(53,60,0)
+	var before: Dictionary = host.sim.city.street_naming.duplicate(true)
+	check(not s.apply_draft().ok,"unannounced structural change rejects old token")
+	check_eq(host.sim.city.street_naming,before)
+	check_eq(s.selected_links(),selected)
+	check_eq(panel.draft_text(),"Keep this failed draft")
+	check(s.is_active())
+func test_owned_hold_preserves_preexisting_false_and_modal_release_orders() -> void:
+	var s := session()
+	if s == null: return
+	host.sim.set_process(false)
+	check(s.enter())
+	s.leave()
+	check(not host.sim.is_processing(),"does not release another preexisting process owner")
+	host.sim.set_process(true)
+	host.sim.set_speed(GameClock.Speed.FAST)
+	check(s.enter())
+	host.push_modal()
+	s.leave()
+	check_eq(host.sim.speed,GameClock.Speed.PAUSED)
+	host.pop_modal()
+	check_eq(host.sim.speed,GameClock.Speed.FAST)
+	check(s.enter())
+	host.push_modal()
+	host.pop_modal()
+	check(not host.sim.is_processing())
+	check_eq(host.sim.speed,GameClock.Speed.FAST)
+	s.leave()
+	check(host.sim.is_processing())
+func test_real_unfounded_city_hides_naming_action() -> void:
+	var s := session()
+	if s == null: return
+	host.start_new_city({"name":"Unfounded","seed":42},flat_city())
+	check(not host.menu_bar.is_enabled(&"street_names"),"actual terrain editing disables menu entry")
+	host.menu_bar.press(&"street_names")
+	check(not s.is_active())
+	check(host.found_city())
+	check(host.menu_bar.is_enabled(&"street_names"),"founding enables menu entry")

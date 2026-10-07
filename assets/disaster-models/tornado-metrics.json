@@ -1,0 +1,58 @@
+{
+  "source_metres_min": [
+    -26.114883422851562,
+    -26.671592712402344,
+    0.0
+  ],
+  "source_metres_max": [
+    25.17290687561035,
+    24.953397750854492,
+    73.59490203857422
+  ],
+  "triangles": 10758,
+  "editable_meshes": 22,
+  "materials": [
+    "dust",
+    "stone",
+    "storm",
+    "storm_dark",
+    "storm_light"
+  ],
+  "godot_tile_size": [
+    3.2054868936538696,
+    4.599681377410889,
+    3.2265619039535522
+  ],
+  "skeletons": 0,
+  "bones": 0,
+  "morph_meshes": 8,
+  "duration_seconds": 8.0,
+  "animation_metres_min": [
+    -27.291677474975586,
+    -27.99700164794922,
+    0.0
+  ],
+  "animation_metres_max": [
+    27.51923370361328,
+    27.24382781982422,
+    74.13275146484375
+  ],
+  "loop_seam_metres": 5.3947966093944364e-06,
+  "maximum_sampled_vertex_motion_metres": 55.2170563381676,
+  "sampled_poses": 17,
+  "runtime_triangles": 10758,
+  "runtime_meshes": 22,
+  "runtime_materials": 5,
+  "animation_channels": 57,
+  "animation_paths": [
+    "rotation",
+    "scale",
+    "translation",
+    "weights"
+  ],
+  "runtime_skins": 0,
+  "master": "assets/disaster-models/tornado.blend",
+  "runtime": "game/assets/desert-dreams-disasters/tornado.glb",
+  "master_sha256": "0d227f1b26d2069d6a65893c392f02b832289cd8cc8e20d4b36086c9bad56088",
+  "runtime_sha256": "5dc4e911294ed9b90a2a2c9eb6982791e3ab3c7633e4026c3344c7f342c22633"
+}

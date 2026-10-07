@@ -1,0 +1,377 @@
+{
+  "name": "car",
+  "units": "meters",
+  "blender_forward": "+Y",
+  "godot_forward": "-Z",
+  "runtime_scale": 0.0625,
+  "triangles": 5528,
+  "rest_bounds_blender": [
+    [
+      -0.9450000524520874,
+      -2.1449999809265137,
+      0.0
+    ],
+    [
+      0.9450000524520874,
+      2.1549999713897705,
+      1.227500081062317
+    ]
+  ],
+  "motion_bounds_samples": [
+    {
+      "steering_degrees": -35,
+      "bounds_blender": [
+        [
+          -0.9450000524520874,
+          -2.1449999809265137,
+          0.0
+        ],
+        [
+          0.9449999928474426,
+          2.1549999713897705,
+          1.227500081062317
+        ]
+      ]
+    },
+    {
+      "steering_degrees": -20,
+      "bounds_blender": [
+        [
+          -0.9450000524520874,
+          -2.1449999809265137,
+          0.0
+        ],
+        [
+          0.9449999928474426,
+          2.1549999713897705,
+          1.227500081062317
+        ]
+      ]
+    },
+    {
+      "steering_degrees": 0,
+      "bounds_blender": [
+        [
+          -0.9450000524520874,
+          -2.1449999809265137,
+          0.0
+        ],
+        [
+          0.9449999928474426,
+          2.1549999713897705,
+          1.227500081062317
+        ]
+      ]
+    },
+    {
+      "steering_degrees": 20,
+      "bounds_blender": [
+        [
+          -0.9450000524520874,
+          -2.1449999809265137,
+          0.0
+        ],
+        [
+          0.9449999928474426,
+          2.1549999713897705,
+          1.227500081062317
+        ]
+      ]
+    },
+    {
+      "steering_degrees": 35,
+      "bounds_blender": [
+        [
+          -0.9450000524520874,
+          -2.1449999809265137,
+          0.0
+        ],
+        [
+          0.9449999928474426,
+          2.1549999713897705,
+          1.227500081062317
+        ]
+      ]
+    }
+  ],
+  "hierarchy": [
+    {
+      "name": "CarModel",
+      "parent": null,
+      "type": "EMPTY"
+    },
+    {
+      "name": "CarModel Amber lamp",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "CarModel Copper enamel",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "CarModel Dark grille",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "CarModel Ivory lamp",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "CarModel Red lamp",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "CarModel Teal canopy",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "CarModel Warm alloy",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "CarModel Warm cream",
+      "parent": "CarModel",
+      "type": "MESH"
+    },
+    {
+      "name": "WheelFrontLeft",
+      "parent": "CarModel",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin",
+      "parent": "WheelFrontLeft",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin Copper enamel",
+      "parent": "Spin",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin Dark grille",
+      "parent": "Spin",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin Rubber charcoal",
+      "parent": "Spin",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin Warm alloy",
+      "parent": "Spin",
+      "type": "MESH"
+    },
+    {
+      "name": "WheelFrontRight",
+      "parent": "CarModel",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin.002",
+      "parent": "WheelFrontRight",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin.002 Copper enamel",
+      "parent": "Spin.002",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.002 Dark grille",
+      "parent": "Spin.002",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.002 Rubber charcoal",
+      "parent": "Spin.002",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.002 Warm alloy",
+      "parent": "Spin.002",
+      "type": "MESH"
+    },
+    {
+      "name": "WheelRearLeft",
+      "parent": "CarModel",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin.001",
+      "parent": "WheelRearLeft",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin.001 Copper enamel",
+      "parent": "Spin.001",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.001 Dark grille",
+      "parent": "Spin.001",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.001 Rubber charcoal",
+      "parent": "Spin.001",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.001 Warm alloy",
+      "parent": "Spin.001",
+      "type": "MESH"
+    },
+    {
+      "name": "WheelRearRight",
+      "parent": "CarModel",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin.003",
+      "parent": "WheelRearRight",
+      "type": "EMPTY"
+    },
+    {
+      "name": "Spin.003 Copper enamel",
+      "parent": "Spin.003",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.003 Dark grille",
+      "parent": "Spin.003",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.003 Rubber charcoal",
+      "parent": "Spin.003",
+      "type": "MESH"
+    },
+    {
+      "name": "Spin.003 Warm alloy",
+      "parent": "Spin.003",
+      "type": "MESH"
+    }
+  ],
+  "materials": [
+    {
+      "name": "Copper enamel",
+      "rgba": [
+        0.5799999833106995,
+        0.22499999403953552,
+        0.0949999988079071,
+        1.0
+      ]
+    },
+    {
+      "name": "Warm cream",
+      "rgba": [
+        0.8799999952316284,
+        0.7900000214576721,
+        0.5899999737739563,
+        1.0
+      ]
+    },
+    {
+      "name": "Deep teal enamel",
+      "rgba": [
+        0.03500000014901161,
+        0.24500000476837158,
+        0.2549999952316284,
+        1.0
+      ]
+    },
+    {
+      "name": "Teal canopy",
+      "rgba": [
+        0.054999999701976776,
+        0.18000000715255737,
+        0.20499999821186066,
+        1.0
+      ]
+    },
+    {
+      "name": "Rubber charcoal",
+      "rgba": [
+        0.02500000037252903,
+        0.03200000151991844,
+        0.03500000014901161,
+        1.0
+      ]
+    },
+    {
+      "name": "Warm alloy",
+      "rgba": [
+        0.5799999833106995,
+        0.5799999833106995,
+        0.49000000953674316,
+        1.0
+      ]
+    },
+    {
+      "name": "Dark grille",
+      "rgba": [
+        0.054999999701976776,
+        0.07000000029802322,
+        0.06499999761581421,
+        1.0
+      ]
+    },
+    {
+      "name": "Ivory lamp",
+      "rgba": [
+        0.9800000190734863,
+        0.8899999856948853,
+        0.5899999737739563,
+        1.0
+      ]
+    },
+    {
+      "name": "Amber lamp",
+      "rgba": [
+        0.9599999785423279,
+        0.4000000059604645,
+        0.06499999761581421,
+        1.0
+      ]
+    },
+    {
+      "name": "Red lamp",
+      "rgba": [
+        0.5799999833106995,
+        0.04500000178813934,
+        0.02199999988079071,
+        1.0
+      ]
+    },
+    {
+      "name": "Blade graphite",
+      "rgba": [
+        0.06499999761581421,
+        0.09000000357627869,
+        0.0949999988079071,
+        1.0
+      ]
+    },
+    {
+      "name": "Seat leather",
+      "rgba": [
+        0.25,
+        0.11500000208616257,
+        0.054999999701976776,
+        1.0
+      ]
+    }
+  ],
+  "owned_geometry": true,
+  "external_textures": false,
+  "motion_contract": "Front wheel parent yaw +/-35 degrees; child Spin rolls local X"
+}

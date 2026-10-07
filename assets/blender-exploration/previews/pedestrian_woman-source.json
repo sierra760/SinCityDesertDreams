@@ -1,0 +1,124 @@
+{
+  "generator": "tools/blender_exploration/build_pedestrian.py",
+  "blender": "5.2.2 LTS",
+  "character": "woman",
+  "source": "assets/blender-exploration/pedestrian_woman.blend",
+  "glb": "game/assets/desert-dreams-exploration/pedestrian_woman.glb",
+  "coordinate_contract": "metres; Blender +Y forward; glTF/Godot -Z forward; feet Z=0; runtime scale 1/16",
+  "rig": "Armature",
+  "bones": [
+    "Root",
+    "Hips",
+    "Spine",
+    "Chest",
+    "Neck",
+    "Head",
+    "LeftUpperArm",
+    "LeftForearm",
+    "LeftHand",
+    "RightUpperArm",
+    "RightForearm",
+    "RightHand",
+    "LeftThigh",
+    "LeftShin",
+    "LeftFoot",
+    "RightThigh",
+    "RightShin",
+    "RightFoot"
+  ],
+  "clips": {
+    "idle": 48,
+    "walk": 24,
+    "run": 14,
+    "jump": 21
+  },
+  "fps": 24,
+  "triangles": 12800,
+  "vertices": 6532,
+  "mesh_parts": 1,
+  "shared_materials": [
+    "teal",
+    "teal_dark",
+    "copper",
+    "skin",
+    "hair",
+    "shoes",
+    "brass",
+    "cream",
+    "eye",
+    "lips"
+  ],
+  "rest_bounds_blender_xyz": {
+    "min": [
+      -0.2506713271141052,
+      -0.1311662197113037,
+      0.0
+    ],
+    "max": [
+      0.2506713271141052,
+      0.18050000071525574,
+      1.7419999837875366
+    ]
+  },
+  "sampled_pose_bounds_blender_xyz": {
+    "idle": {
+      "min": [
+        -0.243631973862648,
+        -0.1350223273038864,
+        -7.59027898311615e-08
+      ],
+      "max": [
+        0.2488606870174408,
+        0.176372691988945,
+        1.7490755319595337
+      ],
+      "max_stance_shoe_ground_gap": null
+    },
+    "walk": {
+      "min": [
+        -0.24523305892944336,
+        -0.6237282752990723,
+        -1.0617077350616455e-07
+      ],
+      "max": [
+        0.24765467643737793,
+        0.43719592690467834,
+        1.7711966037750244
+      ],
+      "max_stance_shoe_ground_gap": 1.0803341865539551e-07
+    },
+    "run": {
+      "min": [
+        -0.2844927906990051,
+        -0.746773362159729,
+        -5.960464477539063e-08
+      ],
+      "max": [
+        0.2918283939361572,
+        0.6434991359710693,
+        1.7301888465881348
+      ],
+      "max_stance_shoe_ground_gap": 2.9802322387695312e-08
+    },
+    "jump": {
+      "min": [
+        -0.23725253343582153,
+        -0.3250717520713806,
+        -8.055940270423889e-08
+      ],
+      "max": [
+        0.23725253343582153,
+        0.4951363205909729,
+        1.7978302240371704
+      ],
+      "max_stance_shoe_ground_gap": null
+    }
+  },
+  "previews": [
+    "pedestrian_woman-idle-three-quarter.png",
+    "pedestrian_woman-walk-pose.png",
+    "pedestrian_woman-run-pose.png",
+    "pedestrian_woman-back-three-quarter.png",
+    "pedestrian_woman-face.png"
+  ]
+}

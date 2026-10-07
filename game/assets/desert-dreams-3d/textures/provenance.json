@@ -1,0 +1,14 @@
+{
+  "title": "Connected material grain sheet",
+  "use": "Fine surface grain sampled by the 3D terrain and network materials (CityGeometry3D.GRAIN).",
+  "provenance": "Material sheet generated for this project; no third-party image or game screenshot was used.",
+  "files": {
+    "connected-materials.png": {
+      "source": "project material sheet materials.png, copied unedited",
+      "sha256": "ecaeed2e1160b4483cb2cc8076711f7d35c3437874317a367847f5cfef34c5aa",
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  "ground_textures": "desert-sand.png, desert-rock.png and road-grain.png are recorded in docs/art/ground-textures.json."
+}

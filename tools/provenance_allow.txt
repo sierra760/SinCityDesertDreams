@@ -1,0 +1,44 @@
+# One entry per line: "path" or "path:line". Comments start with #.
+# Keep this short and explain every entry.
+
+# The policy document has to name the things it forbids.
+docs/design/provenance-policy.md
+# The README identifies the compatibility target by name once.
+README.md
+# The checker itself lists the banned tokens.
+tools/check_provenance.py
+# The classic-city importer, the tests that build classic-city fixtures and the
+# format notes must spell the public chunk tags of the container they read.
+game/scripts/io/sc2_import.gd
+game/tests/test_sc2_import.gd
+game/tests/test_imported_power_links.gd
+game/tests/test_imported_rewards.gd
+docs/design/file-formats.md
+
+# Real-world elevation/land-cover tile names are latitude/longitude cells
+# that look like hex addresses to the scanner.
+game/tests/test_real_world_importer.gd:206
+game/tests/test_real_world_importer.gd:208
+game/tests/test_real_world_geography.gd:103
+game/tests/test_real_world_geography.gd:117
+game/tests/test_real_world_geography.gd:118
+game/tests/test_real_world_transport.gd:306
+game/tests/test_real_world_transport.gd:307
+# A Unicode em-space escape used to test name whitespace normalization.
+game/tests/test_street_naming_registry.gd:135
+# A Unicode bell-character escape used to test save-name control-character
+# stripping.
+game/tests/test_file_flow_usability.gd:69
+
+# The scanner regression test contains intentional forbidden-token fixtures.
+tools/tests/test_check_provenance.py
+
+# Xcode/macOS SDK build numbers recorded by Godot's macOS export preset.
+game/export_presets.cfg:48
+game/export_presets.cfg:50
+game/export_presets.cfg:53
+# The data credits name a public USGS global elevation dataset (2010 release).
+game/data/real_world_terrain_notices.txt:51
+game/data/real_world_terrain_notices.txt:53
+# Public deflate length/distance tables from RFC 1951, section 3.2.5.
+game/scripts/terrain/real_world/terrain_zlib.gd

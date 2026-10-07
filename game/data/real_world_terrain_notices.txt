@@ -1,0 +1,75 @@
+Real-world terrain data sources
+
+The game resamples elevation and water, rotates the selected area, adjusts relief, smooths when requested and repairs heights for playable city terrain. These modifications are by Bristlecone Artists LLC, not endorsed by the data providers. The square uses a spherical approximation: distances and shapes are approximate. Water reflects 2021 land cover and can miss narrow channels or differ from today's shoreline. This is a game landscape, not a navigation or survey map.
+
+aws-terrain-joerd — Mapzen terrain tiles / Joerd
+Terrain collection managed by Mapzen, hosted in the AWS Registry of Open Data; accessed through public HTTPS.
+Collection: https://registry.opendata.aws/terrain-tiles/
+Provider attribution and terms: https://github.com/tilezen/joerd/blob/master/docs/attribution.md
+
+ArcticDEM terrain data: DEM(s) were created from DigitalGlobe, Inc., imagery and funded under National Science Foundation awards 1043681, 1559691, and 1542736.
+Source: http://nga.maps.arcgis.com/apps/MapSeries/index.html?appid=cf2fba21df7540fb981f8836f2a97e25
+
+Australia terrain data © Commonwealth of Australia (Geoscience Australia) 2017.
+Source: https://ecat.ga.gov.au/geonetwork/srv/eng/search#!22be4b55-2465-4320-e053-10a3070a5236
+License: https://creativecommons.org/licenses/by/4.0/
+
+Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM) Österreich.
+Source: https://www.data.gv.at/katalog/dataset/b5de6975-417b-4320-afdb-eb2a9e2a1dbf
+License: https://creativecommons.org/licenses/by/3.0/at/deed.de
+
+Canada terrain data contains information licensed under the Open Government Licence – Canada.
+Source: http://ftp.geogratis.gc.ca/pub/nrcan_rncan/elevation/cdem_mnec/doc/CDEM_product_specs.pdf
+License: https://open.canada.ca/en/open-government-licence-canada
+
+Europe terrain data produced using Copernicus data and information funded by the European Union - EU-DEM layers.
+Source: https://www.eea.europa.eu/data-and-maps/data/eu-dem#tab-metadata
+
+Global ETOPO1 terrain data: U.S. National Oceanic and Atmospheric Administration.
+Credit: DOC/NOAA/NESDIS/NCEI > National Centers for Environmental Information, NESDIS, NOAA, U.S. Department of Commerce.
+ETOPO1 US Government material is not subject to copyright protection within the United States. Not for navigation; NOAA provides no warranty.
+Source: https://www.ngdc.noaa.gov/mgg/global/global.html
+Terms: https://www.ngdc.noaa.gov/ngdcinfo/privacy.html#disclaimer
+
+Mexico terrain data source: INEGI, Continental relief, 2016.
+Source: http://en.www.inegi.org.mx/temas/mapas/relieve/continental/
+Terms: http://en.www.inegi.org.mx/inegi/terminos.html
+
+New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New Zealand and the New Zealand Government (All rights reserved).
+Source: https://data.linz.govt.nz/layer/1768-nz-8m-digital-elevation-model-2012/
+License: https://data.linz.govt.nz/license/attribution-3-0-new-zealand/
+
+Norway terrain data © Kartverket.
+Source: http://data.kartverket.no/download/content/digital-terrengmodell-10-m-utm-33
+Terms: http://www.kartverket.no/data/lisens/
+License: https://creativecommons.org/licenses/by/4.0/deed.no
+
+United Kingdom terrain data © Environment Agency copyright and/or database right 2015. All rights reserved.
+Source: https://data.gov.uk/dataset/lidar-composite-dtm-2m1
+License: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+
+United States 3DEP (formerly NED) and global GMTED2010 and SRTM terrain data courtesy of the U.S. Geological Survey.
+3DEP source: https://nationalmap.gov/3DEP/
+GMTED2010 source: https://pubs.usgs.gov/of/2011/1073/
+SRTM source: https://www.jpl.nasa.gov/news/nasa-releases-new-srtm-data-to-enhance-earths-relief-maps/
+Terms: https://www.usgs.gov/privacy.html
+USGS data are supplied as is, without warranty or endorsement of this modified game terrain.
+
+esa-worldcover-2021-v200 — ESA WorldCover 10 m 2021 v200
+© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium
+Creative Commons Attribution 4.0 International (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+Data and acknowledgement: https://esa-worldcover.org/en/data-access
+Dataset: https://doi.org/10.5281/zenodo.7254221
+
+Zanaga, D., Van De Kerchove, R., Daems, D., De Keersmaecker, W., Brockmann, C., Kirches, G., Wevers, J., Cartus, O., Santoro, M., Fritz, S., Lesiv, M., Herold, M., Tsendbazar, N.E., Xu, P., Ramoino, F., Arino, O., 2022. ESA WorldCover 10 m 2021 v200. https://doi.org/10.5281/zenodo.7254221
+
+The 2021 map was produced by the ESA WorldCover consortium led by VITO, with Brockmann Consult, Gamma Remote Sensing AG, IIASA and Wageningen University. The game uses the water class from the 3×3 degree map tiles, resampled and converted into playable water. It does not use annual imagery composites. CC BY 4.0 permits sharing and adaptation with credit, a license link and indication of changes; no provider endorsement is implied.
+
+openstreetmap-chooser-map — OpenStreetMap street map and place search
+The terrain chooser's street map shows tiles from the OpenStreetMap Foundation's public tile service, and its place search uses the public Nominatim service. Both only help you find a square while choosing; they never shape the terrain and nothing from them is saved with a city.
+Map data © OpenStreetMap contributors, available under the Open Data Commons Open Database License (ODbL) 1.0.
+Copyright and license: https://www.openstreetmap.org/copyright
+Tile usage policy: https://operations.osmfoundation.org/policies/tiles/
+Nominatim usage policy: https://operations.osmfoundation.org/policies/nominatim/
+
+These data notices apply separately from the game's code and asset licenses. The source links above are references shown as text; opening this notice uses only this bundled file and needs no connection or terrain cache.
