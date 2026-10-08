@@ -220,6 +220,35 @@ population window, technology announcements, notices and Controls. Internal
 simulation and save identifiers still say "arcology". Each resort keeps its individual
 name and a mining, railway, dam/crown or rocket silhouette.
 
+## Gaming-resort tables
+
+`CasinoTableOverlay` (`game/scripts/ui/casino/`) is the table a seat on a
+resort floor opens. Main's `open_casino_table` refuses before founding, over
+another dialog, for an unknown resort or game, and with a treasury below the
+table minimum (the reason appears as a notice). An open table is a modal:
+the city pauses, Explore suspends, the Explore HUD and its paused panel hide
+behind the table, and the Explore camera holds the table's seated view. The
+overlay shows the resort header in the resort's sign lettering, the floor and
+game, the live treasury with this sitting's net, the drawn and animated game,
+the dealer's line and a bet bar with chips, −/+ and the game's actions.
+Escape or Leave table closes it between rounds only; closing pops the modal,
+restores the previous speed, releases the camera and lets Explore resume by
+itself. Closing or replacing the city mid-round refunds the stake first;
+backgrounding the app plays the round out as it stands (blackjack stands,
+video poker draws, a launch cashes out) and closes the table. A launch's
+climb holds while the desktop window is unfocused. A quit requested while
+seated waits and the table explains why. Enter plays the table's main action
+unless the player has moved focus to another button (Leave table, Rules, a
+chip), which Enter then activates.
+
+The header, the floor · game line and the dealer's line wrap rather than
+cut off. Narrow layouts move the treasury, Rules and Leave table to a second
+header row; short layouts stack the game's actions beside the table. Every
+target stays 44 units or larger, keyboard focus stays inside the table, and
+every control is reachable by keyboard. The Explore controls hint names F as
+"interact", which covers resort doors and seats; the prompt itself names the
+door or the table. See [Gaming resorts](gaming-resorts.md).
+
 ## Shortcuts, backups and saving
 
 Terrain editing disables clock controls and explains the Found City prerequisite;

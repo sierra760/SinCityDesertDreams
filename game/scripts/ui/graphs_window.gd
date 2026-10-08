@@ -21,6 +21,7 @@ const SERIES_LABELS := {
 	&"water_percent": "Water spare %", &"unemployment": "Unemployment", &"health": "Life expectancy",
 	&"education": "Education", &"demand_residential": "Residential demand",
 	&"demand_commercial": "Commercial demand", &"demand_industrial": "Industrial demand",
+	&"transit_riders": "Transit riders",
 }
 
 var _sim: Simulation

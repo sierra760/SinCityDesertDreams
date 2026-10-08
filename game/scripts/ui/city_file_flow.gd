@@ -164,6 +164,8 @@ func quit_game() -> void:
 	# prompt or interrupt that work; resume the normal close flow when it ends.
 	if _city_action_blocked() and _pending_city_action.is_empty() and _after_save_action.is_empty():
 		_quit_waiting = true
+		# A seated mayor is told why the close waits instead of nothing.
+		if _host.is_casino_open(): _host.casino_overlay.say(CasinoLines.QUIT_SEATED)
 		return
 	request_city_action(&"quit")
 
@@ -180,6 +182,7 @@ func _city_action_blocked() -> bool:
 
 
 func _quit_now() -> void:
+	_host.force_close_casino()
 	_host.street_names.leave()
 	_host.sim.set_process(false)
 	_host.explore_switch.dispose()
@@ -231,6 +234,8 @@ func is_unchanged_generated_land() -> bool:
 
 ## Forget the previous city's save state when another city is bound.
 func reset() -> void:
+	# A city is being replaced: a table still open refunds its round first.
+	_host.force_close_casino()
 	_saved_content = {}
 	_generated_content = {}
 	_failed_save_name = ""

@@ -170,15 +170,85 @@ func test_lower_taxes_raise_demand() -> void:
 	check_gt(low.stats.demand.x, high.stats.demand.x)
 
 
+## A town with homes and factories whose demand sits below the meter's limit
+## at a 20% residential and industrial rate.
+func taxed_town(ordinance: StringName) -> ZoneSys:
+	var c := flat_city()
+	for i in 100:
+		c.stamp_building(10 + (i % 80), 10 + i / 80, Buildings.RES_1X1_FIRST, Zones.RES_LOW)
+	for i in 5:
+		c.stamp_building(10 + i * 3, 40, Buildings.IND_3X3_FIRST, Zones.IND_HIGH)
+	var ctx := make_context(c)
+	ctx.stats.tax_residential = 20
+	ctx.stats.tax_industrial = 20
+	if ordinance != &"":
+		ctx.stats.ordinances[ordinance] = true
+	var sys := make_system(ctx)
+	sys.monthly(ctx, 0)
+	return sys
+
+
 func test_ordinance_nudges_demand() -> void:
+	var base := taxed_town(&"").raw_demand()
+	check_lt(base.x, Params.DEMAND_RAW_LIMIT, "the fixture is below the limit")
+	check_lt(base.z, Params.DEMAND_RAW_LIMIT, "the fixture is below the limit")
+	# Business advertising courts factories: industry feels a lower rate.
+	check_eq(taxed_town(&"business_advertising").raw_demand().z - base.z,
+		Params.tax_pressure(19) - Params.tax_pressure(20))
+	# Pollution controls make industry feel a higher rate.
+	check_eq(base.z - taxed_town(&"pollution_controls").raw_demand().z,
+		Params.tax_pressure(20) - Params.tax_pressure(21))
+	# Income tax is felt by households; tree planting eases it.
+	check_eq(base.x - taxed_town(&"income_tax").raw_demand().x,
+		Params.tax_pressure(20) - Params.tax_pressure(21))
+	check_eq(taxed_town(&"tree_planting").raw_demand().x - base.x,
+		Params.tax_pressure(19) - Params.tax_pressure(20))
+	# The reading campaign draws families directly.
+	check_eq(taxed_town(&"pro_reading_campaign").raw_demand().x - base.x, Params.READING_NUDGE)
+	# Sales tax is felt by shops; the player's rate is unchanged. An empty map
+	# keeps commercial demand below its limit.
 	var plain := make_context(flat_city())
-	var advertised := make_context(flat_city())
-	advertised.stats.ordinances[&"business_advertising"] = true
 	var plain_sys := make_system(plain)
-	var advertised_sys := make_system(advertised)
 	plain_sys.monthly(plain, 0)
-	advertised_sys.monthly(advertised, 0)
-	check_eq(advertised_sys.raw_demand().y - plain_sys.raw_demand().y, Params.ORDINANCE_NUDGE_LARGE)
+	var taxed := make_context(flat_city())
+	taxed.stats.ordinances[&"sales_tax"] = true
+	var taxed_sys := make_system(taxed)
+	taxed_sys.monthly(taxed, 0)
+	check_eq(plain_sys.raw_demand().y - taxed_sys.raw_demand().y,
+		Params.tax_pressure(7) - Params.tax_pressure(8))
+	check_eq(taxed.stats.tax_commercial, 7)
+
+
+class FakePorts extends SimSystem:
+	func demand_bonus() -> Vector3i:
+		return Vector3i(0, 30, 20)
+
+	func jobs() -> int:
+		return 0
+
+
+class FakeNeighbors extends SimSystem:
+	func trade_demand_bonus() -> int:
+		return 15
+
+
+func test_ports_and_neighbor_links_lift_demand() -> void:
+	var base := taxed_town(&"").raw_demand()
+	var c := flat_city()
+	for i in 100:
+		c.stamp_building(10 + (i % 80), 10 + i / 80, Buildings.RES_1X1_FIRST, Zones.RES_LOW)
+	for i in 5:
+		c.stamp_building(10 + i * 3, 40, Buildings.IND_3X3_FIRST, Zones.IND_HIGH)
+	var ctx := make_context(c)
+	ctx.stats.tax_residential = 20
+	ctx.stats.tax_industrial = 20
+	ctx.systems[&"ports"] = FakePorts.new()
+	ctx.systems[&"neighbors"] = FakeNeighbors.new()
+	var sys := make_system(ctx)
+	sys.monthly(ctx, 0)
+	check_eq(sys.raw_demand().z - base.z, 20 + 15, "a seaport and trade links draw industry")
+	check_eq(sys.raw_demand().x, base.x, "residential demand is unchanged")
+	ctx.systems.clear()
 
 
 func test_dense_residential_forms_larger_footprints() -> void:

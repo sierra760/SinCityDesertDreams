@@ -97,7 +97,8 @@ const LANDMARK_VALUE := 5000
 
 # ── Inventions ───────────────────────────────────────────────────────────
 
-## Technology key → base year. The actual year adds a random offset.
+## Technology key → base year. The actual year adds a random offset. The keys
+## are the ones `Tools` gates its tools on.
 const TECHNOLOGIES: Dictionary = {
 	&"subway": 1910,
 	&"bus": 1920,
@@ -107,6 +108,7 @@ const TECHNOLOGIES: Dictionary = {
 	&"nuclear_plant": 1965,
 	&"solar_plant": 1990,
 	&"desalination": 1990,
+	&"wind_plant": 1980,
 	&"microwave_plant": 2020,
 	&"fusion_plant": 2050,
 	&"arcology_comstock": 2000,
@@ -123,6 +125,7 @@ const TECHNOLOGY_NAMES: Dictionary = {
 	&"nuclear_plant": "Nuclear Power",
 	&"solar_plant": "Solar Power",
 	&"desalination": "Desalination",
+	&"wind_plant": "Wind Power",
 	&"microwave_plant": "Microwave Power",
 	&"fusion_plant": "Fusion Power",
 	&"arcology_comstock": "Comstock Grand Gaming Resort",
@@ -132,37 +135,6 @@ const TECHNOLOGY_NAMES: Dictionary = {
 }
 ## Random years added to a base year when a city is founded.
 const INVENTION_SPREAD := 20
-## Building keys gated by a technology. Highway pieces and subway portals are
-## matched by prefix in technology_for().
-const BUILDING_TECHNOLOGY: Dictionary = {
-	&"subway_station": &"subway",
-	&"bus_depot": &"bus",
-	&"water_treatment": &"water_treatment",
-	&"plant_gas": &"gas_plant",
-	&"plant_nuclear": &"nuclear_plant",
-	&"plant_solar": &"solar_plant",
-	&"desalination": &"desalination",
-	&"plant_microwave": &"microwave_plant",
-	&"plant_fusion": &"fusion_plant",
-	&"arcology_comstock": &"arcology_comstock",
-	&"arcology_junction": &"arcology_junction",
-	&"arcology_boulder": &"arcology_boulder",
-	&"arcology_orbit": &"arcology_orbit",
-}
-
-
-## Technology a building needs, or an empty name when it needs none.
-static func technology_for(building_key: StringName) -> StringName:
-	if BUILDING_TECHNOLOGY.has(building_key):
-		return BUILDING_TECHNOLOGY[building_key]
-	var text := String(building_key)
-	if text.begins_with("highway_") or text.begins_with("onramp_"):
-		return &"highways"
-	if text.begins_with("subway_"):
-		return &"subway"
-	return &""
-
-
 static func phase_name(phase: int) -> String:
 	return PHASE_NAMES[clampi(phase, 0, PHASE_NAMES.size() - 1)]
 

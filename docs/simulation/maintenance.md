@@ -44,6 +44,10 @@ costs to maintain and how many tiles it has.
   | `wear_percent(category) -> int` | how close the category is to its next loss, 0–100 |
   | `losses() -> Dictionary` | tiles lost so far per category |
 
+  The Budget window's Transportation section reads `network_counts()`,
+  `wear_percent()` and `losses()` to show each built network's wear toward its
+  next loss and the tiles lost so far.
+
 ## Timing
 
 - `setup`: count the networks.

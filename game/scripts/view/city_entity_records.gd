@@ -13,7 +13,8 @@ func gather() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if simulation == null:
 		return out
-	_collect(out, &"transport", "vehicles", &"car")
+	# Road vehicles come from the ambient traffic layer (city_traffic_3d.gd);
+	# the transport simulation counts trips, it does not keep vehicles.
 	_collect(out, &"ports", "vehicles", &"plane")
 	_collect(out, &"disasters", "entities", &"tornado")
 	_collect(out, &"disasters", "fires", &"fire")

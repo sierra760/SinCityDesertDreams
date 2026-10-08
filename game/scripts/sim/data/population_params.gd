@@ -14,6 +14,8 @@ extends RefCounted
 const LOT_CAPACITY: Array[int] = [0, 10, 80, 360]
 ## The taller half of the 2×2 roster holds more people than the shorter half.
 const LOT_CAPACITY_TALL_2X2 := 120
+## Jobs in neighbor towns open to commuters per road or rail link.
+const COMMUTE_JOBS_PER_LINK := 150
 ## Residents per census unit used by the unemployment ratio.
 const CENSUS_UNIT := 10
 
@@ -39,6 +41,8 @@ const SCHOOL_EQ_GAIN := 35
 const CULTURE_EQ_GAIN := 2
 ## Education forgotten at each aging step without the reading campaign.
 const EQ_DECAY := 1
+## Education each school-age mover gains while junior sports runs.
+const JUNIOR_SPORTS_EQ_GAIN := 2
 ## Last cohort index (ages 10–14) that counts as school age.
 const SCHOOL_COHORT_MAX := 2
 ## Cohorts (ages 15–24) that colleges serve.
@@ -51,6 +55,8 @@ const COLLEGE_COHORT_MAX := 4
 const MORTALITY_MONTHS := 24
 ## Percent of deaths prevented when every resident has hospital care.
 const HOSPITAL_MORTALITY_RELIEF := 25
+## Percent of the remaining deaths CPR training prevents.
+const CPR_MORTALITY_RELIEF := 10
 ## Health of a baby born with and without hospital care.
 const NEWBORN_HEALTH_SERVED := 85
 const NEWBORN_HEALTH_UNSERVED := 35
@@ -61,6 +67,8 @@ const NEWBORN_EQ_DIVISOR := 5
 ## Health lost at each aging step: average pollution divided by this, capped.
 const POLLUTION_PENALTY_DIVISOR := 40
 const POLLUTION_PENALTY_MAX := 3
+## Added to that penalty while the water system reports untreated drinking water.
+const UNTREATED_WATER_PENALTY := 1
 
 # ── Births and migration ─────────────────────────────────────────────────
 
@@ -111,12 +119,16 @@ const STATUS_NAMES: Array[String] = [
 const VOTE_MIN_POPULATION := 100
 ## Voters polled; approval is the number who approve.
 const VOTE_COUNT := 100
-## Complaint weight per point of residential tax.
+## Complaint weight per point of the residential tax residents feel.
 const VOTE_TAX_WEIGHT := 3
+## Tax complaint weight added while parking fines are written.
+const VOTE_PARKING_FINES_WEIGHT := 3
 ## Life expectancy below which health becomes a complaint.
 const VOTE_HEALTH_TARGET := 70
 ## Baseline contentment added to the average land value.
 const VOTE_CONTENT_BASE := 50
+## Contentment added while the homeless shelters ordinance runs.
+const VOTE_SHELTER_CONTENT := 10
 ## Approval that triggers the milestone notice.
 const APPROVAL_MILESTONE := 80
 ## Complaint keys and labels, in weight order.
@@ -131,6 +143,12 @@ const COMPLAINT_NAMES: Array[String] = [
 
 ## Births in one month before a record month is reported.
 const NEWS_BIRTHS_MIN := 10
+## A month's emigration is an exodus when at least this many people leave and
+## they are at least this percent of last month's residents.
+const EXODUS_MIN_PEOPLE := 100
+const EXODUS_PERCENT := 5
+## People per family when the newspaper counts families leaving.
+const PEOPLE_PER_FAMILY := 3
 
 # ── Ordinance keys ───────────────────────────────────────────────────────
 
@@ -138,6 +156,10 @@ const ORDINANCE_PRO_READING := &"pro_reading_campaign"
 const ORDINANCE_FREE_CLINICS := &"free_clinics"
 const ORDINANCE_ANTI_DRUG := &"anti_drug_campaign"
 const ORDINANCE_SMOKING_BAN := &"public_smoking_ban"
+const ORDINANCE_CPR := &"cpr_training"
+const ORDINANCE_JUNIOR_SPORTS := &"junior_sports"
+const ORDINANCE_PARKING_FINES := &"parking_fines"
+const ORDINANCE_SHELTERS := &"homeless_shelters"
 
 
 ## Fallback capacity of a developed or abandoned lot by footprint. Abandoned

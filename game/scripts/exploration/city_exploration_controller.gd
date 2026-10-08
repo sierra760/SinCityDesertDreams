@@ -10,9 +10,13 @@ extends Node
 signal return_requested
 signal status_changed(status: Dictionary)
 signal active_changed(on: bool)
+## A casino table on a resort floor was chosen; the host opens the table and
+## may hold `casino_table_pose(table)` as the camera while it is open.
+signal casino_table_requested(resort: StringName, game: StringName, table: Dictionary)
 
 var controls := ControlBindings.new()
 const MarinaAccess := preload("res://scripts/exploration/explore_marina_access.gd")
+const ResortAccess := preload("res://scripts/exploration/resorts/resort_entrance_access.gd")
 const ACTOR_SCRIPTS := [preload("res://scripts/exploration/explore_pedestrian.gd"),
 	preload("res://scripts/exploration/explore_car.gd"),preload("res://scripts/exploration/explore_helicopter.gd")]
 
@@ -38,6 +42,9 @@ var car: CharacterBody3D
 var helicopter: CharacterBody3D
 var selected_vehicle: CharacterBody3D
 var transit_service: Node3D
+var resort_service: ExploreResortService
+## The table record last requested on a resort floor, until it is released.
+var _casino_table: Dictionary = {}
 var _traffic_claim: Dictionary = {}
 var _ambient_prompt_at := 0
 var _ambient_nearby: Dictionary = {}
@@ -116,6 +123,15 @@ func enter(city: City, origin: Vector3) -> bool:
 	view.world.add_child(transit_service)
 	transit_service.bind(view,traversal,pedestrian)
 	pedestrian.transit_support = transit_service
+	resort_service = ExploreResortService.new()
+	resort_service.name = "ExploreResorts"
+	view.world.add_child(resort_service)
+	resort_service.bind(view,traversal,pedestrian,hud)
+	resort_service.table_requested.connect(_on_casino_table)
+	resort_service.ejected.connect(func(reason: String) -> void: _message = reason)
+	resort_service.moved.connect(func() -> void:
+		_last_safe[pedestrian.get_instance_id()] = pedestrian.global_transform
+		if is_instance_valid(camera_rig): camera_rig.recenter())
 	mode = ExploreActorProfile.Mode.WALK
 	var car_pose := _parking_pose(pedestrian.global_position+Vector3(.4,0,0),1)
 	if not car_pose.is_empty():
@@ -420,7 +436,9 @@ func _clear_actors() -> void:
 	# Station/portal cut-outs restore their visuals now; the kept physical
 	# world is brought up to date by the next entry's rebuild, before any query.
 	if is_instance_valid(transit_service): transit_service.clear(false)
-	for node: Node in [camera_rig,pedestrian,car,helicopter,selected_vehicle,transit_service]:
+	if is_instance_valid(resort_service): resort_service.clear()
+	_casino_table = {}
+	for node: Node in [camera_rig,pedestrian,car,helicopter,selected_vehicle,transit_service,resort_service]:
 		if is_instance_valid(node): node.free()
 	if is_instance_valid(traversal):
 		if is_instance_valid(_retained_world) and _retained_world != traversal: _retained_world.free()
@@ -432,6 +450,7 @@ func _clear_actors() -> void:
 	helicopter = null
 	selected_vehicle = null
 	transit_service = null
+	resort_service = null
 	occupied = null
 	_last_safe.clear()
 	_ambient_prompt_at = 0
@@ -514,7 +533,9 @@ func _physics_process(delta: float) -> void:
 		if _touch_enabled and mode!=previous_mode: frame=ExploreInputFrame.idle()
 	if not _active: return
 	if is_instance_valid(transit_service): transit_service.step(delta,pedestrian)
-	occupied.step(frame,camera_rig.yaw,delta)
+	if is_instance_valid(resort_service): resort_service.step(delta,pedestrian)
+	# The walker holds still while a resort door fades.
+	if not (is_instance_valid(resort_service) and resort_service.is_transitioning()): occupied.step(frame,camera_rig.yaw,delta)
 	if occupied == helicopter:
 		if helicopter.landed(): _helicopter_in_flight = false
 		elif frame.vertical > 0: _helicopter_in_flight = true
@@ -536,6 +557,7 @@ func _reconcile_revision() -> bool:
 	if is_instance_valid(transit_service):
 		transit_service.refresh_geometry()
 		if is_instance_valid(transit_service.world): snapshot = transit_service.world.apply_physical_projection(snapshot)
+	if is_instance_valid(resort_service): resort_service.refresh_geometry()
 	traversal.rebuild(view.city,snapshot.chunks,snapshot.networks,snapshot.revision)
 	_revision_pending = false
 	for actor: CharacterBody3D in [pedestrian,car,helicopter,selected_vehicle]:
@@ -549,6 +571,7 @@ func _reconcile_revision() -> bool:
 func _valid_actor(actor: CharacterBody3D, check_obstruction: bool = false) -> bool:
 	var feet: Vector3 = actor.feet_position()
 	if not feet.is_finite() or feet.x < 0 or feet.z < 0 or feet.x >= City.WIDTH or feet.z >= City.HEIGHT: return false
+	if actor == pedestrian and is_instance_valid(resort_service) and resort_service.contains(feet): return true
 	if actor == pedestrian and is_instance_valid(transit_service) and transit_service.contains(feet): return true
 	if actor is ExploreRouteVehicle: return actor.has_support()
 	if feet.y < -1 or feet.y > traversal.max_flight_y()+.01 or traversal.touches_water(feet): return false
@@ -668,6 +691,12 @@ func _recover_actor(actor: CharacterBody3D) -> bool:
 		var configured: bool = actor.configure(actor.kind,traffic.graph,route)
 		if configured and actor.kind == &"train" and is_instance_valid(transit_service): transit_service.begin_surface_drive_route(route.get("cells",[]))
 		return configured
+	if actor == pedestrian and is_instance_valid(resort_service):
+		var hall_pose: Dictionary = resort_service.recover_pose(actor.global_position)
+		if not hall_pose.is_empty():
+			actor.clear_support_frame()
+			_apply_safe_actor_pose(actor,hall_pose.transform)
+			return true
 	if actor == pedestrian and is_instance_valid(transit_service):
 		var transit_pose: Dictionary = transit_service.recover_pose(actor.global_position)
 		if not transit_pose.is_empty():
@@ -713,9 +742,23 @@ func _apply_safe_actor_pose(actor: CharacterBody3D, pose: Transform3D) -> void:
 func request_interaction() -> bool:
 	if not _active or _suspended: return false
 	if mode == 0:
+		if is_instance_valid(resort_service):
+			# On a casino floor only the door and the tables respond; elevators,
+			# marinas, parked and ambient vehicles are never reachable from here.
+			if resort_service.is_transitioning(): return false
+			if resort_service.is_inside():
+				var used := resort_service.interact(pedestrian.global_position)
+				_publish_status()
+				return used
 		if is_instance_valid(transit_service) and transit_service.interact_elevator():
 			_publish_status()
 			return true
+		if is_instance_valid(resort_service):
+			var resort := ResortAccess.nearby(view.city,pedestrian.global_position)
+			if not resort.is_empty():
+				var entered := resort_service.enter(resort)
+				_publish_status()
+				return entered
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): return _board_marina(&"sailboat",marina)
 		var nearest := _nearest_vehicle()
@@ -851,7 +894,11 @@ func _update_camera_space(transit_status: Dictionary) -> void:
 func _publish_status(transit_status: Dictionary = {}) -> void:
 	if not _active or not is_instance_valid(occupied): return
 	var prompt := "F to exit" if mode != 0 else ""
-	if mode == 0:
+	var inside_resort := mode == 0 and is_instance_valid(resort_service) and resort_service.is_inside()
+	var resort_door: Dictionary = ResortAccess.nearby(view.city,pedestrian.global_position) if mode == 0 and not inside_resort else {}
+	if inside_resort: prompt = resort_service.prompt(pedestrian.global_position)
+	elif not resort_door.is_empty(): prompt = "F to enter "+ResortThemes.resort_name(resort_door.key)
+	elif mode == 0:
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): prompt="F to board a boat at the marina"
 		elif _nearest_vehicle() != null: prompt = "F to enter nearby vehicle"
@@ -863,8 +910,11 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 				_ambient_nearby = traffic.nearest_drivable_vehicle(pedestrian.global_position,.65) if traffic != null else {}
 			if not _ambient_nearby.is_empty(): prompt = "F to enter "+CityTrafficCatalog.display_name(StringName(_ambient_nearby.kind))
 	if transit_status.is_empty() and is_instance_valid(transit_service): transit_status=transit_service.status()
-	if mode==0 and not String(transit_status.get("elevator_prompt","")).is_empty(): prompt=String(transit_status.elevator_prompt)
+	if mode==0 and not inside_resort and not String(transit_status.get("elevator_prompt","")).is_empty(): prompt=String(transit_status.elevator_prompt)
 	var status := {"vehicle":str(occupied.get("kind")) if occupied == selected_vehicle else "","mode":mode,"speed":occupied.velocity.length(),"altitude":float(occupied.altitude()) if mode == 2 else 0.0,"prompt":prompt,"message":_message}
+	if is_instance_valid(resort_service):
+		status["resort"] = resort_service.status()
+		if not _casino_table.is_empty(): status["table_camera"] = casino_table_pose(_casino_table)
 	hud.set_status(status)
 	if is_instance_valid(transit_service):
 		_update_camera_space(transit_status)
@@ -873,6 +923,25 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 
 func _exit_tree() -> void:
 	dispose()
+
+func _on_casino_table(resort: StringName, game: StringName, table: Dictionary) -> void:
+	_casino_table = table
+	_publish_status()
+	casino_table_requested.emit(resort,game,table)
+
+## The authored seated camera for a requested casino table (world space).
+func casino_table_pose(table: Dictionary) -> Transform3D:
+	return resort_service.table_camera(table) if is_instance_valid(resort_service) else Transform3D.IDENTITY
+
+## Hold the table's seated view on the Explore camera while its game is open.
+func hold_casino_table_view(table: Dictionary, seconds: float = .45) -> void:
+	if is_instance_valid(camera_rig): camera_rig.set_table_view(casino_table_pose(table),seconds)
+
+## Release the held table view; the follow camera resumes behind the walker.
+func release_casino_table_view() -> void:
+	_casino_table = {}
+	if is_instance_valid(camera_rig): camera_rig.clear_table_view()
+	_publish_status()
 
 func select_vehicle(kind: StringName) -> bool:
 	if not _active or not _suspended: return false

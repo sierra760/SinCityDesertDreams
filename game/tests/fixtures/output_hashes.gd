@@ -10,9 +10,9 @@
 extends RefCounted
 
 const HASHES := {
-	"monthly_scan/economy": "d6b29718a0ca48e1bff80f524666e58cd5e9dc277fee7e425f9e99ff5ba11aec",
-	"monthly_scan/population": "8a169179074cb95ec4006eee4a0f119a0a196ac3deb588a59cd7bd16f72532f8",
-	"monthly_scan/budget": "26bc6b33f8f2476da08c0c3ce8743f162915019c49f0d541c2602270995d6b25",
+	"monthly_scan/economy": "6c85443e6fcd43742a82e1627efe7f69e0309761f6ede461357f520c49c09447",
+	"monthly_scan/population": "3bca5708cc7c7cc428850f76b522c157735e47a41ccc5bbebd43c63ca931dc87",
+	"monthly_scan/budget": "747d4a4edc9df901ac59f6f18b695695ef13278baa55ba6c23db2fad34373f29",
 	"monthly_scan/disaster": "80d7cd24231c76965019bbf34ee7024fadc2b9f221e19be0f5c20b547c902284",
 	"network_physics/mixed_far_city": "8dc223b8b9567fd125d42a342dc238fdb27cfb0e13b2779a53a89b0aa7fc56e3",
 	"resolve/curved_floor_walls_boxes": "2ddd1309c5d607b68c0050bfa6ba7cc5b2a9e3ed81e336f216dc32cf9f4717df",

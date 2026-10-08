@@ -237,7 +237,7 @@ static func _record_key(record: Dictionary) -> String:
 ## They are always replaced when touched.
 static func _reads_neighbors(code: int) -> bool:
 	return code in [Buildings.MARINA, Buildings.PIER, Buildings.RUNWAY, Buildings.RUNWAY_CROSS,
-		Buildings.RAIL_STATION, Buildings.SUBWAY_STATION]
+		Buildings.RAIL_STATION, Buildings.SUBWAY_STATION] or Buildings.is_arcology(code)
 
 
 ## Whether every byte an ordinary lot's model placement, base height, support
@@ -327,6 +327,8 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 		_fit_marina(city, rect, model, str(catalog.entries[code].get("glb_sha256", "")) if catalog != null and catalog.entries.has(code) else "")
 	elif code in [Buildings.RAIL_STATION, Buildings.SUBWAY_STATION]:
 		model.rotation.y = _station_yaw(city, rect, code)
+	elif Buildings.is_arcology(code):
+		model.rotation.y = resort_yaw(city, rect)
 	if code in [Buildings.SUBWAY_STATION,Buildings.RAIL_STATION] and not missing_model:
 		StationEntrySign3D.add_to(model,StationNameResolver.display_name(city,record.anchor,code==Buildings.SUBWAY_STATION),code==Buildings.RAIL_STATION)
 	if not missing_model:
@@ -361,6 +363,36 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 ## passenger access so the visible entrance describes the actual playable stop.
 static func _station_yaw(city: City, rect: Rect2i, code: int) -> float:
 	return StationStreetAccess.station_yaw(city,rect,code)
+
+## Gaming resort main entrances are authored on local +Z. The front stays there
+## while a street touches that side; otherwise it turns to the side with the
+## most adjacent street cells (east, west, then north on ties). A lot with no
+## adjacent street keeps its authored facing. Explore's door shares this yaw.
+static func resort_yaw(city: City, rect: Rect2i) -> float:
+	var front := Vector2i.DOWN
+	var best := _street_frontage(city, rect, front)
+	if best == 0:
+		for facing: Vector2i in [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.UP]:
+			var count := _street_frontage(city, rect, facing)
+			if count > best:
+				best = count
+				front = facing
+	return atan2(float(front.x), float(front.y))
+
+## Street cells edge-adjacent to one side of `rect`. Tunnel and bridge decks
+## are not at the lot's grade, so they are not a frontage.
+static func _street_frontage(city: City, rect: Rect2i, facing: Vector2i) -> int:
+	var start := Vector2i(rect.end.x if facing.x > 0 else rect.position.x - 1 if facing.x < 0 else rect.position.x,
+		rect.end.y if facing.y > 0 else rect.position.y - 1 if facing.y < 0 else rect.position.y)
+	var along := Vector2i(absi(facing.y), absi(facing.x))
+	var count := 0
+	for i: int in (rect.size.x if facing.y != 0 else rect.size.y):
+		var cell := start + along * i
+		if not city.in_bounds(cell.x, cell.y): continue
+		var code := city.building.atv(cell)
+		if NetworkShapes.in_road_family(code) and not NetworkShapes.is_tunnel(code) and not NetworkShapes.is_road_bridge(code):
+			count += 1
+	return count
 
 ## A connected run is authoritative: imported axis conventions differ, and
 ## native port development stamps either direction without setting AXIS.

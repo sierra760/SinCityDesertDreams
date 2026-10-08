@@ -26,7 +26,7 @@ const CELL_COUNT := CELLS * CELLS
 ## Buildings that lift the value of land around them.
 const CIVIC_ATTRACTIONS: Array[int] = [
 	Buildings.LIBRARY, Buildings.MUSEUM, Buildings.MARINA, Buildings.ZOO,
-	Buildings.CITY_HALL, Buildings.MONUMENT, Buildings.MAYORS_RESIDENCE,
+	Buildings.CITY_HALL, Buildings.MONUMENT, Buildings.MAYORS_RESIDENCE, Buildings.NEON_DOME,
 ]
 
 var _pollution_total := 0
@@ -39,9 +39,11 @@ var _crime_alerted := false
 ## Per-id and per-terrain-code tables, built once.
 var _developed_tbl := PackedByteArray()      # building alone makes a tile developed
 var _abandoned_tbl := PackedByteArray()
-var _emission_tbl := PackedInt32Array()      # emission minus absorption per tile
-var _emission_controls_tbl := PackedInt32Array()
+## Emission minus absorption per tile, one table per ordinance combination:
+## index 1 when pollution controls run, plus 2 when tree planting runs.
+var _emission_tbls: Array[PackedInt32Array] = []
 var _amenity_tbl := PackedInt32Array()       # amenity of a built dry tile
+var _port_tbl := PackedByteArray()           # 1 port piece, 2 military piece
 var _open_water_tbl := PackedByteArray()     # by terrain code
 var _flat_tbl := PackedByteArray()           # by terrain code
 
@@ -49,6 +51,7 @@ var _flat_tbl := PackedByteArray()           # by terrain code
 var _developed := PackedByteArray()          # per block
 var _block_zone := PackedByteArray()         # first zone kind of each block
 var _block_emission := PackedInt32Array()    # net emission of each block
+var _block_crime := PackedInt32Array()       # crime added by ports, bases and arcologies
 var _amenity := PackedInt32Array()           # amenity per 4×4 cell
 var _treatment_anchors := PackedInt32Array()
 var _centre := Vector2i.ZERO
@@ -56,6 +59,12 @@ var _centre := Vector2i.ZERO
 var _work := PackedInt32Array()
 var _bonus := PackedByteArray()
 var _base := PackedInt32Array()
+## This month's weather, published to power and water through precipitation()
+## and wind_speed(). Rolled each month around the seasonal means.
+var _rain := -1
+var _wind := -1
+## Direction the wind blows from, one of the four map directions.
+var _wind_from := Params.PREVAILING_WIND_FROM
 
 
 func _init() -> void:
@@ -64,13 +73,20 @@ func _init() -> void:
 	_developed.resize(BLOCK_COUNT)
 	_block_zone.resize(BLOCK_COUNT)
 	_block_emission.resize(BLOCK_COUNT)
+	_block_crime.resize(BLOCK_COUNT)
 	_amenity.resize(CELL_COUNT)
 	_work.resize(BLOCK_COUNT)
 	_bonus.resize(BLOCK_COUNT)
 	_base.resize(BLOCK_COUNT)
 
 
+func setup(ctx: SimContext) -> void:
+	if _rain < 0 or _wind < 0:
+		_seasonal_weather(ctx.month())
+
+
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
+	_update_weather(ctx)
 	_scan_tiles(ctx)
 	_update_pollution(ctx)
 	_update_land_value(ctx)
@@ -79,6 +95,27 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 
 
 # ── Getters ──────────────────────────────────────────────────────────────
+
+## This month's precipitation, 0 (bone dry) to 100. Read by pumps and solar plants.
+func precipitation() -> int:
+	return _rain
+
+
+## This month's wind speed. Read by wind turbines.
+func wind_speed() -> int:
+	return _wind
+
+
+## The map direction this month's wind blows from, as a unit step.
+func wind_from() -> Vector2i:
+	return _wind_from
+
+
+## "north", "east", "south" or "west": where this month's wind comes from.
+func wind_from_name() -> String:
+	var i := Params.WIND_DIRECTIONS.find(_wind_from)
+	return Params.WIND_DIRECTION_NAMES[i] if i >= 0 else "west"
+
 
 ## Sum of the pollution map over developed blocks.
 func pollution_total() -> int:
@@ -105,14 +142,21 @@ func developed_blocks() -> int:
 func _build_tables() -> void:
 	_developed_tbl.resize(Buildings.COUNT)
 	_abandoned_tbl.resize(Buildings.COUNT)
-	_emission_tbl.resize(Buildings.COUNT)
-	_emission_controls_tbl.resize(Buildings.COUNT)
+	_emission_tbls.clear()
+	for _variant in 4:
+		var tbl := PackedInt32Array()
+		tbl.resize(Buildings.COUNT)
+		_emission_tbls.append(tbl)
 	_amenity_tbl.resize(Buildings.COUNT)
+	_port_tbl.resize(Buildings.COUNT)
 	for id in Buildings.COUNT:
+		var cat := Buildings.category(id)
+		_port_tbl[id] = 2 if cat == Buildings.Category.MILITARY else (1 if cat == Buildings.Category.PORT else 0)
 		_developed_tbl[id] = 1 if _building_is_developed(id) else 0
 		_abandoned_tbl[id] = 1 if Buildings.is_abandoned(id) else 0
-		_emission_tbl[id] = emission_of(id, false) - absorption_of(id)
-		_emission_controls_tbl[id] = emission_of(id, true) - absorption_of(id)
+		for variant in 4:
+			_emission_tbls[variant][id] = emission_of(id, (variant & 1) != 0) \
+				- absorption_of(id, (variant & 2) != 0)
 		_amenity_tbl[id] = _building_amenity(id, Terrain.FLAT)
 	_open_water_tbl.resize(256)
 	_flat_tbl.resize(256)
@@ -151,11 +195,13 @@ func _scan_tiles(ctx: SimContext) -> void:
 	var alt := city.altitude.data
 	var flags := city.flags.data
 	var controls := bool(ctx.stats.ordinances.get(&"pollution_controls", false))
-	var emission := _emission_controls_tbl if controls else _emission_tbl
+	var street_trees := bool(ctx.stats.ordinances.get(&"tree_planting", false))
+	var emission := _emission_tbls[(1 if controls else 0) + (2 if street_trees else 0)]
 	var sea := maxi(city.sea_level, 0)
 	_developed.fill(0)
 	_block_zone.fill(0)
 	_block_emission.fill(0)
+	_block_crime.fill(0)
 	_amenity.fill(0)
 	_treatment_anchors.resize(0)
 	var dense_x := 0
@@ -179,6 +225,10 @@ func _scan_tiles(ctx: SimContext) -> void:
 				dev_count += 1
 			if id != Buildings.NONE:
 				_block_emission[bi] += emission[id]
+				if _port_tbl[id] != 0:
+					var pk := _port_kind(kind, _port_tbl[id])
+					_block_emission[bi] += int(PortParams.POLLUTION_PER_TILE.get(pk, 0))
+					_block_crime[bi] += int(PortParams.CRIME_PER_TILE.get(pk, 0))
 				if kind == Zones.COM_HIGH:
 					dense_x += x
 					dense_y += y
@@ -217,6 +267,40 @@ func _scan_tiles(ctx: SimContext) -> void:
 		_centre = Vector2i(dense_x / dense_count / 2, dense_y / dense_count / 2)
 	elif dev_count > 0:
 		_centre = Vector2i(dev_x / dev_count / 2, dev_y / dev_count / 2)
+	_add_arcology_load(ctx)
+
+
+## The zone kind whose port figures a port or military piece uses: its own
+## zone kind, or its category's when the piece sits outside a port zone.
+static func _port_kind(zone_kind: int, port_class: int) -> int:
+	if zone_kind == Zones.AIRPORT or zone_kind == Zones.SEAPORT or zone_kind == Zones.MILITARY:
+		return zone_kind
+	return Zones.MILITARY if port_class == 2 else Zones.SEAPORT
+
+
+## Crowded arcologies pollute and breed crime with their residents, spread
+## evenly over the blocks of their footprint (see rewards.md).
+func _add_arcology_load(ctx: SimContext) -> void:
+	var rewards := ctx.system(&"rewards")
+	if rewards == null or not rewards.has_method("arcology_report"):
+		return
+	for entry: Dictionary in rewards.call("arcology_report"):
+		var anchor: Vector2i = entry["anchor"]
+		var key: StringName = StringName(String(entry.get("key", "")))
+		var size := Buildings.size(Buildings.id_of(key)) if key != &"" else Vector2i(4, 4)
+		var blocks: Array[int] = []
+		for by in range(anchor.y >> 1, mini(BLOCKS, (anchor.y + size.y - 1 >> 1) + 1)):
+			for bx in range(anchor.x >> 1, mini(BLOCKS, (anchor.x + size.x - 1 >> 1) + 1)):
+				blocks.append(by * BLOCKS + bx)
+		if blocks.is_empty():
+			continue
+		@warning_ignore("integer_division")
+		var pollution := int(entry.get("pollution", 0)) / blocks.size()
+		@warning_ignore("integer_division")
+		var crime := int(entry.get("crime", 0)) / blocks.size()
+		for b in blocks:
+			_block_emission[b] += pollution
+			_block_crime[b] += crime
 
 
 # ── Pollution ────────────────────────────────────────────────────────────
@@ -244,12 +328,15 @@ static func emission_of(id: int, controls: bool) -> int:
 	return Params.SPECIAL_EMISSION.get(Buildings.key(id), 0)
 
 
-## Pollution absorbed by one tile of greenery.
-static func absorption_of(id: int) -> int:
+## Pollution absorbed by one tile of greenery. With `street_trees` (the tree
+## planting ordinance) every ordinary street tile is lined with shade trees.
+static func absorption_of(id: int, street_trees: bool = false) -> int:
 	if Buildings.is_tree(id):
 		return Params.TREE_ABSORPTION
 	if id == Buildings.SMALL_PARK or id == Buildings.LARGE_PARK:
 		return Params.PARK_ABSORPTION
+	if street_trees and id >= Buildings.ROAD_FIRST and id <= Buildings.ROAD_LAST:
+		return Params.STREET_TREE_ABSORPTION
 	return 0
 
 
@@ -267,12 +354,21 @@ func _update_pollution(ctx: SimContext) -> void:
 		_work[bi] = maxi(pollution[bi] + traffic[bi] / Params.TRAFFIC_POLLUTION_DIVISOR
 			+ _block_emission[bi], 0)
 	_treatment_bonus(city)
+	# A wind of at least WIND_DRIFT_SPEED carries air downwind: one of each
+	# block's two own shares comes from its upwind neighbour instead. The total
+	# weight is unchanged, so smoke moves without decaying faster or slower.
+	var drift := _wind >= Params.WIND_DRIFT_SPEED
 	var total := 0
 	var bi := 0
 	for by in BLOCKS:
 		for bx in BLOCKS:
 			var numerator := _work[bi] * 2
 			var denominator := diffusion_divisor + _bonus[bi]
+			if drift:
+				var ux := bx + _wind_from.x
+				var uy := by + _wind_from.y
+				if ux >= 0 and ux < BLOCKS and uy >= 0 and uy < BLOCKS:
+					numerator += _work[uy * BLOCKS + ux] - _work[bi]
 			if bx > 0:
 				numerator += _work[bi - 1]
 				denominator += 1
@@ -431,11 +527,17 @@ func _update_crime(ctx: SimContext) -> void:
 	var police := city.police.data
 	var gambling := bool(ctx.stats.ordinances.get(&"legalized_gambling", false))
 	var watch := bool(ctx.stats.ordinances.get(&"neighborhood_watch", false))
+	var anti_drug := bool(ctx.stats.ordinances.get(&"anti_drug_campaign", false))
+	var junior_sports := bool(ctx.stats.ordinances.get(&"junior_sports", false))
 	var adjust := 0
 	if gambling:
 		adjust += Params.GAMBLING_CRIME
 	if watch:
 		adjust -= Params.WATCH_CRIME_RELIEF
+	if anti_drug:
+		adjust -= Params.ANTI_DRUG_CRIME_RELIEF
+	if junior_sports:
+		adjust -= Params.JUNIOR_SPORTS_CRIME_RELIEF
 	_base.fill(0)
 	var bi := 0
 	for by in BLOCKS:
@@ -445,7 +547,7 @@ func _update_crime(ctx: SimContext) -> void:
 				var qi := q + (bx >> 1)
 				@warning_ignore("integer_division")
 				_base[bi] = density[qi] - police[qi] / Params.POLICE_CRIME_DIVISOR \
-					- land_value[bi] / Params.VALUE_CRIME_DIVISOR + adjust
+					- land_value[bi] / Params.VALUE_CRIME_DIVISOR + adjust + _block_crime[bi]
 			bi += 1
 	var total := 0
 	bi = 0
@@ -498,6 +600,28 @@ func _publish(ctx: SimContext) -> void:
 	_crime_alerted = lawless
 
 
+# ── Weather ──────────────────────────────────────────────────────────────
+
+## Roll this month's rain and wind around the month's seasonal means.
+func _update_weather(ctx: SimContext) -> void:
+	var m := clampi(ctx.month(), 1, 12) - 1
+	var rain_spread := Params.RAIN_SPREAD
+	var wind_spread := Params.WIND_SPREAD
+	_rain = clampi(int(Params.RAIN_BY_MONTH[m]) + ctx.rng.below(2 * rain_spread + 1) - rain_spread, 0, 100)
+	_wind = maxi(0, int(Params.WIND_BY_MONTH[m]) + ctx.rng.below(2 * wind_spread + 1) - wind_spread)
+	if ctx.rng.below(100) < Params.PREVAILING_WIND_PERCENT:
+		_wind_from = Params.PREVAILING_WIND_FROM
+	else:
+		_wind_from = Params.WIND_DIRECTIONS[ctx.rng.below(Params.WIND_DIRECTIONS.size())]
+
+
+## The seasonal means for a 1-based month, with no randomness.
+func _seasonal_weather(month: int) -> void:
+	var m := clampi(month, 1, 12) - 1
+	_rain = int(Params.RAIN_BY_MONTH[m])
+	_wind = int(Params.WIND_BY_MONTH[m])
+
+
 # ── Footprint helpers ────────────────────────────────────────────────────
 
 ## True when any tile of the footprint received power.
@@ -523,6 +647,9 @@ func save() -> Dictionary:
 		"developed_blocks": _developed_blocks,
 		"pollution_alerted": _pollution_alerted,
 		"crime_alerted": _crime_alerted,
+		"rain": _rain,
+		"wind": _wind,
+		"wind_from": [_wind_from.x, _wind_from.y],
 	}
 
 
@@ -533,3 +660,8 @@ func load(data: Dictionary) -> void:
 	_developed_blocks = int(data.get("developed_blocks", 0))
 	_pollution_alerted = bool(data.get("pollution_alerted", false))
 	_crime_alerted = bool(data.get("crime_alerted", false))
+	_rain = int(data.get("rain", _rain))
+	_wind = int(data.get("wind", _wind))
+	var from: Array = data.get("wind_from", [])
+	if from.size() == 2 and Params.WIND_DIRECTIONS.has(Vector2i(int(from[0]), int(from[1]))):
+		_wind_from = Vector2i(int(from[0]), int(from[1]))

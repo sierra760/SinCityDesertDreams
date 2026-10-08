@@ -15,6 +15,7 @@ Node.js with the `sharp` package.
 ```sh
 python3 tools/check_provenance.py
 python3 tools/check_3d_assets.py
+python3 tools/check_resort_assets.py
 python3 tools/run_tests.py
 python3 -m unittest discover -s tools/tests -v
 ```

@@ -52,6 +52,7 @@ var _funding_sliders: Dictionary = {}    ## service -> HSlider
 var _funding_values: Dictionary = {}     ## service -> Label
 var _ledger_rows: Dictionary = {}        ## account -> [year_to_date Label, estimate Label]
 var _totals_label: Label
+var _condition_label: Label
 var _last_year_label: Label
 var _bond_rows: VBoxContainer
 var _debt_label: Label
@@ -145,12 +146,44 @@ func refresh() -> void:
 		var value_label: Label = _funding_values[service]
 		value_label.text = "%d%%" % pct
 	_auto_budget.button_pressed = stats.auto_budget
+	_condition_label.text = condition_text(_sim)
 	_refresh_ledger(stats)
 	_refresh_bonds(stats)
 	_syncing = false
 
 
 # ── Public helpers ───────────────────────────────────────────────────────
+
+## Network wear, losses and last year's transit riders, for the
+## Transportation section. Underfunded networks wear toward their next loss.
+static func condition_text(sim: Simulation) -> String:
+	if sim == null or sim.city == null:
+		return ""
+	var lines: PackedStringArray = []
+	var wear := sim.get_system(&"wear")
+	if wear != null and wear.has_method("wear_percent"):
+		var counts: Dictionary = wear.call("network_counts")
+		var lost: Dictionary = wear.call("losses")
+		var parts: PackedStringArray = []
+		for category: StringName in TRANSPORT_FUNDING:
+			if int(counts.get(category, 0)) <= 0 and int(lost.get(category, 0)) <= 0:
+				continue
+			var text := "%s %d%% worn" % [String(FUNDING_LABELS.get(category, String(category))),
+				int(wear.call("wear_percent", category))]
+			if int(lost.get(category, 0)) > 0:
+				text += ", %s lost" % UIFactory.commafy(int(lost[category]))
+			parts.append(text)
+		lines.append("Condition: " + ("; ".join(parts) if not parts.is_empty() else "no networks built yet"))
+	var history := sim.stats.history
+	var riders: PackedStringArray = []
+	for entry: Array in [[&"riders_bus", "bus"], [&"riders_rail", "rail"], [&"riders_subway", "subway"]]:
+		var series: PackedInt32Array = history.get(entry[0], PackedInt32Array())
+		if not series.is_empty():
+			riders.append("%s %s" % [entry[1], UIFactory.commafy(series[series.size() - 1])])
+	if not riders.is_empty():
+		lines.append("Transit riders last year: " + ", ".join(riders))
+	return "\n".join(lines)
+
 
 func set_tax(kind: StringName, rate: int) -> void:
 	if _tax_spinners.has(kind):
@@ -286,6 +319,9 @@ func _build_funding(parent: VBoxContainer) -> void:
 	parent.add_child(_funding_grid(SERVICE_FUNDING))
 	parent.add_child(UIFactory.make_section_header("Transportation"))
 	parent.add_child(_funding_grid(TRANSPORT_FUNDING))
+	_condition_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	_condition_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	parent.add_child(_condition_label)
 
 
 func _funding_grid(services: Array[StringName]) -> GridContainer:

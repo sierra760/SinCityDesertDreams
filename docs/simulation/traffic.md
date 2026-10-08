@@ -35,6 +35,8 @@ rail and subway trips remove this pressure just as successful road trips do.
   traffic at all, 0 when no block does.
 - `stats.history[&"riders_bus"]`, `[&"riders_rail"]`, `[&"riders_subway"]`:
   one sample per year with that year's rider totals, written in `yearly()`.
+  The Budget window's Transportation section shows the latest year's totals;
+  the statistics system graphs the monthly total as `transit_riders`.
 - Getters other systems and the UI call:
 
   | Method | Meaning |

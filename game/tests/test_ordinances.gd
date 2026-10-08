@@ -108,9 +108,45 @@ func test_effective_tax_rates_follow_the_switches() -> void:
 	check_eq(o.effective_tax_rates(), Vector3i(7, 6, 7))
 	ctx.stats.tax_commercial = 0
 	check_eq(o.effective_tax_rates().y, 0, "never below zero")
-	check_eq(o.power_capacity_bonus(1200), 0)
-	o.set_enabled(&"energy_conservation", true)
-	check_eq(o.power_capacity_bonus(1200), 100, "conservation stretches capacity by a twelfth")
+	check_eq(OrdinanceSystem.effective_rates(ctx.stats), o.effective_tax_rates(),
+		"the static rule matches the system's view")
+	check_eq(ctx.stats.tax_residential, 7, "the player's rates never change")
+
+
+## No policy may be money only: every catalog key must be read by a system
+## (a direct flag read, a population/utility key constant, the felt tax-rate
+## shift or the nuclear plant lock).
+func test_every_ordinance_changes_the_city() -> void:
+	var sources := ""
+	for dir_path in ["res://scripts/sim", "res://scripts/sim/data", "res://scripts/core"]:
+		var dir := DirAccess.open(dir_path)
+		check(dir != null, "%s opens" % dir_path)
+		if dir == null:
+			return
+		for file in dir.get_files():
+			if not file.ends_with(".gd") or file.begins_with("ordinance_"):
+				continue
+			sources += FileAccess.get_file_as_string(dir_path + "/" + file)
+	for row in OrdinanceParams.CATALOG:
+		var k: StringName = row[0]
+		var read := sources.contains("&\"%s\"" % k) or OrdinanceParams.DEMAND_TAX_SHIFT.has(k)
+		check(read, "%s has an effect beyond its fee" % k)
+
+
+func test_council_enacts_only_policies_not_yet_in_force() -> void:
+	var ctx := make_ctx(flat_city(1000000))
+	var o := make_ordinances(ctx)
+	ctx.stats.disasters_enabled = true
+	for row in OrdinanceParams.CATALOG:
+		if row[0] != &"tree_planting":
+			o.set_enabled(row[0], true)
+	for _m in 400:
+		o.monthly(ctx)
+	var enacted := ctx.events.news.filter(func(n): return n["kind"] == &"ordinance_enacted")
+	check_eq(enacted.size(), 1, "the one open policy is enacted once")
+	if enacted.size() == 1:
+		check_eq(enacted[0]["args"]["key"], &"tree_planting")
+	check(o.is_enabled(&"tree_planting"))
 
 
 ## Every ordinance key another system reads must be a catalog key; an unknown
@@ -120,7 +156,9 @@ func test_systems_read_catalog_ordinance_keys() -> void:
 	var o := make_ordinances(ctx)
 	for k: StringName in [PopulationParams.ORDINANCE_PRO_READING,
 			PopulationParams.ORDINANCE_FREE_CLINICS, PopulationParams.ORDINANCE_ANTI_DRUG,
-			PopulationParams.ORDINANCE_SMOKING_BAN, UtilityParams.CONSERVATION_ORDINANCE]:
+			PopulationParams.ORDINANCE_SMOKING_BAN, PopulationParams.ORDINANCE_CPR,
+			PopulationParams.ORDINANCE_JUNIOR_SPORTS, PopulationParams.ORDINANCE_PARKING_FINES,
+			PopulationParams.ORDINANCE_SHELTERS, UtilityParams.CONSERVATION_ORDINANCE]:
 		check(o.is_known(k), "%s is a catalog ordinance" % k)
 	var pattern := RegEx.create_from_string("ordinances\\.get\\(&\"([a-z_]+)\"")
 	var dir := DirAccess.open("res://scripts/sim")

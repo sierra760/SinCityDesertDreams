@@ -65,6 +65,6 @@ static func station_city() -> Dictionary:
 
 static func station(city: City, anchor: Vector2i, subway: bool) -> void:
 	var stats := CityStats.new()
-	stats.inventions[&"subways"] = true # Declared technology setup, normal paid Builder transaction.
+	stats.inventions[&"subway"] = true # Declared technology setup, normal paid Builder transaction.
 	var result := Builder.new(city,stats).apply(Tools.Kind.SUBWAY_STATION if subway else Tools.Kind.RAIL_STATION,anchor)
 	assert(result.ok and result.applied,"Station fixture requires normal paid placement")

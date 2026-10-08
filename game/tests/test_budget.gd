@@ -125,6 +125,10 @@ func test_bond_issue_adds_funds_and_interest() -> void:
 	check(b.issue_bond(10000))
 	check_eq(c.funds, 11000)
 	check_eq(ctx.stats.bonds.size(), 1)
+	var bond_news := ctx.events.news.filter(func(n): return n["kind"] == &"bond_issued")
+	check_eq(bond_news.size(), 1, "the newspaper hears about the bond")
+	if bond_news.size() == 1:
+		check_eq(int(bond_news[0]["args"]["amount"]), 10000)
 	var rate := int(ctx.stats.bonds[0]["rate"])
 	check_eq(b.estimated_ledger()[&"bond_interest"], 10000 * rate / 100)
 	var before := int(ctx.stats.ledger[&"bond_interest"])
@@ -186,6 +190,8 @@ func test_bankruptcy_when_treasury_collapses() -> void:
 	check(ctx.stats.bankrupt)
 	var kinds: Array = ctx.events.notices.map(func(n): return n["kind"])
 	check(&"bankruptcy" in kinds)
+	var news: Array = ctx.events.news.map(func(n): return n["kind"])
+	check(&"bankruptcy" in news, "the bankruptcy makes the paper")
 	ctx.events.clear()
 	b.yearly(ctx)
 	check(ctx.events.notices.filter(func(n): return n["kind"] == &"bankruptcy").is_empty(), "notified once")
@@ -327,3 +333,26 @@ func test_simulation_settles_at_year_end_and_pauses_for_review() -> void:
 	sim.advance_days(20)
 	check(not sim.budget_review_pending)
 	_free_simulation(sim)
+
+
+func test_tax_changes_are_reported_once() -> void:
+	var ctx := make_ctx(flat_city(1000))
+	var b := make_budget(ctx)
+	b.monthly(ctx)
+	check(ctx.events.news.filter(func(n): return n["kind"] == &"tax_change").is_empty(),
+		"unchanged rates are not news")
+	ctx.stats.tax_commercial = 11
+	ctx.events.clear()
+	b.monthly(ctx)
+	var news := ctx.events.news.filter(func(n): return n["kind"] == &"tax_change")
+	check_eq(news.size(), 1)
+	if news.size() == 1:
+		check_eq(int(news[0]["args"]["count"]), 11)
+		check_eq(news[0]["args"]["family"], "commercial")
+	ctx.events.clear()
+	var restored := BudgetSystem.new()
+	restored.setup(ctx)
+	restored.load(JSON.parse_string(JSON.stringify(b.save())))
+	restored.monthly(ctx)
+	check(ctx.events.news.filter(func(n): return n["kind"] == &"tax_change").is_empty(),
+		"a reload does not repeat the story")

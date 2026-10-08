@@ -180,7 +180,7 @@ func _build() -> void:
 		_grid.add_child(spinner)
 		_sector_rows.append([name_label, demand_label, units_label, share_label, spinner])
 	_body.add_child(_grid)
-	_body.add_child(UIFactory.make_label("Raising a sector's tax steers new industry toward the others.",
+	_body.add_child(UIFactory.make_label("Raising a sector's tax steers new industry toward the others. The city collects the share-weighted aggregate.",
 		UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
 
 
@@ -199,6 +199,10 @@ func _on_tax_changed(value: float, index: int) -> void:
 		return
 	taxes[index] = clampi(int(value), 0, EconomyParams.SECTOR_TAX_MAX)
 	_sim.stats.sector_taxes = taxes
+	var economy := _sim.get_system(&"economy")
+	if economy != null and economy.has_method("sector_taxes_changed"):
+		economy.call("sector_taxes_changed")
+	refresh()
 
 
 func _on_month_ended(_year: int, _month: int) -> void:

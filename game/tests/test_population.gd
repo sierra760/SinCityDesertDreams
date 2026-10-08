@@ -215,6 +215,68 @@ func test_march_vote_reflects_taxes_and_conditions() -> void:
 	check_eq(h.stats.approval, 50, "fifty residents do not hold a vote")
 
 
+func test_ordinances_move_the_vote_weights() -> void:
+	var stats := CityStats.new()
+	var plain := PopulationSystem.vote_weights(stats)
+	var tax_index := PopulationParams.COMPLAINT_KEYS.find(&"taxes")
+	check_eq(int(plain["complaints"][tax_index]), 7 * PopulationParams.VOTE_TAX_WEIGHT)
+	stats.ordinances[&"income_tax"] = true
+	stats.ordinances[&"parking_fines"] = true
+	stats.ordinances[&"homeless_shelters"] = true
+	var policy := PopulationSystem.vote_weights(stats)
+	check_eq(int(policy["complaints"][tax_index]),
+		8 * PopulationParams.VOTE_TAX_WEIGHT + PopulationParams.VOTE_PARKING_FINES_WEIGHT,
+		"income tax and parking tickets are felt as taxes")
+	check_eq(int(policy["content"]) - int(plain["content"]), PopulationParams.VOTE_SHELTER_CONTENT,
+		"shelters make the city feel kinder")
+	stats.ordinances[&"tree_planting"] = true
+	check_eq(int(PopulationSystem.vote_weights(stats)["complaints"][tax_index]),
+		7 * PopulationParams.VOTE_TAX_WEIGHT + PopulationParams.VOTE_PARKING_FINES_WEIGHT,
+		"tree planting lowers the felt residential rate")
+
+
+## A context whose population system starts from the given cohort counts.
+func cohort_ctx(cohorts: Dictionary, seed_value: int, ordinance: StringName) -> SimContext:
+	var c := thousand_city()
+	var ctx := make_context(c, seed_value)
+	ctx.clock.founded_year = c.founded_year
+	ctx.clock.day = 13
+	var counts := PackedInt32Array()
+	counts.resize(PopulationSystem.COHORTS)
+	for i in cohorts:
+		counts[i] = cohorts[i]
+	ctx.stats.cohorts = counts
+	ctx.stats.life_expectancy = 40
+	ctx.stats.education_quotient = 50
+	if ordinance != &"":
+		ctx.stats.ordinances[ordinance] = true
+	var pop := PopulationSystem.new()
+	ctx.systems = {&"population": pop}
+	pop.setup(ctx)
+	return ctx
+
+
+func test_cpr_training_saves_some_lives() -> void:
+	var plain := cohort_ctx({15: 1000}, 5, &"")
+	var trained := cohort_ctx({15: 1000}, 5, &"cpr_training")
+	run_months(plain, 1)
+	run_months(trained, 1)
+	var survivors_plain := plain.stats.cohorts[15] + plain.stats.cohorts[16]
+	var survivors_trained := trained.stats.cohorts[15] + trained.stats.cohorts[16]
+	check_lt(survivors_plain, 1000, "the frail elderly cohort loses people")
+	check_gt(survivors_trained, survivors_plain, "CPR training saves some of them")
+
+
+func test_junior_sports_teaches_children() -> void:
+	var plain := cohort_ctx({0: 1000}, 5, &"")
+	var sporty := cohort_ctx({0: 1000}, 5, &"junior_sports")
+	run_months(plain, 1)
+	run_months(sporty, 1)
+	check_gt(plain.stats.cohorts[1], 0, "children age into the next cohort")
+	check_eq(pop_of(sporty).cohort_education(1, sporty.stats)
+		- pop_of(plain).cohort_education(1, plain.stats), PopulationParams.JUNIOR_SPORTS_EQ_GAIN)
+
+
 func test_employment_counts_jobs_and_abandonment() -> void:
 	var c := thousand_city()
 	stamp_row(c, Buildings.COM_1X1_FIRST, Zones.COM_LOW, 5, 10, 30)
@@ -278,3 +340,58 @@ func test_simulation_snapshot_restores_population_state() -> void:
 	root.remove_child(copy)
 	sim.free()
 	copy.free()
+
+
+func test_untreated_water_costs_health_once_treatment_exists() -> void:
+	var c := thousand_city()
+	var ctx := make_ctx(c)
+	var water := WaterSystem.new()
+	ctx.systems[&"water"] = water
+	water.setup(ctx)
+	water.load({"treatment_adequate": false, "consumed": 500})
+	ctx.stats.inventions[&"water_treatment"] = 1940
+	ctx.clock.founded_year = 1900
+	ctx.clock.day = 10
+	check(not PopulationSystem._untreated_water(ctx), "no penalty before treatment is invented")
+	ctx.clock.day = 50 * GameClock.DAYS_PER_YEAR
+	check(PopulationSystem._untreated_water(ctx), "untreated water counts once plants can be built")
+	water.load({"treatment_adequate": true, "consumed": 500})
+	check(not PopulationSystem._untreated_water(ctx))
+	ctx.systems.clear()
+
+
+class FakeLinks extends SimSystem:
+	func _init() -> void:
+		key = &"neighbors"
+
+	func link_count() -> int:
+		return 4
+
+
+func test_too_few_jobs_means_unemployment_and_commuting_helps() -> void:
+	var homes_only := make_ctx(thousand_city())
+	run_months(homes_only, 3)
+	check_eq(homes_only.stats.jobs, 0)
+	var workers := 0
+	for i in range(PopulationParams.WORK_COHORT_MIN, PopulationParams.WORK_COHORT_MAX + 1):
+		workers += homes_only.stats.cohorts[i]
+	check_gt(workers, 0)
+	check_eq(homes_only.stats.unemployment, 100, "a bedroom town with no jobs anywhere")
+	var linked := make_ctx(thousand_city())
+	linked.systems[&"neighbors"] = FakeLinks.new()
+	run_months(linked, 3)
+	check_lt(linked.stats.unemployment, homes_only.stats.unemployment,
+		"road and rail links let residents commute to the neighbors")
+	check_eq(PopulationSystem.job_shortfall_percent(linked.stats, 1000000), 0)
+	linked.systems.clear()
+
+
+func test_a_mass_departure_is_news_once() -> void:
+	var ctx := cohort_ctx({5: 2000}, 5, &"")
+	run_months(ctx, 1)
+	var news := ctx.events.news.filter(func(n): return n["kind"] == &"exodus")
+	check_eq(news.size(), 1, "a thousand people leaving a two-thousand town is news")
+	if news.size() == 1:
+		check_gt(int(news[0]["args"]["count"]), 0)
+	run_months(ctx, 1)
+	check(ctx.events.news.filter(func(n): return n["kind"] == &"exodus").is_empty(), "a settled town is quiet")

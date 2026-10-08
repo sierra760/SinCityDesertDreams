@@ -24,7 +24,9 @@ the construction tools follow when they lay pipes and subways.
   `WATERED` on tower tiles, which records stored water (rule 5).
 - `city.sea_level`: the water table.
 - Weather: precipitation, read from a system exposing `precipitation()`
-  (looked up under `environment`, `weather`, `disasters`); default otherwise.
+  (looked up under `environment`, `weather`, `disasters`); the environment
+  system rolls it each month around the desert seasons (see environment.md).
+  `DEFAULT_RAIN` applies only when no such system is loaded.
 
 ## Outputs
 
@@ -35,7 +37,8 @@ the construction tools follow when they lay pipes and subways.
   not.
 - `stats.unwatered_buildings`: consumer buildings with no watered tile.
 - `stats.water_stored`, `stats.water_storage_capacity`: units held in towers
-  after this pass and the total they could hold.
+  after this pass and the total they could hold; shown in the statistics
+  status lines.
 - `city.facilities[anchor]` for every water facility: `key`, `built_day`,
   plus `output` (pumps and desalination), `stored` (towers).
 - News: `water_shortage` `{unwatered, demand, capacity}` when a network first
@@ -94,7 +97,8 @@ the construction tools follow when they lay pipes and subways.
 7. **Treatment.** The city's consumption counts as treated when
    `treatment_plants * TREATMENT_COVERAGE >= consumed` (zero consumption
    is always treated). `treatment_adequate()` and the network summary expose
-   the result, but no other system reads it. Treatment plants soften
+   the result; the population system counts untreated water against health
+   once treatment has been invented (see population.md). Treatment plants soften
    pollution through the environment system instead: each powered plant
    raises the pollution divisor of the blocks around it (see environment.md,
    Pollution rule 7).

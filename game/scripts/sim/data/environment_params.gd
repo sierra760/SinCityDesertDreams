@@ -17,9 +17,9 @@ const PLANT_EMISSION := {
 	&"plant_coal": 50, &"plant_oil": 25, &"plant_gas": 10,
 	&"plant_nuclear": 2, &"plant_fusion": 2,
 }
-## Flat per-tile emission for whole categories.
+## Flat per-tile emission for whole categories. Port and military pieces
+## emit `PortParams.POLLUTION_PER_TILE` for their zone kind instead.
 const CATEGORY_EMISSION := {
-	Buildings.Category.PORT: 6, Buildings.Category.MILITARY: 4,
 	Buildings.Category.ARCOLOGY: 15, Buildings.Category.TRANSIT: 4,
 }
 ## Named civic and utility emitters that are otherwise clean categories.
@@ -35,6 +35,8 @@ const POLLUTION_CONTROLS_PERCENT := 25
 ## Pollution removed per tree tile and per park tile each month.
 const TREE_ABSORPTION := 4
 const PARK_ABSORPTION := 6
+## Absorption per ordinary street tile while the tree planting ordinance runs.
+const STREET_TREE_ABSORPTION := 1
 
 # ── Diffusion ────────────────────────────────────────────────────────────
 ## Base divisor of the weighted neighbour average; larger means faster decay.
@@ -51,7 +53,7 @@ const AMENITY_OPEN_GROUND := 4    ## empty dry ground
 const AMENITY_TREE := 20          ## tree tile
 const AMENITY_PARK := 20          ## pocket park tile
 const AMENITY_LARGE_PARK := 40    ## city park tile
-const AMENITY_CIVIC := 20         ## library, museum, marina, zoo, city hall, monument, residence
+const AMENITY_CIVIC := 20         ## library, museum, marina, zoo, city hall, monument, residence, neon dome
 const AMENITY_RUBBLE := -20       ## rubble or contamination tile
 const AMENITY_WATERED := 4        ## tile with water service
 const AMENITY_SLOPE := 12         ## sloped dry ground
@@ -84,6 +86,32 @@ const VALUE_CRIME_DIVISOR := 4
 const GAMBLING_CRIME := 16
 ## Crime removed from every developed block under the neighborhood watch.
 const WATCH_CRIME_RELIEF := 8
+## Base crime removed from every developed block by the anti-drug campaign.
+const ANTI_DRUG_CRIME_RELIEF := 4
+## Base crime removed from every developed block by junior sports.
+const JUNIOR_SPORTS_CRIME_RELIEF := 4
+
+# ── Weather ──────────────────────────────────────────────────────────────
+## Seasonal mean precipitation (0..100), January first: wet winters, a dry late
+## spring, a short late-summer monsoon. The yearly mean matches the utilities'
+## DEFAULT_RAIN.
+const RAIN_BY_MONTH: Array[int] = [25, 25, 20, 10, 5, 3, 15, 20, 10, 8, 12, 22]
+## Seasonal mean wind speed, January first: the spring winds blow hardest. The
+## yearly mean matches the utilities' DEFAULT_WIND.
+const WIND_BY_MONTH: Array[int] = [8, 10, 14, 16, 14, 10, 8, 8, 8, 8, 8, 8]
+## A month's rain and wind wander this far either side of the seasonal mean.
+const RAIN_SPREAD := 8
+const WIND_SPREAD := 4
+## The four directions the wind can blow from (north, east, south, west as
+## map steps) and their names.
+const WIND_DIRECTIONS: Array[Vector2i] = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
+const WIND_DIRECTION_NAMES: Array[String] = ["north", "east", "south", "west"]
+## The desert's prevailing wind blows from the west this share of months;
+## otherwise any direction.
+const PREVAILING_WIND_FROM := Vector2i(-1, 0)
+const PREVAILING_WIND_PERCENT := 70
+## Wind speed at which a block's air drifts downwind in the pollution average.
+const WIND_DRIFT_SPEED := 5
 
 # ── News thresholds ──────────────────────────────────────────────────────
 const POLLUTION_ALERT_LEVEL := 100

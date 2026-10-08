@@ -132,16 +132,16 @@ func test_inventions_unlock_in_order() -> void:
 	check_lt(eco.available_year(&"arcology_junction"), eco.available_year(&"arcology_boulder"))
 	check_lt(eco.available_year(&"arcology_boulder"), eco.available_year(&"arcology_orbit"))
 	check_lt(eco.available_year(&"gas_plant"), eco.available_year(&"fusion_plant"))
-	check(eco.is_available(&"plant_coal", 1900), "coal needs no invention")
-	check(eco.is_available(&"road_ew", 1900))
-	check(not eco.is_available(&"plant_fusion", 1900))
-	check(eco.is_available(&"plant_fusion", 2100))
-	check(not eco.is_available(&"highway_ew", 1900))
-	check(eco.is_available(&"highway_ew", 1960))
-	check(not eco.is_available(&"subway_station", 1900))
-	check(eco.is_available(&"subway_portal_n", 1950))
-	check_eq(EconomySystem.technology_for(&"onramp_1"), &"highways")
-	check_eq(EconomySystem.technology_for(&"plant_wind"), &"")
+	# The toolbar unlocks on exactly the rolled years the news announces.
+	for tool in Tools.all():
+		var tech := Tools.invention_key(tool)
+		if tech == &"":
+			continue
+		check(EconomyParams.TECHNOLOGIES.has(tech), "%s gates on a rolled technology" % tech)
+		check_eq(Tools.available_year(tool, ctx.stats), eco.available_year(tech), String(tech))
+	check_eq(Tools.available_year(Tools.Kind.COAL_PLANT, ctx.stats), 0, "coal needs no invention")
+	check(not Tools.is_available(Tools.Kind.FUSION_PLANT, c, ctx.stats))
+	check(Tools.invention_key(Tools.Kind.WIND_PLANT) == &"wind_plant", "wind power is an invention")
 	# Jump to the year 2000: every technology due by then is announced once.
 	ctx.clock.day = 100 * GameClock.DAYS_PER_YEAR
 	var kinds := run_months(ctx, 1)
@@ -157,9 +157,26 @@ func test_inventions_unlock_in_order() -> void:
 	var late := flat_city()
 	late.founded_year = 2050
 	var late_ctx := make_ctx(late)
-	check(eco_of(late_ctx).is_available(&"plant_nuclear", 2050))
+	check(Tools.is_available(Tools.Kind.NUCLEAR_PLANT, late, late_ctx.stats))
 	kinds = run_months(late_ctx, 1)
 	check_eq(kinds.count(&"invention"), 0)
+
+
+func test_a_save_without_a_new_technology_gets_one_quietly() -> void:
+	var c := flat_city()
+	c.founded_year = 1900
+	var ctx := make_ctx(c)
+	ctx.stats.inventions.erase(&"wind_plant")
+	ctx.clock.day = 120 * GameClock.DAYS_PER_YEAR
+	var eco := eco_of(ctx)
+	eco.load(eco.save())
+	check(ctx.stats.inventions.has(&"wind_plant"), "the missing technology gets a year")
+	check_lt(int(ctx.stats.inventions[&"wind_plant"]), 2021)
+	ctx.events.clear()
+	eco.monthly(ctx)
+	for story in ctx.events.news:
+		if story["kind"] == &"invention":
+			check(story["args"]["technology"] != &"wind_plant", "a past invention is not announced as news")
 
 
 func test_city_value_sums_buildings() -> void:
@@ -220,3 +237,48 @@ func test_simulation_snapshot_restores_economy_state() -> void:
 	root.remove_child(copy)
 	sim.free()
 	copy.free()
+
+
+func test_sector_rates_set_the_industrial_tax() -> void:
+	var ctx := make_ctx(flat_city())
+	var eco := eco_of(ctx)
+	check_eq(ctx.stats.tax_industrial, 7)
+	check_eq(EconomySystem.aggregate_industrial_rate(ctx.stats), 7, "equal sector rates give the same aggregate")
+	# The budget's slider writes the aggregate; every sector follows the change.
+	ctx.stats.tax_industrial = 10
+	run_months(ctx, 1)
+	for t in ctx.stats.sector_taxes:
+		check_eq(t, 10)
+	check_eq(ctx.stats.tax_industrial, 10)
+	# Sector rates set the aggregate the budget charges.
+	var taxes := ctx.stats.sector_taxes
+	var shares := ctx.stats.sector_shares
+	var top := 0
+	for i in shares.size():
+		if shares[i] > shares[top]:
+			top = i
+	taxes[top] = 20
+	ctx.stats.sector_taxes = taxes
+	eco.sector_taxes_changed()
+	check_gt(ctx.stats.tax_industrial, 10, "taxing the biggest sector raises the aggregate")
+	check_eq(ctx.stats.tax_industrial, EconomySystem.aggregate_industrial_rate(ctx.stats))
+	run_months(ctx, 1)
+	check_eq(ctx.stats.sector_taxes[top], 20, "a published aggregate is not mistaken for a slider move")
+	check_eq(ctx.stats.tax_industrial, EconomySystem.aggregate_industrial_rate(ctx.stats),
+		"the aggregate follows the new shares")
+
+
+func test_an_older_save_lines_sector_rates_up_with_the_industrial_rate() -> void:
+	var ctx := make_ctx(flat_city())
+	var eco := eco_of(ctx)
+	var saved := eco.save()
+	saved.erase("published_industrial")
+	ctx.stats.tax_industrial = 12
+	var fresh := PackedInt32Array()
+	fresh.resize(EconomyParams.SECTOR_COUNT)
+	fresh.fill(7)
+	ctx.stats.sector_taxes = fresh
+	eco.load(saved)
+	for t in ctx.stats.sector_taxes:
+		check_eq(t, 12, "untouched sector rates take the player's rate")
+	check_eq(ctx.stats.tax_industrial, 12)

@@ -61,7 +61,9 @@ const YEARLY_RATE := {
 	&"annual_carnival": -7,
 }
 
-## One-point adjustments to the demand-side tax rates: key -> [res, com, ind].
+## One-point adjustments to the tax rates residents, shops and industry feel:
+## key -> [res, com, ind]. Read by zone demand and the March vote through
+## `OrdinanceSystem.effective_rates`; property tax keeps the player's rates.
 const DEMAND_TAX_SHIFT := {
 	&"income_tax": [1, 0, 0],
 	&"tree_planting": [-1, 0, 0],
@@ -72,9 +74,6 @@ const DEMAND_TAX_SHIFT := {
 	&"pollution_controls": [0, 0, 1],
 	&"business_advertising": [0, 0, -1],
 }
-
-## Extra power capacity, in twelfths, granted by energy conservation.
-const ENERGY_CONSERVATION_BONUS_TWELFTHS := 1
 
 ## The council acts on its own once in this many months, on average.
 const COUNCIL_CHANCE_DENOMINATOR := 8

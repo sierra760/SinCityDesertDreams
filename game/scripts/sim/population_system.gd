@@ -21,6 +21,8 @@ var _education := PackedInt64Array()
 var _health := PackedInt64Array()
 ## Most births seen in one month, for the record-birth story.
 var _record_births := 0
+## True while a reported exodus is still under way, so it is news once.
+var _exodus_reported := false
 ## Complaint ranking of the last vote: {key, name, votes}, best first.
 var _complaints: Array[Dictionary] = []
 ## Last census: residents, commercial, industrial, abandoned, schools, colleges,
@@ -163,7 +165,11 @@ func _run_census(ctx: SimContext) -> void:
 						Buildings.MUSEUM: c["museums"] += 1
 	c["abandoned"] = abandoned_capacity / PopulationParams.CENSUS_UNIT
 	_census = c
-	ctx.stats.jobs = int(c["commercial"]) + int(c["industrial"])
+	var jobs := int(c["commercial"]) + int(c["industrial"])
+	var ports := ctx.system(&"ports")
+	if ports != null and ports.has_method("jobs"):
+		jobs += int(ports.call("jobs"))
+	ctx.stats.jobs = jobs
 
 
 static func _lot_capacity(zones: SimSystem, asks_zones: bool, id: int) -> int:
@@ -205,10 +211,23 @@ func _service_capacity(ctx: SimContext) -> Dictionary:
 		"newborn_health": newborn_health,
 		"health_ordinances": health_ordinances,
 		"pollution_penalty": mini(PopulationParams.POLLUTION_PENALTY_MAX,
-			stats.average_pollution / PopulationParams.POLLUTION_PENALTY_DIVISOR),
+			stats.average_pollution / PopulationParams.POLLUTION_PENALTY_DIVISOR)
+			+ (PopulationParams.UNTREATED_WATER_PENALTY if _untreated_water(ctx) else 0),
 		"health_index": health_index,
 		"pro_reading": _ordinance(stats, PopulationParams.ORDINANCE_PRO_READING),
+		"junior_sports": _ordinance(stats, PopulationParams.ORDINANCE_JUNIOR_SPORTS),
+		"cpr": _ordinance(stats, PopulationParams.ORDINANCE_CPR),
 	}
+
+
+## True when the city drinks more water than its treatment plants can clean,
+## once treatment plants exist to build.
+static func _untreated_water(ctx: SimContext) -> bool:
+	if ctx.year() < Tools.available_year(Tools.Kind.WATER_TREATMENT, ctx.stats):
+		return false
+	var water := ctx.system(&"water")
+	return water != null and water.has_method("treatment_adequate") \
+		and not bool(water.call("treatment_adequate"))
 
 
 static func _ordinance(stats: CityStats, ordinance: StringName) -> bool:
@@ -263,6 +282,8 @@ func _advance_demographics(ctx: SimContext, services: Dictionary) -> void:
 		var hundredths := n * shortfall / PopulationParams.MORTALITY_MONTHS
 		var dead := _settle(hundredths, 100, rng)
 		dead -= dead * PopulationParams.HOSPITAL_MORTALITY_RELIEF * health_index / 10000
+		if bool(services["cpr"]):
+			dead -= dead * PopulationParams.CPR_MORTALITY_RELIEF / 100
 		dead = mini(dead, n)
 		if dead <= 0:
 			continue
@@ -285,6 +306,8 @@ func _advance_demographics(ctx: SimContext, services: Dictionary) -> void:
 		_education[source] -= moved_eq
 		if dest <= PopulationParams.SCHOOL_COHORT_MAX:
 			moved_eq += mini(int(services["school"]), movers) * PopulationParams.SCHOOL_EQ_GAIN
+			if bool(services["junior_sports"]):
+				moved_eq += movers * PopulationParams.JUNIOR_SPORTS_EQ_GAIN
 		elif dest >= PopulationParams.COLLEGE_COHORT_MIN and dest <= PopulationParams.COLLEGE_COHORT_MAX:
 			moved_eq += (mini(int(services["college"]), movers) * moved_eq / movers) / 2
 		else:
@@ -323,11 +346,22 @@ func _advance_demographics(ctx: SimContext, services: Dictionary) -> void:
 		_immigrate(p, incoming - outgoing)
 	elif outgoing > incoming:
 		_emigrate(p, outgoing - incoming, target, rng)
+	_report_exodus(ctx, previous, maxi(0, outgoing - incoming))
 	stats.cohorts = PackedInt32Array(p)
 	var total := 0
 	for i in COHORTS:
 		total += p[i]
 	stats.population = total
+
+
+## A month in which a large share of the city moves away is news once.
+func _report_exodus(ctx: SimContext, previous: int, leavers: int) -> void:
+	var big := previous > 0 and leavers >= PopulationParams.EXODUS_MIN_PEOPLE \
+		and leavers * 100 >= previous * PopulationParams.EXODUS_PERCENT
+	if big and not _exodus_reported:
+		@warning_ignore("integer_division")
+		ctx.events.report(&"exodus", {"count": maxi(1, leavers / PopulationParams.PEOPLE_PER_FAMILY)}, 2)
+	_exodus_reported = big
 
 
 func _immigrate(p: Array[int], left: int) -> void:
@@ -416,10 +450,35 @@ func _publish_scores(ctx: SimContext, services: Dictionary) -> void:
 @warning_ignore("integer_division")
 func _update_employment(ctx: SimContext) -> void:
 	var stats := ctx.stats
+	# Lost jobs: abandoned lots are jobs and homes that closed.
 	var idle := abandoned_units()
-	var unemployment := idle * 100 / (residents() / PopulationParams.CENSUS_UNIT + idle + 1)
-	stats.unemployment = clampi(unemployment, 0, 100)
+	var lost := idle * 100 / (residents() / PopulationParams.CENSUS_UNIT + idle + 1)
+	# Too few jobs: working-age residents beyond the jobs they can reach.
+	var shortfall := job_shortfall_percent(stats, reachable_jobs(ctx))
+	stats.unemployment = clampi(maxi(lost, shortfall), 0, 100)
 	stats.employment_rate = float(100 - stats.unemployment)
+
+
+## Jobs residents can reach: the city's own (`stats.jobs`) plus commuting
+## places in neighbor towns over road and rail links.
+static func reachable_jobs(ctx: SimContext) -> int:
+	var jobs := ctx.stats.jobs
+	var neighbors := ctx.system(&"neighbors")
+	if neighbors != null and neighbors.has_method("link_count"):
+		jobs += int(neighbors.call("link_count")) * PopulationParams.COMMUTE_JOBS_PER_LINK
+	return jobs
+
+
+## Percent of working-age residents (cohorts WORK_COHORT_MIN..MAX) without a
+## job within reach.
+static func job_shortfall_percent(stats: CityStats, jobs: int) -> int:
+	var workers := 0
+	for i in range(PopulationParams.WORK_COHORT_MIN, mini(PopulationParams.WORK_COHORT_MAX + 1, stats.cohorts.size())):
+		workers += stats.cohorts[i]
+	if workers <= 0 or jobs >= workers:
+		return 0
+	@warning_ignore("integer_division")
+	return (workers - jobs) * 100 / workers
 
 
 # ── Settlement class ─────────────────────────────────────────────────────
@@ -443,20 +502,35 @@ func _update_status(ctx: SimContext) -> void:
 
 # ── March vote ───────────────────────────────────────────────────────────
 
-func _hold_vote(ctx: SimContext) -> void:
-	var stats := ctx.stats
-	if residents() < PopulationParams.VOTE_MIN_POPULATION:
-		return
-	var weights: Array[int] = [
+## The March vote's weights: `complaints` in `COMPLAINT_KEYS` order and the
+## `content` weight that counts as approval.
+static func vote_weights(stats: CityStats) -> Dictionary:
+	# Residents complain about the rate they feel, ordinances included.
+	var tax_weight := OrdinanceSystem.effective_rates(stats).x * PopulationParams.VOTE_TAX_WEIGHT
+	if _ordinance(stats, PopulationParams.ORDINANCE_PARKING_FINES):
+		tax_weight += PopulationParams.VOTE_PARKING_FINES_WEIGHT
+	var complaints: Array[int] = [
 		stats.average_traffic,
 		stats.average_pollution,
 		stats.average_crime,
-		stats.tax_residential * PopulationParams.VOTE_TAX_WEIGHT,
+		tax_weight,
 		stats.unemployment,
 		100 - stats.education_quotient if stats.education_quotient <= 100 else 0,
 		PopulationParams.VOTE_HEALTH_TARGET - stats.life_expectancy if stats.life_expectancy <= PopulationParams.VOTE_HEALTH_TARGET else 0,
 	]
-	var total := stats.average_land_value + PopulationParams.VOTE_CONTENT_BASE
+	var content := stats.average_land_value + PopulationParams.VOTE_CONTENT_BASE
+	if _ordinance(stats, PopulationParams.ORDINANCE_SHELTERS):
+		content += PopulationParams.VOTE_SHELTER_CONTENT
+	return {"complaints": complaints, "content": content}
+
+
+func _hold_vote(ctx: SimContext) -> void:
+	var stats := ctx.stats
+	if residents() < PopulationParams.VOTE_MIN_POPULATION:
+		return
+	var weighed := vote_weights(stats)
+	var weights: Array[int] = weighed["complaints"]
+	var total := int(weighed["content"])
 	for w in weights:
 		total += w
 	if total <= 0:
@@ -506,6 +580,7 @@ func save() -> Dictionary:
 		"education": Array(_education),
 		"health": Array(_health),
 		"record_births": _record_births,
+		"exodus_reported": _exodus_reported,
 		"complaints": complaint_rows,
 		"census": _census.duplicate(),
 	}
@@ -518,6 +593,7 @@ func load(data: Dictionary) -> void:
 		_education[i] = int(education[i]) if i < education.size() else 0
 		_health[i] = int(health[i]) if i < health.size() else 0
 	_record_births = int(data.get("record_births", 0))
+	_exodus_reported = bool(data.get("exodus_reported", false))
 	_complaints.clear()
 	var rows: Array = data.get("complaints", [])
 	for row in rows:

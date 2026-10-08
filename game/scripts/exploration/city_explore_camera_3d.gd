@@ -20,6 +20,10 @@ var _cabin_bounds := AABB()
 var _cabin_at := Transform3D.IDENTITY
 var cabin_first_person := false
 var interior_active := false
+## A held seated view (a casino table): the follow camera stands aside.
+var table_view_active := false
+var _table_view := Transform3D.IDENTITY
+var _table_tween: Tween
 var camera: Camera3D
 var yaw := 0.0
 var pitch := 0.12
@@ -52,6 +56,8 @@ func _init() -> void:
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.near = .003
 	camera.fov = FOLLOW_FOV[0]
+	# Resort casino floors render on layer 21, outside the default mask.
+	camera.cull_mask |= 1 << 20
 	add_child(camera)
 
 func _enter_tree() -> void:
@@ -121,6 +127,9 @@ func clear_target() -> void:
 
 func update_follow(delta: float) -> void:
 	if not is_instance_valid(_target) or not is_inside_tree():
+		return
+	if table_view_active:
+		if _table_tween == null or not _table_tween.is_running(): camera.global_transform = _table_view
 		return
 	var dt := clampf(delta, 0.0, .1)
 	_since_orbit += dt
@@ -430,6 +439,38 @@ func set_cabin(bounds: AABB, at: Transform3D, active: bool) -> void:
 	_cabin_bounds=bounds
 	_cabin_at=at
 	camera.fov=FOLLOW_FOV[0] if valid or interior_active else FOLLOW_FOV[_mode]
+
+## Hold `pose` (world) as the view, gliding there over `seconds`. The
+## camera keeps it, even while Explore is suspended, until clear_table_view.
+func set_table_view(pose: Transform3D, seconds: float = .45) -> void:
+	if not pose.is_finite(): return
+	table_view_active = true
+	_table_view = pose
+	if is_instance_valid(_target) and _target.has_method("set_camera_occluded"): _target.set_camera_occluded(true)
+	if _table_tween != null: _table_tween.kill()
+	_table_tween = null
+	# A follow view withheld for an obstructed arm must not hide the table.
+	if _withheld or not camera.current:
+		camera.make_current()
+		_withheld = false
+	if seconds<=0.0 or not is_inside_tree():
+		camera.global_transform = pose
+		return
+	var from := camera.global_transform
+	_table_tween = create_tween()
+	_table_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_table_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_table_tween.tween_method(func(weight: float) -> void:
+		camera.global_transform = from.interpolate_with(_table_view,weight),0.0,1.0,seconds)
+
+## Release a held table view; the next follow update rejoins the walker.
+func clear_table_view() -> void:
+	if not table_view_active: return
+	table_view_active = false
+	if _table_tween != null: _table_tween.kill()
+	_table_tween = null
+	if is_instance_valid(_target) and _target.has_method("set_camera_occluded"): _target.set_camera_occluded(cabin_first_person)
+	_has_position = false
 
 func set_interior(active: bool) -> void:
 	if interior_active==active: return

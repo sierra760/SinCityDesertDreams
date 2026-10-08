@@ -131,6 +131,8 @@ func _ready() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 400.0
 	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	# Explore's resort halls (render layer 21) have their own interior lights.
+	sun.light_cull_mask = 0xFFFFFFFF & ~(1 << 20)
 	# The backend-specific scene energy is deliberately low. Give the
 	# visible sun its own brightness without adding direct or ambient lighting.
 	# Parenting keeps its direction aligned when the scene sun is rotated.

@@ -100,6 +100,11 @@ func _sample(ctx: SimContext) -> void:
 	st.record(&"demand_residential", st.demand.x, keep)
 	st.record(&"demand_commercial", st.demand.y, keep)
 	st.record(&"demand_industrial", st.demand.z, keep)
+	var transport := ctx.system(&"transport")
+	var riders := 0
+	if transport != null and transport.has_method("monthly_ridership"):
+		riders = int(transport.call("monthly_ridership"))
+	st.record(&"transit_riders", riders, keep)
 	_samples += 1
 
 
@@ -144,6 +149,14 @@ func _refresh_status(ctx: SimContext) -> void:
 		"Employment %d%%" % clampi(100 - st.unemployment, 0, 100),
 		"Approval %d%%" % st.approval,
 	]
+	var environment := ctx.system(&"environment")
+	if environment != null and environment.has_method("precipitation"):
+		var name := String(environment.call("wind_from_name")) if environment.has_method("wind_from_name") else ""
+		_status_lines.append("Rain %d%%, wind %d%s" % [int(environment.call("precipitation")),
+			int(environment.call("wind_speed")), (" from the " + name) if name != "" else ""])
+	if st.water_storage_capacity > 0:
+		_status_lines.append("Water towers hold %s of %s" % [NewsStories.count_text({"count": st.water_stored}),
+			NewsStories.count_text({"count": st.water_storage_capacity})])
 
 
 # ── Persistence ──────────────────────────────────────────────────────────

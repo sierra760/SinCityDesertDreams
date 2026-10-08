@@ -82,8 +82,13 @@ Choose **View → Explore City** to leave the aerial view:
   open doors, and ride along connected track.
 - Drive through road tunnels and over bridges, and find your city's streets
   signposted.
+- Walk into a Gaming Resort's casino floor and play blackjack, roulette,
+  slots, a money wheel, video poker and each resort's signature game with the
+  city treasury. See [Gaming resorts](docs/design/gaming-resorts.md).
 
 Exploring never changes city data, funds or the simulation's random numbers.
+Playing at a casino table does reach the city, through the treasury and the
+newspaper.
 Pause the city to explore without time passing. Vehicle and walker positions
 last only for the session.
 
@@ -126,7 +131,7 @@ last only for the session.
 | Drive | W or Up accelerates; S or Down brakes, then reverses; A/D or Left/Right steer; Space is the handbrake. |
 | Fly | WASD moves; Q climbs; E descends. Release the keys to hover. |
 | Boat | Drive controls. Stop beside a berth or clear shoreline to leave. |
-| Enter or leave | `F` near a vehicle, marina, elevator or call button. Stop or land first. |
+| Enter or leave | `F` near a vehicle, marina, elevator, call button, resort door or casino table. Stop or land first. |
 | Menu | `Escape` opens and closes the Explore panel: Resume, vehicle choice, Recover, Return to Build. |
 
 Game controllers are not supported; play with a keyboard and mouse or
@@ -163,6 +168,7 @@ Other platforms use equivalent GDScript code paths.
 ```sh
 python3 tools/check_provenance.py
 python3 tools/check_3d_assets.py
+python3 tools/check_resort_assets.py
 python3 tools/run_tests.py
 ```
 

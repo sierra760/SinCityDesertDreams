@@ -11,7 +11,8 @@ a system or touching the save format.
 game/scripts/
   core/      city model, catalogs, clock, RNG, the Simulation node, system base
   sim/       one file per simulation system; sim/data holds authored parameters
-  content/   written content: news stories, advisor lines, names
+  content/   written content: news stories, advisor lines, names, dealer patter
+  casino/    gaming-resort table games: CasinoGame, the nine games, ResortThemes
   io/        .sc2d save format, .sc2 import, city generator hand-off
   terrain/   terrain surface, generation, editing
   view/      3D city presentation, analytical geometry, shared materials, minimap
@@ -24,6 +25,8 @@ game/scripts/
 ```
 
 Dependencies point downward only. `sim/` never imports `view/` or `ui/`.
+`casino/` is pure game logic with no Node dependencies; `sim/`, `ui/` and
+`exploration/` read it, and it imports none of them.
 `view/` reads the city model but never mutates it. `ui/` talks to the
 simulation through `Simulation` and `CityStats`, and to construction through
 `Builder`.
@@ -135,7 +138,7 @@ single day stalls the frame:
 | 16 | economy: demand, industry sectors, national trends |
 | 18 | budget accrual, ordinances, transport wear |
 | 20 | disasters roll |
-| 22 | statistics, graphs, newspaper |
+| 22 | statistics, graphs, casino month stories, newspaper |
 | 24 | neighbors and regional |
 | 25 | rewards, ports |
 
@@ -248,7 +251,8 @@ overwrite it.
 | `ExplorePedestrian`, `ExploreCar`, `ExploreHelicopter` | Swept actor movement and each actor's visual model. They read traversal geometry and input frames and never touch the simulation or the save. |
 | `ExploreRouteVehicle`, `explore_marina_access.gd` | Player-driven trains, subways and boats along routes from the read-only traffic graph; boarding a boat at a marina and leaving it beside the marina or a clear shoreline. |
 | `exploration/transit/` (`ExploreTransitService`, `ExploreTransitWorld3D`, `ExploreTransitTrain`, `ExploreStationInterior`) | Riding a local train or subway as a passenger: station platforms, lifts and tunnel space, carriages with walkable floors and doors, station furnishings and destination choice. Boarding is by walking aboard, not a key. |
-| `CityExploreCamera3D` | Third-person follow, mouse orbit, recentering and physical obstruction handling. |
+| `exploration/resorts/` (`ExploreResortService`, `ResortInteriorWorld3D`, `ResortInteriorLayouts`, `ResortPropDresser`, `resort_entrance_access.gd`) | Gaming-resort casino floors: the door at the resort's front step, a lazily built enclosed hall per resort (cached by lot) below the lot, table and slot seats with their prompts and seated camera views, the fade in and out, and putting the walker back outside when the resort is gone. A seat raises `casino_table_requested`; Main opens the table overlay (`ui/casino/`), holds the seated view and releases it when the table closes. See [Gaming resorts](gaming-resorts.md). |
+| `CityExploreCamera3D` | Third-person follow, mouse orbit, recentering, physical obstruction handling and a held table view while a casino table is open. |
 | `ExploreHUD` | Fixed mode/speed/flight-altitude/F prompts, separately scrolling feedback, and a compact side panel laid out through DisplayLayout: Resume, Recover, Return to Build, Reset camera, a vehicle picker, a destination picker while waiting at a station, and Control settings. Look sensitivity and invert-Y are in Settings → Controls. |
 
 Terrain queries use mask 1 and lot queries mask 2. Movement

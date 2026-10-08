@@ -87,7 +87,7 @@ Sixteen kinds exist: `fire`, `flood`, `riot`, `hazard`, `earthquake`,
 start while another disaster runs. Every other kind is a *major* disaster and
 only one major disaster runs at a time. `stats.active_disaster` names the
 running major disaster, `&"fire"` while only fires burn, and `&""` when the
-city is quiet.
+city is quiet. The status bar names it in its Emergency alert.
 
 ### 2. Natural selection (day 20)
 
@@ -301,11 +301,14 @@ this order:
 9. `needs_school`: schools no more than `population / SCHOOL_PER_RESIDENT`.
 10. (population below `ADVICE_POPULATION_3`: stop)
 11. `needs_seaport`: industrial tiles at least `SEAPORT_INDUSTRY_TILES` and no
-    crane (`needs_industry_connections` when the map has no water).
+    crane. On a map with no water the need is `needs_industry_connections`
+    instead, and only while no road or rail reaches a neighbor (the neighbor
+    system's `link_count()` is zero).
 12. `needs_airport`: commercial tiles at least `AIRPORT_COMMERCE_TILES` and no
     runway.
-13. `needs_recreation`: parks/3 + zoos + stadiums + marinas fewer than
-    `population / RECREATION_PER_RESIDENT`.
+13. `needs_recreation`: city parks + stadiums + zoos + marinas (the venues in
+    `ZoneParams.RECREATION_KEYS` that raise the residential cap) fewer than
+    `population / RECREATION_PER_RESIDENT`. Pocket parks do not count.
 
 ## Parameters
 

@@ -591,6 +591,46 @@ const STORIES: Dictionary = {
 			"Mayor {mayor} watched the launch from the courthouse steps. The council is already arguing over what to build on the empty lots.",
 		],
 	},
+	# The mayor's casino play at the gaming resorts (see docs/simulation/casino.md).
+	&"casino_debut": {
+		"priority": MINOR, "decay": ONCE,
+		"headlines": [
+			"Mayor Spotted At The Tables Of {place}",
+			"Mayor {mayor} Tries Luck At {place}; Treasury Watches",
+			"City Hall Takes A Seat At {place}",
+			"Mayor's First Night At {place} Draws A Crowd",
+		],
+		"body": [
+			"Mayor {mayor} was seen at the tables of {place} this month, playing with the city's own treasury. Regulars said the mayor tipped the dealer and asked where the cage was, in that order.",
+			"The council has asked for a full accounting. The cage says the city plays like everyone else: the house is always open, and it always keeps the books.",
+		],
+	},
+	&"casino_windfall": {
+		"priority": NOTABLE, "decay": FAST,
+		"headlines": [
+			"Mayor Wins Big At {place}; Treasury {count} Heavier",
+			"City Hall Breaks The Bank At {place}",
+			"{count} Windfall For {city} After Mayor's Hot Streak",
+			"Dealers At {place} Ask Mayor To Kindly Slow Down",
+		],
+		"body": [
+			"Mayor {mayor} walked away from {place} this month with {count} more in the city's treasury than went in. The pit boss described the run as statistically unlikely and personally hurtful.",
+			"The budget office has booked the winnings and urged the mayor to stop while ahead. The mayor's office did not say whether that advice was taken.",
+		],
+	},
+	&"casino_losses": {
+		"priority": NOTABLE, "decay": FAST,
+		"headlines": [
+			"Mayor Spotted At {place}; Treasury Lighter",
+			"City Hall Drops {count} At {place}",
+			"Mayor's Cold Streak Costs {city} {count}",
+			"Council Asks Who Gave The Mayor A Seat At {place}",
+		],
+		"body": [
+			"The city's treasury came back from {place} {count} lighter this month after a run of bad cards, bad spins and, by one dealer's account, bad advice. Mayor {mayor} called it an investment in local tourism.",
+			"Opposition members have proposed an ordinance limiting the mayor to the penny slots. The motion was tabled until someone could find a penny.",
+		],
+	},
 	&"neighbor_news": {
 		"priority": MINOR, "decay": SLOW,
 		"headlines": [

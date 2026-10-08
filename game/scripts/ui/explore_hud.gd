@@ -56,6 +56,9 @@ var _mode := 0
 var _vehicle_kind := &""
 var _resume_button: Button
 var _destination_header: Label
+## Full-screen black used for door transitions.
+var _fade: ColorRect
+var _fade_tween: Tween
 
 func _ready() -> void:
 	_build()
@@ -334,6 +337,33 @@ func _build() -> void:
 	_hint_panel.add_child(_hint_label)
 	_hint_panel.hide()
 	_update_hint()
+
+## Fade to black over half of `seconds`, call `midpoint`, then fade back in.
+func fade_through(midpoint: Callable, seconds: float = .3) -> void:
+	cancel_fade()
+	if seconds<=0.0 or not is_inside_tree():
+		midpoint.call()
+		return
+	if not is_instance_valid(_fade):
+		_fade = ColorRect.new()
+		_fade.name = "ExploreDoorFade"
+		_fade.color = Color.BLACK
+		_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(_fade)
+	move_child(_fade,get_child_count()-1)
+	_fade.modulate.a = 0.0
+	_fade.show()
+	_fade_tween = create_tween()
+	_fade_tween.tween_property(_fade,"modulate:a",1.0,seconds*.5)
+	_fade_tween.tween_callback(midpoint)
+	_fade_tween.tween_property(_fade,"modulate:a",0.0,seconds*.5)
+	_fade_tween.tween_callback(_fade.hide)
+
+func cancel_fade() -> void:
+	if _fade_tween != null: _fade_tween.kill()
+	_fade_tween = null
+	if is_instance_valid(_fade): _fade.hide()
 
 func _touch_caption(caption: String) -> String:
 	return caption.replace("F to ","Interact to " if _touch_enabled else controls.caption(&"interact")+" to ")

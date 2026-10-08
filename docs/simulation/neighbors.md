@@ -28,6 +28,10 @@ compares the city with them.
   output, connections and this year's trade.
 - News `&"neighbor_shock"` with `{name, edge}` when a neighbor's economy
   collapses.
+- News `&"neighbor_growth"` with `{place, count, edge}` when a neighbor's
+  population passes one of `GROWTH_NEWS_MILESTONES` (`count` is the milestone).
+- `trade_demand_bonus()`: commercial and industrial demand added each month by
+  road and rail links, read by the zone system.
 - News `&"neighbor_connection"` with `{name, edge, kind}` when the player
   accepts and builds a road, rail, power or water link onto an edge
   (`record_connection(edge, kind)`, called by the builder). The flag is set at
@@ -56,7 +60,9 @@ compares the city with them.
    `LINK_GROWTH_BONUS` for each of its road and rail links. The change is
    `population × rate / GROWTH_DIVISOR`, truncated. Populations above
    `POPULATION_CEILING` shrink by the change instead of growing. A zero
-   change adds `rng.below(2)` so tiny towns still drift.
+   change adds `rng.below(2)` so tiny towns still drift. A neighbor whose
+   population rises past a value in `GROWTH_NEWS_MILESTONES` this month is
+   reported as `&"neighbor_growth"`.
 4. **Output.** Output follows the population with its own rate:
    `PHASE_OUTPUT_RATE[economy_phase] + rng.below(OUTPUT_JITTER)`, applied as
    `output × rate / GROWTH_DIVISOR`, shrinking above `OUTPUT_CEILING`. Output
@@ -71,10 +77,12 @@ compares the city with them.
    `IMPORT_CENTS[utility]` per unit per year. One twelfth is booked each
    month, with fractions carried in cents, into `neighbor_trade`. Trade needs
    a connection; a surplus with no line to the edge earns nothing.
-7. **Demand.** Links add nothing to demand. The zone system counts every
-   neighbor with people toward the commercial market and cap, linked or not
-   (see zones.md). `commercial_demand_bonus()` (links × `DEMAND_PER_LINK`)
-   has no callers.
+7. **Demand.** Trade needs a way out of town. `trade_demand_bonus()` is
+   `min(links × DEMAND_PER_LINK, LINK_DEMAND_CAP)`, counting every road and
+   rail link on every edge, and the zone system adds it to both the
+   commercial and the industrial demand change each month. Separately, the
+   zone system counts every neighbor with people toward the commercial market
+   and cap, linked or not (see zones.md).
 
 ## Parameters
 
@@ -89,7 +97,8 @@ compares the city with them.
 | `PHASE_OUTPUT_RATE`, `OUTPUT_JITTER`, `OUTPUT_CEILING` | output growth by national phase |
 | `SHOCK_CHANCE_DENOMINATOR`, `SHOCK_POPULATION_PERCENT`, `SHOCK_OUTPUT_PERCENT` | rarity and depth of a regional collapse |
 | `EXPORT_CENTS`, `IMPORT_CENTS`, `TRADE_UNIT_CAP` | utility trade prices and the export cap |
-| `DEMAND_PER_LINK` | per-link figure of `commercial_demand_bonus()`, which nothing reads |
+| `DEMAND_PER_LINK`, `LINK_DEMAND_CAP` | commercial and industrial demand per road or rail link, and its cap |
+| `GROWTH_NEWS_MILESTONES` | neighbor populations that make the newspaper |
 
 ## Save state
 

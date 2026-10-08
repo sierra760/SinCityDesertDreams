@@ -29,6 +29,10 @@ Read on the scheduled day:
 - `CityStats.economy_phase`: 0 recession, 1 slow growth, 2 growth, 3 boom.
 - `CityStats.sector_shares`: eleven fractions summing to 1.
 - `CityStats.city_value`: total value of everything built.
+- `CityStats.tax_industrial`: the aggregate industrial rate (rule 4.6), which
+  the budget charges and zone demand feels. A rate written there directly (the
+  Budget window, an import) moves every sector rate by the same points.
+- `CityStats.sector_taxes`: shifted with that aggregate (rule 4.6).
 - `CityStats.inventions`: technology key → first year it can be built.
 - Events:
   - `&"economy_shift"` `{phase, previous, name}` when the national phase
@@ -46,13 +50,14 @@ Getters for other systems and the UI:
   Industries window: `{index, key, name, demand, tax, units, share, heavy}`.
 - `sector_name(i) -> String`.
 - `phase_name(phase) -> String`.
-- `is_available(building_key, year) -> bool`, `technology_for(building_key)
-  -> StringName`, `available_year(technology) -> int`.
+- `available_year(technology) -> int`: the rolled year, or the base year when
+  none was rolled.
 - `national_population() -> int`, `national_product() -> int`.
 
 ## Timing
 
-- `setup`: roll the invention years if `CityStats.inventions` is empty; seed
+- `setup` and `load`: roll a year for every technology missing from
+  `CityStats.inventions`; seed
   the national figures if they are unset.
 - `monthly`, day 16: national drift, sectors, city value, inventions.
 - The next scheduled growth pass (day 5) reads the last computed demand
@@ -113,6 +118,17 @@ Getters for other systems and the UI:
 5. `industrial_demand_modifier`: with `largest` the percent held by the
    biggest sector, the result is `0` below `DOMINANT_PERCENT`, otherwise
    `(largest − DOMINANT_PERCENT) / DOMINANT_STEP`.
+6. **Industrial tax.** `aggregate_industrial_rate(stats)` is the sector rates
+   weighted by `sector_shares` (a plain mean when every share is zero),
+   rounded. At setup, load and the start of each monthly pass the system
+   compares `stats.tax_industrial` with the aggregate it last published; a
+   difference is a direct change (the Budget window's slider, an import), and
+   every sector rate moves by that many points, clamped to 0..`SECTOR_TAX_MAX`.
+   After the sectors are allocated it publishes the new aggregate to
+   `stats.tax_industrial`. The Industries window calls
+   `sector_taxes_changed()` after the player edits a sector so the aggregate
+   follows at once. A save from before this rule has no published aggregate,
+   so its sector rates line up with the player's industrial rate on load.
 
 ### 5. City value
 
@@ -126,11 +142,16 @@ Getters for other systems and the UI:
 1. Every technology in `TECHNOLOGIES` has a base year. On the first setup the
    available year is the base year plus a random offset below
    `INVENTION_SPREAD`; a technology whose year is at or before the founding
-   year is available from the start and is not announced.
+   year is available from the start and is not announced. A loaded city that
+   lacks a year for a technology (saved before it joined the table) gets one
+   rolled the same way; if that year is already past, it is treated as known
+   and not announced.
 2. Each month every technology whose year has arrived and which has not been
    announced yet is reported once as `&"invention"`.
-3. `is_available(building_key, year)` is true when the building needs no
-   technology or `year ≥ available_year(technology_for(building_key))`.
+3. The toolbar gates its tools on these same keys and years
+   (`Tools.available_year`), so a tool unlocks in the year its invention is
+   announced. Without a rolled year a tool waits for the technology's base
+   year. Wind power is a technology like the others.
 
 ## Parameters
 
@@ -164,6 +185,7 @@ Getters for other systems and the UI:
 
 `save()` returns the national population and product, the eleven sector
 demands, weights and local unit counts, the previous resident count, the two
-derived modifiers, the last assessed value and the set of announced
-technologies. Phase, shares, value and
+derived modifiers, the last assessed value, the set of announced
+technologies and the last published industrial aggregate
+(`published_industrial`). Phase, shares, value and
 invention years live in `CityStats`. `load()` tolerates missing keys.

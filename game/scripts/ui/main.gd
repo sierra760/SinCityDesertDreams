@@ -18,6 +18,9 @@ extends Node
 
 const Platform := preload("res://scripts/platform/mobile_platform.gd")
 
+## A gaming-resort table was closed (Leave table, Escape or the city closing).
+signal casino_closed
+
 ## NONE before a city exists, EDITING while the land is shaped, PLAY after founding.
 enum Stage { NONE, EDITING, PLAY }
 
@@ -66,6 +69,9 @@ var save_dialog: SaveDialog
 var notice_dialog: NoticeDialog
 var choice_dialog: ConstructionChoiceDialog
 var query_panel: QueryPanel
+## The gaming-resort table, created the first time one opens.
+var casino_overlay: CasinoTableOverlay
+var _casino_hid_hud := false
 
 ## The selected tool, or NO_TOOL.
 var tool := NO_TOOL
@@ -188,6 +194,7 @@ func _ready() -> void:
 	exploration.input_blocked = is_explore_input_blocked
 	exploration.release_ui_focus = display_layout.release_city_focus
 	exploration.return_requested.connect(explore_switch.leave)
+	exploration.casino_table_requested.connect(_on_casino_table_requested)
 	menu_bar.popup_opened.connect(exploration.suspend)
 	get_window().focus_exited.connect(exploration.suspend)
 	get_window().focus_exited.connect(restore_temporary_bulldoze)
@@ -416,6 +423,10 @@ func suspend_for_background(recovery_path: String = "") -> Error:
 	if is_instance_valid(new_city_dialog) and new_city_dialog.is_open(): new_city_dialog.cancel_online_work()
 	if _application_suspended: return _background_save_error
 	_application_suspended = true
+	# A round in play is played out as it stands (not refunded, so leaving
+	# the app never undoes a bad hand) and the table closes; the recovery
+	# copy never holds a stake.
+	if is_casino_open() and casino_overlay.round_in_progress(): casino_overlay.resolve_round_now()
 	acquire_sim_process_hold(&"background")
 	interrupt_map_input()
 	speed_before_modal = GameClock.Speed.PAUSED
@@ -729,6 +740,9 @@ func escape() -> void:
 		share_dialog.close()
 		return
 	if loading_screen.visible: return
+	if is_casino_open() and not notice_dialog.is_open():
+		casino_overlay.request_leave()
+		return
 	if notice_dialog.is_open():
 		notice_dialog.dismiss()
 	elif choice_dialog.is_open():
@@ -882,6 +896,80 @@ func request_disaster(kind: StringName) -> bool:
 	return ok
 
 
+# ── Gaming resorts ───────────────────────────────────────────────────────
+
+## Sit down at a gaming-resort table: pauses the city behind the table and
+## suspends Explore until the player leaves. Refused (false) before founding,
+## while another dialog holds input, or for an unknown resort or game; a
+## treasury below the table minimum is refused with a notice. `rng` seeds
+## the table (tests); null draws a fresh seed.
+func open_casino_table(resort: StringName, game: StringName, rng: CasinoRng = null) -> bool:
+	if stage != Stage.PLAY or sim.city == null or is_input_blocked() or WindowDrag.is_dragging():
+		return false
+	if not ResortThemes.has(resort):
+		notices.show("Table Closed", CasinoLines.UNKNOWN_RESORT)
+		return false
+	if not ResortThemes.offers(resort, game):
+		notices.show(ResortThemes.resort_name(resort), CasinoLines.UNKNOWN_GAME)
+		return false
+	var check := sim.casino().can_play(resort, sim.city.funds)
+	if not bool(check["ok"]):
+		notices.show(ResortThemes.resort_name(resort), String(check["reason"]))
+		return false
+	if casino_overlay == null:
+		casino_overlay = CasinoTableOverlay.new()
+		modal_layer.add_child(casino_overlay)
+		casino_overlay.bind_layout(display_layout)
+		casino_overlay.closed.connect(_on_casino_closed)
+		casino_overlay.round_settled.connect(func(_resort: StringName, _game: StringName, _outcome: Dictionary) -> void: _refresh_after_casino())
+	push_modal()
+	modal_layer.move_child(casino_overlay, modal_layer.get_child_count() - 1)
+	casino_overlay.open(sim, resort, game, rng)
+	return true
+
+
+## True while a gaming-resort table is open.
+func is_casino_open() -> bool:
+	return is_instance_valid(casino_overlay) and casino_overlay.is_open()
+
+
+## Close an open table at once (the city is closing or being replaced);
+## a round in play has its stake refunded.
+func force_close_casino() -> void:
+	if is_casino_open(): casino_overlay.force_close()
+
+
+func _on_casino_closed() -> void:
+	pop_modal()
+	if is_instance_valid(exploration): exploration.release_casino_table_view()
+	if _casino_hid_hud:
+		_casino_hid_hud = false
+		if is_instance_valid(explore_hud): explore_hud.visible = is_exploring()
+	_refresh_after_casino()
+	casino_closed.emit()
+
+
+## A seat on a resort floor in Explore: open its table, hold the seated
+## camera view and hide the Explore HUD (its paused panel) behind the table.
+## Explore suspends while the table holds input and resumes after it closes.
+func _on_casino_table_requested(resort: StringName, game: StringName, table: Dictionary) -> void:
+	if not open_casino_table(resort, game):
+		exploration.release_casino_table_view()
+		return
+	exploration.hold_casino_table_view(table)
+	if is_instance_valid(explore_hud) and explore_hud.visible:
+		explore_hud.visible = false
+		_casino_hid_hud = true
+
+
+func _refresh_after_casino() -> void:
+	if sim.city == null: return
+	status_bar.refresh(sim)
+	refresh_toolbar()
+	window_manager.refresh_open()
+	_query_refresh_pending = true
+
+
 # ── Modal state ──────────────────────────────────────────────────────────
 
 ## True while Help's full-screen terrain sources view is open. Ordinary Help
@@ -901,7 +989,7 @@ func sync_help_sources_hold() -> void:
 
 
 func is_input_blocked() -> bool:
-	return _help_sources_open() or _application_suspended or loading_screen.visible or not in_game or modal_depth > 0 or title_screen.visible or share_dialog.is_open() or notice_dialog.is_open() \
+	return is_casino_open() or _help_sources_open() or _application_suspended or loading_screen.visible or not in_game or modal_depth > 0 or title_screen.visible or share_dialog.is_open() or notice_dialog.is_open() \
 		or choice_dialog.is_open() or new_city_dialog.is_open() or load_dialog.is_open() or save_dialog.is_open() \
 		or files.picker_modal or (files.import_dialog != null and files.import_dialog.visible)
 

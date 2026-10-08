@@ -83,21 +83,20 @@ func yearly_totals() -> Dictionary:
 func effective_tax_rates() -> Vector3i:
 	if _ctx == null:
 		return Vector3i(7, 7, 7)
-	var stats := _ctx.stats
+	return effective_rates(_ctx.stats)
+
+
+## The tax rates residents, shops and industry feel: the player's rates shifted
+## one point by each enabled ordinance in `DEMAND_TAX_SHIFT`, never below zero.
+## Zone demand and the March vote read these; property tax uses the player's rates.
+static func effective_rates(stats: CityStats) -> Vector3i:
 	var rates := Vector3i(stats.tax_residential, stats.tax_commercial, stats.tax_industrial)
 	for k in OrdinanceParams.DEMAND_TAX_SHIFT:
-		if not is_enabled(k):
+		if not bool(stats.ordinances.get(k, false)):
 			continue
 		var shift: Array = OrdinanceParams.DEMAND_TAX_SHIFT[k]
 		rates += Vector3i(int(shift[0]), int(shift[1]), int(shift[2]))
 	return Vector3i(maxi(rates.x, 0), maxi(rates.y, 0), maxi(rates.z, 0))
-
-
-## Extra power capacity granted by energy conservation, as a fraction of `capacity`.
-func power_capacity_bonus(capacity: int) -> int:
-	if not is_enabled(&"energy_conservation"):
-		return 0
-	return capacity * OrdinanceParams.ENERGY_CONSERVATION_BONUS_TWELFTHS / 12
 
 
 # ── Persistence ──────────────────────────────────────────────────────────
@@ -148,7 +147,7 @@ func _refresh_totals(stats: CityStats) -> void:
 	stats.ordinance_cost = int(totals["cost"])
 
 
-## A rich city's council sometimes enacts a policy on its own.
+## A rich city's council sometimes enacts a policy that is not yet in force.
 func _council_enactment(ctx: SimContext) -> void:
 	if not ctx.stats.disasters_enabled:
 		return
@@ -156,7 +155,13 @@ func _council_enactment(ctx: SimContext) -> void:
 		return
 	if ctx.city.funds <= OrdinanceParams.COUNCIL_RICH_FUNDS + ctx.rng.below(OrdinanceParams.COUNCIL_RICH_SPREAD):
 		return
-	var row: Array = OrdinanceParams.CATALOG[ctx.rng.below(OrdinanceParams.CATALOG.size())]
+	var open: Array[Array] = []
+	for row in OrdinanceParams.CATALOG:
+		if not bool(ctx.stats.ordinances.get(row[0], false)):
+			open.append(row)
+	if open.is_empty():
+		return
+	var row: Array = open[ctx.rng.below(open.size())]
 	var k: StringName = row[0]
 	ctx.stats.ordinances[k] = true
 	ctx.events.report(&"ordinance_enacted", {"key": k, "name": row[2]})

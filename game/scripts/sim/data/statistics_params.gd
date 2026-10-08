@@ -27,4 +27,5 @@ const SERIES: Array[StringName] = [
 	&"crime", &"pollution", &"land_value", &"traffic",
 	&"power_percent", &"water_percent", &"unemployment", &"health", &"education",
 	&"demand_residential", &"demand_commercial", &"demand_industrial",
+	&"transit_riders",
 ]

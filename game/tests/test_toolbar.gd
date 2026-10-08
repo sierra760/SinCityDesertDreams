@@ -61,7 +61,10 @@ func test_refresh_locks_by_year_reward_and_emergency() -> void:
 	city.day = GameClock.DAYS_PER_YEAR * 20
 	toolbar.refresh(city, sim.stats, sim.get_system(&"disasters"))
 	check(not toolbar.is_locked(Tools.Kind.REWARD_CITY_HALL))
-	check(not toolbar.is_locked(Tools.Kind.SUBWAY), "subways unlock by 1920")
+	city.day = GameClock.DAYS_PER_YEAR * 30
+	toolbar.refresh(city, sim.stats, sim.get_system(&"disasters"))
+	check(not toolbar.is_locked(Tools.Kind.SUBWAY),
+		"subways unlock by 1930: the rolled year is 1910 plus under twenty years")
 	sim._ctx.systems.clear()
 	sim.systems.clear()
 	root.remove_child(sim)

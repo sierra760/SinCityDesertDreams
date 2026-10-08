@@ -33,8 +33,10 @@ demand cap.
   `City.stamp_building`, keeping the zone kind. Piers are stamped on the water
   tiles beside a crane and take the seaport zone kind.
 - `ctx.events.mark_dirty` for every changed footprint.
-- `vehicles()` for the renderer. The other getters in the interface below
-  are not read by any system.
+- `vehicles()` for the renderer.
+- `demand_bonus()` and `jobs()` for the zone system's monthly demand, and
+  `jobs()` for the population system's job count. `port_report()` totals each
+  port's jobs, pollution and crime.
 
 Events:
 
@@ -107,19 +109,22 @@ Events:
    military base operates as soon as it has any piece.
 6. **Demand.** The zone system counts every crane on the map, whether or not
    its seaport operates, toward the industrial demand cap (see zones.md).
-   That is the only way ports reach demand. `demand_bonus()` works out an
-   airport commercial and a seaport industrial boost from
-   `AIRPORT_COMMERCIAL_BONUS`, `SEAPORT_INDUSTRIAL_BONUS`,
-   `BONUS_PER_DEVELOPED_TILE` and `DEMAND_BONUS_CAP`, but no system reads it.
-7. **Jobs.** `jobs()` (developed tiles × `JOBS_PER_TILE[zone kind]`) is not
-   read by any system; ports add nothing to `stats.jobs`, which counts
-   commercial and industrial buildings.
-8. **Pollution and crime.** `port_report()` lists each port's `pollution`
-   (developed tiles × `POLLUTION_PER_TILE[zone kind]`) and `crime`
-   (developed tiles × `CRIME_PER_TILE[zone kind]`) with its bounding
-   rectangle, but nothing reads it. Port and military pieces pollute through
-   the environment system's flat per-tile emission for their category
-   (`CATEGORY_EMISSION`, see environment.md), and no port crime is added.
+   `demand_bonus()` adds, for each operating airport,
+   `AIRPORT_COMMERCIAL_BONUS + developed tiles × BONUS_PER_DEVELOPED_TILE` to
+   commercial and, for each operating seaport, `SEAPORT_INDUSTRIAL_BONUS +
+   developed tiles × BONUS_PER_DEVELOPED_TILE` to industrial, each capped at
+   `DEMAND_BONUS_CAP`. The zone system adds it to that month's demand change.
+   Military bases add no demand bonus.
+7. **Jobs.** `jobs()` is developed tiles × `JOBS_PER_TILE[zone kind]`,
+   counting airports, seaports and military bases whether or not they
+   operate. The population system adds it to `stats.jobs`, and the zone system
+   adds `jobs() / PEOPLE_PER_UNIT` to the jobs term of the residential target,
+   so ports and bases draw residents.
+8. **Pollution and crime.** Every developed port or military piece emits
+   `POLLUTION_PER_TILE[zone kind]` and adds `CRIME_PER_TILE[zone kind]` to its
+   block's base crime; the environment system applies both in its tile pass
+   (see environment.md). `port_report()` lists each port's totals
+   (developed tiles × the same figures) with its bounding rectangle.
 9. **Planes.** An operating airport with fewer than `MAX_PLANES` planes in the
    air spawns one with probability `1 / PLANE_SPAWN_DENOMINATOR` per day, on a
    runway tile, heading along the runway. A plane climbs for `PLANE_CLIMB_DAYS`
@@ -157,8 +162,8 @@ Events:
 | `PIER_LENGTH` | pier tiles beyond a crane |
 | `MIN_BERTH_DEPTH` | water height above ground required at the berth |
 | `AIRPORT_MIN_TILES`, `SEAPORT_MIN_TILES` | smallest zone that can operate |
-| `AIRPORT_COMMERCIAL_BONUS`, `SEAPORT_INDUSTRIAL_BONUS`, `BONUS_PER_DEVELOPED_TILE`, `DEMAND_BONUS_CAP` | the boost `demand_bonus()` reports (not read by any system) |
-| `JOBS_PER_TILE`, `POLLUTION_PER_TILE`, `CRIME_PER_TILE` | per developed tile, keyed by zone kind, for `jobs()` and `port_report()` (not read by any system) |
+| `AIRPORT_COMMERCIAL_BONUS`, `SEAPORT_INDUSTRIAL_BONUS`, `BONUS_PER_DEVELOPED_TILE`, `DEMAND_BONUS_CAP` | the monthly demand boost of operating ports |
+| `JOBS_PER_TILE`, `POLLUTION_PER_TILE`, `CRIME_PER_TILE` | per developed tile, keyed by zone kind, for `jobs()` (read by zones and population) and `port_report()`; pollution and crime are applied per piece by the environment system |
 | `MAX_PLANES`, `PLANE_SPAWN_DENOMINATOR`, `PLANE_SPEED`, `PLANE_CLIMB_DAYS`, `PLANE_CRUISE_DAYS`, `PLANE_CRUISE_ALTITUDE`, `PLANE_TURN_DENOMINATOR`, `AIR_LOOKAHEAD` | plane life cycle |
 | `HELICOPTER_SPAWN_DENOMINATOR`, `HELICOPTER_SPEED`, `HELICOPTER_RANGE` | helicopter life cycle |
 | `SHIP_SPAWN_DENOMINATOR`, `SHIP_SPEED`, `SHIP_DOCK_DAYS` | ship life cycle |

@@ -332,7 +332,7 @@ func test_ground_cover_front_and_main_placement_after_naming() -> void:
 	host.preferences_path = "user://station-placement-host.cfg"
 	root.add_child(host)
 	var stats := CityStats.new()
-	stats.inventions[&"subways"] = true
+	stats.inventions[&"subway"] = true
 	host.begin_city(base,{},77,stats)
 	host.sim.set_speed(GameClock.Speed.PAUSED)
 	for item: Array in [[Tools.Kind.ROAD,Vector2i(20,30),Vector2i(40,30)],[Tools.Kind.ROAD,Vector2i(30,20),Vector2i(30,40)]]:

@@ -616,8 +616,9 @@ func test_availability_and_rewards() -> void:
 	c.founded_year = 1900
 	var early := b.preview(Tools.Kind.GAS_PLANT, Vector2i(10, 10))
 	check(not early["ok"])
-	check_eq(early["reason"], "not available until 1950")
-	b.stats.inventions[&"gas_power"] = 1900
+	check_eq(early["reason"], "not available until %d" % EconomyParams.TECHNOLOGIES[&"gas_plant"],
+		"without a rolled year the tool waits for the technology's base year")
+	b.stats.inventions[&"gas_plant"] = 1900
 	check(b.preview(Tools.Kind.GAS_PLANT, Vector2i(10, 10))["ok"], "recorded invention unlocks the tool")
 	check(b.preview(Tools.Kind.COAL_PLANT, Vector2i(10, 10))["ok"])
 	check(not Tools.is_available(Tools.Kind.FUSION_PLANT, c, b.stats))

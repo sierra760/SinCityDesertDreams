@@ -36,7 +36,7 @@ const SCHEDULE := {
 	16: [&"economy"],
 	18: [&"budget", &"ordinances", &"wear"],
 	20: [&"disasters"],
-	22: [&"statistics", &"newspaper"],
+	22: [&"statistics", &"casino", &"newspaper"],
 	24: [&"neighbors"],
 	25: [&"rewards", &"ports"],
 }
@@ -59,6 +59,7 @@ const SYSTEM_SCRIPTS := [
 	"res://scripts/sim/newspaper_system.gd",
 	"res://scripts/sim/neighbor_system.gd",
 	"res://scripts/sim/reward_system.gd",
+	"res://scripts/sim/casino_system.gd",
 	"res://scripts/sim/port_system.gd",
 ]
 
@@ -269,6 +270,43 @@ func redeem_cheat(code: String) -> Dictionary:
 		_emit_scalars()
 		_drain_events()
 	return result
+
+
+## The casino system (treasury transactions and the play ledger).
+func casino() -> CasinoSystem:
+	return get_system(&"casino") as CasinoSystem
+
+
+## Debit a casino round's stake from the treasury. Publishes the new balance
+## immediately, even while paused. False when the system refuses it.
+func casino_commit(resort: StringName, game: StringName, staked: int) -> bool:
+	var system := casino()
+	if system == null or city == null:
+		return false
+	var ok := system.commit_round(_ctx, resort, game, staked)
+	_emit_scalars()
+	_drain_events()
+	return ok
+
+
+## Credit what a settled round returned and record it in the ledger.
+func casino_settle(resort: StringName, game: StringName, staked: int, returned: int) -> void:
+	var system := casino()
+	if system == null or city == null:
+		return
+	system.settle_round(_ctx, resort, game, staked, returned)
+	_emit_scalars()
+	_drain_events()
+
+
+## Return a committed stake whose round was abandoned (the city is closing).
+func casino_refund(resort: StringName, game: StringName, staked: int) -> void:
+	var system := casino()
+	if system == null or city == null:
+		return
+	system.refund_round(_ctx, resort, game, staked)
+	_emit_scalars()
+	_drain_events()
 
 
 func adjust_funds(delta: int) -> void:

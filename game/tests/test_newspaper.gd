@@ -17,7 +17,7 @@ const REPORTED_KINDS: Array[StringName] = [
 	&"water_shortage", &"tax_change", &"ordinance_passed", &"bond_issued", &"quiet_month",
 	&"power_restored", &"water_restored", &"treasury_deficit", &"port_opened", &"port_closed",
 	&"plant_aging", &"plant_replaced", &"neighbor_shock", &"city_milestone", &"birth_record",
-	&"advisor_need", &"resort_launch",
+	&"advisor_need", &"resort_launch", &"casino_debut", &"casino_windfall", &"casino_losses",
 ]
 ## Kinds reported under another name that share a template.
 const ALIASED_KINDS: Dictionary = {&"ordinance_enacted": &"ordinance_passed"}

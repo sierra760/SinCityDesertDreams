@@ -186,7 +186,8 @@ static func describe(city: City, sim: Simulation, at: Vector2i) -> Dictionary:
 				out["Development stage"] = int(zones.call("stage_of", id))
 	var record := city.facility(anchor)
 	var station := id in [Buildings.RAIL_STATION,Buildings.SUBWAY_STATION]
-	if station or not record.is_empty(): out["#Facility"] = ""
+	var resort := ResortThemes.key_for_building(id)
+	if station or not record.is_empty() or resort != &"": out["#Facility"] = ""
 	if station:
 		out["Name"] = StationNameResolver.display_name(city,anchor,id==Buildings.SUBWAY_STATION)
 		out["Name mode"] = String(StationNameResolver.name_mode(city,anchor)).capitalize()
@@ -208,6 +209,8 @@ static func describe(city: City, sim: Simulation, at: Vector2i) -> Dictionary:
 			var value: Variant = record[field]
 			if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_BOOL:
 				out[f.replace("_", " ").capitalize()] = value
+	elif resort != &"":
+		_resort_figures(out, city, sim, resort)
 	out["_demolishable"] = id != Buildings.NONE or under != Underground.NONE
 	out["_renamable"] = not record.is_empty()
 	return out
@@ -247,6 +250,8 @@ static func _facility_figures(city: City, sim: Simulation, anchor: Vector2i, id:
 						out["Residents"] = int(arcology.get("residents", 0))
 						out["Capacity"] = int(arcology.get("capacity", 0))
 						out["Condition"] = int(arcology.get("condition", 0))
+			var resort := ResortThemes.key_for_building(id)
+			if resort != &"": _resort_figures(out, city, sim, resort)
 		Buildings.Category.TRANSIT:
 			var transport := sim.get_system(&"transport")
 			if transport != null and transport.has_method("ridership"):
@@ -271,6 +276,32 @@ static func _facility_figures(city: City, sim: Simulation, anchor: Vector2i, id:
 							out["Utilization"] = "%d%%" % int(prison.get("utilization", 0))
 							out["Escapes"] = int(prison.get("escapes", 0))
 	return out
+
+
+## A gaming resort's casino floor and the mayor's net play there this year
+## (signed: "+$1,200" ahead, "-$500" behind). The ledger is kept per resort
+## design, so when more than one lot of the design stands the figure says
+## it covers them all: "+$1,200 across 2 floors".
+static func _resort_figures(out: Dictionary, city: City, sim: Simulation, resort: StringName) -> void:
+	out["Casino floor"] = ResortThemes.floor_name(resort)
+	var casino: CasinoSystem = sim.casino() if sim != null else null
+	if casino == null: return
+	var net := int(casino.ledger(resort).get("year_net", 0))
+	var text := ("+" if net > 0 else "") + CasinoLines.money(net)
+	var floors := resort_lot_count(city, ResortThemes.building(resort))
+	if floors > 1: text += " across %d floors" % floors
+	out["Mayor's play this year"] = text
+
+
+## How many lots of building `code` stand in the city (one per anchor).
+static func resort_lot_count(city: City, code: int) -> int:
+	if city == null or code <= 0: return 0
+	var count := 0
+	for y in City.HEIGHT:
+		for x in City.WIDTH:
+			if city.building_at(x, y) == code and city.anchor_of(x, y) == Vector2i(x, y):
+				count += 1
+	return count
 
 
 ## Numbers get thousands separators and flags read Yes/No.

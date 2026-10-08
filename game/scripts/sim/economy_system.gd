@@ -29,6 +29,11 @@ var _city_value := 0
 ## Technology key -> true once its arrival has been reported.
 var _announced: Dictionary = {}
 var _stats: CityStats
+## The aggregate industrial rate last published to `stats.tax_industrial`; a
+## different value there means someone set the rate directly (-1: unknown).
+var _published_industrial := -1
+## Weak, so the context that owns this system is not kept alive by it.
+var _ctx_ref: WeakRef
 
 
 func _init() -> void:
@@ -58,6 +63,7 @@ func _init() -> void:
 func setup(ctx: SimContext) -> void:
 	var stats := ctx.stats
 	_stats = stats
+	_ctx_ref = weakref(ctx)
 	_roll_inventions(ctx)
 	if stats.sector_taxes.size() != EconomyParams.SECTOR_COUNT:
 		var fixed := PackedInt32Array()
@@ -70,6 +76,7 @@ func setup(ctx: SimContext) -> void:
 		var shares := PackedFloat32Array()
 		shares.resize(EconomyParams.SECTOR_COUNT)
 		stats.sector_shares = shares
+	_sync_industrial_rate(stats)
 	stats.economy_phase = clampi(stats.economy_phase, 0, EconomyParams.PHASE_NAMES.size() - 1)
 	if _nation_population <= 0:
 		_nation_population = EconomyParams.nation_start_population(ctx.city.founded_year)
@@ -85,10 +92,61 @@ func setup(ctx: SimContext) -> void:
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_stats = ctx.stats
+	_sync_industrial_rate(ctx.stats)
 	_advance_nation(ctx)
 	_advance_sectors(ctx)
+	_publish_industrial_rate(ctx.stats)
 	_assess_city(ctx)
 	_announce_inventions(ctx)
+
+
+# ── Industrial tax ───────────────────────────────────────────────────────
+
+## The city's industrial rate: each sector's rate weighted by its share of
+## local industry (a plain mean before there are shares), rounded. The budget
+## charges industrial property tax at this rate.
+static func aggregate_industrial_rate(stats: CityStats) -> int:
+	var taxes := stats.sector_taxes
+	if taxes.is_empty():
+		return stats.tax_industrial
+	var shares := stats.sector_shares
+	var weighted := 0.0
+	var weight := 0.0
+	for i in taxes.size():
+		var share := shares[i] if i < shares.size() else 0.0
+		weighted += share * taxes[i]
+		weight += share
+	if weight <= 0.0:
+		weighted = 0.0
+		for t in taxes:
+			weighted += t
+		return roundi(weighted / taxes.size())
+	return roundi(weighted / weight)
+
+
+## Call after the player edits sector rates: the aggregate follows at once.
+func sector_taxes_changed() -> void:
+	if _stats != null:
+		_publish_industrial_rate(_stats)
+
+
+## A rate written straight to `stats.tax_industrial` (the budget's industrial
+## slider, an import) moves every sector rate by the same number of points.
+func _sync_industrial_rate(stats: CityStats) -> void:
+	if _published_industrial < 0:
+		_published_industrial = aggregate_industrial_rate(stats)
+	var delta := stats.tax_industrial - _published_industrial
+	if delta != 0:
+		var taxes := stats.sector_taxes
+		for i in taxes.size():
+			taxes[i] = clampi(taxes[i] + delta, 0, EconomyParams.SECTOR_TAX_MAX)
+		stats.sector_taxes = taxes
+	_published_industrial = stats.tax_industrial
+
+
+func _publish_industrial_rate(stats: CityStats) -> void:
+	stats.tax_industrial = aggregate_industrial_rate(stats)
+	_published_industrial = stats.tax_industrial
 
 
 # ── Getters ──────────────────────────────────────────────────────────────
@@ -154,25 +212,14 @@ func sector_report() -> Array[Dictionary]:
 	return out
 
 
-## Technology a building needs, or an empty name.
-static func technology_for(building_key: StringName) -> StringName:
-	return EconomyParams.technology_for(building_key)
-
-
-## First year a technology can be built.
+## Year the city rolled for a technology, or its base year when none was rolled.
+## The toolbar unlocks its tools on the same year (see `Tools.available_year`).
 func available_year(technology: StringName) -> int:
 	if _stats != null and _stats.inventions.has(technology):
 		return int(_stats.inventions[technology])
 	if EconomyParams.TECHNOLOGIES.has(technology):
 		return int(EconomyParams.TECHNOLOGIES[technology])
 	return 0
-
-
-func is_available(building_key: StringName, year: int) -> bool:
-	var tech := technology_for(building_key)
-	if tech == &"":
-		return true
-	return year >= available_year(tech)
 
 
 # ── National economy ─────────────────────────────────────────────────────
@@ -367,10 +414,17 @@ func _assess_city(ctx: SimContext) -> void:
 func _roll_inventions(ctx: SimContext) -> void:
 	var stats := ctx.stats
 	var founded := ctx.city.founded_year
-	if stats.inventions.is_empty():
-		for tech in EconomyParams.TECHNOLOGIES:
-			var year: int = int(EconomyParams.TECHNOLOGIES[tech]) + ctx.rng.below(EconomyParams.INVENTION_SPREAD)
-			stats.inventions[tech] = year
+	var fresh := stats.inventions.is_empty()
+	# A city saved before a technology joined the table gets a year for it
+	# now; one already in the past is treated as known, not announced as news.
+	var known_by := founded if fresh else maxi(founded, ctx.year())
+	for tech in EconomyParams.TECHNOLOGIES:
+		if stats.inventions.has(tech):
+			continue
+		var year: int = int(EconomyParams.TECHNOLOGIES[tech]) + ctx.rng.below(EconomyParams.INVENTION_SPREAD)
+		stats.inventions[tech] = year
+		if not fresh and year <= known_by:
+			_announced[tech] = true
 	for tech in stats.inventions:
 		if int(stats.inventions[tech]) <= founded:
 			_announced[StringName(tech)] = true
@@ -410,6 +464,7 @@ func save() -> Dictionary:
 		"demand_bonus": _demand_bonus,
 		"city_value": _city_value,
 		"announced": announced,
+		"published_industrial": _published_industrial,
 	}
 
 
@@ -423,10 +478,18 @@ func load(data: Dictionary) -> void:
 	_pollution_modifier = int(data.get("pollution_modifier", 0))
 	_demand_bonus = int(data.get("demand_bonus", 0))
 	_city_value = int(data.get("city_value", 0))
+	# A city saved before sector rates fed the industrial rate lines them up
+	# with the player's rate at the next sync.
+	_published_industrial = int(data.get("published_industrial", -1))
+	if _stats != null:
+		_sync_industrial_rate(_stats)
 	_announced.clear()
 	var announced: Array = data.get("announced", [])
 	for tech in announced:
 		_announced[StringName(String(tech))] = true
+	var ctx: SimContext = _ctx_ref.get_ref() if _ctx_ref != null else null
+	if ctx != null:
+		_roll_inventions(ctx)
 
 
 static func _load_row(target: Array[int], source: Array) -> void:

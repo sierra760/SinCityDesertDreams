@@ -134,10 +134,9 @@ Events:
     and the Population window, which between them show its residents,
     capacity, condition and build year. Its `pollution` (= `residents / 1000 ×
     POLLUTION_PER_THOUSAND`) and `crime` (= `residents / 1000 ×
-    CRIME_PER_THOUSAND`) are not read by any system: the environment system
-    gives every arcology tile a flat emission (`CATEGORY_EMISSION`, 15 per
-    tile, see environment.md) whatever its residents, and adds no arcology
-    crime.
+    CRIME_PER_THOUSAND`) are added by the environment system, spread over the
+    blocks of the footprint, on top of the flat per-tile arcology emission
+    (`CATEGORY_EMISSION`, 15 per tile, see environment.md).
 11. **Exodus.** On the last day of a year at or after `LAUNCH_YEAR`, if the
     city holds at least `LAUNCH_COUNT` Desert Orbit arcologies, all of them
     launch: every footprint turns to rubble, their residents leave the city,
@@ -165,7 +164,7 @@ Events:
 | `INTAKE_PER_POINT`, `INTAKE_OFFSET` | intake per point of (tax factor + condition) and the fixed deduction |
 | `RETENTION_GROWTH_SHARE` | natural growth of existing residents per year |
 | `INTAKE_JITTER` | random residents added to a growing arcology |
-| `POLLUTION_PER_THOUSAND`, `CRIME_PER_THOUSAND` | pollution and crime per thousand arcology residents in `arcology_report()` (not read by any system) |
+| `POLLUTION_PER_THOUSAND`, `CRIME_PER_THOUSAND` | pollution and crime per thousand arcology residents in `arcology_report()`, applied by the environment system |
 | `LAUNCH_KEY`, `LAUNCH_COUNT`, `LAUNCH_YEAR`, `LAUNCH_REFUND` | the exodus design, the fleet size, the earliest year and the compensation per inhabited arcology |
 
 ## Save state

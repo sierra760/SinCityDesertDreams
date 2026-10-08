@@ -46,9 +46,13 @@ Read on the sampling day:
   | `demand_residential` | residential demand, −999..999 |
   | `demand_commercial` | commercial demand |
   | `demand_industrial` | industrial demand |
+  | `transit_riders` | riders of every kind carried by that month's trip pass (transport's `monthly_ridership()`) |
 
 - The status headline lines (`status_lines()`): the settlement class name,
-  the date, population, funds, employment and approval, one line each.
+  the date, population, funds, employment and approval, one line each, then
+  the month's weather from the environment system ("Rain n%, wind n from the
+  west") and, when the city has water towers, "Water towers hold stored of
+  capacity". The status bar shows them as the population readout's tooltip.
 - No events are reported. Status changes are reported by the population
   system; this system only labels them.
 

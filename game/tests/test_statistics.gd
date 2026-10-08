@@ -28,7 +28,7 @@ func test_key_and_names() -> void:
 	var s := make_system(ctx)
 	check_eq(s.key, &"statistics")
 	var names: Array[StringName] = s.names()
-	check_eq(names.size(), 17)
+	check_eq(names.size(), 18, "seventeen city series plus transit riders")
 	check_eq(names[0], &"population")
 	check(names.has(&"money"))
 	check(names.has(&"demand_industrial"))
@@ -167,3 +167,29 @@ func test_save_load_round_trip() -> void:
 	check_eq(s2.status_lines(), s.status_lines())
 	s2.load({})
 	check_eq(s2.samples_taken(), 0, "missing fields fall back to defaults")
+
+
+class FakeTransport extends SimSystem:
+	func _init() -> void:
+		key = &"transport"
+
+	func monthly_ridership() -> int:
+		return 42
+
+
+func test_status_lines_show_weather_and_storage_and_riders_are_graphed() -> void:
+	var ctx := make_ctx()
+	var s := make_system(ctx)
+	var env := EnvironmentSystem.new()
+	ctx.systems[&"environment"] = env
+	env.setup(ctx)
+	ctx.systems[&"transport"] = FakeTransport.new()
+	ctx.stats.water_stored = 200
+	ctx.stats.water_storage_capacity = 400
+	s.monthly(ctx, 0)
+	var lines: Array = s.call("status_lines")
+	check_eq(lines[6], "Rain %d%%, wind %d from the %s" % [env.precipitation(), env.wind_speed(), env.wind_from_name()])
+	check_eq(lines[7], "Water towers hold 200 of 400")
+	check(StatisticsParams.SERIES.has(&"transit_riders"))
+	check_eq(int(ctx.stats.history[&"transit_riders"][-1]), 42, "the month's riders are graphed")
+	ctx.systems.clear()

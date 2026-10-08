@@ -23,6 +23,9 @@ var _twelfths: Dictionary = {}
 var _settled_year := -1
 var _deficit_reported := false
 var _bankruptcy_reported := false
+## Residential, commercial and industrial rates the newspaper last saw; a
+## change by the next booking day is reported as tax news.
+var _reported_rates := Vector3i(-1, -1, -1)
 ## Assessed value per building id (0 when the id is not taxed).
 var _assessment: PackedInt32Array = PackedInt32Array()
 ## Tax category per building id: 0 none, 1 residential, 2 commercial, 3 industrial.
@@ -48,11 +51,14 @@ func setup(ctx: SimContext) -> void:
 	_ensure_ledger_keys(ctx.stats)
 	if _settled_year < 0:
 		_settled_year = ctx.year() - 1
+	if _reported_rates.x < 0:
+		_reported_rates = _player_rates(ctx.stats)
 
 
 # ── Schedule ─────────────────────────────────────────────────────────────
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
+	_report_tax_change(ctx)
 	var yearly := _yearly_cents(ctx)
 	for k in yearly:
 		_twelfths[k] = int(_twelfths.get(k, 0)) + int(yearly[k])
@@ -186,6 +192,7 @@ func issue_bond(amount: int = BudgetParams.BOND_DEFAULT) -> bool:
 		"issued_year": _ctx.year(),
 	})
 	_ctx.city.funds += int(quote["amount"])
+	_ctx.events.report(&"bond_issued", {"amount": int(quote["amount"]), "rate": int(quote["rate"])}, 2)
 	return true
 
 
@@ -212,6 +219,7 @@ func save() -> Dictionary:
 		"settled_year": _settled_year,
 		"deficit_reported": _deficit_reported,
 		"bankruptcy_reported": _bankruptcy_reported,
+		"reported_rates": [_reported_rates.x, _reported_rates.y, _reported_rates.z],
 	}
 
 
@@ -223,6 +231,11 @@ func load(data: Dictionary) -> void:
 	_settled_year = int(data.get("settled_year", _settled_year))
 	_deficit_reported = bool(data.get("deficit_reported", false))
 	_bankruptcy_reported = bool(data.get("bankruptcy_reported", false))
+	var rates: Array = data.get("reported_rates", [])
+	if rates.size() == 3:
+		_reported_rates = Vector3i(int(rates[0]), int(rates[1]), int(rates[2]))
+	elif _ctx != null:
+		_reported_rates = _player_rates(_ctx.stats)
 	if _ctx != null:
 		_ensure_ledger_keys(_ctx.stats)
 		_publish_ledger(_ctx.stats)
@@ -274,6 +287,25 @@ func _check_bankruptcy(ctx: SimContext) -> void:
 	if not _bankruptcy_reported:
 		_bankruptcy_reported = true
 		ctx.events.notify(&"bankruptcy", {"funds": ctx.city.funds, "debt": total_debt(), "year": ctx.year()})
+		ctx.events.report(&"bankruptcy", {"funds": ctx.city.funds}, 3)
+
+
+static func _player_rates(stats: CityStats) -> Vector3i:
+	return Vector3i(stats.tax_residential, stats.tax_commercial, stats.tax_industrial)
+
+
+## The newspaper reports the first rate the player changed since last month.
+func _report_tax_change(ctx: SimContext) -> void:
+	var rates := _player_rates(ctx.stats)
+	if rates == _reported_rates:
+		return
+	var families := ["residential", "commercial", "industrial"]
+	for i in 3:
+		if rates[i] != _reported_rates[i]:
+			ctx.events.report(&"tax_change", {"count": rates[i], "family": families[i],
+				"previous": _reported_rates[i]}, 1)
+			break
+	_reported_rates = rates
 
 
 ## [income, expenses] in dollars from a ledger dictionary.

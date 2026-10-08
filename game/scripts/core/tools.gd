@@ -117,27 +117,29 @@ const _TABLE := {
 	Kind.LOWER_SEA: ["Lower Sea Level", 25, NO_BUILDING, -1, Vector2i.ONE, &"lower_sea", Mode.GLOBAL, Group.TERRAIN],
 }
 
-## Technology keys and the year each tool unlocks when `stats.inventions`
-## has no entry for it. Tools not listed are available from the start.
+## Technology each tool waits for. The key is the economy's invention key:
+## the tool unlocks in the year the city rolled for it in `stats.inventions`,
+## or at the technology's base year in `EconomyParams.TECHNOLOGIES` when the
+## city has no rolled year. Tools not listed are available from the start.
 const _INVENTIONS := {
-	Kind.SUBWAY: [&"subways", 1910],
-	Kind.SUBWAY_STATION: [&"subways", 1910],
-	Kind.SUBWAY_PORTAL: [&"subways", 1910],
-	Kind.BUS_DEPOT: [&"buses", 1920],
-	Kind.HIGHWAY: [&"highways", 1930],
-	Kind.ONRAMP: [&"highways", 1930],
-	Kind.WATER_TREATMENT: [&"water_treatment", 1935],
-	Kind.GAS_PLANT: [&"gas_power", 1950],
-	Kind.NUCLEAR_PLANT: [&"nuclear_power", 1955],
-	Kind.DESALINATION: [&"desalination", 1960],
-	Kind.WIND_PLANT: [&"wind_power", 1980],
-	Kind.SOLAR_PLANT: [&"solar_power", 1990],
-	Kind.ARCOLOGY_COMSTOCK: [&"arcology_comstock", 2000],
-	Kind.MICROWAVE_PLANT: [&"microwave_power", 2020],
-	Kind.FUSION_PLANT: [&"fusion_power", 2050],
-	Kind.ARCOLOGY_JUNCTION: [&"arcology_junction", 2050],
-	Kind.ARCOLOGY_BOULDER: [&"arcology_boulder", 2100],
-	Kind.ARCOLOGY_ORBIT: [&"arcology_orbit", 2150],
+	Kind.SUBWAY: &"subway",
+	Kind.SUBWAY_STATION: &"subway",
+	Kind.SUBWAY_PORTAL: &"subway",
+	Kind.BUS_DEPOT: &"bus",
+	Kind.HIGHWAY: &"highways",
+	Kind.ONRAMP: &"highways",
+	Kind.WATER_TREATMENT: &"water_treatment",
+	Kind.GAS_PLANT: &"gas_plant",
+	Kind.NUCLEAR_PLANT: &"nuclear_plant",
+	Kind.DESALINATION: &"desalination",
+	Kind.WIND_PLANT: &"wind_plant",
+	Kind.SOLAR_PLANT: &"solar_plant",
+	Kind.ARCOLOGY_COMSTOCK: &"arcology_comstock",
+	Kind.MICROWAVE_PLANT: &"microwave_plant",
+	Kind.FUSION_PLANT: &"fusion_plant",
+	Kind.ARCOLOGY_JUNCTION: &"arcology_junction",
+	Kind.ARCOLOGY_BOULDER: &"arcology_boulder",
+	Kind.ARCOLOGY_ORBIT: &"arcology_orbit",
 }
 
 ## Reward tools and the key the reward system offers them under.
@@ -265,19 +267,18 @@ static func dispatch_kind(tool: int) -> StringName:
 
 ## Technology key gating the tool, or empty when it is always available.
 static func invention_key(tool: int) -> StringName:
-	var gate: Array = _INVENTIONS.get(tool, [])
-	return StringName(gate[0]) if not gate.is_empty() else &""
+	return _INVENTIONS.get(tool, &"")
 
 
 ## First year the tool is available, honouring `stats.inventions` when the
 ## technology has a recorded year. 0 when it is always available.
 static func available_year(tool: int, stats: CityStats) -> int:
-	var gate: Array = _INVENTIONS.get(tool, [])
-	if gate.is_empty():
+	var tech := invention_key(tool)
+	if tech == &"":
 		return 0
-	if stats != null and stats.inventions.has(gate[0]):
-		return int(stats.inventions[gate[0]])
-	return int(gate[1])
+	if stats != null and stats.inventions.has(tech):
+		return int(stats.inventions[tech])
+	return int(EconomyParams.TECHNOLOGIES.get(tech, 0))
 
 
 ## Why the tool cannot be used right now, or an empty string when it can.

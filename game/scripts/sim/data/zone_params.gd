@@ -69,9 +69,9 @@ const TAX_BELOW_PER_POINT := 25
 const TAX_MILD_POINTS := 2
 const TAX_MILD_PER_POINT := 25
 const TAX_STEEP_PER_POINT := 50
-## Ordinance nudges applied to one family's accumulator each month.
-const ORDINANCE_NUDGE_SMALL := 25
-const ORDINANCE_NUDGE_LARGE := 50
+## Residential demand added each month while the pro-reading campaign runs.
+## Other ordinances reach demand through the felt tax rate (tax_pressure).
+const READING_NUDGE := 25
 
 # ── Growth points and local conditions ───────────────────────────────────
 

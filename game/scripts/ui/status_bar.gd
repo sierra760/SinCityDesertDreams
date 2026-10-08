@@ -283,6 +283,10 @@ func refresh(sim: Simulation) -> void:
 	set_date(sim.date_text())
 	set_population(sim.stats.total_population())
 	set_demand(sim.stats.demand)
+	var statistics := sim.get_system(&"statistics")
+	if statistics != null and statistics.has_method("status_lines"):
+		var lines: Array = statistics.call("status_lines")
+		population_label.tooltip_text = "\n".join(PackedStringArray(lines)) if not lines.is_empty() else "Total city population"
 	set_speed(sim.speed)
 	set_alerts(alerts_for(sim))
 	var disasters := sim.get_system(&"disasters") as DisasterSystem
@@ -306,7 +310,8 @@ static func alerts_for(sim: Simulation) -> PackedStringArray:
 		out.append("Water shortage")
 	var disasters := sim.get_system(&"disasters")
 	if disasters != null and disasters.has_method("is_emergency") and bool(disasters.call("is_emergency")):
-		out.append("Emergency")
+		var kind := sim.stats.active_disaster
+		out.append("Emergency: " + DisasterParams.display_name(kind) if kind != &"" else "Emergency")
 	if sim.stats.bankrupt:
 		out.append("Bankrupt")
 	return out

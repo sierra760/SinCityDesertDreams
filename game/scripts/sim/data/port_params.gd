@@ -22,16 +22,19 @@ const MIN_BERTH_DEPTH := 2
 const AIRPORT_MIN_TILES := 20
 const SEAPORT_MIN_TILES := 4
 
-## Demand boost of operating ports: a flat amount per port plus an amount per
-## developed tile, capped per demand component.
-const AIRPORT_COMMERCIAL_BONUS := 150
-const SEAPORT_INDUSTRIAL_BONUS := 150
-const BONUS_PER_DEVELOPED_TILE := 5
-const DEMAND_BONUS_CAP := 500
+## Demand added each month by operating ports: a flat amount per port plus an
+## amount per developed tile, capped per demand component. The zone system adds
+## it to the month's demand change, beside a tax point's 25 to 50.
+const AIRPORT_COMMERCIAL_BONUS := 40
+const SEAPORT_INDUSTRIAL_BONUS := 40
+const BONUS_PER_DEVELOPED_TILE := 1
+const DEMAND_BONUS_CAP := 100
 
-## Jobs, pollution and crime per developed tile, keyed by zone kind.
+## Jobs, pollution and crime per developed tile, keyed by zone kind. The
+## environment system adds the pollution to each port or military piece's
+## emission and the crime to its block's base crime.
 const JOBS_PER_TILE: Dictionary = {Zones.AIRPORT: 10, Zones.SEAPORT: 12, Zones.MILITARY: 8}
-const POLLUTION_PER_TILE: Dictionary = {Zones.AIRPORT: 25, Zones.SEAPORT: 15, Zones.MILITARY: 10}
+const POLLUTION_PER_TILE: Dictionary = {Zones.AIRPORT: 8, Zones.SEAPORT: 6, Zones.MILITARY: 4}
 const CRIME_PER_TILE: Dictionary = {Zones.AIRPORT: 0, Zones.SEAPORT: 2, Zones.MILITARY: 6}
 
 ## Planes: how many may fly at once, spawn odds per operating airport per day,

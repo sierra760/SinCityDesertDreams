@@ -24,9 +24,12 @@ Read during the monthly pass:
 - `City.building` census: recreation buildings (city parks, stadiums,
   zoos, marinas), transit stations, cranes and chapels are counted from the
   building layer for the demand caps and the chapel rule.
-- `CityStats.tax_residential`, `tax_commercial`, `tax_industrial`.
-- `CityStats.ordinances`: `business_advertising`, `tourist_advertising`,
-  `pro_reading_campaign`, `pollution_controls`.
+- `CityStats.tax_residential`, `tax_commercial`, `tax_industrial`, shifted
+  by ordinances through `OrdinanceSystem.effective_rates` (the felt rates; see
+  ordinances.md).
+- `CityStats.ordinances`: `pro_reading_campaign`.
+- Ports' `demand_bonus()` and `jobs()` (see ports.md) and neighbors'
+  `trade_demand_bonus()` (see neighbors.md), when those systems are loaded.
 - `CityStats.economy_phase` (0 recession .. 3 boom).
 - `CityStats.neighbor_populations`: the external market.
 - Transport's `unreachable_ratio()`: failed share of the last monthly trip pass.
@@ -114,7 +117,7 @@ Read during the monthly pass:
    finished buildings, in occupied units per family: R, C, I. With
    `jobs = C + I` and `labor_ratio = R_previous / (jobs + 1)`:
    - residential target = min(max(`RES_TARGET_FLOOR`,
-     `jobs + R / RES_SELF_GROWTH_DIVISOR`),
+     `jobs + port jobs / PEOPLE_PER_UNIT + R / RES_SELF_GROWTH_DIVISOR`),
      `C × RES_PER_COMMERCIAL + RES_BASE_TARGET`, residential cap), where the
      residential cap is `(RES_CAP_BASE + recreation) × RES_CAP_STEP` and
      recreation counts city parks, stadiums, zoos and marinas;
@@ -132,7 +135,7 @@ Read during the monthly pass:
      IND_CAP_STEP`.
 
    For each family the accumulator moves by
-   `DEMAND_GAIN × (target / (units + 1) − 1) + tax_pressure + ordinance nudge`
+   `DEMAND_GAIN × (target / (units + 1) − 1) + tax_pressure + external`
    and is clamped to ±`DEMAND_RAW_LIMIT`. `CityStats.demand` shows it
    rescaled to ±999. A new city starts with every accumulator at its
    positive limit.
@@ -140,12 +143,15 @@ Read during the monthly pass:
    `tax_pressure`: `TAX_NEUTRAL` percent is neutral; each point below adds
    `TAX_BELOW_PER_POINT`; the first `TAX_MILD_POINTS` points above subtract
    `TAX_MILD_PER_POINT` each and every further point subtracts
-   `TAX_STEEP_PER_POINT`.
+   `TAX_STEEP_PER_POINT`. It is taken at the family's felt rate: the player's
+   rate shifted one point by each ordinance in `DEMAND_TAX_SHIFT` (sales and
+   income tax, advertising, pollution controls, tree planting, homeless
+   shelters, the annual carnival; see ordinances.md).
 
-   Ordinances: `business_advertising` adds `ORDINANCE_NUDGE_LARGE` to
-   commercial, `tourist_advertising` adds `ORDINANCE_NUDGE_SMALL` to
-   commercial, `pro_reading_campaign` adds `ORDINANCE_NUDGE_SMALL` to residential,
-   `pollution_controls` subtracts `ORDINANCE_NUDGE_LARGE` from industrial.
+   `external`: residential gets `READING_NUDGE` while the
+   `pro_reading_campaign` runs. Commercial gets the ports' commercial bonus
+   (operating airports) and the neighbors' trade bonus; industrial gets the
+   ports' industrial bonus (operating seaports) and the same trade bonus.
 
 ### Growth points and desirability
 
@@ -252,7 +258,7 @@ All constants live in `game/scripts/sim/data/zone_params.gd`.
 | `TAX_BELOW_PER_POINT` | 25 | demand gained per point below neutral |
 | `TAX_MILD_POINTS` / `TAX_MILD_PER_POINT` | 2 / 25 | gentle penalty just above neutral |
 | `TAX_STEEP_PER_POINT` | 50 | penalty per further point |
-| `ORDINANCE_NUDGE_SMALL` / `ORDINANCE_NUDGE_LARGE` | 25 / 50 | ordinance effects on demand |
+| `READING_NUDGE` | 25 | residential demand added by the pro-reading campaign |
 | `GROWTH_POINTS_MAX` | 4000 | growth point range |
 | `LAND_VALUE_WEIGHT` | 2 | growth points per land value point |
 | `POLLUTION_TOLERANCE` / `POLLUTION_WEIGHT` | 64 / 8, 4, 0 | pollution the families ignore, and the penalty per excess point |

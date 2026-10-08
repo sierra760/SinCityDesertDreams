@@ -1345,15 +1345,29 @@ func _compute_advice(ctx: SimContext) -> Array[StringName]:
 	if pop < DisasterParams.ADVICE_POPULATION_3:
 		return out
 	if industrial_tiles >= DisasterParams.SEAPORT_INDUSTRY_TILES and anchors[Buildings.CRANE] == 0:
-		out.append(&"needs_seaport" if has_water else &"needs_industry_connections")
+		if has_water:
+			out.append(&"needs_seaport")
+		elif _neighbor_links(ctx) == 0:
+			# A dry map's industry trades by road or rail with the neighbors.
+			out.append(&"needs_industry_connections")
 	if commercial_tiles >= DisasterParams.AIRPORT_COMMERCE_TILES \
 			and anchors[Buildings.RUNWAY] + anchors[Buildings.RUNWAY_CROSS] == 0:
 		out.append(&"needs_airport")
-	var recreation := anchors[Buildings.SMALL_PARK] / 3 + anchors[Buildings.LARGE_PARK] \
-		+ anchors[Buildings.ZOO] + anchors[Buildings.STADIUM] + anchors[Buildings.MARINA]
+	# The same venues that raise the residential cap (ZoneParams.RECREATION_KEYS).
+	var recreation := 0
+	for k in ZoneParams.RECREATION_KEYS:
+		recreation += anchors[Buildings.id_of(k)]
 	if recreation < pop / DisasterParams.RECREATION_PER_RESIDENT:
 		out.append(&"needs_recreation")
 	return out
+
+
+## Road and rail links to the neighbors, from the neighbor system.
+func _neighbor_links(ctx: SimContext) -> int:
+	var neighbors := ctx.system(&"neighbors")
+	if neighbors != null and neighbors.has_method("link_count"):
+		return int(neighbors.call("link_count"))
+	return 0
 
 
 func _usage_high(demand: int, capacity: int) -> bool:

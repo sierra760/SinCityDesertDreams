@@ -64,6 +64,22 @@ func test_neighbors_grow_with_the_economy() -> void:
 		check_gt(ctx.stats.neighbor_populations[edge], 0)
 
 
+func test_a_neighbor_passing_a_milestone_makes_the_paper() -> void:
+	var ctx := make_ctx(flat_city())
+	var n := make_neighbors(ctx)
+	ctx.stats.economy_phase = 3
+	var populations := ctx.stats.neighbor_populations
+	populations[0] = 9999
+	populations[1] = 2000
+	ctx.stats.neighbor_populations = populations
+	n.monthly(ctx)
+	var news := ctx.events.news.filter(func(s): return s["kind"] == &"neighbor_growth")
+	check_eq(news.size(), 1, "one neighbor crossed 10,000")
+	if news.size() == 1:
+		check_eq(int(news[0]["args"]["count"]), 10000)
+		check_eq(news[0]["args"]["place"], n.neighbor_name(0))
+
+
 func test_edge_scan_finds_each_network() -> void:
 	var c := flat_city()
 	c.building.put(5, 0, Buildings.ROAD_FIRST)
@@ -80,7 +96,7 @@ func test_edge_scan_finds_each_network() -> void:
 	check(bool(conns[NeighborParams.EDGE_WEST]["water"]))
 	check(not bool(conns[NeighborParams.EDGE_WEST]["road"]))
 	check_eq(n.link_count(), 2)
-	check_eq(n.commercial_demand_bonus(), 2 * NeighborParams.DEMAND_PER_LINK)
+	check_eq(n.trade_demand_bonus(), 2 * NeighborParams.DEMAND_PER_LINK)
 	c.building.put(5, 0, Buildings.NONE)
 	n.networks_changed(ctx, Rect2i(5, 0, 1, 1))
 	check(not bool(n.connections()[NeighborParams.EDGE_NORTH]["road"]), "demolition drops the link")
@@ -201,3 +217,18 @@ func test_simulation_runs_the_neighbor_day() -> void:
 	check_eq(n.neighbor_report().size(), 4)
 	check(sim.snapshot()["systems"].has("neighbors"))
 	sim.queue_free()
+
+
+func test_growing_neighbors_send_news_now_and_then() -> void:
+	var ctx := make_ctx(flat_city())
+	var n := make_neighbors(ctx)
+	ctx.stats.economy_phase = 3
+	var notes := 0
+	for _m in 72:
+		ctx.events.clear()
+		n.monthly(ctx)
+		for story in ctx.events.news:
+			if story["kind"] == &"neighbor_news":
+				notes += 1
+				check(String(story["args"]["place"]) != "", "the note names the town")
+	check_between(notes, 1, 24, "a note every year or so")

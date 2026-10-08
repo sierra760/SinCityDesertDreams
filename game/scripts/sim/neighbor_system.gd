@@ -98,9 +98,10 @@ func link_count() -> int:
 	return n
 
 
-## Extra commercial demand earned by road and rail links, for the economy.
-func commercial_demand_bonus() -> int:
-	return link_count() * NeighborParams.DEMAND_PER_LINK
+## Commercial and industrial demand added each month by road and rail links:
+## trade needs a way out of town. Read by the zone system.
+func trade_demand_bonus() -> int:
+	return mini(link_count() * NeighborParams.DEMAND_PER_LINK, NeighborParams.LINK_DEMAND_CAP)
 
 
 func has_utility_link(utility: StringName) -> bool:
@@ -185,6 +186,7 @@ func _found(ctx: SimContext) -> void:
 func _grow(ctx: SimContext) -> void:
 	var phase := clampi(ctx.stats.economy_phase, 0, 3)
 	var populations := ctx.stats.neighbor_populations
+	var grew: Array[int] = []
 	for edge in NeighborParams.EDGE_COUNT:
 		var population := populations[edge]
 		if population <= 0:
@@ -198,11 +200,17 @@ func _grow(ctx: SimContext) -> void:
 		var change := population * rate / NeighborParams.GROWTH_DIVISOR
 		if change == 0:
 			change = ctx.rng.below(2)
+		var before := population
 		if population > NeighborParams.POPULATION_CEILING:
 			population -= change
 		else:
 			population += change
 		populations[edge] = maxi(population, 0)
+		if populations[edge] > before:
+			grew.append(edge)
+		for milestone: int in NeighborParams.GROWTH_NEWS_MILESTONES:
+			if before < milestone and populations[edge] >= milestone:
+				ctx.events.report(&"neighbor_growth", {"place": neighbor_name(edge), "count": milestone, "edge": edge})
 		var output := _output[edge]
 		var output_rate: int = NeighborParams.PHASE_OUTPUT_RATE[phase] + ctx.rng.below(NeighborParams.OUTPUT_JITTER)
 		var output_change := output * output_rate / NeighborParams.GROWTH_DIVISOR
@@ -212,6 +220,10 @@ func _grow(ctx: SimContext) -> void:
 			output += output_change
 		_output[edge] = maxi(output, 0)
 	ctx.stats.neighbor_populations = populations
+	# Now and then the paper prints a note from a growing neighbor.
+	if not grew.is_empty() and ctx.rng.chance(1, NeighborParams.NEWS_CHANCE_DENOMINATOR):
+		var edge: int = grew[ctx.rng.below(grew.size())]
+		ctx.events.report(&"neighbor_news", {"place": neighbor_name(edge), "edge": edge})
 	if ctx.rng.chance(1, NeighborParams.SHOCK_CHANCE_DENOMINATOR):
 		var edge := ctx.rng.below(NeighborParams.EDGE_COUNT)
 		populations[edge] = populations[edge] * NeighborParams.SHOCK_POPULATION_PERCENT / 100

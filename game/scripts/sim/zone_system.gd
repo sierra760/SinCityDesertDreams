@@ -261,9 +261,21 @@ func _update_demand(ctx: SimContext) -> void:
 	for n in stats.neighbor_populations:
 		if n > 0:
 			neighbors += 1
+	# Port, base and neighbor-link effects (see ports.md and neighbors.md).
+	var ports := ctx.system(&"ports")
+	var port_bonus := Vector3i.ZERO
+	var port_job_units := 0
+	if ports != null and ports.has_method("demand_bonus"):
+		port_bonus = ports.call("demand_bonus")
+		@warning_ignore("integer_division")
+		port_job_units = int(ports.call("jobs")) / Params.PEOPLE_PER_UNIT
+	var trade_bonus := 0
+	var neighbor_sys := ctx.system(&"neighbors")
+	if neighbor_sys != null and neighbor_sys.has_method("trade_demand_bonus"):
+		trade_bonus = int(neighbor_sys.call("trade_demand_bonus"))
 
 	@warning_ignore("integer_division")
-	var res_target := minf(maxf(float(Params.RES_TARGET_FLOOR), float(jobs + r / Params.RES_SELF_GROWTH_DIVISOR)),
+	var res_target := minf(maxf(float(Params.RES_TARGET_FLOOR), float(jobs + port_job_units + r / Params.RES_SELF_GROWTH_DIVISOR)),
 		minf(float(c * Params.RES_PER_COMMERCIAL + Params.RES_BASE_TARGET),
 			float((Params.RES_CAP_BASE + recreation) * Params.RES_CAP_STEP)))
 
@@ -286,16 +298,13 @@ func _update_demand(ctx: SimContext) -> void:
 		float(ind_cap))
 
 	var targets: Array[float] = [res_target, com_target, ind_target]
-	var taxes: Array[int] = [stats.tax_residential, stats.tax_commercial, stats.tax_industrial]
-	var nudges: Array[int] = [0, 0, 0]
-	if stats.ordinances.get(&"business_advertising", false):
-		nudges[Params.FAMILY_COMMERCIAL] += Params.ORDINANCE_NUDGE_LARGE
-	if stats.ordinances.get(&"tourist_advertising", false):
-		nudges[Params.FAMILY_COMMERCIAL] += Params.ORDINANCE_NUDGE_SMALL
+	# Ordinances such as sales tax or business advertising move the rate each
+	# family feels; property tax still charges the player's rates.
+	var felt := OrdinanceSystem.effective_rates(stats)
+	var taxes: Array[int] = [felt.x, felt.y, felt.z]
+	var nudges: Array[int] = [0, port_bonus.y + trade_bonus, port_bonus.z + trade_bonus]
 	if stats.ordinances.get(&"pro_reading_campaign", false):
-		nudges[Params.FAMILY_RESIDENTIAL] += Params.ORDINANCE_NUDGE_SMALL
-	if stats.ordinances.get(&"pollution_controls", false):
-		nudges[Params.FAMILY_INDUSTRIAL] -= Params.ORDINANCE_NUDGE_LARGE
+		nudges[Params.FAMILY_RESIDENTIAL] += Params.READING_NUDGE
 
 	for family in FAMILIES:
 		var ratio := targets[family] / float(_units[family] + 1) - 1.0

@@ -32,6 +32,10 @@ const GROWTH_DIVISOR := 1200
 const LINK_GROWTH_BONUS := 1
 ## Populations above this shrink by the change instead of growing.
 const POPULATION_CEILING := 5000000
+## A month with a growing neighbor brings it a newspaper note once in this many.
+const NEWS_CHANCE_DENOMINATOR := 12
+## Populations a neighbor makes the newspaper for passing.
+const GROWTH_NEWS_MILESTONES: Array[int] = [10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000]
 
 ## Output growth by national phase (recession .. boom), plus below(OUTPUT_JITTER).
 const PHASE_OUTPUT_RATE: Array[int] = [-3, 0, 3, 6]
@@ -48,5 +52,7 @@ const EXPORT_CENTS := {&"power": 2, &"water": 1}
 const IMPORT_CENTS := {&"power": 4, &"water": 2}
 const TRADE_UNIT_CAP := 20000
 
-## Commercial demand granted per road or rail link to a neighbor.
-const DEMAND_PER_LINK := 20
+## Commercial and industrial demand added each month per road or rail link to
+## a neighbor, and the most all links together can add.
+const DEMAND_PER_LINK := 10
+const LINK_DEMAND_CAP := 40

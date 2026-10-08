@@ -174,6 +174,35 @@ func test_ordinances_move_crime() -> void:
 	run_months(EnvironmentSystemScript.new(), ctx_w, 2)
 	check_gt(gambling.crime_at(45, 45), plain.crime_at(45, 45), "gambling raises crime")
 	check_lt(watched.crime_at(45, 45), plain.crime_at(45, 45), "the watch lowers crime")
+	for k: StringName in [&"anti_drug_campaign", &"junior_sports"]:
+		var c := district_city()
+		for cy in range(10, 13):
+			for cx in range(10, 13):
+				c.density.put(cx, cy, 120)
+		var ctx := make_ctx(c)
+		ctx.stats.ordinances[k] = true
+		run_months(EnvironmentSystemScript.new(), ctx, 2)
+		check_lt(c.crime_at(45, 45), plain.crime_at(45, 45), "%s lowers crime" % k)
+
+
+func test_tree_planting_lines_streets_with_shade_trees() -> void:
+	var bare := flat_city()
+	var planted := flat_city()
+	for c in [bare, planted]:
+		c.stamp_building(44, 52, Buildings.COAL_PLANT)
+		for x in range(40, 52):
+			for y in range(50, 52):
+				c.stamp_building(x, y, Buildings.ROAD_FIRST)
+	var ctx_b := make_ctx(planted)
+	ctx_b.stats.ordinances[&"tree_planting"] = true
+	run_months(EnvironmentSystemScript.new(), make_ctx(bare), 4)
+	run_months(EnvironmentSystemScript.new(), ctx_b, 4)
+	check_gt(bare.pollution_at(45, 51), 0, "the street beside the plant is polluted")
+	check_lt(planted.pollution_at(45, 51), bare.pollution_at(45, 51), "street trees absorb pollution")
+	check_eq(EnvironmentSystemScript.absorption_of(Buildings.ROAD_FIRST), 0,
+		"bare streets absorb nothing")
+	check_eq(EnvironmentSystemScript.absorption_of(Buildings.HIGHWAY_FIRST, true), 0,
+		"highways are not planted")
 
 
 func test_dense_commercial_centre_raises_nearby_value() -> void:
@@ -233,8 +262,111 @@ func test_save_load_round_trip() -> void:
 	# The restored system continues from the same maps and produces the same result.
 	var twin := c.duplicate_city()
 	var ctx_twin := make_ctx(twin)
+	# The monthly weather roll draws from the shared generator.
+	ctx_twin.rng.set_state(ctx.rng.state())
 	run_months(env, ctx, 1)
 	run_months(restored, ctx_twin, 1)
 	check_eq(twin.pollution.data, c.pollution.data, "pollution map continues identically")
 	check_eq(twin.land_value.data, c.land_value.data, "land value map continues identically")
 	check_eq(twin.crime.data, c.crime.data, "crime map continues identically")
+
+
+func test_weather_follows_the_desert_seasons() -> void:
+	var ctx := make_ctx(flat_city())
+	var env := EnvironmentSystemScript.new()
+	ctx.systems[&"environment"] = env
+	env.setup(ctx)
+	check_eq(UtilityParams.weather(ctx, &"precipitation", -1), env.precipitation(),
+		"power and water read the environment's weather")
+	var rain_by_month := {}
+	var wind_by_month := {}
+	var rain_total := 0
+	var wind_total := 0
+	var months := 0
+	for year in 10:
+		for m in 12:
+			ctx.clock.day = (year * 12 + m) * GameClock.DAYS_PER_MONTH + 10
+			env.monthly(ctx)
+			check_between(env.precipitation(), 0, 100)
+			check_gt(env.wind_speed(), -1)
+			rain_by_month[m] = int(rain_by_month.get(m, 0)) + env.precipitation()
+			wind_by_month[m] = int(wind_by_month.get(m, 0)) + env.wind_speed()
+			rain_total += env.precipitation()
+			wind_total += env.wind_speed()
+			months += 1
+	check_gt(int(rain_by_month[0]), int(rain_by_month[5]), "January is wetter than June")
+	check_gt(int(wind_by_month[3]), int(wind_by_month[8]), "April is windier than September")
+	check_between(rain_total / months, UtilityParams.DEFAULT_RAIN - 3, UtilityParams.DEFAULT_RAIN + 3)
+	check_between(wind_total / months, UtilityParams.DEFAULT_WIND - 2, UtilityParams.DEFAULT_WIND + 2)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(env.save()))
+	var restored := EnvironmentSystemScript.new()
+	restored.setup(ctx)
+	restored.load(saved)
+	check_eq(restored.precipitation(), env.precipitation())
+	check_eq(restored.wind_speed(), env.wind_speed())
+	ctx.systems.clear()
+
+
+func test_the_neon_dome_lifts_land_value() -> void:
+	var plain := district_city()
+	var domed := district_city()
+	domed.stamp_building(50, 40, Buildings.NEON_DOME)
+	run_months(EnvironmentSystemScript.new(), make_ctx(plain), 2)
+	run_months(EnvironmentSystemScript.new(), make_ctx(domed), 2)
+	check_gt(domed.land_value_at(49, 41), plain.land_value_at(49, 41), "the landmark is an attraction")
+
+
+func test_the_wind_carries_pollution_downwind() -> void:
+	var c := flat_city()
+	c.stamp_building(62, 62, Buildings.COAL_PLANT)
+	var ctx := make_ctx(c)
+	var env := EnvironmentSystemScript.new()
+	env.setup(ctx)
+	env._wind = 20
+	env._wind_from = Vector2i(-1, 0)
+	for _m in 6:
+		env._scan_tiles(ctx)
+		env._update_pollution(ctx)
+	# The plant covers blocks 31..32; compare blocks three away on each side.
+	check_gt(c.pollution_at(2 * 35, 2 * 31), c.pollution_at(2 * 28, 2 * 31),
+		"a west wind leaves the east side smokier than the west")
+	check_eq(env.wind_from_name(), "west")
+
+
+class FakeArcologies extends SimSystem:
+	func _init() -> void:
+		key = &"rewards"
+
+	func arcology_report() -> Array[Dictionary]:
+		return [{"anchor": Vector2i(80, 80), "key": &"arcology_comstock", "residents": 40000,
+			"pollution": 80, "crime": 40}]
+
+
+func test_ports_bases_and_arcologies_bring_crime_and_pollution() -> void:
+	var plain := flat_city()
+	var based := flat_city()
+	for c in [plain, based]:
+		for cy in range(14, 17):
+			for cx in range(14, 17):
+				c.density.put(cx, cy, 120)
+	for y in range(60, 64):
+		for x in range(60, 64):
+			based.stamp_building(x, y, Buildings.MILITARY_TOWER, Zones.MILITARY)
+	run_months(EnvironmentSystemScript.new(), make_ctx(plain), 2)
+	run_months(EnvironmentSystemScript.new(), make_ctx(based), 2)
+	check_gt(based.crime_at(61, 61), plain.crime_at(61, 61), "a military base brings crime")
+	check_gt(based.pollution_at(61, 61), 0, "base pieces pollute")
+	var arco := flat_city()
+	var empty := flat_city()
+	for c in [arco, empty]:
+		c.stamp_building(80, 80, Buildings.ARCOLOGY_COMSTOCK)
+		for cy in range(19, 22):
+			for cx in range(19, 22):
+				c.density.put(cx, cy, 120)
+	var crowded := make_ctx(arco)
+	crowded.systems[&"rewards"] = FakeArcologies.new()
+	run_months(EnvironmentSystemScript.new(), crowded, 2)
+	run_months(EnvironmentSystemScript.new(), make_ctx(empty), 2)
+	check_gt(arco.crime_at(81, 81), empty.crime_at(81, 81), "residents bring crime")
+	check_gt(arco.pollution_at(81, 81), empty.pollution_at(81, 81), "residents add pollution")
+	crowded.systems.clear()

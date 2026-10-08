@@ -24,8 +24,9 @@ and the facility records of power plants.
 - `stats.ordinances[&"energy_conservation"]`: stretches every network budget.
 - Weather: precipitation and wind speed. Read from a system that exposes
   `precipitation()` and `wind_speed()` (looked up under the keys `environment`,
-  `weather`, `disasters`); when none exists the defaults in the parameter
-  table apply.
+  `weather`, `disasters`). The environment system rolls both each month
+  around the desert seasons (see environment.md); the defaults in the
+  parameter table apply only when no such system is loaded.
 
 ## Outputs
 
@@ -150,8 +151,8 @@ still apply. Zoned line tiles can develop into buildings through normal growth.
 | `PLANT_WARNING_YEARS` | 48 | Age after which the aging warning is given. |
 | `PLANT_LIFETIME_YEARS` | 50 | Age after which a plant retires. |
 | `AGELESS_PLANTS` | hydro, wind | Plants that never wear out. |
-| `DEFAULT_WIND` | 10 | Wind speed used when no weather system is present. |
-| `DEFAULT_RAIN` | 15 | Precipitation used when no weather system is present. |
+| `DEFAULT_WIND` | 10 | Wind speed used when no weather system is present (also the seasonal yearly mean). |
+| `DEFAULT_RAIN` | 15 | Precipitation used when no weather system is present (also the seasonal yearly mean). |
 
 ## Save state
 

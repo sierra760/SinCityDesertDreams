@@ -32,9 +32,17 @@ Read on the scheduled day:
 - `CityStats.funding[&"schools"]`, `[&"colleges"]`, `[&"health"]`: funding
   scales the service capacity of schools, colleges and hospitals.
 - `CityStats.ordinances`: `&"pro_reading_campaign"`, `&"free_clinics"`,
-  `&"anti_drug_campaign"`, `&"public_smoking_ban"` (the ordinance catalog keys).
+  `&"anti_drug_campaign"`, `&"public_smoking_ban"`, `&"cpr_training"`,
+  `&"junior_sports"`, `&"parking_fines"`, `&"homeless_shelters"` (the ordinance
+  catalog keys).
 - `CityStats.average_pollution`: dirty air shortens lives.
-- For the March vote: `CityStats.tax_residential`, `average_traffic`,
+- The water system's `treatment_adequate()`: untreated drinking water is
+  unhealthy once treatment plants have been invented.
+- The port system's `jobs()`: airports, seaports and military bases offer jobs.
+- The neighbor system's `link_count()`: road and rail links let residents
+  commute.
+- For the March vote: the felt residential rate
+  (`OrdinanceSystem.effective_rates`, see ordinances.md), `average_traffic`,
   `average_pollution`, `average_crime`, `average_land_value`, `unemployment`,
   `education_quotient`, `life_expectancy`.
 
@@ -97,7 +105,7 @@ Numbers in capitals are parameters listed below.
    Abandoned lots use the same footprint rule.
 4. Civic buildings are counted when their anchor tile is powered: schools,
    colleges, hospitals, libraries, museums.
-5. `jobs = commercial_units + industrial_units`.
+5. `jobs = commercial_units + industrial_units + ports.jobs()` (see ports.md).
 
 ### 2. Service capacity
 
@@ -109,7 +117,9 @@ Numbers in capitals are parameters listed below.
 5. `newborn_health = NEWBORN_HEALTH_SERVED + HEALTH_ORDINANCE_BONUS` for each
    of `&"anti_drug_campaign"` and `&"public_smoking_ban"` enabled.
 6. `pollution_penalty = min(POLLUTION_PENALTY_MAX, average_pollution /
-   POLLUTION_PENALTY_DIVISOR)`.
+   POLLUTION_PENALTY_DIVISOR)`, plus `UNTREATED_WATER_PENALTY` when the water
+   system reports untreated water and the year has reached the city's water
+   treatment invention year (`Tools.available_year`).
 7. `health_index = min(100, hospital_places × 100 / max(residents, 1))`.
 
 ### 3. Deaths
@@ -123,7 +133,9 @@ health `h` (the pooled health divided by `n`), against the cohort's age
    are `n × shortfall / MORTALITY_MONTHS`. The fractional remainder is settled
    with one random draw, so small cohorts still lose people over time.
 3. Hospital coverage (`health_index` percent) removes up to
-   `HOSPITAL_MORTALITY_RELIEF` percent of those deaths.
+   `HOSPITAL_MORTALITY_RELIEF` percent of those deaths. With `&"cpr_training"`
+   enabled, a further `CPR_MORTALITY_RELIEF` percent of the remaining deaths
+   (truncated) are prevented.
 4. The dead take their share of the cohort's education and health pools with
    them. Every death frees a home, so deaths add to this month's immigration.
 
@@ -136,7 +148,8 @@ their share of the education and health pools, then:
 
 1. Movers entering the school-age cohorts (`SCHOOL_COHORT_MAX` and below)
    gain `SCHOOL_EQ_GAIN` education each, for as many movers as
-   `school_places` covers.
+   `school_places` covers. With `&"junior_sports"` enabled every such mover
+   also gains `JUNIOR_SPORTS_EQ_GAIN`.
 2. Movers entering the college cohorts (`COLLEGE_COHORT_MIN` to
    `COLLEGE_COHORT_MAX`) covered by `college_places` add half of their own
    average education again.
@@ -188,10 +201,23 @@ their share of the education and health pools, then:
 
 ### 8. Employment
 
-1. `unemployment = abandoned_units × 100 / (residents / CENSUS_UNIT +
-   abandoned_units + 1)`, clamped to 0–100. Abandoned lots are the visible
-   sign of lost jobs; a city without abandonment reports full employment.
-2. `employment_rate = 100 − unemployment`.
+1. Lost jobs: `lost = abandoned_units × 100 / (residents / CENSUS_UNIT +
+   abandoned_units + 1)`. Abandoned lots are the visible sign of closed jobs.
+2. Too few jobs: `workers` is the head count of cohorts `WORK_COHORT_MIN` to
+   `WORK_COHORT_MAX`, and `reachable jobs = stats.jobs + neighbor road/rail
+   links × COMMUTE_JOBS_PER_LINK` (residents commute to the neighbors).
+   `shortfall = (workers − reachable jobs) × 100 / workers` when workers exceed
+   the jobs in reach, else 0.
+3. `unemployment = max(lost, shortfall)`, clamped to 0–100.
+4. `employment_rate = 100 − unemployment`.
+
+### 8b. Exodus
+
+A month whose emigration (the people who left beyond those who arrived) is at
+least `EXODUS_MIN_PEOPLE` and at least `EXODUS_PERCENT` of last month's
+residents reports `&"exodus"` `{count}` (leavers / `PEOPLE_PER_FAMILY`
+families) once; the report is held back until a month without such a
+departure.
 
 ### 9. Settlement class
 
@@ -206,10 +232,14 @@ their share of the education and health pools, then:
    VOTE_MIN_POPULATION`.
 2. Complaint weights, in order: traffic (`average_traffic`), pollution
    (`average_pollution`), crime (`average_crime`), taxes
-   (`tax_residential × VOTE_TAX_WEIGHT`), unemployment (`unemployment`),
+   (felt residential rate × `VOTE_TAX_WEIGHT`, plus
+   `VOTE_PARKING_FINES_WEIGHT` while `&"parking_fines"` is enabled),
+   unemployment (`unemployment`),
    education (`100 − education_quotient` when at or below 100, else 0),
    health (`VOTE_HEALTH_TARGET − life_expectancy` when at or below it, else 0).
-3. Contentment weight: `average_land_value + VOTE_CONTENT_BASE`.
+3. Contentment weight: `average_land_value + VOTE_CONTENT_BASE`, plus
+   `VOTE_SHELTER_CONTENT` while `&"homeless_shelters"` is enabled.
+   `PopulationSystem.vote_weights(stats)` returns both weights.
 4. Each of `VOTE_COUNT` voters draws a random number below the total weight
    and walks the complaint list; a draw past every complaint is a vote of
    approval. `approval` is the number of approving voters.
@@ -237,6 +267,8 @@ their share of the education and health pools, then:
 | `COLLEGE_COHORT_MIN`, `COLLEGE_COHORT_MAX` | 3, 4 | college-age cohorts |
 | `MORTALITY_MONTHS` | 24 | months over which a full health shortfall empties a cohort |
 | `HOSPITAL_MORTALITY_RELIEF` | 25 | percent of deaths hospitals prevent at full coverage |
+| `CPR_MORTALITY_RELIEF` | 10 | percent of the remaining deaths CPR training prevents |
+| `JUNIOR_SPORTS_EQ_GAIN` | 2 | education per school-age mover under junior sports |
 | `PARENT_COHORT_MIN`, `PARENT_COHORT_MAX` | 4, 8 | child-bearing cohorts |
 | `BIRTH_DIVISOR` | 300 | parents per birth per month |
 | `NEWBORN_HEALTH_SERVED` | 85 | health of a baby born with hospital care |
@@ -244,6 +276,9 @@ their share of the education and health pools, then:
 | `HEALTH_ORDINANCE_BONUS` | 5 | newborn health per health ordinance |
 | `NEWBORN_EQ_DIVISOR` | 5 | newborn education as a share of the city quotient |
 | `POLLUTION_PENALTY_DIVISOR`, `POLLUTION_PENALTY_MAX` | 40, 3 | health lost per aging step from dirty air |
+| `UNTREATED_WATER_PENALTY` | 1 | health lost per aging step from untreated water |
+| `COMMUTE_JOBS_PER_LINK` | 150 | neighbor jobs in reach per road or rail link |
+| `EXODUS_MIN_PEOPLE`, `EXODUS_PERCENT`, `PEOPLE_PER_FAMILY` | 100, 5, 3 | when emigration is news, and how families are counted |
 | `IMMIGRATION_ORDER` | 4,5,6,7,0,1,2,3,4…11 | cohorts immigrants fill, in order |
 | `IMMIGRANT_HEALTH_BASE` | 65 | immigrant health minus cohort index |
 | `IMMIGRANT_EQ_CHILD_BASE`, `IMMIGRANT_EQ_CHILD_STEP` | 17, 35 | child immigrant education |
@@ -257,9 +292,11 @@ their share of the education and health pools, then:
 | `STATUS_NAMES` | Village … Megalopolis | class labels |
 | `VOTE_MIN_POPULATION` | 100 | residents needed for a vote |
 | `VOTE_COUNT` | 100 | voters polled |
-| `VOTE_TAX_WEIGHT` | 3 | complaint weight per point of residential tax |
+| `VOTE_TAX_WEIGHT` | 3 | complaint weight per point of the felt residential rate |
+| `VOTE_PARKING_FINES_WEIGHT` | 3 | taxes complaint added by parking fines |
 | `VOTE_HEALTH_TARGET` | 70 | life expectancy below which health is a complaint |
 | `VOTE_CONTENT_BASE` | 50 | baseline contentment added to land value |
+| `VOTE_SHELTER_CONTENT` | 10 | contentment added by homeless shelters |
 | `APPROVAL_MILESTONE` | 80 | approval that triggers the milestone notice |
 | `NEWS_BIRTHS_MIN` | 10 | births before a record month is news |
 

@@ -41,8 +41,11 @@ prime rate, and decides when the city is in fiscal crisis or bankrupt.
 - `city.funds`: changed only at settlement and by bond transactions.
 - Events: news `&"treasury_deficit"` (first settlement that leaves the
   treasury negative), notice `&"fiscal_crisis"` (same moment, once per year),
-  notice `&"bankruptcy"` (once, when the city goes bankrupt). Bond
-  transactions raise no event; the window that issued them already knows.
+  notice and news `&"bankruptcy"` (once, when the city goes bankrupt), news
+  `&"bond_issued"` `{amount, rate}` for every bond issued, and news
+  `&"tax_change"` `{count, family, previous}` on the first booking day after
+  the player changes a tax rate (the first changed family, residential first).
+  The rates last reported are saved, so a reload repeats nothing.
 
 ## Timing
 

@@ -254,11 +254,31 @@ func test_industries_table_and_sector_tax() -> void:
 	check_eq(sim.stats.sector_taxes[9], 15, "sector spinner writes the stat")
 	check_eq(sim.stats.sector_taxes[8], 7, "other sectors untouched")
 	check(w.sector_text(9).ends_with("| 15"))
+	check_eq(sim.stats.tax_industrial, EconomySystem.aggregate_industrial_rate(sim.stats),
+		"a sector rate moves the aggregate industrial rate at once")
+	check(w.value_text().contains("aggregate industrial tax %d%%" % sim.stats.tax_industrial), w.value_text())
 	w.set_sector_tax(9, 7)
 	var closed := [0]
 	w.closed.connect(func() -> void: closed[0] += 1)
 	w.close()
 	check_eq(closed[0], 1)
+
+
+func test_budget_shows_network_condition() -> void:
+	var text := BudgetWindow.condition_text(sim)
+	check(text.begins_with("Condition: "), text)
+	check(text.contains("Roads ") and text.contains("% worn"), text)
+	check(BudgetWindow.condition_text(null).is_empty())
+
+
+func test_status_bar_lists_the_status_lines() -> void:
+	var bar := StatusBar.new()
+	_mount(bar)
+	bar.refresh(sim)
+	var statistics := sim.get_system(&"statistics")
+	var lines: Array = statistics.call("status_lines")
+	check_eq(bar.population_label.tooltip_text, "\n".join(PackedStringArray(lines)))
+	check(bar.population_label.tooltip_text.contains("Rain "), bar.population_label.tooltip_text)
 
 
 # ── Ordinances ───────────────────────────────────────────────────────────
