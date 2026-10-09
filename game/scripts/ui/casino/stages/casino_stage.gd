@@ -15,6 +15,12 @@
 class_name CasinoStage
 extends Control
 
+const SUIT_ART: Array[Texture2D] = [
+	preload("res://assets/desert-dreams-casino-art/suits/clubs.svg"),
+	preload("res://assets/desert-dreams-casino-art/suits/diamonds.svg"),
+	preload("res://assets/desert-dreams-casino-art/suits/hearts.svg"),
+	preload("res://assets/desert-dreams-casino-art/suits/spades.svg")]
+
 ## The player pressed a bet spot on the table.
 signal spot_pressed(spot: StringName)
 ## The table asks the overlay to perform a game action (a poker hold, a
@@ -525,8 +531,16 @@ func _draw_bet_chip(center: Vector2, radius: float, amount: int) -> void:
 ## A playing card in `rect`. `flip` below 1 narrows it (turning over);
 ## a face-down or hidden card shows its back.
 func _draw_card(rect: Rect2, card: Dictionary, flip: float = 1.0, glow: Color = Color(0, 0, 0, 0)) -> void:
-	var w := rect.size.x * absf(flip)
-	var r := Rect2(rect.position + Vector2((rect.size.x - w) * 0.5, 0), Vector2(maxf(1.0, w), rect.size.y))
+	# Scale the entire card about its centre. Narrowing only the body leaves
+	# rank text outside the face and can invert an inset back near edge-on.
+	var squeeze := clampf(absf(flip),0.01,1.0)
+	var turn := Transform2D(Vector2(squeeze,0),Vector2(0,1),Vector2(rect.get_center().x*(1.0-squeeze),0))
+	draw_set_transform_matrix(_xf*turn)
+	_draw_card_face(rect,card,flip,glow)
+	draw_set_transform_matrix(_xf)
+
+func _draw_card_face(r: Rect2, card: Dictionary, flip: float, glow: Color) -> void:
+	var rect := r
 	var radius := rect.size.x * 0.09
 	_round_rect(Rect2(r.position + Vector2(2, 3), r.size), Color(0, 0, 0, 0.3), radius)
 	if glow.a > 0.0:
@@ -534,6 +548,10 @@ func _draw_card(rect: Rect2, card: Dictionary, flip: float = 1.0, glow: Color = 
 	var face_up := bool(card.get("face_up", true)) and int(card.get("rank", 0)) > 0
 	if not face_up:
 		_round_rect(r, palette.accent.darkened(0.15), radius, palette.paper, 2.0)
+		var back := ResortArtwork.centered(resort, "card-back")
+		if back != null:
+			draw_texture_rect(back, r.grow(-maxf(1.0, rect.size.x * 0.05)), false)
+			return
 		var inner := r.grow(-r.size.x * 0.12)
 		if inner.size.x > 4.0:
 			_round_rect(inner, palette.accent.darkened(0.35), radius * 0.6, palette.lamp, 1.0)
@@ -547,7 +565,7 @@ func _draw_card(rect: Rect2, card: Dictionary, flip: float = 1.0, glow: Color = 
 					draw_line(clipped[0], clipped[1], Color(palette.lamp, 0.35), 1.0)
 				x += step
 		return
-	_round_rect(r, CasinoPalette.CARD_FACE, radius, CasinoPalette.CARD_EDGE, 1.5)
+	_round_rect(r, palette.paper, radius, CasinoPalette.CARD_EDGE, 1.5)
 	if flip < 0.35:
 		return
 	var rank := int(card.get("rank", 0))
@@ -557,31 +575,30 @@ func _draw_card(rect: Rect2, card: Dictionary, flip: float = 1.0, glow: Color = 
 	var corner := int(clampf(rect.size.y * 0.2, 9.0, 40.0))
 	var cx := r.position.x + rect.size.x * 0.17
 	_text(Vector2(cx, r.position.y + rect.size.y * 0.15), rank_name, corner, color, palette.body_font)
-	_draw_suit(Vector2(cx, r.position.y + rect.size.y * 0.33), rect.size.y * 0.065, suit, color)
-	_draw_suit(r.get_center() + Vector2(rect.size.x * 0.08, rect.size.y * 0.08), rect.size.y * 0.17, suit, color)
+	_draw_suit(Vector2(cx, r.position.y + rect.size.y * 0.31), rect.size.y * 0.055, suit, color)
+	var portrait := ResortArtwork.court(resort, rank)
+	if portrait != null:
+		# Portrait occupies y .395–.805; suit marks end at .365 and start
+		# at .845, leaving visible paper between either suit and the face.
+		var room := Vector2(r.size.x * 0.72,r.size.y * 0.41)
+		var drawn := portrait.get_size() * minf(room.x/portrait.get_width(),room.y/portrait.get_height())
+		var center := r.position + Vector2(r.size.x * 0.5,r.size.y * 0.60)
+		draw_texture_rect(portrait,Rect2(center-drawn*0.5,drawn),false)
+		_draw_suit(r.position + Vector2(r.size.x * 0.5, r.size.y * 0.90), r.size.y * 0.055, suit, color)
+	else:
+		_draw_suit(r.position+Vector2(r.size.x*0.5,r.size.y*0.57), rect.size.y * 0.17, suit, color)
+		var emblem := ResortArtwork.payout(resort, "B")
+		if emblem != null:
+			var edge := r.size.x * 0.24
+			var drawn := emblem.get_size()*minf(edge/emblem.get_width(),edge/emblem.get_height())
+			var center := r.position+Vector2(r.size.x*0.5,r.size.y*0.86)
+			draw_texture_rect(emblem, Rect2(center-drawn*.5,drawn), false)
 
 
-## A vector suit symbol of half-height `s` centred on `c`.
+## A single continuous suit silhouette of half-height `s` centred on `c`.
 ## Suits: 0 clubs, 1 diamonds, 2 hearts, 3 spades.
 func _draw_suit(c: Vector2, s: float, suit: int, color: Color) -> void:
-	match suit:
-		1:
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -s), c + Vector2(0.72 * s, 0), c + Vector2(0, s), c + Vector2(-0.72 * s, 0)]), color)
-		2:
-			draw_circle(c + Vector2(-0.47 * s, -0.32 * s), 0.52 * s, color, true, -1.0, true)
-			draw_circle(c + Vector2(0.47 * s, -0.32 * s), 0.52 * s, color, true, -1.0, true)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.98 * s, -0.16 * s), c + Vector2(0.98 * s, -0.16 * s), c + Vector2(0, s)]), color)
-		3:
-			draw_circle(c + Vector2(-0.47 * s, 0.14 * s), 0.52 * s, color, true, -1.0, true)
-			draw_circle(c + Vector2(0.47 * s, 0.14 * s), 0.52 * s, color, true, -1.0, true)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.98 * s, 0.3 * s), c + Vector2(0.98 * s, 0.3 * s), c + Vector2(0, -s)]), color)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, 0.2 * s), c + Vector2(-0.38 * s, s), c + Vector2(0.38 * s, s)]), color)
-		_:
-			draw_circle(c + Vector2(0, -0.44 * s), 0.42 * s, color, true, -1.0, true)
-			draw_circle(c + Vector2(-0.46 * s, 0.14 * s), 0.42 * s, color, true, -1.0, true)
-			draw_circle(c + Vector2(0.46 * s, 0.14 * s), 0.42 * s, color, true, -1.0, true)
-			draw_circle(c + Vector2(0, 0.02 * s), 0.22 * s, color, true, -1.0, true)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, 0.1 * s), c + Vector2(-0.38 * s, s), c + Vector2(0.38 * s, s)]), color)
+	draw_texture_rect(SUIT_ART[clampi(suit,0,3)],Rect2(c-Vector2.ONE*s,Vector2.ONE*s*2.0),false,color)
 
 
 ## A card travelling from `from` to `to` (its top-left corners).

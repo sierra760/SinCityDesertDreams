@@ -272,7 +272,7 @@
       "sha256": "c0447c63cb666411914adee704c399d5f5a7efd7d377d9cc9502dc5ec7b3c97c"
     },
     "hall_251": {
-      "triangles": 32056,
+      "triangles": 32284,
       "parts": 13,
       "materials": [
         "resort_carpet",
@@ -305,10 +305,10 @@
         12.200000405311584,
         53.20000076293945
       ],
-      "sha256": "71990273e9fe39e93c2e16a14ada8e4f56e730deb7be8c047bbfefb12fe4e98d"
+      "sha256": "583b6aa4344b89d77fb8f68967637bf774a245e8789f5252754a9b6448e333d9"
     },
     "hall_252": {
-      "triangles": 24348,
+      "triangles": 24564,
       "parts": 14,
       "materials": [
         "resort_carpet",
@@ -342,10 +342,10 @@
         15.820175766944885,
         53.20000076293945
       ],
-      "sha256": "8ed70dba8004103fa276888e94a17d3c95b626a2deb60f921570d443593e286a"
+      "sha256": "6fb4859a3c413e535b1d93e04d1ce23a91d69f4aa18e9d51714361f22476db38"
     },
     "hall_253": {
-      "triangles": 26532,
+      "triangles": 26748,
       "parts": 13,
       "materials": [
         "resort_carpet",
@@ -378,10 +378,10 @@
         12.200000405311584,
         53.20000076293945
       ],
-      "sha256": "26b4ef45008bfc13b2e654d66b36dc23d7182d09d75bff65104b6ecd1d247148"
+      "sha256": "4b1eb10b94b5266b9c5570e4ece4dfa9a8deac13a139ffdfce76c00556ac06c8"
     },
     "hall_254": {
-      "triangles": 27436,
+      "triangles": 27652,
       "parts": 14,
       "materials": [
         "resort_carpet",
@@ -415,7 +415,7 @@
         16.899999260902405,
         53.20000076293945
       ],
-      "sha256": "20c01d41744ceea0120c9b65f99cf104a690eab79a20cd005733baa910100b8d"
+      "sha256": "062cb3728cb00eef84c62b345be5df09b1f3c2bece31c7fde92e24861935be30"
     },
     "money_wheel": {
       "triangles": 2756,

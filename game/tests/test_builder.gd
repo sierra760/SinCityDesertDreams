@@ -237,6 +237,71 @@ func test_bulldoze_rubble_and_networks() -> void:
 	check(not b.preview(Tools.Kind.BULLDOZE, Vector2i(24, 10))["ok"])
 
 
+func test_surface_bulldoze_leaves_underground_alone() -> void:
+	var b := _builder()
+	var c := b.city
+	b.apply(Tools.Kind.WATER_PIPE, Vector2i(10, 20), Vector2i(16, 20))
+	b.apply(Tools.Kind.SUBWAY, Vector2i(13, 18), Vector2i(13, 22))
+	b.apply(Tools.Kind.ROAD, Vector2i(12, 20), Vector2i(14, 20))
+	var pipe := c.underground.at(11, 20)
+	var crossing := c.underground.at(13, 20)
+	check(not b.preview(Tools.Kind.BULLDOZE, Vector2i(11, 20))["ok"], "a buried pipe under bare ground is not the surface's to clear")
+	var r := b.apply(Tools.Kind.BULLDOZE, Vector2i(10, 20), Vector2i(16, 20))
+	check(r["ok"], r["reason"])
+	check_eq(r["cost"], 3, "only the road tiles are charged")
+	check_eq(c.building_at(13, 20), Buildings.NONE, "the road is gone")
+	check_eq(c.underground.at(11, 20), pipe, "pipe beside the road stays")
+	check_eq(c.underground.at(13, 20), crossing, "crossing under the road stays")
+	check(c.conducts_water(13, 20), "and still carries water")
+
+
+func test_underground_bulldoze_clears_only_underground() -> void:
+	var b := _builder()
+	var c := b.city
+	b.apply(Tools.Kind.WATER_PIPE, Vector2i(10, 20), Vector2i(16, 20))
+	b.apply(Tools.Kind.SUBWAY, Vector2i(13, 18), Vector2i(13, 22))
+	b.apply(Tools.Kind.ROAD, Vector2i(12, 20), Vector2i(14, 20))
+	b.apply(Tools.Kind.SCHOOL, Vector2i(20, 19))
+	b.apply(Tools.Kind.WATER_PIPE, Vector2i(17, 20), Vector2i(22, 20))
+	var school := c.building_at(21, 20)
+	var under := {"underground": true}
+	check(not b.preview(Tools.Kind.BULLDOZE, Vector2i(40, 40), Vector2i(40, 40), under)["ok"], "nothing buried to dig up")
+	var funds := c.funds
+	var r := b.apply(Tools.Kind.BULLDOZE, Vector2i(10, 20), Vector2i(22, 20), under)
+	check(r["ok"], r["reason"])
+	check_eq(r["cost"], 13, "one dollar per buried tile")
+	check_eq(c.funds, funds - 13)
+	for x in range(10, 23):
+		check_eq(c.underground.at(x, 20), 0, "dug up at %d" % x)
+		check(not Underground.is_pipe(c.underground.at(x, 20)))
+	check_eq(c.building_at(13, 20), Buildings.id_of(&"road_ew"), "road above the crossing stays")
+	check_eq(c.building_at(21, 20), school, "the school above the pipe stays")
+	check(c.facilities.has(Vector2i(20, 19)))
+	check(not c.conducts_water(11, 20), "a dug-up pipe no longer carries water")
+	check(Underground.is_subway(c.underground.at(13, 19)), "track off the drag stays")
+
+
+func test_underground_bulldoze_leaves_station_and_portal_track() -> void:
+	var b := _builder()
+	var c := b.city
+	b.apply(Tools.Kind.SUBWAY, Vector2i(11, 8), Vector2i(11, 12))
+	b.apply(Tools.Kind.SUBWAY_STATION, Vector2i(11, 13))
+	var under := {"underground": true}
+	var refused := b.preview(Tools.Kind.BULLDOZE, Vector2i(11, 13), Vector2i(11, 13), under)
+	check(not refused["ok"])
+	check_eq(refused["reason"], "demolish the subway station from the surface")
+	var r := b.apply(Tools.Kind.BULLDOZE, Vector2i(11, 11), Vector2i(11, 13), under)
+	check(r["ok"], r["reason"])
+	check_eq(r["cost"], 2, "the station's own link is not dug up")
+	check_eq(c.underground.at(11, 13), NS.STATION_LINK)
+	check_eq(c.building_at(11, 13), Buildings.SUBWAY_STATION)
+	b.apply(Tools.Kind.RAIL, Vector2i(30, 10), Vector2i(30, 14))
+	b.apply(Tools.Kind.SUBWAY_PORTAL, Vector2i(30, 15))
+	var portal := b.preview(Tools.Kind.BULLDOZE, Vector2i(30, 15), Vector2i(30, 15), under)
+	check(not portal["ok"])
+	check_eq(portal["reason"], "demolish the subway portal from the surface")
+
+
 func test_bridge_over_water_gap() -> void:
 	var b := _builder()
 	var c := b.city

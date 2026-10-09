@@ -17,6 +17,8 @@ signal overlay_changed(kind: StringName)
 signal view_mode_changed(mode: int)
 enum ViewMode { SURFACE, UNDERGROUND }
 const UNDERGROUND_TOOLS: Array[int] = [Tools.Kind.SUBWAY, Tools.Kind.WATER_PIPE]
+## Tools that work on whichever layer is on show, so choosing one keeps it.
+const EITHER_LAYER_TOOLS: Array[int] = [Tools.Kind.BULLDOZE, Tools.Kind.QUERY]
 const BuildGestures := preload("res://scripts/view/city_build_gestures.gd")
 var city: City
 var view: CityView3D
@@ -98,7 +100,7 @@ func select_tool(tool: int) -> void:
 			_surface_overlay = _overlay
 			_automatic_underground = true
 			_apply_view_mode(ViewMode.UNDERGROUND)
-	elif _automatic_underground:
+	elif _automatic_underground and not EITHER_LAYER_TOOLS.has(tool):
 		_automatic_underground = false
 		_apply_view_mode(ViewMode.SURFACE)
 		set_overlay(_surface_overlay)

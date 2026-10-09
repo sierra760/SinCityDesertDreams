@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 100 100">
+<!-- SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC -->
+<!-- SPDX-License-Identifier: CC-BY-NC-SA-4.0 -->
+<path fill="#ffffff" d="M50 3 C34 3 24 17 28 31 C29 35 31 39 35 43 C20 34 3 44 3 61 C3 81 25 88 43 74 C43 87 36 94 29 97 L71 97 C64 94 57 87 57 74 C75 88 97 81 97 61 C97 44 80 34 65 43 C69 39 71 35 72 31 C76 17 66 3 50 3 Z"/>
+</svg>

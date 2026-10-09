@@ -93,13 +93,22 @@ func handle_drag(from: Vector2i, to: Vector2i) -> Dictionary:
 		prompt_sign(from)
 		return {"ok": true, "cost": 0, "tiles": [from], "reason": "", "applied": false}
 	var end := _drag_end(tool, from, to)
-	var quote := _host.builder.preview(tool, from, end)
+	var layer := layer_options(tool)
+	var quote := _host.builder.preview(tool, from, end, layer)
 	var kind := StringName(String(quote.get("choice_kind", "")))
 	if bool(quote["ok"]) and bool(quote.get("needs_confirmation", false)) and (kind == &"bridge" or kind == &"tunnel"):
 		_open_choice(quote, from, end, tool)
 		quote["applied"] = false
 		return quote
-	return _finish_apply(_host.builder.apply(tool, from, end), from, end, tool)
+	return _finish_apply(_host.builder.apply(tool, from, end, layer), from, end, tool)
+
+
+## Builder options for the layer on show: Bulldoze in the underground view
+## digs up pipes and subway only, and on the surface never touches them.
+func layer_options(tool: int) -> Dictionary:
+	if tool == Tools.Kind.BULLDOZE and _host.presentation.is_underground():
+		return {"underground": true}
+	return {}
 
 
 ## Apply a whole-map tool (the sea level) once, as its button is pressed:
@@ -541,15 +550,11 @@ func preview_drag(from: Vector2i, to: Vector2i) -> Dictionary:
 		preview.show_footprint(footprint, bool(t["ok"]), "free" if bool(t["ok"]) else String(t["reason"]))
 		return t
 	tool = _tool_for_drag(from, bool(_host.get(&"_drag_active")))
-	var p := _host.builder.preview(tool, from, _drag_end(tool, from, to))
+	var p := _host.builder.preview(tool, from, _drag_end(tool, from, to), layer_options(tool))
 	var tiles: Array = p.get("tiles", []).duplicate()
 	var caption := "$" + UIFactory.commafy(int(p.get("cost", 0))) if bool(p["ok"]) else refusal_text(p)
 	if bool(p["ok"]) and p.has("stopped"):
 		caption += " · stops: " + _clause(String(p["stopped"]))
-	if bool(p["ok"]) and p.has("clears_underground") and not _host.presentation.is_underground():
-		# Bare-ground bulldozing also clears what is buried there (rule 24).
-		var buried: Array = p["clears_underground"]
-		caption += " · also removes " + " and ".join(PackedStringArray(buried))
 	if p.has("neighbor"):
 		var neighbor: Dictionary = p["neighbor"]
 		tiles.append(neighbor.get("tile", from))
@@ -613,7 +618,7 @@ func _on_demolish_requested(at: Vector2i) -> void:
 	var city := _host.sim.city
 	if city == null or not city.in_bounds(at.x, at.y):
 		return
-	var id := city.building_at(at.x, at.y)
+	var id := Buildings.NONE if _host.presentation.is_underground() else city.building_at(at.x, at.y)
 	if not needs_demolish_confirmation(id):
 		_demolish(at)
 		return
@@ -644,7 +649,7 @@ static func needs_demolish_confirmation(id: int) -> bool:
 
 
 func _demolish(at: Vector2i) -> void:
-	var result := _host.builder.apply(Tools.Kind.BULLDOZE, at)
+	var result := _host.builder.apply(Tools.Kind.BULLDOZE, at, at, layer_options(Tools.Kind.BULLDOZE))
 	if bool(result["ok"]):
 		_after_build(result, Tools.Kind.BULLDOZE)
 		_host.query_panel.show_tile(_host.sim.city, _host.sim, at)

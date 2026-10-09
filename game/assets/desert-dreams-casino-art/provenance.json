@@ -1,0 +1,16 @@
+{
+  "subject": "Four fictional Nevada-history resort illustration sets; 80 resort images and four shared suit SVGs",
+  "tool": "OpenAI built-in image_gen",
+  "method": "Original image_gen illustration sheets, transparent payout cutouts and four new centered heritage paintings; lossless sprite packaging with measured visible-content bounds. Four cabinet faces are baked from the actual SlotStage renderer. No historical photographs, scanned playing cards or existing casino artwork were copied.",
+  "masters": "assets/casino-art/",
+  "prompts": "assets/casino-art/prompts.json",
+  "generator": "tools/build_casino_art.py",
+  "catalog": "catalog.json",
+  "runtime": "scripts/casino/resort_artwork.gd; table stages and ResortPropDresser",
+  "license": "CC BY-NC-SA 4.0 (project-owned art); see LICENSING.md",
+  "historical_interpretation": "Mining, railroads, dam construction and rocket-engine research inspire fictional figures and designs. No real casino branding or agency insignia is depicted.",
+  "refinement_prompts": "assets/casino-art/refinement-prompts.json",
+  "cabinet_bake": "tools/qa/bake_slot_cabinets.gd",
+  "shared_suits": "Original continuous symmetric SVG silhouettes, drawn as one texture per suit",
+  "portrait_edits": "Twelve individually edited transparent cutouts preserve the fictional court figures while removing paper backgrounds and neighboring-cell fragments"
+}

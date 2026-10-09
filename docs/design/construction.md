@@ -73,7 +73,6 @@ despite an objection).
 | `opposition_exposure` | residential zone tiles counted around a building the neighbors may object to |
 | `trees_cleared` | tree tiles a bulldoze drag fells |
 | `stopped` | line and block-line drags that still build something: why the walk ended before `to` (the same wording as `reason`) |
-| `clears_underground` | bulldoze drags over bare ground: `["water pipe", "subway track"]` (those present) that rule 24 removes from underground |
 | `notices` | `apply` only: `[{kind, payload}]` the host should show (the tree protest) |
 
 What each question means for `apply`:
@@ -290,8 +289,7 @@ What each question means for `apply`:
     utility, transit, port, military, reward and arcology). Trees, parks,
     rubble, network tiles, bridges and crossings clear to open ground. A
     tunnel portal removes the whole bore. A highway tile removes its block.
-    An empty tile that carries pipes or subway has that cleared instead. Tiles
-    marked as landmarks and military land refuse the bulldozer. Facility
+    Tiles marked as landmarks and military land refuse the bulldozer. Facility
     records and conductivity flags of removed tiles are dropped.
 24a. **Tree protest.** The plan counts the tree tiles it fells
     (`trees_cleared`). When one drag fells more than `TREE_PROTEST_THRESHOLD`
@@ -299,6 +297,14 @@ What each question means for `apply`:
     once per calendar year. It changes nothing on the map and costs nothing
     beyond the bulldozing. The host shows it on the status line rather than
     as a pausing dialog.
+24b. **Layers.** Bulldoze works on one layer at a time. On the surface it
+    never touches pipes, subway track or crossings, and bare ground over them
+    has nothing to clear (a subway station still takes its own station link).
+    With the `underground` option (the underground view) it digs up only pipes,
+    subway track and crossings along the drag, 1 per tile, leaving every
+    building, network and zone above in place. The link under a subway station
+    and the track under a subway portal belong to that building and refuse:
+    demolish it from the surface.
 
 ### Trees, parks and terrain tools
 

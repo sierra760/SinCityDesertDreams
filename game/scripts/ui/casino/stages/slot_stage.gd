@@ -106,7 +106,11 @@ func _draw_stage() -> void:
 		var rect := Rect2(window.position + Vector2(reel * (reel_w + gap), 0), Vector2(reel_w, window.size.y))
 		_draw_reel(reel, rect)
 	var line_y := window.get_center().y
-	draw_line(Vector2(window.position.x - 8, line_y), Vector2(window.end.x + 8, line_y), Color(palette.lamp, 0.85), 3.0, true)
+	# Mark the pay line between drums, leaving the winning illustrations clear.
+	for segment: int in 4:
+		var start := window.position.x - 8 if segment == 0 else window.position.x + segment * (reel_w + gap) - gap
+		var end := window.end.x + 8 if segment == 3 else window.position.x + segment * (reel_w + gap)
+		draw_line(Vector2(start,line_y),Vector2(end,line_y),Color(palette.lamp,.85),3.0,true)
 	draw_colored_polygon(PackedVector2Array([Vector2(window.position.x - 16, line_y - 9), Vector2(window.position.x - 4, line_y), Vector2(window.position.x - 16, line_y + 9)]), palette.lamp)
 	draw_colored_polygon(PackedVector2Array([Vector2(window.end.x + 16, line_y - 9), Vector2(window.end.x + 4, line_y), Vector2(window.end.x + 16, line_y + 9)]), palette.lamp)
 	var spot := Rect2(160, 616, 200, 64) if _tall else Rect2(220, 346, 200, 56)
@@ -147,7 +151,17 @@ func _draw_reel(reel: int, rect: Rect2) -> void:
 
 ## A reel symbol centred on the origin of the current transform: a shape by
 ## rank, then its themed name.
-func _draw_symbol(symbol: String, width: float, named: bool) -> void:
+func _draw_symbol(symbol: String, width: float, named: bool, payout_icon: bool = false) -> void:
+	var artwork := ResortArtwork.payout(resort,symbol) if payout_icon else ResortArtwork.symbol(resort, symbol)
+	if artwork != null:
+		var edge := minf(width - 12.0, 56.0)
+		var center := Vector2(0, -12 if named else 0)
+		var drawn := artwork.get_size() * (edge / maxf(artwork.get_width(),artwork.get_height()))
+		draw_texture_rect(artwork, Rect2(center - drawn * 0.5, drawn), false)
+		if named:
+			_text_fit(Vector2(0, 30), ResortThemes.reel_name(resort, symbol), 15, palette.ink,
+				palette.sign_font if symbol == "B" else palette.body_font, width - 10.0)
+		return
 	var s := 26.0
 	var c := Vector2(0, -12 if named else 0)
 	var index := CasinoParams.SLOT_SYMBOLS.find(symbol)
@@ -210,7 +224,7 @@ func _draw_paytable(rect: Rect2) -> void:
 		var symbols: Array = row["symbols"]
 		for k in symbols.size():
 			draw_set_transform_matrix(_xf * Transform2D(0.0, Vector2(0.42, 0.42), 0.0, Vector2(x + k * 26.0, y)))
-			_draw_symbol(String(symbols[k]), 60.0, false)
+			_draw_symbol(String(symbols[k]), 60.0, false, true)
 			draw_set_transform_matrix(_xf)
 		if symbols.size() < 3:
 			_text_left(Vector2(x + symbols.size() * 26.0 - 6.0, y), "any", 12, palette.paper)

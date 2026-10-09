@@ -122,11 +122,13 @@ shows allowed tiles and the cost or refusal; a completed drag reaches Main's
 construction owner. Captions read as sentences: a drag that builds only part
 of its length adds "· stops: <reason>" (also kept after "Spent $X"), short
 funds read "Costs $1,250 — treasury $830" (a negative treasury keeps its
-sign), and bare-ground bulldozing in the surface view notes the buried water
-pipe or subway track it also removes. A drag keeps the tool it started with;
+sign). Bulldoze and the inspector's Demolish act on the layer on show: on the
+surface they leave pipes and subway alone; in the underground view they dig up
+only pipes and subway. A drag keeps the tool it started with;
 holding B during a drag makes it a Bulldoze drag, and releasing B before the
 mouse button keeps it one. Right-click inspects a site. Selecting pipes or subway tools
-opens underground automatically and restores surface when appropriate; manual
+opens underground automatically; Bulldoze and Inspect keep that view, and other
+tools restore surface when appropriate; manual
 underground choice is preserved. Utilities can be inspected without surface
 building pick proxies obstructing them.
 

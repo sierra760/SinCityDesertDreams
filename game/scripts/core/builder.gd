@@ -84,7 +84,8 @@ func _init(p_city: City, p_stats: CityStats, p_sim: Simulation = null) -> void:
 
 ## Price a drag without changing anything. `options` may carry a `choice`
 ## (bridge or tunnel style), `connect` (carry the last tile across the city
-## limit) or `proceed` (build despite an objection).
+## limit), `proceed` (build despite an objection) or `underground` (Bulldoze
+## works on the pipe and subway layer instead of the surface).
 func preview(tool: int, from: Vector2i, to: Vector2i = Vector2i(-1, -1), options: Dictionary = {}) -> Dictionary:
 	var plan := _plan(tool, from, to if to != Vector2i(-1, -1) else from, options)
 	plan.erase("ops")
@@ -243,7 +244,7 @@ func _plan(tool: int, from: Vector2i, to: Vector2i, options: Dictionary = {}) ->
 		Tools.Kind.DEZONE:
 			plan = _plan_dezone(Tools.cost(tool), from, to)
 		Tools.Kind.BULLDOZE:
-			plan = _plan_bulldoze(Tools.cost(tool), from, to)
+			plan = _plan_bulldoze(Tools.cost(tool), from, to, bool(options.get("underground", false)))
 		Tools.Kind.TREES:
 			plan = _plan_trees(Tools.cost(tool), _line_tiles(from, to))
 		Tools.Kind.FOREST:
@@ -1337,14 +1338,17 @@ func _hydro_site(at: Vector2i) -> String:
 
 # ── Bulldozer ────────────────────────────────────────────────────────────
 
-func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i) -> Dictionary:
+## Surface bulldozing clears what stands on the ground and never touches
+## the pipe and subway layer; underground bulldozing clears only that layer.
+func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i, underground: bool = false) -> Dictionary:
+	if underground:
+		return _plan_bulldoze_underground(price, from, to)
 	var tiles: Array[Vector2i] = []
 	var ops: Array = []
 	var seen := {}
 	var cost := 0
 	var refused := ""
 	var trees := 0
-	var buried := {}
 	for step in _line(from, to):
 		var p: Vector2i = step["pos"]
 		if seen.has(p):
@@ -1356,16 +1360,6 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i) -> Dictionary:
 		if Buildings.is_tree(id):
 			trees += 1
 		if id == Buildings.NONE:
-			var code := city.underground.at(p.x, p.y)
-			if code != 0:
-				if NetworkShapes.underground_in_family(code, NetworkShapes.Family.PIPE):
-					buried["water pipe"] = true
-				if NetworkShapes.underground_in_family(code, NetworkShapes.Family.SUBWAY):
-					buried["subway track"] = true
-				seen[p] = true
-				tiles.append(p)
-				ops.append({"op": "underground", "at": p, "code": 0})
-				cost += price
 			continue
 		var footprint: Array[Vector2i] = []
 		var rubble := Buildings.is_developed(id)
@@ -1394,13 +1388,37 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i) -> Dictionary:
 		return _fail(refused if not refused.is_empty() else "nothing to clear", [from])
 	var plan := _ok(tiles, cost, ops)
 	plan["trees_cleared"] = trees
-	if not buried.is_empty():
-		# What bare-ground bulldozing takes from underground, for the caption.
-		var kinds: Array[String] = []
-		for kind in ["water pipe", "subway track"]:
-			if buried.has(kind): kinds.append(kind)
-		plan["clears_underground"] = kinds
 	return plan
+
+
+## Dig up the pipes, subway track and crossings along the drag. The pieces a
+## subway station or portal keeps under itself go with that building, from
+## the surface.
+func _plan_bulldoze_underground(price: int, from: Vector2i, to: Vector2i) -> Dictionary:
+	var tiles: Array[Vector2i] = []
+	var ops: Array = []
+	var refused := ""
+	for p in _line_tiles(from, to):
+		if tiles.has(p):
+			continue
+		var code := city.underground.at(p.x, p.y)
+		if code == 0:
+			continue
+		if _protected(p):
+			refused = "protected land"
+			continue
+		var id := city.building_at(p.x, p.y)
+		if code == NetworkShapes.STATION_LINK:
+			refused = "demolish the subway station from the surface"
+			continue
+		if id >= Buildings.SUBWAY_PORTAL_FIRST and id <= Buildings.SUBWAY_PORTAL_LAST:
+			refused = "demolish the subway portal from the surface"
+			continue
+		tiles.append(p)
+		ops.append({"op": "underground", "at": p, "code": 0})
+	if tiles.is_empty():
+		return _fail(refused if not refused.is_empty() else "nothing to dig up", [from])
+	return _ok(tiles, price * tiles.size(), ops)
 
 
 ## Every tile of the bore a portal belongs to, following the tunnel bits.

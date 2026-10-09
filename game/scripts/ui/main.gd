@@ -312,7 +312,9 @@ func _connect_presentation() -> void:
 		menu_bar.set_checked(&"overlay", true, kind)
 		prefs.set_value("overlay", String(kind)))
 	presentation.view_mode_changed.connect(func(mode: int) -> void:
-		menu_bar.set_checked(&"underground", mode == CityPresentationController.ViewMode.UNDERGROUND))
+		menu_bar.set_checked(&"underground", mode == CityPresentationController.ViewMode.UNDERGROUND)
+		query_panel.underground_view = mode == CityPresentationController.ViewMode.UNDERGROUND
+		if query_panel.is_open() and sim.city != null: query_panel.show_tile(sim.city, sim, query_panel.tile))
 
 
 func _show_title() -> void:

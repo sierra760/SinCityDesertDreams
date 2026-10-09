@@ -37,6 +37,11 @@ architecture in the GLBs uses the same numbers.
 
 ## Assets
 
+Card art, wall paintings and slot-face images are packaged in
+`game/assets/desert-dreams-casino-art/`; illustration sources are kept locally.
+Each hall has three framed 2D paintings; the added dimensional wall exhibits
+were replaced with themed heritage paintings.
+
 `game/assets/desert-dreams-resorts/` holds `hall_251.glb` … `hall_254.glb`
 and the shared prop kit; see its README, `catalog.json` and `provenance.json`.
 The generator is `tools/blender_exploration/build_resort_interiors.py`

@@ -634,8 +634,12 @@ def wall_bands(a,finish,y,height,depth=.05,skip_opening=False):
     for s in (-1,1):
         box(a,finish,(s*(HALF-depth/2),y,0),(depth,height,2*HALF))
     box(a,finish,(0,y,-(HALF-depth/2)),(2*inner,height,depth))
-    if skip_opening and y<OPENING+height:
-        for s in (-1,1):box(a,finish,(s*(VEST_HALF+(inner-VEST_HALF)/2),y,HALF-depth/2),(inner-VEST_HALF,height,depth))
+    gap=VEST_HALF if skip_opening and y<OPENING+height else 0.0
+    centre,size,_=SIGN_PLATES['resort']
+    if abs(y-centre[1]) < (height+size[1])/2+.12:
+        gap=max(gap,size[0]/2+.26)
+    if gap:
+        for s in (-1,1):box(a,finish,(s*(gap+(inner-gap)/2),y,HALF-depth/2),(inner-gap,height,depth))
     else:box(a,finish,(0,y,HALF-depth/2),(2*inner,height,depth))
 
 def wall_spots(depth,width,extra=()):
@@ -998,11 +1002,35 @@ def hall_orbit(a):
 
 HALLS = {251:hall_comstock,252:hall_junction,253:hall_boulder,254:hall_orbit}
 
+def heritage_gallery(a,code):
+    """Three framed 2D prints; the original dimensional heritage exhibit is retired.
+
+    All work mounts above 4 m; the original floors and collision shells stay
+    identical. Runtime adds the generated paintings to these recessed frames.
+    """
+    for x in (-15,15):
+        box(a,'wood',(x,6.6,21.35),(4.4,4.4,.16))
+        for s in (-1,1):
+            box(a,'metal',(x+s*2.07,6.6,21.24),(.14,4.28,.18))
+            box(a,'metal',(x,6.6+s*2.07,21.24),(4.0,.14,.18))
+        box(a,'lamp',(x,8.97,21.1),(2.2,.08,.12))
+    # A flat square painting replaces the dimensional shadowbox. Frame only;
+    # the generated painting is supplied as a separately batched runtime print.
+    center=(-21.2,6.5,-12)
+    m=Matrix.Translation(center)@Matrix.Rotation(math.pi/2,4,'Y')
+    p=lambda u,v,w:tuple(m@Vector((u,v,w)))
+    box(a,'wood',p(0,0,0),(4.8,4.8,.16),math.pi/2)
+    for side in (-1,1):
+        box(a,'metal',p(side*2.33,0,.14),(.14,4.8,.22),math.pi/2)
+        box(a,'metal',p(0,side*2.33,.14),(4.52,.14,.22),math.pi/2)
+    box(a,'lamp',p(0,2.54,.3),(2.2,.08,.12),math.pi/2)
+
 def build_hall(code):
     a=Asset('hall_%d'%code)
     hall_shell(a,code)
     HALLS[code](a)
     floor_features(a,code)
+    heritage_gallery(a,code)
     return a
 
 # ---------------------------------------------------------------- blender

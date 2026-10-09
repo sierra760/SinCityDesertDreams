@@ -197,6 +197,9 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 	draws += _multimesh(hall_space,"SlotStools",parts("slot_stool"),stools,finish_materials)
 	var cabinet_triangles := int(parts("slot_cabinet").get("triangles",0))*slots.size()+int(parts("slot_stool").get("triangles",0))*stools.size()
 	triangles += cabinet_triangles
+	var art_surfaces := _artwork(hall_space,key,slots)
+	draws += art_surfaces
+	if art_surfaces > 0: triangles += (3+slots.size()*2)*2
 	var body := StaticBody3D.new()
 	body.name = "ResortHallCollision"
 	body.collision_layer = ExploreActorProfile.FLOOR | ExploreActorProfile.OBSTACLE
@@ -213,7 +216,58 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 	world.add_child(body)
 	var lights := _light(world,plan)
 	return {"triangles": triangles, "draw_surfaces": draws, "lights": lights, "signs": signs,
-		"slots": slots.size(), "collision_triangles": collision.size()/3, "placeholder": placeholder}
+		"slots": slots.size(), "art_surfaces": art_surfaces,
+		"collision_triangles": collision.size()/3, "placeholder": placeholder}
+
+## All illustrated cabinet inserts and three framed wall paintings, grouped by
+## texture into one mesh. Raised above the walking lanes; no collision changes.
+static func _artwork(parent: Node3D, key: StringName, slots: Array[Transform3D]) -> int:
+	var batches := {}
+	for index: int in 2:
+		var asset := "mural-history" if index == 0 else "mural-industry"
+		_art_quad(batches,key,asset,Transform3D(Basis(Vector3.UP,PI),Vector3(-15 if index == 0 else 15,6.6,21.18)),Vector2(4.0,4.0))
+	_art_quad(batches,key,"mural-heritage",Transform3D(Basis(Vector3.UP,PI*.5),Vector3(-21.01,6.5,-12)),Vector2(4.45,4.45))
+	for at: Transform3D in slots:
+		_art_quad(batches,key,"cabinet-reels",at*Transform3D(Basis.IDENTITY,Vector3(0,1.29,.204)),Vector2(.56,.327))
+		_art_quad(batches,key,"symbol-B",at*Transform3D(Basis.IDENTITY,Vector3(0,1.68,.148)),Vector2(.16,.16))
+	var mesh := ArrayMesh.new()
+	for asset: String in batches:
+		var texture := ResortArtwork.texture(key,asset)
+		if texture == null: continue
+		var material := StandardMaterial3D.new()
+		material.resource_name = "resort_art_"+asset
+		material.albedo_texture = texture
+		# Backlit reel inserts and individually lit gallery prints retain their
+		# authored ink colors rather than bleaching under the hall's many lamps.
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		(batches[asset] as SurfaceTool).set_material(material)
+		(batches[asset] as SurfaceTool).commit(mesh)
+	if mesh.get_surface_count() == 0: return 0
+	var node := MeshInstance3D.new()
+	node.name = "ResortArtworkBatch"
+	node.mesh = mesh
+	_present(node)
+	parent.add_child(node)
+	return mesh.get_surface_count()
+
+static func _art_quad(batches: Dictionary, key: StringName, asset: String, at: Transform3D, size: Vector2) -> void:
+	var texture := ResortArtwork.texture(key,asset)
+	if texture == null: return
+	if not batches.has(asset):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		batches[asset] = tool
+	var quad := QuadMesh.new()
+	quad.size = size
+	var bounds := ResortArtwork.region(key,asset)
+	var arrays := quad.surface_get_arrays(0)
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	for index: int in uv.size():
+		uv[index] = (bounds.position+uv[index]*bounds.size)/texture.get_size()
+	arrays[Mesh.ARRAY_TEX_UV] = uv
+	var trimmed := ArrayMesh.new()
+	trimmed.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	(batches[asset] as SurfaceTool).append_from(trimmed,0,at)
 
 static func _metres(pose: Transform3D) -> Transform3D:
 	return Transform3D(pose.basis,pose.origin*METRES)

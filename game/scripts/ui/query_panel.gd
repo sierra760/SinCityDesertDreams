@@ -28,6 +28,9 @@ var close_button: Button
 var tile := Vector2i(-1, -1)
 ## Everything shown, keyed by row label.
 var info: Dictionary = {}
+## Whether the city is shown underground: Demolish then digs up only the
+## pipes and subway under the tile, and on the surface never touches them.
+var underground_view := false
 var _content_revision := 0
 
 
@@ -90,7 +93,7 @@ func _build() -> void:
 
 ## Fill the panel for `at` and show it.
 func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
-	var next := describe(city, sim, at)
+	var next := describe(city, sim, at, underground_view)
 	var same_tile := tile == at
 	if same_tile and next == info:
 		visible = true
@@ -145,7 +148,7 @@ func _restore_scroll(value: int, revision: int) -> void:
 
 ## Everything the panel shows for a tile, in display order. Keys starting
 ## with "#" are section headers; keys starting with "_" are hidden.
-static func describe(city: City, sim: Simulation, at: Vector2i) -> Dictionary:
+static func describe(city: City, sim: Simulation, at: Vector2i, underground_layer: bool = false) -> Dictionary:
 	var out: Dictionary = {}
 	if city == null or not city.in_bounds(at.x, at.y):
 		out["Location"] = "outside the city"
@@ -221,10 +224,15 @@ static func describe(city: City, sim: Simulation, at: Vector2i) -> Dictionary:
 				out[f.replace("_", " ").capitalize()] = value
 	elif resort != &"":
 		_resort_figures(out, city, sim, resort)
-	out["_demolishable"] = id != Buildings.NONE or under != Underground.NONE
-	if id == Buildings.NONE and under != Underground.NONE:
-		# Demolish here only digs up what is buried; the button says so.
-		out["_removes_underground"] = underground_text(under)
+	if underground_layer:
+		# Underground, Demolish only digs up what is buried; the button says so.
+		# A station's or portal's own track goes with it, from the surface.
+		var portal := id >= Buildings.SUBWAY_PORTAL_FIRST and id <= Buildings.SUBWAY_PORTAL_LAST
+		out["_demolishable"] = under != Underground.NONE and under != Underground.STATION_LINK and not portal
+		if bool(out["_demolishable"]):
+			out["_removes_underground"] = underground_text(under)
+	else:
+		out["_demolishable"] = id != Buildings.NONE
 	out["_renamable"] = not record.is_empty()
 	return out
 

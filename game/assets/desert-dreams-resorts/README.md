@@ -19,6 +19,15 @@ palette, so one prop kit serves all four resorts. Objects whose names end in
 counts, bounds, materials, shell counts and content hashes; `provenance.json`
 describes the generator.
 
+Each hall also carries three framed 2D prints. The west-wall heritage painting
+is unique to its casino: Comstock's mining headframe, Junction's railroad wheel
+and station, Boulder's dam turbine, and Orbit's rocket engine. These replace
+the initial dimensional wall exhibits, sit above walking height and add no
+collision shells. Original chandeliers, ceilings and signature floor decor
+remain in the hall and prop models. The generated
+paintings and slot inserts are supplied separately by
+`assets/desert-dreams-casino-art/` and batched at runtime.
+
 Regenerate with Blender from the repository root:
 
 ```sh

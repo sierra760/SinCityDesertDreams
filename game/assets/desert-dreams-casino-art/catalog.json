@@ -1,0 +1,1234 @@
+{
+  "license": "CC BY-NC-SA 4.0",
+  "generator": "tools/build_casino_art.py",
+  "creation": "Built-in image_gen; original fictional illustrations inspired by Nevada history",
+  "prompts": "assets/casino-art/prompts.json",
+  "grid": [
+    4,
+    3
+  ],
+  "sets": {
+    "comstock": {
+      "source": "assets/casino-art/comstock/sheet.png",
+      "source_sha256": "5a6940d84848cdf043bca180d4f0192cf798ff967b1137572be3a7ac0c9f9255",
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "7fdb935acecbba5fc2761560735d0f9e57d5b3610bfdb153d2ea8d1303df4044",
+          "content_region": [
+            25,
+            26,
+            337,
+            307
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "e3aa3e815ae596f37238cfdbe653f1119f08beb73b13aed957e069bf9f0bb556",
+          "content_region": [
+            0,
+            11,
+            274,
+            336
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "6217d1f099b1acbd7298b698ff62de21d28cd2ed733d7c9a46ae1d4b37998bb8",
+          "content_region": [
+            5,
+            20,
+            342,
+            327
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "56e5c75dbaa5673b6ba12919c380cdb4c0c75ec164f2d677421969114a0094a0",
+          "content_region": [
+            21,
+            54,
+            316,
+            308
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "ff6e68faadd087a02df1a55bb0a4987c3350dbcc8e79e6ea85c1247c93172b9f",
+          "content_region": [
+            42,
+            4,
+            314,
+            358
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "6aaf51712e8aca7ab1917b39ccd2fb89af03c6a73010922d0b653eb33d63705b",
+          "content_region": [
+            14,
+            6,
+            333,
+            356
+          ]
+        },
+        "court-jack": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "90ec2cb6e319d6a39382241f83958baccd2b9067e270956a9da4326f6908e7b0",
+          "content_region": [
+            87,
+            148,
+            1081,
+            1015
+          ]
+        },
+        "court-queen": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "472b3ffdc7dca5be2f7a23d82fbee13e5e8db009b41659b69dfc2515590d7798",
+          "content_region": [
+            78,
+            67,
+            1069,
+            1137
+          ]
+        },
+        "court-king": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "7ba2152e141dad61668ca08e3b469e1fced7321fff989cc77b11428a4f2de018",
+          "content_region": [
+            82,
+            126,
+            1095,
+            1085
+          ]
+        },
+        "card-back": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "9bb3f2b7b223de46794a4ca26c9c44e095c8c2461af0dac53b8499203eaf8b93",
+          "content_region": [
+            14,
+            0,
+            333,
+            317
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "4293b3d9ea193e45952c849899952ad70e40403488d025c86594b5c8182ec75e",
+          "content_region": [
+            14,
+            0,
+            330,
+            317
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "318c30481b0d4b17d301c580ec29a8ab34c6869c7f0c843508d49112ff3d2a0f",
+          "content_region": [
+            8,
+            0,
+            336,
+            317
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "8337e5485944405989ba3940195c30109b8c325f4613565db4b0990f415d31ff",
+          "content_region": [
+            16,
+            33,
+            496,
+            457
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "b2ff180f537718d0b27960b1ab8387067d964f18792ba689f5b5819a81c3bcad",
+          "content_region": [
+            0,
+            12,
+            512,
+            491
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "989d1ad68285ab0698b296b7c6934ed4b6c36fdb67265f7ffe0bccff9d403da2",
+          "content_region": [
+            0,
+            26,
+            476,
+            486
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "3ef0f8c0b6f7f53376663f30f685244166f2f1cc39dd87f2c1d88ddf1a9d8ef5",
+          "content_region": [
+            0,
+            28,
+            499,
+            459
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "2c7386db00f1bb4fc3737dcd4a69b64bf0832d0b8371fb0953644f8b86cb333d",
+          "content_region": [
+            34,
+            9,
+            474,
+            471
+          ]
+        },
+        "payout-B": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "8375a21f5f23ec53a0b757eec8173e98c0dfbc8a642b372280d89ba9a353df1c",
+          "content_region": [
+            22,
+            5,
+            465,
+            466
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "b47a144901c650b2d7a56e69557e2d384bd05469c062b2db3201d77cb01bfbc5",
+          "content_region": [
+            0,
+            0,
+            1254,
+            1254
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "099b30e4e559a66e9b73294bde3397e82bd4cdb54b3efce212ad7ba845c7170d",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "portrait_overrides": {
+        "jack": {
+          "source": "assets/casino-art/comstock/portraits/court-jack.png",
+          "sha256": "3cbbbafaebbc3104bc360319fa30636da9cbf03872ae061ebd4c8fd697861e9f"
+        },
+        "queen": {
+          "source": "assets/casino-art/comstock/portraits/court-queen.png",
+          "sha256": "c2ad42aa0a05fef1fc55842ce0552d8bace77c4c528078c74528072d7ce0eccb"
+        },
+        "king": {
+          "source": "assets/casino-art/comstock/portraits/court-king.png",
+          "sha256": "d844962ae528482ef64763e7f4c860089f792a1b04d9f7837e1a2cd6c9826d4f"
+        }
+      },
+      "additional_sources": {
+        "payouts": {
+          "source": "assets/casino-art/comstock/payouts.png",
+          "sha256": "9a5ed20c09e5597c21b17b611665f4598eb858c21b8216587ac9082724945cc1"
+        },
+        "heritage": {
+          "source": "assets/casino-art/comstock/heritage.png",
+          "sha256": "268381ed6356b360ed02a423ac7a316c805671eb281092ceb75844b0792e0743"
+        },
+        "cabinet-reels": {
+          "source": "assets/casino-art/comstock/cabinet-reels.png",
+          "sha256": "cb998a2056cd5d8208b731eec541d52d27ebd1dfa28a53853482269d75f6e811"
+        }
+      }
+    },
+    "junction": {
+      "source": "assets/casino-art/junction/sheet.png",
+      "source_sha256": "c8036bbf71a60f147e00d47edae82913aaa679e38882411ad9b1421d10021336",
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "2e86e018b78420007932bd3daca7f956f2db3010d2b39862fb776586a72f2683",
+          "content_region": [
+            10,
+            11,
+            348,
+            343
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "da585c433b566526f158fb2505f2a31a862e8b77e62534d3fe71557c37c44b38",
+          "content_region": [
+            72,
+            11,
+            217,
+            340
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "f385f6732e08b4863bbc9ca5a0e447c9e71b5c80481a6a1b3c2b261680134b03",
+          "content_region": [
+            24,
+            19,
+            314,
+            343
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "617f87dc2aeb80c17836a9dd4be343634c47f7d238409603d6d5a6fd5bb53646",
+          "content_region": [
+            53,
+            7,
+            290,
+            344
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "e315454850ac16ef3080e6d44af8fb3641becdbd89d6fd3a418442ac4850a847",
+          "content_region": [
+            10,
+            73,
+            345,
+            289
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "4afe938d50bb483761ab18d2bc38a66f1d03e5f33b83b5c6aeb2beefe37130a8",
+          "content_region": [
+            21,
+            13,
+            321,
+            349
+          ]
+        },
+        "court-jack": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "f9d7e10241465fb718120163e8e5deb1155ee3d324da50b61129893c6863076b",
+          "content_region": [
+            54,
+            99,
+            1148,
+            1097
+          ]
+        },
+        "court-queen": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "cd82846b3aac5b4200b079f0e3f71d1c640bfa4ca2d88fe02dc15e05d001b24a",
+          "content_region": [
+            128,
+            110,
+            1046,
+            1080
+          ]
+        },
+        "court-king": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "18867dd8440eacbf1194a4ceb0e72b3d991e496840a45716d9d1efeb618249e1",
+          "content_region": [
+            98,
+            88,
+            1068,
+            1095
+          ]
+        },
+        "card-back": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "40c980897429dcbb7c22cfcd3896b7d94935846f878d02a2f17c02a1e7595d84",
+          "content_region": [
+            9,
+            0,
+            344,
+            333
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "a071c5f992a1acce0fb9d649a58b99d5a7f30b15705d0f10e0eafdd4e5a29ea9",
+          "content_region": [
+            8,
+            0,
+            346,
+            336
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "38b93dbf42e55172c8f7b64c87df014230cfde98b2219370ce1b6e0696b04356",
+          "content_region": [
+            9,
+            0,
+            342,
+            336
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "e36c55d9ffd76f72e5f8362e957c22098011fd62658816ee4751d2e5bdff8697",
+          "content_region": [
+            207,
+            234,
+            852,
+            747
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "b7613e6a109bd2b7b65882755e9666b392595d13d5e0cd95fabbf429b5ad9668",
+          "content_region": [
+            360,
+            119,
+            531,
+            990
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "4490059077e6640e1283f24b26d8b96f0b17856a2d77b18254947cb34cd3d713",
+          "content_region": [
+            276,
+            172,
+            702,
+            909
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "14f47ff2690edc2f85bd4eb6c0ddee7d0cd158d5bb7de7516fbceb4862a9e11c",
+          "content_region": [
+            422,
+            125,
+            574,
+            952
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "4e845d21f7f6e275a439f3de2dc0c9f76b76770ba31cc65dd44c33f92c890337",
+          "content_region": [
+            139,
+            346,
+            977,
+            535
+          ]
+        },
+        "payout-B": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "8501c4012188ccca611bb19bdc5e81fffd9a4493103cfc2dd95fd9939572dd28",
+          "content_region": [
+            245,
+            243,
+            764,
+            765
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "08ab724b99b8365e4554a24cae374f0653caeba754820fe19c161bf5c1d40f7b",
+          "content_region": [
+            0,
+            0,
+            1254,
+            1254
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "b46ad5824b6600a7d7acd0b4fdc9b984857545d143bf0507acab8fb4c8d80b23",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "payout_overrides": {
+        "s1": {
+          "source": "assets/casino-art/junction/payouts/s1.png",
+          "sha256": "0322cc667a36c012aae6861792030dacd53a8fd9bd02067dc4b243b7f75a214c"
+        },
+        "s2": {
+          "source": "assets/casino-art/junction/payouts/s2.png",
+          "sha256": "47be0fd918d6988a0820236d9f516d312acdcc8f0bca47e0be0749ecd6b6561d"
+        },
+        "s3": {
+          "source": "assets/casino-art/junction/payouts/s3.png",
+          "sha256": "6c2aed2ee375afa958e001ccad12341d31ce2f9b8dcce636ca27e0ad2ae1001c"
+        },
+        "s4": {
+          "source": "assets/casino-art/junction/payouts/s4.png",
+          "sha256": "539ed978073b08d274d900e1ec6db53cc41e75e2766b90ceba6929b1d62c95d1"
+        },
+        "s5": {
+          "source": "assets/casino-art/junction/payouts/s5.png",
+          "sha256": "8747a86dd751c36daad26e46d4d0c563fa7bea6a695f0ca38e91e1fff875fd59"
+        },
+        "B": {
+          "source": "assets/casino-art/junction/payouts/B.png",
+          "sha256": "9c0d39a9dc6839f64e5af389ea5e16027b7606e17c423af2ecc5428c97c3aef2"
+        }
+      },
+      "portrait_overrides": {
+        "jack": {
+          "source": "assets/casino-art/junction/portraits/court-jack.png",
+          "sha256": "56538ba1b23d4fff116553544278fe1ad258ca079e6121c5b84d1cd8eb8caa0b"
+        },
+        "queen": {
+          "source": "assets/casino-art/junction/portraits/court-queen.png",
+          "sha256": "47c8dbd95d04f9e9ba3d053ad4704d44c11e9f6fa52bdd2c44d3d04235e15b25"
+        },
+        "king": {
+          "source": "assets/casino-art/junction/portraits/court-king.png",
+          "sha256": "ae79d02632e76ba5aaff0116282cf6582d8fb7efc5218222288415943368dcfe"
+        }
+      },
+      "additional_sources": {
+        "heritage": {
+          "source": "assets/casino-art/junction/heritage.png",
+          "sha256": "9d2e11e3efbe37cc7526ab81a51df352b9f2ea5f16cac2a27b380f6f9dbe0660"
+        },
+        "cabinet-reels": {
+          "source": "assets/casino-art/junction/cabinet-reels.png",
+          "sha256": "55fcbb46cd17b4b1231e95fbe0e55a0df0ee6cd8e1454c761383fceb77426723"
+        }
+      }
+    },
+    "boulder": {
+      "source": "assets/casino-art/boulder/sheet.png",
+      "source_sha256": "f829688dfe91878bfe9cd31d18dcb303d0316566b0533b54f15c2639250b6910",
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "c05ba0dcbdbd7301826ea39e0130e5f511aab32bb2805cb38de88cf88422f30c",
+          "content_region": [
+            36,
+            33,
+            299,
+            329
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "a59b05cb1f9b584c2cf9f47c5cd491f357b506982c6b643e9496e24bb5ee2832",
+          "content_region": [
+            22,
+            56,
+            319,
+            245
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "b35194c84fa749d32290cfa22839051bbd5a50254d297e4bc55fc9c2201afada",
+          "content_region": [
+            18,
+            20,
+            328,
+            318
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "28666bbb0c9b58d952664ad22b4a508936b3000e5787f3e616dbaac94883a65b",
+          "content_region": [
+            18,
+            14,
+            326,
+            337
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "fbca950d1b98dee1b916256c00a47c0d6f5bf18facd5443782cee163acea0183",
+          "content_region": [
+            62,
+            0,
+            237,
+            362
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "e4105b7e5b9bf30cd9358d7ec0c36ac332bf8a9a4e18a0e8dd8d234161e3c085",
+          "content_region": [
+            7,
+            1,
+            348,
+            361
+          ]
+        },
+        "court-jack": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "4bd611047b0e53e9d497873337c9a79f141e58048ed84d0e97d6674c2639d640",
+          "content_region": [
+            57,
+            101,
+            1142,
+            1086
+          ]
+        },
+        "court-queen": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "b7a947e4f0545d20aac4699a38fe2ac29eef7525fe221143c6a9063f337fafa0",
+          "content_region": [
+            115,
+            91,
+            1061,
+            1053
+          ]
+        },
+        "court-king": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "a3f3eecfeb2066a649f010340aaf5aa07cc233e11330b6929e2e0dc84bbdf183",
+          "content_region": [
+            61,
+            74,
+            1135,
+            1116
+          ]
+        },
+        "card-back": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "3792ba8edc2fd067d42a24a3b149170a73d06b358f024a4d10b9d7e773a4a60e",
+          "content_region": [
+            13,
+            0,
+            335,
+            344
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "3e25a7531751b56b3e3ec2d94596d328ed8c6da0600dc74855a1bccd2e88372d",
+          "content_region": [
+            14,
+            0,
+            334,
+            338
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "5ac9f0553a0cdb0f05034fbc45ce6ce962895f6b6581f8f469ee46dfedd25382",
+          "content_region": [
+            15,
+            0,
+            331,
+            338
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "1aa6766de3d84bb990cfb8e9205d678bda2d558f7677597d700ebdbdfd90d148",
+          "content_region": [
+            28,
+            50,
+            445,
+            462
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "a464aa73a06a87bf470370473eec3fe6f485d6a95f65419224bb32d0f43fc92b",
+          "content_region": [
+            0,
+            83,
+            486,
+            373
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "bd584554179ab7f1096aceb4c837d3f01baae91586a123be3e32afeafa20f534",
+          "content_region": [
+            7,
+            33,
+            488,
+            472
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "0d303f316fa9694c521dd6da76eba24a9fbbd2548efb5b9cc28a8d46447a21ce",
+          "content_region": [
+            36,
+            5,
+            450,
+            470
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "130f0946c1b9aef030d20dff7f2ac15dba9cd3567ab81acc2b2266c9e3bf324e",
+          "content_region": [
+            71,
+            0,
+            341,
+            462
+          ]
+        },
+        "payout-B": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "d504d5404487fb0728d3832b44a59802ddaff653c8c398e4d76df79f7d87ffee",
+          "content_region": [
+            4,
+            3,
+            503,
+            478
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "623f96f82358ce66588ee31ba225378bec0530869fd2f152820b7571875f7894",
+          "content_region": [
+            0,
+            0,
+            1254,
+            1254
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "d79660bf0e40bd5f3d1e7a5e1c2cc8c10a4145bcaadc703e5ab3a5beb098027c",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "portrait_overrides": {
+        "jack": {
+          "source": "assets/casino-art/boulder/portraits/court-jack.png",
+          "sha256": "a20344db7b70e51062e28ec4f21283123612f795243f0e2d12fc33cdf92226db"
+        },
+        "queen": {
+          "source": "assets/casino-art/boulder/portraits/court-queen.png",
+          "sha256": "007649f3d690a3b37afc6d02a9c77d0d26889ce79d9decc0ce9c1284910a2432"
+        },
+        "king": {
+          "source": "assets/casino-art/boulder/portraits/court-king.png",
+          "sha256": "bf335c84b9e7ddca2d1a4a7f60c1fe15cce3e501e50f1b511757d58c3e7318aa"
+        }
+      },
+      "additional_sources": {
+        "payouts": {
+          "source": "assets/casino-art/boulder/payouts.png",
+          "sha256": "ff963b57faee5b4cbc79785d6d1aae2d2f0ea845f2674b202538c9eb28ca3731"
+        },
+        "heritage": {
+          "source": "assets/casino-art/boulder/heritage.png",
+          "sha256": "1c15b1e76b6425b5c725cdfd153ecfec5ea7e5b884f8420ef49a759b603f4db4"
+        },
+        "cabinet-reels": {
+          "source": "assets/casino-art/boulder/cabinet-reels.png",
+          "sha256": "76ecf2dae34791d377a1a06e39e9995bf9f4428e7b54d3be787c0d045d32faba"
+        }
+      }
+    },
+    "orbit": {
+      "source": "assets/casino-art/orbit/sheet.png",
+      "source_sha256": "b044cb21121b561ba94f98893525b1715f37c127c3fa2e623455dd74065278c9",
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "7fd03394cf3567b453e2fa7458d241ce2029010d4ba7690b44703fb6e0403e1e",
+          "content_region": [
+            14,
+            10,
+            334,
+            339
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "0ad5d87479d4f7307754fe38d57bf9fb8502fdaf86d04f062980a27aacd38395",
+          "content_region": [
+            9,
+            18,
+            334,
+            332
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "ea1df383e4e7412f9bb9b5abe346053c3a8d37796c251c69229c67b283415159",
+          "content_region": [
+            8,
+            33,
+            349,
+            329
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "9953471852748d5ea9e9853f825c005bd92d65259348aa10bc078b8eb43d74a3",
+          "content_region": [
+            14,
+            19,
+            334,
+            327
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "55eba6a34a98cc34cc6d5af5373a17209f4207feb2ad0d5df050b2ec6d6e45d5",
+          "content_region": [
+            29,
+            13,
+            306,
+            349
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "3e599eb4012cda9267bef8184332dec7302bca19a2cd31e73a29a1e466ce94a1",
+          "content_region": [
+            7,
+            10,
+            346,
+            352
+          ]
+        },
+        "court-jack": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "b6a8a43c438025b146e76825c8c13eb790f583c68f2f9d92b080df0428e82ec0",
+          "content_region": [
+            63,
+            108,
+            1138,
+            1082
+          ]
+        },
+        "court-queen": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "339db9c6432f51acc89bb42580646425b2440883bfeefb3136a95b47b5b5d971",
+          "content_region": [
+            96,
+            132,
+            1062,
+            1061
+          ]
+        },
+        "court-king": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "8ffb7ae1f082d7ee1dd81c41b9f0cb797589e7f7a546327f3af36aac8aad9c5b",
+          "content_region": [
+            98,
+            97,
+            1076,
+            1062
+          ]
+        },
+        "card-back": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "8ad39d4b94325d8ca111ac2e6e8a3536247395ab4a77cff720c492d7abaed95d",
+          "content_region": [
+            7,
+            0,
+            346,
+            332
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "7a62f7adfad48637237749b53cf8198859840602ba021c6e40e3a51932aad628",
+          "content_region": [
+            13,
+            0,
+            340,
+            338
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "d283dcde7908935d268142ae1df353ca7d1b139d957d7c9e31c29362b2b90f22",
+          "content_region": [
+            8,
+            0,
+            340,
+            338
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "511648dec1419589dce5494c41175d2e03edce1b5a3f08e85d39003d16519e35",
+          "content_region": [
+            35,
+            14,
+            477,
+            498
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "cc1abd03655264eec558b372044eb2c54f060c66f5ad2f22d00e3ae380a5aa15",
+          "content_region": [
+            0,
+            46,
+            512,
+            466
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "c8c0ac1eba18f8ab4a246a28fab1dfe85a8974a43bef9d045a4a98ce00946f4a",
+          "content_region": [
+            0,
+            64,
+            486,
+            428
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "f3cfc019d888fe694771a904b47dff15e45ad3a33e9c31f583b5b3e84ad020a0",
+          "content_region": [
+            30,
+            4,
+            422,
+            474
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "faf448b7aff89498e44a0b896647d93d985453ae9a0d8a19f4ca81013134fd90",
+          "content_region": [
+            27,
+            0,
+            477,
+            472
+          ]
+        },
+        "payout-B": {
+          "size": [
+            512,
+            512
+          ],
+          "sha256": "3d1d812d04afdc6a9b0bb2008ccca2d0b488d46d8d8be3c49fce435e75abcb60",
+          "content_region": [
+            12,
+            0,
+            485,
+            461
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "d23117573910718398cf7a97452a9f118b73170a264962c67e73179c761fe94f",
+          "content_region": [
+            0,
+            0,
+            1254,
+            1254
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "aa2cb3267593dee1c0f98c2be34c8c9db6719e6e733b020dea1765b51e8839df",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "portrait_overrides": {
+        "jack": {
+          "source": "assets/casino-art/orbit/portraits/court-jack.png",
+          "sha256": "d661f34f88fe50b25a165bb17095d2b1eb1a8c7d19b87210b9c41f0b9b8cf1af"
+        },
+        "queen": {
+          "source": "assets/casino-art/orbit/portraits/court-queen.png",
+          "sha256": "32f612ea6b30d26984914fe0fecae696825c7fbca280f5d7588bbfebae3bbf4e"
+        },
+        "king": {
+          "source": "assets/casino-art/orbit/portraits/court-king.png",
+          "sha256": "9a72fc6e236a2ceb1de31ed5fded80a1de1e6b8f72189274b3beba4bb1e90687"
+        }
+      },
+      "additional_sources": {
+        "payouts": {
+          "source": "assets/casino-art/orbit/payouts.png",
+          "sha256": "34bcaeb1936cc81594e586b6e7a3de5f3c671eab7d311fe9018919c7142881f7"
+        },
+        "heritage": {
+          "source": "assets/casino-art/orbit/heritage.png",
+          "sha256": "6ab354a775c875157d94e8a5dd6597e7e5af4a982268b01133d41c751196a467"
+        },
+        "cabinet-reels": {
+          "source": "assets/casino-art/orbit/cabinet-reels.png",
+          "sha256": "e89f479e9dc8ed4741304e2063d6ca73243d4e24132b6968981f132e30b80c01"
+        }
+      }
+    }
+  },
+  "refinement_prompts": "assets/casino-art/refinement-prompts.json",
+  "cabinet_creation": "Actual SlotStage renderer; tools/qa/bake_slot_cabinets.gd",
+  "shared_suits": {
+    "clubs": {
+      "path": "suits/clubs.svg",
+      "sha256": "5284ea338e906e63737d64cb0da571697a1a16c878665fdb162dce1f00ed7859",
+      "creation": "Original continuous SVG silhouette"
+    },
+    "diamonds": {
+      "path": "suits/diamonds.svg",
+      "sha256": "99ab6755b9be694a127f279fc49b95054c5a45fe804163e44eeec9f82f06fbc6",
+      "creation": "Original continuous SVG silhouette"
+    },
+    "hearts": {
+      "path": "suits/hearts.svg",
+      "sha256": "645f371e2b1ec3bc884472a2b8e4763cea9642564e2168dd85b2025420ad505d",
+      "creation": "Original continuous SVG silhouette"
+    },
+    "spades": {
+      "path": "suits/spades.svg",
+      "sha256": "9f66ef0a2a4887ff404c8ca9ea18996060380f204deb319590bbad2e82c29492",
+      "creation": "Original continuous SVG silhouette"
+    }
+  }
+}

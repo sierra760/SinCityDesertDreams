@@ -146,11 +146,56 @@ func test_refusal_captions_read_as_sentences() -> void:
 	check_eq(host.presentation.preview.caption, "Reaches the city limit.")
 
 
-func test_bare_ground_bulldoze_names_what_it_removes_underground() -> void:
+func test_bulldoze_works_on_the_layer_on_show() -> void:
+	var city := host.sim.city
 	check(bool(host.builder.apply(Tools.Kind.WATER_PIPE, Vector2i(30, 30), Vector2i(34, 30))["ok"]))
+	check(bool(host.builder.apply(Tools.Kind.ROAD, Vector2i(32, 29), Vector2i(32, 31))["ok"]))
+	var road := city.building_at(32, 30)
+	# Surface: only the road comes up; the pipe under and beside it stays.
 	host.select_tool(Tools.Kind.BULLDOZE)
+	check(not host.presentation.is_underground())
 	host.construction.preview_drag(Vector2i(30, 30), Vector2i(34, 30))
-	check(host.presentation.preview.caption.contains("also removes water pipe"), host.presentation.preview.caption)
+	check_eq(host.presentation.preview.caption, "$1")
+	host.handle_drag(Vector2i(30, 30), Vector2i(34, 30))
+	check_eq(city.building_at(32, 30), Buildings.NONE, "surface bulldozing removes the road")
+	for x in range(30, 35):
+		check(Underground.is_pipe(city.underground.at(x, 30)), "the pipe at %d stays" % x)
+	# Underground: the pipe comes up and the road above stays.
+	check(bool(host.builder.apply(Tools.Kind.ROAD, Vector2i(32, 29), Vector2i(32, 31))["ok"]))
+	host.toggle_underground()
+	host.select_tool(Tools.Kind.BULLDOZE)
+	check(host.presentation.is_underground(), "Bulldoze is chosen in the underground view")
+	host.construction.preview_drag(Vector2i(30, 30), Vector2i(34, 30))
+	check_eq(host.presentation.preview.caption, "$5")
+	host.handle_drag(Vector2i(30, 30), Vector2i(34, 30))
+	for x in range(30, 35):
+		check_eq(city.underground.at(x, 30), 0, "the pipe at %d is dug up" % x)
+	check_eq(city.building_at(32, 30), road, "the road above stays")
+
+
+func test_bulldoze_keeps_the_automatic_underground_view() -> void:
+	host.select_tool(Tools.Kind.WATER_PIPE)
+	check(host.presentation.is_underground())
+	host.select_tool(Tools.Kind.BULLDOZE)
+	check(host.presentation.is_underground(), "Bulldoze stays underground after laying pipe")
+	host.select_tool(Tools.Kind.ROAD)
+	check(not host.presentation.is_underground(), "a surface tool still returns to the surface")
+
+
+func test_inspector_demolish_follows_the_layer() -> void:
+	var city := host.sim.city
+	check(bool(host.builder.apply(Tools.Kind.WATER_PIPE, Vector2i(30, 30), Vector2i(34, 30))["ok"]))
+	check(bool(host.builder.apply(Tools.Kind.ROAD, Vector2i(32, 29), Vector2i(32, 31))["ok"]))
+	host.open_query(Vector2i(31, 30))
+	check(host.query_panel.demolish_button.disabled, "bare ground has nothing to demolish on the surface")
+	host.open_query(Vector2i(32, 30))
+	check_eq(host.query_panel.demolish_button.text, "Demolish")
+	host.toggle_underground()
+	check_eq(host.query_panel.demolish_button.text, "Remove water pipe", "the open inspector follows the view")
+	host.construction._on_demolish_requested(Vector2i(32, 30))
+	check(not host.notice_dialog.is_open(), "digging up a pipe needs no confirmation")
+	check_eq(city.underground.at(32, 30), 0, "the pipe is dug up")
+	check_ne(city.building_at(32, 30), Buildings.NONE, "the road above stays")
 
 
 # ── Inspector demolition ─────────────────────────────────────────────────
@@ -242,6 +287,8 @@ func test_inspector_names_vacant_lots_and_buried_works() -> void:
 	check(bool(host.builder.apply(Tools.Kind.WATER_PIPE, Vector2i(30, 30), Vector2i(34, 30))["ok"]))
 	host.open_query(Vector2i(32, 30))
 	check_eq(host.query_panel.title_label.text, "Open ground")
-	check_eq(host.query_panel.demolish_button.text, "Remove water pipe", "Demolish says it digs up the pipe")
+	check(host.query_panel.demolish_button.disabled, "the surface inspector leaves buried pipe alone")
+	host.toggle_underground()
+	check_eq(host.query_panel.demolish_button.text, "Remove water pipe", "underground, Demolish says it digs up the pipe")
 	check(host.query_panel.demolish_button.tooltip_text.contains("water pipe"))
 	check_eq(city.building_at(32, 30), Buildings.NONE)
