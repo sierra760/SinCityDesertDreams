@@ -81,6 +81,12 @@ func _init() -> void:
 
 
 func setup(ctx: SimContext) -> void:
+	ensure_weather(ctx)
+
+
+## Give the weather this month's seasonal means when it has not been set yet.
+## Power and water may ask for it before this system is set up.
+func ensure_weather(ctx: SimContext) -> void:
 	if _rain < 0 or _wind < 0:
 		_seasonal_weather(ctx.month())
 

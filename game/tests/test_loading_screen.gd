@@ -77,7 +77,9 @@ func test_load_dialog_uses_loading_then_restores_saved_speed() -> void:
 	await _settle()
 	check_eq(host.sim.city.name,"Loaded town")
 	check_eq(host.sim.city.funds,12345)
-	check_eq(host.sim.speed,GameClock.Speed.FAST,"saved speed survives dialog closure")
+	check_eq(host.sim.speed,GameClock.Speed.PAUSED,"a loaded city opens paused; closing the dialog does not start it")
+	check_eq(host.session.loaded_speed,GameClock.Speed.FAST,"the saved speed is remembered")
+	check_eq(host._last_running_speed,GameClock.Speed.FAST,"P resumes the saved speed")
 	check_eq(host.modal_depth,0)
 	check(not host.is_input_blocked())
 

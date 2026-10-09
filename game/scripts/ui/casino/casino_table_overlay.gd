@@ -55,7 +55,7 @@ const VOICE_NAMES := {
 ## Keyboard shortcuts named in the action tooltips.
 const SHORTCUTS := {
 	&"deal": "Enter", &"spin": "Enter", &"pull": "Enter", &"turn": "Enter", &"roll": "Enter",
-	&"launch": "Enter", &"next": "Enter or N", &"hit": "H", &"stand": "S", &"double": "D",
+	&"launch": "Enter", &"next": "Enter or N", &"hit": "H", &"stand": "S or Enter", &"double": "D",
 	&"split": "P", &"draw": "D or Enter", &"cash_out": "Enter or Space", &"rebet": "R",
 	&"clear": "Backspace",
 }
@@ -100,6 +100,13 @@ var _settle_signal_pending := false
 ## The control the table itself focused; Enter there plays the main action,
 ## while Enter on any other focused button activates that button.
 var _default_focus: Control
+## A round that stakes more than half the treasury waits for a second
+## Enter or tap: the bets and stake it was asked about (empty when none).
+var _confirm_bets: Dictionary = {}
+var _confirm_stake := 0
+## What became of a round the app played out in the background; read once
+## by the host when the app comes back (see `take_background_summary`).
+var _background_summary := ""
 
 
 func _init() -> void:
@@ -261,8 +268,13 @@ func open(table_sim: Simulation, resort_key: StringName, game_kind: StringName, 
 	_was_debuted = sim.casino().has_debuted()
 	_settle_signal_pending = false
 	_patter_voiced = false
+	_clear_confirmation()
+	var table_maximum := int(CasinoParams.table_limits(resort)["maximum"])
 	_patter = "Welcome to %s. Table limits %s to %s." % [ResortThemes.floor_name(resort),
-		CasinoLines.money(int(game.limits["minimum"])), CasinoLines.money(int(CasinoParams.table_limits(resort)["maximum"]))]
+		CasinoLines.money(int(game.limits["minimum"])), CasinoLines.money(table_maximum)]
+	if int(game.limits["maximum"]) < table_maximum:
+		# The treasury caps the bet below the table's own maximum; say so.
+		_patter = _patter.trim_suffix(".") + "; the treasury covers up to %s." % CasinoLines.money(int(game.limits["maximum"]))
 	bet_bar.set_selected_chip(0)
 	visible = true
 	_apply_bounds()
@@ -299,10 +311,19 @@ func force_close() -> void:
 ## poker draws with the current holds and a launch cashes out at the shown
 ## multiplier (at or past the burn-out it settles as a burn-out). Every other
 ## game settles as soon as it is committed.
-func resolve_round_now() -> void:
+##
+## Returns a one-line summary of what became of the round ("Your Assay
+## Twenty-One hand was played out while you were away: -$1,000."), or "" when
+## no round was in play; the summary is also kept for
+## `take_background_summary`.
+func resolve_round_now() -> String:
 	if not visible:
-		return
-	if game != null and game.state == CasinoGame.PLAYING:
+		return ""
+	var summary := ""
+	var refunded := 0
+	var game_name := ResortThemes.game_name(resort, kind)
+	var in_play := game != null and game.state == CasinoGame.PLAYING
+	if in_play:
 		if is_instance_valid(stage) and stage.is_busy():
 			stage.skip()
 		var guard := 8
@@ -319,9 +340,31 @@ func resolve_round_now() -> void:
 					break
 	if game != null and game.state == CasinoGame.PLAYING and _committed > 0:
 		# A game that cannot be played out here is refunded rather than kept.
+		refunded = _committed
 		sim.casino_refund(resort, kind, _committed)
+	if in_play:
+		if refunded > 0:
+			summary = CasinoLines.background_refund(game_name, refunded)
+		elif game != null and game.state == CasinoGame.SETTLED:
+			var noun := "round"
+			match kind:
+				&"blackjack", &"video_poker":
+					noun = "hand"
+				&"trajectory":
+					noun = "launch"
+			summary = CasinoLines.background_result(game_name, noun, int(game.outcome().get("net", 0)))
+	_background_summary = summary
 	_committed = 0
 	_finish_close()
+	return summary
+
+
+## The summary of the last round played out in the background, once; "" when
+## there is none.
+func take_background_summary() -> String:
+	var summary := _background_summary
+	_background_summary = ""
+	return summary
 
 
 ## Show a short message in the dealer's line (for example why a quit waits).
@@ -344,6 +387,8 @@ func _notification(what: int) -> void:
 
 
 ## Escape: close the rules, finish an animation, then leave when allowed.
+## Each step takes its own Escape, so hurrying a result shows it instead of
+## leaving with it unseen.
 func request_leave() -> void:
 	if not visible:
 		return
@@ -352,6 +397,7 @@ func request_leave() -> void:
 		return
 	if is_instance_valid(stage) and stage.is_busy():
 		stage.skip()
+		return
 	close()
 
 
@@ -442,6 +488,7 @@ func add_to_spot(spot: StringName, amount: int) -> Dictionary:
 	var result := game.place_bet(spot, placed)
 	if bool(result["ok"]):
 		_message = ""
+		_clear_confirmation()
 	else:
 		_say_message(String(result["reason"]))
 	stage.sync(game.view_state())
@@ -467,6 +514,7 @@ func step_bet(direction: int) -> void:
 	if left > 0:
 		game.place_bet(spot, left)
 	_message = ""
+	_clear_confirmation()
 	stage.sync(game.view_state())
 	_refresh()
 
@@ -524,6 +572,13 @@ func perform_action(action: StringName, payload: Dictionary = {}) -> Dictionary:
 		stage.skip()
 	if action == CasinoGame.NEXT:
 		return _next_round()
+	if action == CasinoGame.REBET and game.state == CasinoGame.SETTLED:
+		# "Same bet" after a result: start the next round, then repeat.
+		_next_round()
+		if not _action_enabled(CasinoGame.REBET):
+			# Keep the next round's own explanation (a treasury below the
+			# minimum) rather than a generic refusal.
+			return {"ok": false, "reason": _message if not _message.is_empty() else CasinoLines.ACTION_UNAVAILABLE, "stake": 0}
 	var args := payload.duplicate()
 	if kind == &"trajectory":
 		if action == game.commit_action() and not args.has("auto") and AUTO_TARGETS[_auto_index] > 0.0:
@@ -536,6 +591,12 @@ func perform_action(action: StringName, payload: Dictionary = {}) -> Dictionary:
 		_say_message(CasinoLines.NO_CREDIT)
 		return {"ok": false, "reason": CasinoLines.NO_CREDIT, "stake": 0}
 	var opening := game.state == CasinoGame.BETTING and action == game.commit_action()
+	if opening and not _stake_confirmed(expected):
+		var question := CasinoLines.confirm_stake(expected, sim.city.funds, game.commit_label())
+		_say_message(question)
+		return {"ok": false, "reason": question, "stake": 0, "confirm": true}
+	if not opening and action != &"advance" and action != &"hold":
+		_clear_confirmation()
 	# A stake known in advance (the opening bet, a double or a split) is
 	# debited before the game applies it, so the game never holds a stake
 	# the treasury refused; it is refunded if the game then refuses.
@@ -595,6 +656,34 @@ func _expected_stake(action: StringName) -> int:
 		if active >= 0 and active < hands.size():
 			return int((hands[active] as Dictionary).get("stake", 0))
 	return 0
+
+
+## True when an opening stake may be debited now: at most half the treasury,
+## or the same bets the dealer already asked about (the second Enter or
+## tap). A larger stake asked about for the first time is remembered and
+## refused, so the player confirms it deliberately.
+func _stake_confirmed(stake: int) -> bool:
+	if stake * 2 <= sim.city.funds:
+		_clear_confirmation()
+		return true
+	var bets := game.bets()
+	if _confirm_stake == stake and _confirm_bets == bets:
+		_clear_confirmation()
+		return true
+	_confirm_stake = stake
+	_confirm_bets = bets
+	return false
+
+
+func _clear_confirmation() -> void:
+	_confirm_stake = 0
+	_confirm_bets = {}
+
+
+## True while the dealer waits for a second Enter or tap to confirm a large
+## stake.
+func awaiting_confirmation() -> bool:
+	return _confirm_stake > 0
 
 
 ## The treasury refused a stake after the game accepted it. The opening
@@ -753,10 +842,14 @@ func _refresh() -> void:
 	var info := stage.spot_info(spot)
 	var on_spot := int(game.bets().get(spot, 0))
 	var spot_text := stage.spot_label(spot)
+	var several := stage.spot_order().size() > 1
+	if several:
+		# Tables with several spots say plainly where the next chip goes.
+		spot_text = "Chips go on " + spot_text
 	if info.has("odds"):
-		spot_text += " · " + String(info["odds"])
+		spot_text += (" · pays " if several else " · ") + String(info["odds"])
 	if on_spot > 0:
-		spot_text += " · " + CasinoLines.money(on_spot)
+		spot_text += " · " + CasinoLines.money(on_spot) + " on it"
 	bet_bar.set_readout(spot_text, "Bet %s · limits %s to %s" % [CasinoLines.money(game.total_staked()), CasinoLines.money(minimum), CasinoLines.money(maximum)])
 	var in_play := _committed if game.state == CasinoGame.PLAYING else 0
 	chrome.set_treasury(_shown_funds, _shown_net, in_play)
@@ -776,8 +869,11 @@ func _keep_focus() -> void:
 	if not is_visible_in_tree():
 		return
 	var focused := get_viewport().gui_get_focus_owner()
-	var usable := focused != null and is_ancestor_of(focused) and focused.is_visible_in_tree() \
-		and not (focused is BaseButton and (focused as BaseButton).disabled)
+	# Focus never rests on Hit: Space (and a mouse click's focus) would then
+	# draw another card by accident.
+	var usable: bool = focused != null and is_ancestor_of(focused) and focused.is_visible_in_tree() \
+		and not (focused is BaseButton and (focused as BaseButton).disabled) \
+		and focused != bet_bar.action_buttons.get(&"hit", null)
 	if usable:
 		return
 	var preferred: Control = bet_bar.primary_button()
@@ -844,18 +940,40 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Keys that keep working while held down (the key repeats): +/- step the bet,
+## and navigation (arrows, Tab) moves on. Repeats of action keys are
+## swallowed so a held key never replays a table action.
+const REPEATING_KEYS: Array[Key] = [KEY_PLUS, KEY_EQUAL, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT]
+
+
+## Keys that play, bet or leave: their repeats do nothing.
+static func is_action_key(key: InputEventKey) -> bool:
+	var code := key.keycode
+	if code in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_ESCAPE, KEY_A] or LETTER_ACTIONS.has(code):
+		return true
+	var physical := key.physical_keycode
+	return (code >= KEY_0 and code <= KEY_9) or (physical >= KEY_0 and physical <= KEY_9) \
+		or (code >= KEY_KP_0 and code <= KEY_KP_9)
+
+
 ## Table keys: Enter plays the primary action, arrows choose a spot, digits
 ## and +/- bet, letters play the named actions. True when the key was used.
+## A held action key's repeats are used (swallowed) without doing anything;
+## +/- and navigation keys repeat as usual.
 func handle_key(key: InputEventKey) -> bool:
 	var code := key.keycode
+	if key.echo and code not in REPEATING_KEYS and is_action_key(key):
+		return true
 	match code:
 		KEY_ENTER, KEY_KP_ENTER:
-			# A button the player moved focus to (Leave table, Rules, a chip)
-			# takes Enter itself; the table's own default focus plays the
-			# main action.
+			# A button the player moved focus to (Leave table, Rules, a game
+			# action other than Hit) takes Enter itself; the table's own
+			# default focus, a chip, the steppers and Hit play the main action,
+			# so Enter after clicking a chip deals instead of betting again.
 			var focused := get_viewport().gui_get_focus_owner()
 			if focused is BaseButton and is_ancestor_of(focused) and focused != _default_focus \
-					and focused != bet_bar.primary_button() and not (focused as BaseButton).disabled:
+					and focused != bet_bar.primary_button() and not (focused as BaseButton).disabled \
+					and not _enter_plays_main_action(focused):
 				return false
 			if is_instance_valid(stage) and stage.is_busy():
 				stage.skip()
@@ -887,8 +1005,13 @@ func handle_key(key: InputEventKey) -> bool:
 				cycle_auto_target()
 				return true
 			return false
+	# The digit row by key position, so layouts that need Shift for digits
+	# (AZERTY) still bet with the unshifted key; then by label and keypad.
 	var digit := -1
-	if code >= KEY_1 and code <= KEY_5:
+	var physical := key.physical_keycode
+	if physical >= KEY_1 and physical <= KEY_5:
+		digit = physical - KEY_1
+	elif code >= KEY_1 and code <= KEY_5:
 		digit = code - KEY_1
 	elif code >= KEY_KP_1 and code <= KEY_KP_5:
 		digit = code - KEY_KP_1
@@ -914,6 +1037,17 @@ func _primary_action() -> StringName:
 	return &""
 
 
+## True for focused bet-bar controls where Enter plays the table's main
+## action instead of pressing the control: the chips, - and +, the automatic
+## cash-out and Hit.
+func _enter_plays_main_action(focused: Control) -> bool:
+	if focused in bet_bar.chip_buttons:
+		return true
+	if focused == bet_bar.minus_button or focused == bet_bar.plus_button or focused == bet_bar.auto_button:
+		return true
+	return focused == bet_bar.action_buttons.get(&"hit", null)
+
+
 func _action_enabled(action: StringName) -> bool:
 	for entry: Dictionary in game.actions():
 		if StringName(entry["id"]) == action:
@@ -931,7 +1065,7 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 		&"blackjack":
 			lines.append("Get closer to 21 than the dealer without going over. Number cards count their value, court cards ten, aces one or eleven. The dealer draws to 16 and stands on every 17.")
 			lines.append("A two-card 21 pays 3 to 2; other wins pay 1 to 1; a tie returns the bet. Double on any first two cards for one more card. Split a pair once; split aces take one card each.")
-			lines.append("Keys: Enter deals, H hits, S stands, D doubles, P splits.")
+			lines.append("Keys: Enter deals, then stands during a hand (Enter never draws a card); H hits, S stands, D doubles, P splits.")
 		&"roulette":
 			lines.append("A single-zero wheel, 0 to 36. Bet on as many spots as you like; the table maximum applies to the total.")
 			lines.append("A number pays 35 to 1. Red or black, odd or even, 1 to 18 or 19 to 36 pay 1 to 1. Dozens and columns pay 2 to 1. Zero loses every bet except a bet on zero.")
@@ -967,5 +1101,6 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 			lines.append("One launch in %d fails on the pad. Set an automatic cash-out (A) before launch to let the flight decide." % CasinoParams.TRAJECTORY_FAIL_ONE_IN)
 	lines.append("Table limits %s to %s per round; the treasury caps the maximum. Every bet comes from the city treasury and every win goes back to it." % [
 		CasinoLines.money(int(limits.get("minimum", table["minimum"]))), CasinoLines.money(int(table["maximum"]))])
-	lines.append("Keys: arrows choose a spot, 1 to 5 or the chips add a bet, + and - adjust it, Enter plays, Escape leaves between rounds.")
+	lines.append("A round that stakes more than half of the treasury asks first: press Enter or the button again to confirm.")
+	lines.append("Keys: arrows choose a spot, 1 to 5 or the chips add a bet, + and - adjust it (hold to repeat), Enter plays, R repeats the last bet, Escape finishes the animation and then leaves between rounds.")
 	return "\n\n".join(lines)

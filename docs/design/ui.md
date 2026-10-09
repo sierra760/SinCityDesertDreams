@@ -150,7 +150,7 @@ input; a valid map click gives keyboard input back to the city.
 | U | Surface / underground |
 | B held | Temporary bulldoze |
 | P / + / − | Pause or resume at the previous speed / speed |
-| F11 | Fullscreen |
+| Ctrl+Cmd+F (macOS) / F11 (other desktops) | Fullscreen |
 | Cmd/Ctrl+N / O / S / Shift+S / , | New City / Load City / Save City / Save City As / Settings |
 | Escape | Close front dialog/window, cancel a drag, drop the tool, then exit fullscreen; in Explore it opens and closes the Explore menu |
 

@@ -11,18 +11,22 @@ config_version=5
 [application]
 
 config/name="Sin City - Desert Dreams"
-config/version="0.2"
+config/version="0.3"
 run/main_scene="res://scenes/main.tscn"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="SinCityDesertDreams"
+config/quit_on_go_back=false
 config/features=PackedStringArray("4.6", "Mobile")
 boot_splash/bg_color=Color(0.09019608, 0.24313726, 0.22352941, 1)
-boot_splash/stretch_mode=4
 boot_splash/image="res://assets/ui/boot-splash.png"
 config/icon="res://assets/ui/app_icon.svg"
 config/macos_native_icon="res://assets/ui/app-icon/desktop/macos.icns"
 config/windows_native_icon="res://assets/ui/app-icon/desktop/windows.ico"
 config/name.ios="SC2D"
+
+[audio]
+
+general/ios/mix_with_others=true
 
 [display]
 

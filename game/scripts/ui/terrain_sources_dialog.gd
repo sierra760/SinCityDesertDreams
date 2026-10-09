@@ -20,7 +20,7 @@ func _init() -> void:
  shade.color=Color(0,0,0,0.35)
  shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  add_child(shade)
- var chrome := UIFactory.make_window_chrome("Terrain data sources")
+ var chrome := UIFactory.make_window_chrome("Terrain Data Sources")
  panel=chrome.root
  panel.set_meta("preferred_size",Vector2(680,500))
  panel.set_anchors_preset(Control.PRESET_CENTER)

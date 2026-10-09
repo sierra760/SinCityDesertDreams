@@ -19,8 +19,19 @@ Burkhart (sierra760), (C) 2026 Bristlecone Artists LLC, CC BY-NC-SA 4.0".
 Commercial use of the assets requires separate permission from Bristlecone
 Artists LLC.
 
-Fonts, Godot, real-world terrain and map data and other third-party material
-retain their own terms. Font license notices are bundled under assets/fonts/.
+This program is built with the Godot Engine, Copyright (c) 2014-present Godot
+Engine contributors and Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur,
+licensed under the MIT (Expat) license. The engine includes third-party
+libraries (among them FreeType, HarfBuzz, ICU, Mbed TLS, ENet, libpng and
+zlib) under their own licenses. The complete Godot license, every engine
+component's copyright notice and the full text of each of their licenses are
+shown in the game under License and Credits, Engine licenses, generated from
+the engine itself. Builds with native extensions (macOS, iOS and Windows) also
+include godot-cpp under the MIT license.
+
+Fonts, real-world terrain and map data and other third-party material retain
+their own terms. Font license notices are bundled under assets/fonts/ and are
+also shown under License and Credits.
 Real-world terrain and map data credits (Mapzen/Joerd terrain tiles, ESA
 WorldCover 2021 under CC BY 4.0, OpenStreetMap contributors under ODbL 1.0)
 are bundled in data/real_world_terrain_notices.txt.

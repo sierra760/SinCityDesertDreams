@@ -145,7 +145,9 @@ Getters for other systems and the UI:
    year is available from the start and is not announced. A loaded city that
    lacks a year for a technology (saved before it joined the table) gets one
    rolled the same way; if that year is already past, it is treated as known
-   and not announced.
+   and not announced. A city whose economy has never run (an imported classic
+   city, or an included city saved straight after import) treats every
+   technology available by the current year as known: history, not news.
 2. Each month every technology whose year has arrived and which has not been
    announced yet is reported once as `&"invention"`.
 3. The toolbar gates its tools on these same keys and years

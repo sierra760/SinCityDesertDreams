@@ -54,6 +54,9 @@ const REASON_FUNDS := "insufficient funds"
 const REASON_BOUNDS := "outside the city"
 const REASON_LIMIT := "reaches the city limit"
 const REASON_BEFORE_FOUNDING := "the sea level is set before the city is founded"
+## Dispatch tools outside an emergency, or with no station of that kind.
+const REASON_NO_EMERGENCY := "crews go out only during an emergency"
+const REASON_NO_CREWS := "no crews available"
 
 const _AXIS_NS := NetworkShapes.AXIS_NS
 const _AXIS_EW := NetworkShapes.AXIS_EW
@@ -1056,7 +1059,7 @@ func _plan_onramp(price: int, at: Vector2i) -> Dictionary:
 		return _fail("a ramp must touch a road", [at])
 	var fit := _onramp_fit(at)
 	if fit.is_empty():
-		return _fail("a ramp sits where a road meets the highway, beside both", [at])
+		return _fail("place a ramp on an empty tile next to both the road and the highway, where they meet", [at])
 	# The ramp piece and its axis bit name which sides carry the road and the
 	# highway (NetworkShapes.onramp_endpoints), as traffic and the view read them.
 	var ops: Array = [{"op": "surface", "at": at, "id": int(fit["id"]), "keep_zone": false,
@@ -1081,6 +1084,17 @@ func _onramp_fit(at: Vector2i) -> Dictionary:
 					and not NetworkShapes.is_onramp(road_id):
 				return {"id": id, "axis": axis, "road": road, "highway": highway}
 	return {}
+
+
+## The road and highway tiles a ramp at `site` would join ({road, highway}),
+## or empty when no ramp fits there.
+func onramp_junction(site: Vector2i) -> Dictionary:
+	if not city.in_bounds(site.x, site.y):
+		return {}
+	var fit := _onramp_fit(site)
+	if fit.is_empty():
+		return {}
+	return {"road": fit["road"], "highway": fit["highway"]}
 
 
 ## Open tiles beside the `near` tiles where an on-ramp could join a road to
@@ -1639,7 +1653,24 @@ func _plan_water(price: int, at: Vector2i) -> Dictionary:
 
 # ── Dispatch ─────────────────────────────────────────────────────────────
 
+## Why a crew of `kind` cannot be sent now, or "" when it can. The toolbar
+## locks its dispatch buttons with the same reasons. A Builder without a
+## disaster system (a bare test fixture) does not check.
+func dispatch_refusal(kind: StringName) -> String:
+	var disasters: Object = sim.get_system(&"disasters") if sim != null else null
+	if disasters == null or not disasters.has_method("is_emergency"):
+		return ""
+	if not bool(disasters.call("is_emergency")):
+		return REASON_NO_EMERGENCY
+	if disasters.has_method("crews_available") and int(disasters.call("crews_available", kind)) <= 0:
+		return REASON_NO_CREWS
+	return ""
+
+
 func _plan_dispatch(kind: StringName, at: Vector2i) -> Dictionary:
+	var refusal := dispatch_refusal(kind)
+	if not refusal.is_empty():
+		return _fail(refusal, [at])
 	if not _dry(at):
 		return _fail("cannot send crews onto water", [at])
 	return _ok([at], 0, [{"op": "dispatch", "kind": kind, "at": at}])

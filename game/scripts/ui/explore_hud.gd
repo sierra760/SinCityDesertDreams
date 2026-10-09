@@ -296,7 +296,7 @@ func _build() -> void:
 	use_vehicle.name = "DriveSelectedVehicle"
 	use_vehicle.pressed.connect(func() -> void: vehicle_requested.emit(StringName(picker.get_item_metadata(picker.selected))))
 	column.add_child(use_vehicle)
-	var vehicle_help := UIFactory.make_label("Choose while walking. A connected route and clear space must be nearby. At a marina, use Interact to board a boat. Stop beside the marina or a clear shoreline to exit. Airplanes can't be driven.")
+	var vehicle_help := UIFactory.make_label("Choose while walking outdoors, not riding a train or inside a station or resort. A connected route and clear space must be nearby, and the helicopter flies from where it is parked. At a marina, use Interact to board a boat. Stop beside the marina or a clear shoreline to exit. Airplanes can't be driven.")
 	vehicle_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(vehicle_help)
 	_transit_label = UIFactory.make_label("",UITheme.FONT_SMALL)
@@ -407,12 +407,20 @@ func _reflow() -> void:
 			status_height = minf(150.0,maxf(44.0,available.size.y-180.0))
 	# Wrapped labels need the intended content width before their minimum height
 	# is queried; otherwise their first layout can count one character per line.
-	for label in [_actor_label, _speed_label, _altitude_label, _prompt_label]:
+	for label in [_actor_label, _speed_label, _altitude_label, _prompt_label, _transit_label]:
 		label.size.x = maxf(0.0,status_width - UITheme.MARGIN * 2.0)
+	# Without a scrolling message the card fits its lines instead of leaving
+	# an empty band below them.
+	if not _status_scroll.visible:
+		var status_style := _status_panel.get_theme_stylebox(&"panel")
+		var status_chrome := status_style.get_minimum_size().y if status_style != null else 0.0
+		status_height = minf(status_height,maxf(44.0,(status_column as Control).get_combined_minimum_size().y+status_chrome))
 	_status_panel.size = Vector2(status_width, status_height)
 	if is_instance_valid(touch_controls): touch_controls.set_status_rect(_status_panel.get_rect())
 	var width := minf(390.0, available.size.x - margin * 2.0)
-	var height := minf(570.0, available.size.y - margin * 2.0)
+	# The paused panel is as tall as its content, up to the usable height;
+	# only what does not fit scrolls.
+	var height := minf(_panel_content_height(width), available.size.y - margin * 2.0)
 	if _touch_enabled:
 		panel_touch_reflow(available,margin,width,height)
 		return
@@ -424,7 +432,7 @@ func _reflow() -> void:
 		var resume_height := heading.get_combined_minimum_size().y + UITheme.VSEP + 44.0 + UITheme.MARGIN * 2.0
 		if below_height >= resume_height:
 			panel_position.y = status_rect.end.y + margin
-			height = below_height
+			height = minf(below_height,_panel_content_height(width))
 		else:
 			# A wrapped Main footer can leave only 185 logical units. Beside the
 			# critical status, Resume retains its full 44-unit target and controls
@@ -434,6 +442,18 @@ func _reflow() -> void:
 	_scroll.custom_minimum_size = Vector2(width - UITheme.MARGIN * 2.0, minf(height - UITheme.MARGIN * 2.0, 100.0))
 	_panel.position = panel_position
 	_panel.size = Vector2(width, height)
+
+## Full height of the paused panel's column at `width`, with wrapped labels
+## measured at the column's width.
+func _panel_content_height(width: float) -> float:
+	var column := _scroll.get_child(0) as Control
+	var inner := maxf(0.0,width - UITheme.MARGIN * 2.0)
+	for child: Node in column.get_children():
+		if child is Label and (child as Label).autowrap_mode != TextServer.AUTOWRAP_OFF: (child as Label).size.x = inner
+	var chrome := 0.0
+	var style := _panel.get_theme_stylebox(&"panel")
+	if style != null: chrome = style.get_minimum_size().y
+	return column.get_combined_minimum_size().y + chrome
 
 func panel_touch_reflow(available: Rect2, margin: float, width: float, height: float) -> void:
 	var top := _status_panel.get_rect().end.y+margin
@@ -456,7 +476,9 @@ func set_transit_status(status: Dictionary) -> void:
 	if text==_prompt_label.text or text==_touch_caption(str(status.get("elevator_prompt",""))): text=""
 	var actor_text := _base_actor_text
 	var speed_text := _base_speed_text
-	_transit_passenger = bool(status.get("passenger",false))
+	# Only a walker rides as a passenger; a driver or pilot keeps their own
+	# vehicle's name and speed even while a service train is nearby.
+	_transit_passenger = bool(status.get("passenger",false)) and _mode == ExploreActorProfile.Mode.WALK
 	if _transit_passenger:
 		actor_text = "Riding subway" if status.get("transit_kind","")=="subway" else "Riding train"
 		speed_text = "Speed: %.1f m/s" % maxf(0.0,float(status.get("speed_mps",0.0)))

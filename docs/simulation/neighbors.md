@@ -4,9 +4,11 @@
 
 Four neighboring towns sit beyond the map edges, one per edge. They grow and
 shrink with the national economy, they grow faster when the player's roads and
-rails reach them, and they buy the city's surplus power and water (or sell the
-city what it lacks) when a line or pipe reaches the edge. The neighbor window
-compares the city with them.
+rails reach them, and they buy the city's surplus power and water when a line
+or pipe reaches the edge. They do not supply a shortfall: the power and water
+systems serve only from the city's own plants, pumps and towers, so a
+shortfall is neither delivered nor billed. The neighbor window compares the
+city with them.
 
 ## Inputs
 
@@ -73,10 +75,11 @@ compares the city with them.
    `SHOCK_OUTPUT_PERCENT` percent of its output, and the newspaper reports it.
 6. **Trade.** For each utility, when at least one edge is connected: a
    surplus (capacity minus demand, capped at `TRADE_UNIT_CAP`) earns
-   `EXPORT_CENTS[utility]` per unit per year; a deficit costs
-   `IMPORT_CENTS[utility]` per unit per year. One twelfth is booked each
-   month, with fractions carried in cents, into `neighbor_trade`. Trade needs
-   a connection; a surplus with no line to the edge earns nothing.
+   `EXPORT_CENTS[utility]` per unit per year. A deficit trades nothing:
+   neighbors do not deliver the missing units, so the city is not charged for
+   them. One twelfth is booked each month, with fractions carried in cents,
+   into `neighbor_trade`. Trade needs a connection; a surplus with no line to
+   the edge earns nothing.
 7. **Demand.** Trade needs a way out of town. `trade_demand_bonus()` is
    `min(links × DEMAND_PER_LINK, LINK_DEMAND_CAP)`, counting every road and
    rail link on every edge, and the zone system adds it to both the
@@ -96,7 +99,7 @@ compares the city with them.
 | `POPULATION_CEILING` | population above which neighbors shrink |
 | `PHASE_OUTPUT_RATE`, `OUTPUT_JITTER`, `OUTPUT_CEILING` | output growth by national phase |
 | `SHOCK_CHANCE_DENOMINATOR`, `SHOCK_POPULATION_PERCENT`, `SHOCK_OUTPUT_PERCENT` | rarity and depth of a regional collapse |
-| `EXPORT_CENTS`, `IMPORT_CENTS`, `TRADE_UNIT_CAP` | utility trade prices and the export cap |
+| `EXPORT_CENTS`, `TRADE_UNIT_CAP` | utility export prices and the export cap |
 | `DEMAND_PER_LINK`, `LINK_DEMAND_CAP` | commercial and industrial demand per road or rail link, and its cap |
 | `GROWTH_NEWS_MILESTONES` | neighbor populations that make the newspaper |
 

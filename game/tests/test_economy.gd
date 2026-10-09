@@ -282,3 +282,36 @@ func test_an_older_save_lines_sector_rates_up_with_the_industrial_rate() -> void
 	for t in ctx.stats.sector_taxes:
 		check_eq(t, 12, "untouched sector rates take the player's rate")
 	check_eq(ctx.stats.tax_industrial, 12)
+
+
+func test_industrial_rate_reaches_both_ends_and_keeps_the_sector_spread() -> void:
+	var ctx := make_ctx(flat_city())
+	var eco := eco_of(ctx)
+	var spread := PackedInt32Array([0, 20, 2, 18, 4, 16, 6, 14, 8, 12, 10])
+	ctx.stats.sector_taxes = spread.duplicate()
+	eco.sector_taxes_changed()
+	var start := ctx.stats.tax_industrial
+	check_eq(start, 10, "the spread averages 10")
+	ctx.stats.tax_industrial = 20
+	run_months(ctx, 1)
+	check_eq(ctx.stats.tax_industrial, 20, "the top rate is reached exactly")
+	run_months(ctx, 1)
+	check_eq(ctx.stats.tax_industrial, 20, "and stays there")
+	ctx.stats.tax_industrial = 0
+	run_months(ctx, 1)
+	check_eq(ctx.stats.tax_industrial, 0, "the bottom rate is reached exactly")
+	ctx.stats.tax_industrial = start
+	eco.industrial_rate_written()
+	check_eq(ctx.stats.sector_taxes, spread, "returning to the old rate restores the player's spread")
+	check_eq(ctx.stats.tax_industrial, start)
+	# The spread survives a save and load while it is pushed to an end.
+	ctx.stats.tax_industrial = 20
+	eco.industrial_rate_written()
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(eco.save()))
+	var restored := EconomySystem.new()
+	ctx.systems[&"economy"] = restored
+	restored.setup(ctx)
+	restored.load(saved)
+	ctx.stats.tax_industrial = start
+	restored.industrial_rate_written()
+	check_eq(ctx.stats.sector_taxes, spread, "the spread is restored after a reload")

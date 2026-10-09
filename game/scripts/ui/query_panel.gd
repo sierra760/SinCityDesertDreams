@@ -123,6 +123,9 @@ func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
 		row.add_child(v)
 		rows.add_child(row)
 	demolish_button.disabled = not bool(info.get("_demolishable", false))
+	var buried := String(info.get("_removes_underground", ""))
+	demolish_button.text = "Remove " + buried.to_lower() if not buried.is_empty() else "Demolish"
+	demolish_button.tooltip_text = "Dig up the %s under this tile" % buried.to_lower() if not buried.is_empty() else "Bulldoze this tile"
 	rename_button.disabled = not bool(info.get("_renamable", false))
 	visible = true
 	body_scroll.scroll_vertical = reading_position
@@ -152,7 +155,14 @@ static func describe(city: City, sim: Simulation, at: Vector2i) -> Dictionary:
 	var zone_kind := city.zone_kind_at(at.x, at.y)
 	out["#Site"] = ""
 	out["Location"] = "%d, %d" % [at.x, at.y]
-	out["Building"] = Buildings.display_name(id) if id != Buildings.NONE else ("Open water" if city.is_water(at.x, at.y) else "Open ground")
+	if id != Buildings.NONE:
+		out["Building"] = Buildings.display_name(id)
+	elif city.is_water(at.x, at.y):
+		out["Building"] = "Open water"
+	elif zone_kind != Zones.NONE and Zones.NAMES.has(zone_kind):
+		out["Building"] = "%s (vacant lot)" % String(Zones.NAMES[zone_kind])
+	else:
+		out["Building"] = "Open ground"
 	if Buildings.is_multi_tile(id):
 		var s := Buildings.size(id)
 		out["Footprint"] = "%d×%d at %d, %d" % [s.x, s.y, anchor.x, anchor.y]
@@ -212,6 +222,9 @@ static func describe(city: City, sim: Simulation, at: Vector2i) -> Dictionary:
 	elif resort != &"":
 		_resort_figures(out, city, sim, resort)
 	out["_demolishable"] = id != Buildings.NONE or under != Underground.NONE
+	if id == Buildings.NONE and under != Underground.NONE:
+		# Demolish here only digs up what is buried; the button says so.
+		out["_removes_underground"] = underground_text(under)
 	out["_renamable"] = not record.is_empty()
 	return out
 

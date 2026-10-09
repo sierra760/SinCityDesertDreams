@@ -14,8 +14,25 @@ static func is_mobile(environment: Dictionary = {}) -> bool:
 static func is_ios(environment: Dictionary = {}) -> bool:
 	return String(environment.get("os_name",OS.get_name())) == "iOS"
 
+## Touch-first presentation (touch Explore controls, touch guidance) follows the
+## platform, not touchscreen presence: a touch-capable laptop or a desktop
+## browser on one keeps its mouse-and-keyboard presentation. Phone and tablet
+## browsers (Web export feature tags web_android/web_ios) are touch-first.
+## Environment keys os_name/features inject readings.
 static func uses_touch(environment: Dictionary = {}) -> bool:
-	return is_mobile(environment) or bool(environment.get("touchscreen",DisplayServer.is_touchscreen_available()))
+	if is_mobile(environment): return true
+	return is_mobile_web(environment)
+
+## A Web export running in a phone or tablet browser.
+static func is_mobile_web(environment: Dictionary = {}) -> bool:
+	var features: Array = environment.get("features",_running_web_features())
+	return features.has("web_android") or features.has("web_ios")
+
+static func _running_web_features() -> Array:
+	var found := []
+	for tag: String in ["web","web_android","web_ios"]:
+		if OS.has_feature(tag): found.append(tag)
+	return found
 
 ## Mobile reports actual hardware, independently of the on-screen keyboard.
 ## Desktop display servers do not implement Godot's mobile hardware query.
@@ -49,8 +66,24 @@ static func configure_file_picker(picker: FileDialog, environment: Dictionary = 
 	# prevents navigating above the app sandbox in the custom picker.
 	picker.access = FileDialog.ACCESS_FILESYSTEM if native_supported else FileDialog.ACCESS_USERDATA
 	picker.current_dir = ProjectSettings.globalize_path("user://") if native_supported else "user://"
+	# Android's user:// is app-private internal storage the system picker cannot
+	# browse; shared and downloaded cities arrive in Downloads.
+	if native_supported and String(environment.get("os_name",OS.get_name())) == "Android":
+		var downloads := String(environment.get("downloads_dir",OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS)))
+		if not downloads.is_empty(): picker.current_dir = downloads
 	picker.show_hidden_files = false
 	picker.hidden_files_toggle_enabled = false
+
+## Where a desktop city picker first opens: Downloads (shared and downloaded
+## cities arrive there), then Documents, then home. "" when none exists, which
+## leaves the picker's own default. Mobile pickers are set up by
+## configure_file_picker instead. Environment key system_dirs injects readings.
+static func desktop_picker_start_dir(environment: Dictionary = {}) -> String:
+	if is_mobile(environment): return ""
+	var candidates: Array = environment.get("system_dirs",[OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS),OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS),OS.get_environment("USERPROFILE" if OS.get_name() == "Windows" else "HOME")])
+	for path: String in candidates:
+		if not path.is_empty() and DirAccess.dir_exists_absolute(path): return path
+	return ""
 
 ## First-run presentation. Desktop renders 3D at 75% on a backing scale of 2 or
 ## more (Retina/200% displays), and Windows/Linux integrated GPUs start on

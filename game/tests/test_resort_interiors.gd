@@ -158,7 +158,7 @@ func test_removed_resort_ejects_the_walker() -> void:
 	session.resort_service.ejected.connect(func(message: String) -> void: messages.append(message))
 	_remove_resort()
 	for frame: int in 4: await physics_frame
-	check_eq(messages,["The resort closed around you."],"closing explains itself")
+	check_eq(messages,["Comstock Grand is gone; you're back on the street."],"closing names the resort and where the walker is")
 	check(_halls().is_empty(),"the closed hall is freed")
 	check(not session.resort_service.fill.visible,"the shared fill is off once ejected")
 	check(not session.resort_service.is_inside(),"walker no longer inside")
@@ -166,6 +166,29 @@ func test_removed_resort_ejects_the_walker() -> void:
 	check_gt(feet.y,0.0,"walker is back above ground")
 	check(session._valid_actor(session.pedestrian),"walker stands on outdoor ground")
 	check(session.is_active(),"Explore continues")
+
+func test_removed_resort_never_drops_the_walker_into_water_or_an_obstruction() -> void:
+	if not await _start(): return
+	check(await _go_inside())
+	var door := Access.threshold(city,ANCHOR)
+	var door_cell := Vector2i(floori(door.origin.x),floori(door.origin.z))
+	# The resort is replaced by a flooded lot reaching the old front door.
+	for y: int in range(ANCHOR.y,door_cell.y+2):
+		for x: int in range(ANCHOR.x-1,ANCHOR.x+5):
+			city.building.put(x,y,0)
+			city.terrain.put(x,y,Terrain.SUBMERGED)
+			city.set_heights(x,y,2,4)
+	view.sample_chunks = [CityGeometry3D.build_chunk(city,Rect2i(16,16,16,16))]
+	view.revision += 1
+	view.geometry_rebuilt.emit(view.revision)
+	for frame: int in 4: await physics_frame
+	check(session.is_active(),"Explore continues")
+	check(not session.resort_service.is_inside(),"walker no longer inside")
+	check(not session.resort_service.ejection_pending(),"the ejection was settled against the rebuilt world")
+	check(not session.traversal.touches_water(session.pedestrian.global_position),"the walker is not left in the new water")
+	check(session._valid_actor(session.pedestrian,true),"the walker stands supported with full-body clearance")
+	var feet: Vector3 = session.pedestrian.global_position
+	check(Vector2(feet.x-door.origin.x,feet.z-door.origin.z).length()>.3,"the walker is not left on the flooded threshold")
 
 func test_recover_from_inside_reaches_road_and_marks_outside() -> void:
 	if not await _start(): return

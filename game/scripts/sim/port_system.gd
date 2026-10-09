@@ -49,12 +49,17 @@ const PASSABLE_BRIDGES: Array[StringName] = [
 var _ctx: SimContext
 var _ports: Array[Dictionary] = []
 var _ports_valid := false
+## Hash of the zone, building and flags layers the port list was built from.
+## The list is rebuilt whenever the map differs, so damage that no construction
+## reported (fires, disasters) is seen at once, and a reloaded city sees the
+## same ports as one that kept running.
+var _ports_hash := 0
 var _vehicles: Array[Dictionary] = []
 var _opened: Dictionary = {}
 ## Tiles of each opened port at its last report, by its _opened key. A port
 ## keeps its identity while it overlaps these tiles, so growing north or west
-## (which moves its first scanned tile) does not reopen it. Not saved: after a
-## load each key's own tile stands in for the set.
+## (which moves its first scanned tile) does not reopen it. Saved as
+## "opened_tiles"; a save without them falls back to each key's own tile.
 var _opened_tiles: Dictionary = {}
 var _centre := Vector2i(City.HALF, City.HALF)
 
@@ -179,8 +184,12 @@ func port_report() -> Array[Dictionary]:
 # ── Port enumeration ─────────────────────────────────────────────────────
 
 func _ensure_ports(city: City) -> void:
-	if not _ports_valid:
+	if not _ports_valid or _layers_hash(city) != _ports_hash:
 		_rebuild_ports(city)
+
+
+static func _layers_hash(city: City) -> int:
+	return hash([hash(city.zone.data), hash(city.building.data), hash(city.flags.data)])
 
 
 ## Group touching zone tiles of one port kind into ports.
@@ -217,6 +226,7 @@ func _rebuild_ports(city: City) -> void:
 		_count_pieces(city, port)
 		_ports.append(port)
 	_ports_valid = true
+	_ports_hash = _layers_hash(city)
 
 
 ## The rectangle covering two tiles.
@@ -956,9 +966,16 @@ func save() -> Dictionary:
 			entry["index"] = int(v.index)
 		vs.append(entry)
 	var opened: Array = []
+	var opened_tiles: Dictionary = {}
 	for k in _opened:
 		opened.append(String(k))
-	return {"vehicles": vs, "opened": opened, "centre": [_centre.x, _centre.y]}
+		var tiles: Array = []
+		var tile_set: Dictionary = _opened_tiles.get(k, {})
+		for p: Vector2i in tile_set:
+			tiles.append([p.x, p.y])
+		if not tiles.is_empty():
+			opened_tiles[String(k)] = tiles
+	return {"vehicles": vs, "opened": opened, "opened_tiles": opened_tiles, "centre": [_centre.x, _centre.y]}
 
 
 func load(data: Dictionary) -> void:
@@ -987,6 +1004,18 @@ func load(data: Dictionary) -> void:
 	_opened_tiles.clear()
 	for k in data.get("opened", []):
 		_opened[String(k)] = true
+	# Older saves have no tile sets; each key's own tile stands in for them.
+	var saved_tiles: Variant = data.get("opened_tiles", {})
+	if saved_tiles is Dictionary:
+		for k: Variant in (saved_tiles as Dictionary):
+			if not _opened.has(String(k)) or not saved_tiles[k] is Array:
+				continue
+			var tile_set: Dictionary = {}
+			for entry: Variant in saved_tiles[k]:
+				if entry is Array and (entry as Array).size() >= 2:
+					tile_set[Vector2i(int(entry[0]), int(entry[1]))] = true
+			if not tile_set.is_empty():
+				_opened_tiles[String(k)] = tile_set
 	var centre: Array = data.get("centre", [City.HALF, City.HALF])
 	_centre = Vector2i(int(centre[0]), int(centre[1]))
 	_ports_valid = false

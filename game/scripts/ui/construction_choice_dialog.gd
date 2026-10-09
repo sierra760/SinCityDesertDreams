@@ -13,6 +13,8 @@ signal chosen(key: StringName)
 signal cancelled
 
 const PANEL_WIDTH := 400
+## The key `chosen` carries when the optional middle button is pressed.
+const EXTRA_KEY := &"_extra"
 
 var title_label: Label
 var body_label: Label
@@ -20,6 +22,9 @@ var price_label: Label
 var option_rows: VBoxContainer
 var build_button: Button
 var cancel_button: Button
+## An optional third action between Cancel and Build (hidden unless `open`
+## names it); it emits `chosen(EXTRA_KEY)` whatever option is selected.
+var extra_button: Button
 var panel: PanelContainer
 ## One button per option, in the order given to `open`.
 var option_buttons: Array[Button] = []
@@ -73,6 +78,12 @@ func _build() -> void:
 	cancel_button.custom_minimum_size = Vector2(80, 44)
 	cancel_button.pressed.connect(cancel)
 	buttons.add_child(cancel_button)
+	extra_button = UIFactory.make_button("")
+	extra_button.name = "Extra"
+	extra_button.custom_minimum_size = Vector2(80, 44)
+	extra_button.pressed.connect(choose_extra)
+	extra_button.visible = false
+	buttons.add_child(extra_button)
 	build_button = UIFactory.make_button("Build")
 	build_button.custom_minimum_size = Vector2(80, 44)
 	build_button.pressed.connect(confirm)
@@ -89,13 +100,18 @@ func _build() -> void:
 
 ## Show the quote. `options` is a list of {key, label, cost}; the first one
 ## is selected. `action` names the Build button and `dismiss` the Cancel
-## button. Options the treasury cannot pay for stay listed but cannot be chosen.
-func open(title: String, body: String, options: Array, funds: int, action := "Build", dismiss := "Cancel") -> void:
+## button; `extra`, when given, names a third button between them. Options
+## the treasury cannot pay for stay listed but cannot be chosen.
+func open(title: String, body: String, options: Array, funds: int, action := "Build", dismiss := "Cancel", extra := "") -> void:
 	title_label.text = title
 	body_label.text = body
 	_clear_point = Vector2(-1, -1)
 	build_button.text = action
 	cancel_button.text = dismiss
+	extra_button.text = extra
+	extra_button.visible = not extra.is_empty()
+	# Each question starts centred, whatever an earlier one or a drag did.
+	_centre_horizontally()
 	_funds = funds
 	_options.clear()
 	for b in option_buttons:
@@ -144,7 +160,12 @@ func _fit_to_content() -> void:
 	var height := clampf(maxf(needed, 260.0), 0.0, maxf(260.0, bounds.size.y - 16.0))
 	panel.size.y = height
 	panel.position.y = maxf(8.0, (bounds.size.y - height) / 2.0)
+	_centre_horizontally()
 	_step_aside()
+
+
+func _centre_horizontally() -> void:
+	panel.position.x = maxf(0.0, (size.x - panel.size.x) / 2.0)
 
 
 ## Select an option by key; returns false when no such option is listed.
@@ -211,6 +232,14 @@ func confirm() -> void:
 		return
 	visible = false
 	chosen.emit(key)
+
+
+## Take the middle action.
+func choose_extra() -> void:
+	if not visible or not extra_button.visible:
+		return
+	visible = false
+	chosen.emit(EXTRA_KEY)
 
 
 func cancel() -> void:

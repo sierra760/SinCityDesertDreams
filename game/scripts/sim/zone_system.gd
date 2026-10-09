@@ -75,9 +75,14 @@ func _init() -> void:
 
 func setup(ctx: SimContext) -> void:
 	var people := _take_census(ctx.city, ctx.stats)
+	_add_port_jobs(ctx)
 	_previous_residential_units = _units.x
 	_block_people = people
-	_refresh_maps(ctx.city, people)
+	# A saved city keeps the maps it was saved with until the next growth pass;
+	# load() restores the block counts they were derived from.
+	var saved := ctx.city.restored_layers
+	if not (saved.has("density") and saved.has("growth")):
+		_refresh_maps(ctx.city, people)
 	_publish_demand(ctx.stats)
 
 
@@ -90,6 +95,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			_commute_success -= clampf(failed, 0.0, 1.0)
 	if phase == 0:
 		_take_census(ctx.city, ctx.stats)
+		_add_port_jobs(ctx)
 		_update_demand(ctx)
 		_chapels = _census[Buildings.CHAPEL]
 		_chapel_eligible = residents() > _chapels * Params.RESIDENTS_PER_CHAPEL
@@ -99,6 +105,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 	else:
 		_scan(ctx, City.HALF, City.WIDTH)
 		var people := _take_census(ctx.city, ctx.stats)
+		_add_port_jobs(ctx)
 		_refresh_maps(ctx.city, people)
 		_report_news(ctx)
 
@@ -234,6 +241,14 @@ func _take_census(city: City, stats: CityStats) -> PackedInt32Array:
 	_units = units
 	stats.jobs = (units.y + units.z) * Params.PEOPLE_PER_UNIT
 	return people
+
+
+## CityStats.jobs counts the ports' jobs too, as the population census does,
+## so the figure does not change meaning between the two passes of a month.
+func _add_port_jobs(ctx: SimContext) -> void:
+	var ports := ctx.system(&"ports")
+	if ports != null and ports.has_method("jobs"):
+		ctx.stats.jobs += int(ports.call("jobs"))
 
 
 # ── Demand ───────────────────────────────────────────────────────────────

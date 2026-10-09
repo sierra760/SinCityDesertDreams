@@ -62,6 +62,7 @@ func build_chrome(layer: CanvasLayer) -> void:
 	query_panel.offset_top = GameMenuBar.BAR_HEIGHT + 8
 	query_panel.offset_bottom = GameMenuBar.BAR_HEIGHT + 8
 	layer.add_child(query_panel)
+	query_panel.rows.minimum_size_changed.connect(schedule)
 
 
 ## Reflow the chrome for new display metrics (size, scale, safe area or
@@ -141,7 +142,10 @@ func _measure() -> void:
 	query_panel.set_meta("display_usable_rect",bounds)
 	query_panel.offset_left = query_panel.offset_right - minf(QueryPanel.PANEL_WIDTH,maxf(44,bounds.size.x - 16))
 	query_panel.offset_top = bounds.position.y + menu_bar.size.y + 8
-	query_panel.offset_bottom = minf(bounds.end.y - status_bar.size.y - 8, query_panel.offset_top + 500)
+	# The inspector is as tall as its rows, so no half row shows above its
+	# buttons; it scrolls only when they need more than the room above the footer.
+	var natural := query_panel.get_combined_minimum_size().y + query_panel.rows.get_combined_minimum_size().y
+	query_panel.offset_bottom = minf(bounds.end.y - status_bar.size.y - 8, query_panel.offset_top + ceilf(natural))
 	_host.presentation.refresh_query_pointer_hover()
 	if _host.street_names != null: _host.street_names.refresh_layout()
 

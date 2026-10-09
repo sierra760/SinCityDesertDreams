@@ -219,3 +219,92 @@ func test_graph_lines_use_their_own_scales() -> void:
 	check_eq(GraphsWindow.GraphCanvas.value_text(&"money", -1500), "-$1,500")
 	check_eq(GraphsWindow.GraphCanvas.value_text(&"population", 1500), "1,500")
 	canvas.free()
+
+
+# ── Window titles and notices from the menus pass ────────────────────────
+
+func test_retired_plant_notice_does_not_contradict_itself() -> void:
+	var retired := NoticeLines.render(&"plant_retired", {"name": "coal plant", "anchor": Vector2i(10, 10)}, "Dry Gulch", "Ada", 1990)
+	var body := String(retired["body"])
+	check(body.contains("will lose power until a replacement is built"), body)
+	check(not body.contains("are without power"), body)
+	check(body.contains("rebuild the plant before the lights go out across Dry Gulch"), body)
+
+
+func test_file_titles_use_title_case_and_the_brand_uses_a_dot() -> void:
+	var source := FileAccess.get_file_as_string("res://scripts/ui/city_file_flow.gd")
+	check(source.contains("\"Save Your City?\"") and source.contains("\"Replace Saved City?\""))
+	check(not source.contains("\"Save your city?\"") and not source.contains("\"Replace saved city?\""))
+	var chooser := RealWorldTerrainDialog.new()
+	check_eq((chooser.panel.get_meta("window_chrome").title_label as Label).text, "Real-World Terrain")
+	check_eq(chooser.download_button.text, "Download Terrain")
+	check_eq((chooser.sources_dialog.panel.get_meta("window_chrome").title_label as Label).text, "Terrain Data Sources")
+	chooser.free()
+	var loading := GameLoadingScreen.new()
+	var labels := loading.find_children("*", "Label", true, false)
+	var brands := labels.filter(func(label: Label) -> bool: return label.text.contains("DESERT DREAMS"))
+	check(not brands.is_empty() and (brands[0] as Label).text == "SIN CITY · DESERT DREAMS")
+	loading.free()
+
+
+# ── Construction prompts ─────────────────────────────────────────────────
+
+func test_city_limit_links_name_the_network_and_what_it_does() -> void:
+	var expected := {
+		"road": ["Carry this road across", "opens trade and travel between the two towns"],
+		"rail": ["Carry this railway across", "opens trade and travel between the two towns"],
+		"power": ["Carry this power line across", "lets the city sell its surplus power there"],
+		"water": ["Carry this water pipe across", "lets the city sell its surplus water there"],
+	}
+	for kind: String in expected:
+		var lines := NoticeLines.render(&"neighbor", {"neighbor": "Mesquite Bend", "cost": 50, "kind": kind}, "Dry Gulch", "Ada", 2000)
+		var body := String(lines["body"])
+		check(body.begins_with(expected[kind][0] + " the city limit to Mesquite Bend?"), body)
+		check(body.ends_with("The link costs $50 and %s." % expected[kind][1]), body)
+
+
+func test_utility_links_do_not_promise_imports() -> void:
+	for kind: String in ["power", "water"]:
+		var body := String(NoticeLines.render(&"neighbor", {"neighbor": "Mesquite Bend", "cost": 50, "kind": kind}, "Dry Gulch", "Ada", 2000)["body"])
+		check(body.contains("sell its surplus " + kind), body)
+		check(not body.contains("share"), "neighbors never cover a shortfall: " + body)
+
+
+func test_editing_stage_has_one_status_message() -> void:
+	check_eq(CitySession.editing_message("Dry Gulch"), "Shape the land, then found Dry Gulch.")
+	check_eq(CitySession.editing_message(""), "Shape the land, then found the city.")
+
+
+func test_ramp_prompts_say_highway_ramp_and_follow_the_tool() -> void:
+	var road := NoticeLines.render(&"onramp", {"cost": 25}, "Dry Gulch", "Ada", 2000)
+	check_eq(road["title"], "Add a Highway Ramp?")
+	check(String(road["body"]).begins_with("This road now meets the highway."), road["body"])
+	check(String(road["body"]).contains("$25"), road["body"])
+	var highway := NoticeLines.render(&"onramp_highway", {"cost": 25}, "Dry Gulch", "Ada", 2000)
+	check(String(highway["body"]).begins_with("The new highway passes this road."), highway["body"])
+	var batch := NoticeLines.render(&"onramp_batch", {"count": 3, "cost": 75}, "Dry Gulch", "Ada", 2000)
+	check_eq(batch["title"], "Add Highway Ramps?")
+	check(String(batch["body"]).begins_with("Add on-ramps where this road meets the highway? 3 sites · $75 total."), batch["body"])
+	check(String(NoticeLines.render(&"onramp_batch_highway", {"count": 2, "cost": 50}, "Dry Gulch", "Ada", 2000)["body"]).contains("new highway"))
+
+
+func test_locked_rewards_say_how_they_are_earned() -> void:
+	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MAYORS_RESIDENCE, "not yet offered to the city"),
+		"offered when the city reaches 2,000 people")
+	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_NEON_DOME, "not yet offered to the city"),
+		"offered when the city reaches 120,000 people")
+	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_CITY_HALL, "already built"), "already built", "other reasons pass through")
+	check_eq(Toolbar.reward_lock_reason(Tools.Kind.ROAD, ""), "")
+	var tip := Toolbar.tooltip_for(Tools.Kind.SUBWAY, "not available until 1910")
+	check(tip.ends_with("\nNot available until 1910."), "the tooltip reason reads as a sentence: " + tip)
+
+
+class DeclinedBase extends SimSystem:
+	func military_offer() -> Dictionary:
+		return {"pending": false, "answered": true, "accepted": false}
+
+
+func test_a_declined_base_says_the_council_turned_it_down() -> void:
+	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city", DeclinedBase.new()),
+		"the council turned down the base")
+	check(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city").contains("60,000"))

@@ -222,7 +222,7 @@ static func import_chunks(chunks: Dictionary, fallback_name: String) -> Dictiona
 	# Name and metadata.
 	city.name = fallback_name
 	if chunks.has("CNAM"):
-		var name := _read_name(chunks["CNAM"])
+		var name := city_name(_read_name(chunks["CNAM"]), fallback_name)
 		if name != "":
 			city.name = name
 	var tax := {"residential": 7, "commercial": 7, "industrial": 7}
@@ -232,7 +232,9 @@ static func import_chunks(chunks: Dictionary, fallback_name: String) -> Dictiona
 		city.founded_year = _meta(meta, META_FOUNDED_YEAR, 1900)
 		city.day = maxi(_meta(meta, META_DAYS, 0), 0)
 		city.funds = _meta(meta, META_FUNDS, 0)
-		city.status = clampi(_meta(meta, META_STATUS, 0), 0, 6)
+		# Six classes, 0..5. The population system re-derives the class from
+		# the imported city's residents when it first counts them.
+		city.status = clampi(_meta(meta, META_STATUS, 0), 0, PopulationParams.STATUS_NAMES.size() - 1)
 		city.difficulty = clampi(_meta(meta, META_DIFFICULTY, 1) - 1, City.Difficulty.EASY, City.Difficulty.HARD)
 		tax["residential"] = clampi(_meta(meta, META_TAX_RESIDENTIAL, 7), 0, 20)
 		tax["commercial"] = clampi(_meta(meta, META_TAX_COMMERCIAL, 7), 0, 20)
@@ -300,6 +302,28 @@ static func _read_name(data: PackedByteArray) -> String:
 	while end < data.size() and data[end] != 0:
 		end += 1
 	return data.slice(1, end).get_string_from_ascii().strip_edges()
+
+
+## The player-facing name for a stored city name. Some classic cities store
+## their DOS file name ("OROCANYON.SC2"): the extension goes, and the shouted
+## remainder becomes the file's own name when that reads better, otherwise it
+## is title-cased ("Orocanyon").
+static func city_name(stored: String, fallback_name: String = "") -> String:
+	var name := stored.strip_edges()
+	if not name.to_lower().ends_with(".sc2"):
+		return name
+	name = name.substr(0, name.length() - 4).strip_edges()
+	if name == "":
+		return ""
+	if name == name.to_upper() and name != name.to_lower() and not name.contains(" "):
+		var fallback := fallback_name.strip_edges()
+		if fallback.to_lower().ends_with(".sc2"):
+			fallback = fallback.substr(0, fallback.length() - 4).strip_edges()
+		if fallback != "" and fallback != fallback.to_upper() \
+				and fallback.to_lower().replace(" ", "") == name.to_lower().replace("_", ""):
+			return fallback
+		return name.capitalize()
+	return name
 
 
 ## Player signs: each tile marked with a sign slot gets that slot's text.

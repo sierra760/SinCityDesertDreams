@@ -43,14 +43,17 @@ func _enter() -> bool:
 	var snapshot := {"center":view.center,"quarter_turn":view.quarter_turn,
 		"camera_size":view.camera_size,"tool":host.chosen_tool(),
 		"presentation":host.presentation.capture_state()}
-	# Notices and dialogs suspend Explore and resume it once closed; an open
-	# Build window keeps it paused until the window is closed.
+	# Notices and dialogs suspend Explore and resume it once closed; a Build
+	# window opened during Explore keeps it paused until the window is closed.
 	host.exploration.modal_open = host.is_input_blocked
 	host.exploration.window_open = func() -> bool:
 		return is_instance_valid(host.window_manager) and host.window_manager.front() != null
 	if not host.exploration.enter(host.sim.city,view.center):
 		host.notices.show("Cannot Enter Explore Mode", "Explore mode requires a safe outdoor road. Build a road with clear space and try again.")
 		return false
+	# A Build window (Budget, Graphs, Options…) would sit over the walk with
+	# the pointer captured; Explore starts with them closed.
+	if is_instance_valid(host.window_manager): host.window_manager.close_all()
 	host.shell.update_explore_camera_chrome()
 	_snapshot = snapshot
 	host.drop_temporary_bulldoze()

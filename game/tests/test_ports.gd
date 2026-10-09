@@ -267,6 +267,36 @@ func test_growing_port_is_not_reopened() -> void:
 	_run_days(ctx, restored, 2 * GameClock.DAYS_PER_MONTH)
 	check_eq(_openings(), 1, "a loaded port is not reopened")
 
+
+func test_loaded_port_keeps_its_tiles_when_its_first_tile_leaves() -> void:
+	var parts := _airport_city()
+	var c: City = parts[0]
+	var ctx: SimContext = parts[1]
+	var ports := _make_ports(ctx)
+	_run_days(ctx, ports, 24 * GameClock.DAYS_PER_MONTH)
+	check(ports.port_report()[0].operating)
+	check_eq(_openings(), 1)
+	var saved := ports.save()
+	check(saved.has("opened_tiles"), "the opened port's tiles are saved")
+	var parsed: Dictionary = JSON.parse_string(JSON.stringify(saved))
+	var restored := _make_ports(ctx)
+	restored.load(parsed)
+	# The tile the port was first known by leaves it after the load, while the
+	# port grows a row to the north: it is still the same port.
+	c.zone.put(20, 20, Zones.make(Zones.NONE))
+	_zone_rect(c, Rect2i(20, 19, 12, 1), Zones.AIRPORT)
+	_power_rect(c, Rect2i(20, 19, 12, 1))
+	restored.networks_changed(ctx, Rect2i(19, 19, 13, 13))
+	_run_days(ctx, restored, 2 * GameClock.DAYS_PER_MONTH)
+	check(restored.port_report()[0].operating)
+	check_eq(_openings(), 1, "a loaded port that lost its first tile is not reopened")
+	# A save written before the tiles were saved still loads.
+	var older := parsed.duplicate(true)
+	older.erase("opened_tiles")
+	var from_older := _make_ports(ctx)
+	from_older.load(older)
+	check_eq(from_older.save()["opened"], parsed["opened"], "older saves keep their opened ports")
+
 # ── Seaports ─────────────────────────────────────────────────────────────
 
 func test_seaport_needs_shoreline() -> void:

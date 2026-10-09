@@ -439,6 +439,8 @@ func test_highway_ramp_and_tunnel() -> void:
 	b.apply(Tools.Kind.ROAD, Vector2i(12, 13), Vector2i(12, 14))
 	var behind := b.preview(Tools.Kind.ONRAMP, Vector2i(12, 12))
 	check(not behind["ok"], "a ramp needs the road beside it, along the highway")
+	check_eq(ConstructionFlow.sentence(String(behind["reason"])),
+		"Place a ramp on an empty tile next to both the road and the highway, where they meet.", "the refusal says where a ramp goes")
 	b.apply(Tools.Kind.ROAD, Vector2i(13, 12), Vector2i(13, 14))
 	var ramp := b.apply(Tools.Kind.ONRAMP, Vector2i(12, 12))
 	check(ramp["ok"], ramp["reason"])
@@ -692,9 +694,15 @@ func test_simulation_is_told_about_changes() -> void:
 	check(rect.has_point(Vector2i(13, 10)), "neighbours that were reshaped are inside the rect")
 	b.preview(Tools.Kind.ROAD, Vector2i(20, 10), Vector2i(22, 10))
 	check_eq(rects.size(), 1, "previews are silent")
+	# Crews go out only during an emergency; the preview says so as well.
 	var d := b.apply(Tools.Kind.DISPATCH_FIRE, Vector2i(30, 30))
-	check(d["ok"], "dispatch validates without a disaster system")
+	check(not d["ok"], "no crews are sent outside an emergency")
+	check_eq(d["reason"], Builder.REASON_NO_EMERGENCY)
 	check_eq(d["cost"], 0)
+	check_eq(b.preview(Tools.Kind.DISPATCH_FIRE, Vector2i(30, 30))["reason"], Builder.REASON_NO_EMERGENCY)
+	# A bare Builder with no disaster system does not check.
+	var bare := Builder.new(c, sim.stats)
+	check(bare.preview(Tools.Kind.DISPATCH_FIRE, Vector2i(30, 30))["ok"], "dispatch validates without a disaster system")
 	# Release the context/system reference cycle before the synchronous harness quits.
 	sim._ctx.systems.clear()
 	sim.systems.clear()

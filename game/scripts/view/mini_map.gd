@@ -26,6 +26,11 @@ const COLOR_CIVIC := Color(0.95, 0.95, 0.95)
 const COLOR_WATER := Color(0.37, 0.64, 0.62)
 const COLOR_DEFAULT := Color(0.55, 0.55, 0.55)
 const ZONE_ALPHA := 0.35
+## Explore sessions in this group supply `minimap_marker()`; while one is
+## active on the bound view, the minimap shows the player's position.
+const EXPLORE_MARKER_GROUP := &"explore_minimap_marker"
+const MARKER_FILL := Color(0.10, 0.36, 0.36)
+const MARKER_EDGE := Color(1.0, 0.98, 0.92)
 
 var city: City
 var view_3d: CityView3D
@@ -222,8 +227,42 @@ func frame_rect() -> Rect2:
 	return _margin.get_global_rect() if is_instance_valid(_margin) else Rect2()
 
 
+## The Explore player's marker in display pixels: {"point", "heading"} with a
+## unit heading on screen, or {} when no session is active on the bound view.
+func explore_marker() -> Dictionary:
+	if view_3d == null or _texture_rect == null or not is_inside_tree(): return {}
+	for source: Node in get_tree().get_nodes_in_group(EXPLORE_MARKER_GROUP):
+		if source.get("view") != view_3d or not source.has_method("minimap_marker"): continue
+		var marker: Dictionary = source.call("minimap_marker")
+		if marker.is_empty(): continue
+		var scale := _texture_rect.size.x / IMAGE_SIZE
+		var rotation := display_rotation()
+		var at: Vector2 = marker.position
+		var point := (RotationMapper.data_to_screen(at - Vector2(.5, .5), rotation) + Vector2(.5, .5)) * scale
+		var ahead := RotationMapper.data_to_screen(at - Vector2(.5, .5) + Vector2(marker.heading), rotation) \
+			- RotationMapper.data_to_screen(at - Vector2(.5, .5), rotation)
+		return {"point": point, "heading": ahead.normalized()}
+	return {}
+
+
+func _draw_explore_marker() -> bool:
+	var marker := explore_marker()
+	if marker.is_empty(): return false
+	var point: Vector2 = marker.point
+	var heading: Vector2 = marker.heading
+	var tip := point + heading * 8.0
+	var side := heading.orthogonal() * 3.5
+	_overlay.draw_colored_polygon(PackedVector2Array([tip, point + side, point - side]), MARKER_EDGE)
+	_overlay.draw_circle(point, 4.5, MARKER_EDGE)
+	_overlay.draw_circle(point, 3.0, MARKER_FILL)
+	_overlay.draw_line(point, point + heading * 6.5, MARKER_FILL, 1.5)
+	return true
+
+
 func _draw_viewport_rect() -> void:
 	if _overlay == null:
+		return
+	if _draw_explore_marker():
 		return
 	var rect := viewport_minimap_rect()
 	if rect == Rect2():

@@ -53,12 +53,14 @@ func limits(resort: StringName, funds: int) -> Dictionary:
 	return {"minimum": int(table["minimum"]), "maximum": clampi(funds, 0, int(table["maximum"]))}
 
 
-## {ok, reason}: refuses an unknown resort and a treasury below the minimum.
+## {ok, reason}: refuses an unknown resort and a treasury below the minimum
+## (the reason names the minimum and the treasury).
 func can_play(resort: StringName, funds: int) -> Dictionary:
 	if not ResortThemes.has(resort):
 		return {"ok": false, "reason": CasinoLines.UNKNOWN_RESORT}
-	if funds < int(CasinoParams.table_limits(resort)["minimum"]):
-		return {"ok": false, "reason": CasinoLines.NO_CREDIT}
+	var minimum := int(CasinoParams.table_limits(resort)["minimum"])
+	if funds < minimum:
+		return {"ok": false, "reason": CasinoLines.no_credit(minimum, funds)}
 	return {"ok": true, "reason": ""}
 
 

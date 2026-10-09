@@ -37,6 +37,8 @@ var _seeds := PackedInt32Array()
 var _tower_tiles := PackedInt32Array()
 ## Anchor tiles of consumer buildings.
 var _consumers := PackedInt32Array()
+## Stats of a city set up from a save, until load() completes the summary.
+var _restored_stats: CityStats = null
 
 
 func _init() -> void:
@@ -50,7 +52,15 @@ func _init() -> void:
 
 func setup(ctx: SimContext) -> void:
 	_refresh_conduction(ctx.city, Rect2i(0, 0, W, H))
-	_distribute(ctx)
+	if ctx.city.restored_layers.has("flags"):
+		# A saved city keeps the service and tower contents it was saved with
+		# until the next scheduled pass; distributing now would use weather the
+		# environment has not restored yet.
+		_restored_stats = ctx.stats
+		_summarize_saved(ctx.city, ctx.stats)
+	else:
+		_restored_stats = null
+		_distribute(ctx)
 
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
@@ -71,6 +81,20 @@ func load(data: Dictionary) -> void:
 	_shortage = bool(data.get("shortage", false))
 	_consumed = int(data.get("consumed", 0))
 	_treatment_adequate = bool(data.get("treatment_adequate", true))
+	if _restored_stats != null and not _summary.is_empty():
+		# The saved stats are restored before the systems load.
+		var capacity := maxi(0, _restored_stats.water_capacity)
+		_summary["capacity"] = capacity
+		_summary["demand"] = _restored_stats.water_demand
+		_summary["unwatered_buildings"] = _restored_stats.unwatered_buildings
+		_summary["stored"] = _restored_stats.water_stored
+		_summary["storage_capacity"] = _restored_stats.water_storage_capacity
+		_summary["consumed"] = _consumed
+		@warning_ignore("integer_division")
+		_summary["usage_percent"] = mini(100, _consumed * 100 / capacity) if capacity > 0 else 100
+		_summary["shortage"] = _shortage
+		_summary["treatment_adequate"] = _treatment_adequate
+	_restored_stats = null
 
 
 # ── Public getters ───────────────────────────────────────────────────────
@@ -337,6 +361,61 @@ func _distribute(ctx: SimContext) -> void:
 	elif _shortage and not short:
 		ctx.events.report(&"water_restored", {})
 	_shortage = short
+
+
+## Rebuild the summary of a saved city from its saved flags and facility
+## records without serving, draining or refilling anything. load() then puts
+## back the saved totals, which the last pass computed before later growth.
+func _summarize_saved(city: City, stats: CityStats) -> void:
+	var flags := city.flags.data
+	var bld := city.building.data
+	var zn := city.zone.data
+	var draws := Params.draws_water_table()
+	var multi := Params.multi_tile_table()
+	_consumers.resize(0)
+	var total_demand := 0
+	var storage_capacity := 0
+	var stored := 0
+	var i := 0
+	for y in H:
+		for x in W:
+			var id := bld[i]
+			if id == Buildings.WATER_TOWER:
+				storage_capacity += Params.TOWER_UNITS_PER_TILE
+				if (flags[i] & TileFlags.WATERED) != 0:
+					stored += Params.TOWER_UNITS_PER_TILE
+			elif id != Buildings.NONE and draws[id] != 0:
+				total_demand += Params.LOAD_PER_TILE
+				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
+					_consumers.append(i)
+			i += 1
+	var unwatered := _count_unserved(bld, flags)
+	var facilities: Array = []
+	for a in city.facilities:
+		var rec: Dictionary = city.facilities[a]
+		var id := Buildings.id_of(rec.get("key", &""))
+		if not Params.is_water_facility(id) or city.building_at(a.x, a.y) != id:
+			continue
+		var anchor: Vector2i = a
+		var tower_units := 0
+		if id == Buildings.WATER_TOWER:
+			var s := Buildings.size(id)
+			for dy in s.y:
+				for dx in s.x:
+					var t := (anchor.y + dy) * W + anchor.x + dx
+					if t < N and (flags[t] & TileFlags.WATERED) != 0:
+						tower_units += Params.TOWER_UNITS_PER_TILE
+		facilities.append({"anchor": anchor, "key": rec.get("key", &""),
+			"name": Buildings.display_name(id), "output": int(rec.get("output", 0)),
+			"stored": tower_units,
+			"powered": (flags[anchor.y * W + anchor.x] & TileFlags.POWERED) != 0})
+	var capacity := maxi(0, stats.water_capacity)
+	@warning_ignore("integer_division")
+	var usage := mini(100, _consumed * 100 / capacity) if capacity > 0 else 100
+	_summary = {"capacity": capacity, "demand": total_demand, "consumed": _consumed,
+		"usage_percent": usage, "shortage": _shortage, "unwatered_buildings": unwatered,
+		"stored": stored, "storage_capacity": storage_capacity,
+		"treatment_adequate": _treatment_adequate, "facilities": facilities}
 
 
 ## Breadth-first fill through water-conducting tiles from `seed`, neighbours

@@ -266,3 +266,54 @@ func test_malformed_or_conflicting_terrain_ownership_is_rejected() -> void:
 		var decoded := SaveFormat.decode_city(doc)
 		check(decoded.city == null, "per-tile ownership cannot also claim vertices")
 		check_ne(decoded.error, "")
+
+
+func test_a_damaged_snapshot_is_refused_before_anything_is_replaced() -> void:
+	var c := _sample_city()
+	var cases := [
+		{"systems": {"budget": {"carry": []}}},
+		{"systems": {"neighbors": {"connections": [1, 2, 3, 4]}}},
+		{"systems": {"zones": {"raw_demand": "lots"}}},
+		{"systems": {"population": []}},
+		{"systems": []},
+		{"stats": {"demand": 5}},
+		{"stats": {"ledger": [1, 2]}},
+		{"stats": {"population": {"x": 1}}},
+		{"clock_day": {"day": 1}},
+	]
+	for snapshot: Dictionary in cases:
+		var path := DIR.path_join("damaged.sc2d")
+		check_eq(SaveFormat.save(path, c, snapshot), OK)
+		var loaded := SaveFormat.load(path)
+		check(not bool(loaded["ok"]), "refused: %s" % JSON.stringify(snapshot))
+		check_eq(loaded["error"], SaveFormat.MESSAGE_DAMAGED)
+		check(loaded["city"] == null, "no half-loaded city is handed back")
+
+
+func test_a_running_city_snapshot_passes_the_shape_check() -> void:
+	var c := flat_city()
+	var sim := Simulation.new()
+	sim.setup(c, 3)
+	sim.advance_days(40)
+	var path := DIR.path_join("running.sc2d")
+	check_eq(SaveFormat.save(path, sim.city, sim.snapshot()), OK)
+	var loaded := SaveFormat.load(path)
+	check(bool(loaded["ok"]), str(loaded.get("detail", "")))
+	check((loaded["city"] as City).restored_layers.has("density"), "loaded layers are marked as saved ones")
+	sim.free()
+	for city_name in ["Adaven", "Oro Canyon"]:
+		var included := SaveFormat.load("res://assets/cities/%s.sc2d" % city_name)
+		check(bool(included["ok"]), "%s: %s" % [city_name, str(included.get("detail", ""))])
+
+
+func test_stats_tables_hold_whole_numbers_after_a_load() -> void:
+	var stats := CityStats.new()
+	stats.ledger[&"neighbor_trade"] = 0
+	stats.ledger[&"residential_tax"] = 1234
+	stats.inventions[&"legacy_tech"] = 1951
+	var restored := CityStats.new()
+	restored.from_dict(JSON.parse_string(JSON.stringify(stats.to_dict())))
+	for k in restored.ledger:
+		check_eq(typeof(restored.ledger[k]), TYPE_INT, "ledger %s" % k)
+	check_eq(typeof(restored.inventions[&"legacy_tech"]), TYPE_INT, "inventions")
+	check_eq(str(restored.inventions[&"legacy_tech"]), "1951")

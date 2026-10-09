@@ -201,3 +201,47 @@ func test_declining_a_neighbor_link_reports_the_built_road() -> void:
 	check(host.choice_dialog.is_open(), "the link is offered")
 	host.choice_dialog.cancel()
 	check_eq(_message(), "Built up to the city limit; no link made.")
+
+
+# ── Emergency crews ──────────────────────────────────────────────────────
+
+func test_dispatch_tools_refuse_without_an_emergency_and_drop_back_to_inspect() -> void:
+	host.select_tool(Tools.Kind.DISPATCH_FIRE)
+	host.construction.preview_drag(Vector2i(30, 30), Vector2i(30, 30))
+	check_eq(host.presentation.preview.caption, "Crews go out only during an emergency.", "the preview says why")
+	var result := host.construction.handle_drag(Vector2i(30, 30), Vector2i(30, 30))
+	check(not bool(result["ok"]), "nothing is dispatched outside an emergency")
+	check_eq(_message(), "Crews go out only during an emergency.")
+	# When the emergency is over the tool goes back to Inspect.
+	host.refresh_toolbar()
+	check_eq(host.tool, Tools.Kind.QUERY, "the dispatch tool is dropped")
+	check_eq(_message(), "The emergency is over; crews stood down.")
+
+
+# ── Messages ─────────────────────────────────────────────────────────────
+
+func test_inspector_refusals_expire_like_other_messages() -> void:
+	var city := host.sim.city
+	check(bool(host.builder.apply(Tools.Kind.POLICE, Vector2i(60, 60))["ok"]))
+	city.funds = 0
+	host.construction._on_demolish_requested(Vector2i(61, 61))
+	check(not _message().is_empty(), "the refusal is shown")
+	check_gt(host.message_seconds_left, 0.0, "and it expires")
+	host._process(8.0)
+	check_eq(_message(), "", "the default line returns")
+
+
+# ── Inspector ────────────────────────────────────────────────────────────
+
+func test_inspector_names_vacant_lots_and_buried_works() -> void:
+	var city := host.sim.city
+	check(bool(host.builder.apply(Tools.Kind.ZONE_RES_HIGH, Vector2i(40, 40), Vector2i(40, 40))["ok"]))
+	host.open_query(Vector2i(40, 40))
+	check_eq(host.query_panel.title_label.text, "Dense Residential (vacant lot)")
+	check_eq(host.query_panel.demolish_button.text, "Demolish")
+	check(bool(host.builder.apply(Tools.Kind.WATER_PIPE, Vector2i(30, 30), Vector2i(34, 30))["ok"]))
+	host.open_query(Vector2i(32, 30))
+	check_eq(host.query_panel.title_label.text, "Open ground")
+	check_eq(host.query_panel.demolish_button.text, "Remove water pipe", "Demolish says it digs up the pipe")
+	check(host.query_panel.demolish_button.tooltip_text.contains("water pipe"))
+	check_eq(city.building_at(32, 30), Buildings.NONE)

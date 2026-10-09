@@ -11,6 +11,9 @@ extends Control
 signal closed(choice: StringName)
 
 const PANEL_WIDTH := 460
+## How long an unrequested notice ignores Enter and choice presses after it
+## opens, so a key or tap meant for the city cannot answer it unseen.
+const UNREQUESTED_GRACE_MSEC := 300
 
 var title_label: Label
 var body_label: Label
@@ -21,6 +24,8 @@ var choice_buttons: Array[Button] = []
 var _shade: ColorRect
 var _title_bar: Control
 var _cancel_choice: StringName = &"ok"
+## Ticks (msec) when the current unrequested notice opened; -1 otherwise.
+var _unrequested_since := -1
 
 
 func _init() -> void:
@@ -71,8 +76,10 @@ func _build() -> void:
 
 ## Show the notice. `choices` is a list of [label, key] pairs; the first is
 ## the default. With `prompt` true a text field is shown holding `initial`.
+## A notice that arrives on its own (`focus_choice` false) keeps keyboard focus
+## on the panel, so a Space or Enter meant for the city cannot press a choice.
 func show_notice(title: String, body: String, choices: Array = [["OK", &"ok"]],
-		prompt := false, initial := "", cancel_choice: StringName = &"") -> void:
+		prompt := false, initial := "", cancel_choice: StringName = &"", focus_choice := true) -> void:
 	_cancel_choice = cancel_choice if cancel_choice != &"" else &"ok"
 	if cancel_choice == &"":
 		for pair in choices:
@@ -93,12 +100,17 @@ func show_notice(title: String, body: String, choices: Array = [["OK", &"ok"]],
 		var key := StringName(String(pair[1]))
 		var b := UIFactory.make_button(label)
 		b.custom_minimum_size = Vector2(80, 44)
-		b.pressed.connect(func() -> void: dismiss(key))
+		b.pressed.connect(func() -> void:
+			if not in_grace_period(): dismiss(key))
 		button_row.add_child(b)
 		choice_buttons.append(b)
 	visible = true
 	panel.size.y = maxf(panel.size.y,260.0)
-	UIFactory.contain_modal_focus(self,line_edit if prompt else choice_buttons[0] if not choice_buttons.is_empty() else null)
+	# The panel itself takes focus only for an unrequested notice; Escape
+	# then dismisses it and Enter picks the first (safe) choice.
+	focus_mode = Control.FOCUS_NONE if prompt or focus_choice else Control.FOCUS_ALL
+	_unrequested_since = -1 if prompt or focus_choice else Time.get_ticks_msec()
+	UIFactory.contain_modal_focus(self,line_edit if prompt else self if not focus_choice else choice_buttons[0] if not choice_buttons.is_empty() else null)
 
 
 ## Closing the chrome/Escape never submits a destructive choice. Ordinary
@@ -116,6 +128,13 @@ func is_open() -> bool:
 	return visible
 
 
+## True while an unrequested notice has only just opened: Enter and choice
+## presses are ignored then (Escape and the close button still dismiss it
+## with its safe choice).
+func in_grace_period() -> bool:
+	return _unrequested_since >= 0 and Time.get_ticks_msec() - _unrequested_since < UNREQUESTED_GRACE_MSEC
+
+
 func prompt_text() -> String:
 	return line_edit.text.strip_edges()
 
@@ -124,9 +143,13 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventKey and (event as InputEventKey).pressed:
 		var key := event as InputEventKey
 		if key.keycode == KEY_ESCAPE:
-			dismiss()
+			if not key.echo: dismiss()
 			accept_event()
 		elif key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER:
-			if not choice_buttons.is_empty() and not line_edit.visible:
+			# A held Enter (echo), or one right as an unrequested notice
+			# opened, was meant for something else: it never answers.
+			if key.echo or in_grace_period():
+				accept_event()
+			elif not choice_buttons.is_empty() and not line_edit.visible:
 				(choice_buttons[0] as Button).pressed.emit()
 				accept_event()

@@ -7,7 +7,7 @@ const MainScene := preload("res://scenes/main.tscn")
 const NOTICE := "res://data/real_world_terrain_notices.txt"
 const DIALOG := "res://scripts/ui/terrain_sources_dialog.gd"
 const IDS := ["aws-terrain-joerd","esa-worldcover-2021-v200"]
-const PRESET_SHA := "1d10e15fa942558af083e683c6f6672f06180832d778554ddd559570c0a5329f"
+const PRESET_SHA := "f034a94284df44582b58e0361248344a687ce17feed5bb0df2f20ecb9eb1c647"
 
 func test_notices_bundled_and_reachable_offline() -> void:
  check(FileAccess.file_exists(NOTICE), "offline source notices must be bundled")

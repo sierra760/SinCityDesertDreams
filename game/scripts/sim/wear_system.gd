@@ -74,7 +74,11 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_scan()
 	for cat in COUNT:
 		var name: StringName = TransportParams.CATEGORY_KEYS[cat]
-		if _counts[cat] == 0:
+		var candidates: Array = _candidates[cat]
+		# Only pieces wear can remove accrue wear: a category of subway portals
+		# or pipe crossings alone would otherwise build a backlog that destroys
+		# the next losable tile the player builds.
+		if _counts[cat] == 0 or candidates.is_empty():
 			_wear[cat] = 0
 			continue
 		var shortfall := 100 - clampi(ctx.stats.funding_of(name), 0, 100)
@@ -82,9 +86,8 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 			var jitter := ctx.rng.range_int(100 - TransportParams.WEAR_JITTER_PERCENT,
 				100 + TransportParams.WEAR_JITTER_PERCENT)
 			@warning_ignore("integer_division")
-			_wear[cat] += _counts[cat] * shortfall * jitter / 100
+			_wear[cat] += candidates.size() * shortfall * jitter / 100
 		var threshold: int = TransportParams.WEAR_THRESHOLD[name]
-		var candidates: Array = _candidates[cat]
 		while _wear[cat] >= threshold and not candidates.is_empty():
 			var pick := ctx.rng.below(candidates.size())
 			var tile: int = candidates[pick]

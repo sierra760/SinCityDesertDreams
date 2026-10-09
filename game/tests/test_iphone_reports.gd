@@ -169,3 +169,99 @@ func test_fresh_short_landscape_population_has_no_sideways_reading() -> void:
 	await HostFixture.settle(self, 10)
 	var scroll: ScrollContainer=population._root.get_meta("window_chrome").body_scroll
 	check(scroll.get_h_scroll_bar().max_value<=scroll.get_h_scroll_bar().page+1.0,"fresh landscape narrative fits")
+
+func test_phone_row_and_table_labels_never_stack_letters() -> void:
+	root.size=Vector2i(390,844)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763))
+	await HostFixture.settle(self, 10)
+	var budget := host.open_window("budget") as BudgetWindow
+	await HostFixture.settle(self, 10)
+	var amount: Label
+	for label: Label in budget._root.get_meta("window_chrome").body.find_children("*","Label",true,false):
+		if label.text=="Amount": amount=label
+	check(amount!=null,"bond amount caption is present")
+	if amount!=null:
+		check_eq(amount.get_line_count(),1,"Amount stays one word beside the bond stepper")
+		check(amount.size.y<=40.0,"Amount keeps a single line's height")
+	host.window_manager.close_all()
+	var population := host.open_window("population") as PopulationWindow
+	await HostFixture.settle(self, 10)
+	var ages := 0
+	for label: Label in population._body.find_children("*","Label",true,false):
+		if label.get_parent() is GridContainer and label.text.contains("-") and not label.text.contains(" "):
+			ages += 1
+			check_eq(label.get_line_count(),1,"age band %s reads on one line" % label.text)
+	check(ages>=10,"age table rows are present")
+	var scroll: ScrollContainer=population._root.get_meta("window_chrome").body_scroll
+	check(scroll.get_h_scroll_bar().max_value<=scroll.get_h_scroll_bar().page+1.0,"age table fits without sideways reading")
+
+func test_notice_body_fits_its_content_and_keeps_the_prompt_field_visible() -> void:
+	var notice: NoticeDialog = host.notice_dialog
+	var text := ""
+	for line in 4: text += "Line %d of a short notice.\n" % line
+	for display: Dictionary in [{"size":Vector2i(1440,900),"mobile":false},{"size":Vector2i(390,844),"mobile":true}]:
+		root.size=display.size
+		if display.mobile: host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763))
+		else: host.display_layout.refresh_with_metrics(root.size,1)
+		await HostFixture.settle(self, 10)
+		notice.show_notice("Secret codes",text,[["Submit",&"submit"],["Never mind",&"cancel"]],true,"")
+		await HostFixture.settle(self, 10)
+		var chrome: Dictionary=notice.panel.get_meta("window_chrome")
+		var scroll: ScrollContainer=chrome.body_scroll
+		var bounds := host.display_layout.logical_rect().grow(.1)
+		check(bounds.encloses(notice.panel.get_global_rect()),"notice stays inside the usable rect at %s" % [display.size])
+		check(scroll.get_v_scroll_bar().max_value<=scroll.size.y+1.0,"a notice that fits shows all its text without scrolling at %s" % [display.size])
+		check(scroll.get_global_rect().grow(.5).encloses(notice.line_edit.get_global_rect()),"prompt field is not clipped at %s" % [display.size])
+		for button: Button in notice.choice_buttons:
+			check(bounds.encloses(button.get_global_rect()),"choice %s stays reachable" % button.text)
+		notice.dismiss(&"cancel")
+		await HostFixture.settle(self, 2)
+	# Content taller than the display scrolls inside the body; actions stay put.
+	var long_text := ""
+	for line in 80: long_text += "Paragraph %d of a very long notice.\n" % line
+	notice.show_notice("Long",long_text)
+	await HostFixture.settle(self, 10)
+	var long_scroll: ScrollContainer=notice.panel.get_meta("window_chrome").body_scroll
+	check(long_scroll.get_v_scroll_bar().max_value>long_scroll.size.y+1.0,"long notice scrolls inside its body")
+	check(host.display_layout.logical_rect().grow(.1).encloses(notice.panel.get_global_rect()),"long notice stays inside the usable rect")
+	for button: Button in notice.choice_buttons:
+		check(host.display_layout.logical_rect().grow(.1).encloses(button.get_global_rect()),"long notice action stays reachable")
+	notice.dismiss()
+
+# Guards against: Help opened on the title and then in a city moves between UI
+# layers; the move must not make its narrow table forget its cards, which
+# left captions unfitted (one letter per line) and stale cards behind.
+func test_help_moved_from_the_title_to_a_city_keeps_its_fitted_captions() -> void:
+	root.size=Vector2i(375,667)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,375,647))
+	await HostFixture.settle(self, 10)
+	var was_in_game := host.in_game
+	host.in_game = false
+	var help := host.open_window("help")
+	await HostFixture.settle(self, 10)
+	check(help.get_parent()==host.modal_layer,"Help from the title sits on the title layer")
+	var tables: Array = help.find_children("*","GridContainer",true,false).filter(func(n: Node) -> bool: return n is UIFactory.ResponsiveTable)
+	check(not tables.is_empty(),"Help has a responsive table")
+	var before: Array[int] = []
+	for table: Node in tables: before.append(table.get_child_count())
+	host.window_manager.close_all()
+	host.in_game = true
+	help = host.open_window("help")
+	await HostFixture.settle(self, 10)
+	check(help.get_parent()==host.ui_layer,"Help in a city moves to the city layer")
+	root.size=Vector2i(390,844)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763))
+	await HostFixture.settle(self, 10)
+	for i in tables.size():
+		var table: Node = tables[i]
+		check_eq(table.get_child_count(),before[i],"the move leaves no stale cards in the table")
+		var cards: Array = table.get("_cards")
+		check(not cards.is_empty(),"the narrow table still lays out its cards")
+		for card: Node in cards:
+			for row: Node in card.get_children():
+				if not row is HBoxContainer or row.get_child_count()<2: continue
+				var caption := row.get_child(0) as Label
+				if caption==null or caption.text.is_empty(): continue
+				check(caption.get_line_count()<=caption.text.split(" ").size(),"caption '%s' keeps whole words on a line" % caption.text)
+	host.window_manager.close_all()
+	host.in_game = was_in_game

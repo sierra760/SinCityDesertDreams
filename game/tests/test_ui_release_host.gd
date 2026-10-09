@@ -79,6 +79,10 @@ func test_save_as_collision_cancel_preserves_file() -> void:
 	cleanup_paths.append(path)
 	check_eq(host.files.save_city_as("ui-release-collision"), path)
 	var before := FileAccess.get_file_as_bytes(path)
+	# The open city now has another file; saving over its own file never asks.
+	var other := CityFileFlow.save_path_for("ui-release-collision-other")
+	cleanup_paths.append(other)
+	check_eq(host.files.save_city_as("ui-release-collision-other"), other)
 	host.sim.city.funds -= 100
 	host.files.request_save_as("ui-release-collision?")
 	check(host.notice_dialog.is_open())
@@ -176,14 +180,13 @@ func test_open_inspector_refreshes_after_simulation_signal() -> void:
 func test_native_close_during_save_does_not_nest_modal() -> void:
 	host.files.open_save_dialog()
 	root.close_requested.emit()
-	check(not host.notice_dialog.is_open())
-	check_eq(host.modal_depth, 1)
-	host.save_dialog.cancel_button.pressed.emit()
-	check_eq(host.modal_depth, 0)
-	check(not host.is_input_blocked())
-	check_eq(files.quit_count, 0, "the dialog's own cancel never quits by itself")
+	# Save As is closed as Cancel would close it; the close goes straight on.
+	check(not host.save_dialog.is_open(), "the simple dialog closes")
+	check(host.notice_dialog.is_open(), "the close continues with the unsaved-changes prompt")
+	check_eq(host.modal_depth, 1, "only the prompt holds input; nothing is nested")
+	check_eq(files.quit_count, 0, "nothing quits before the player answers")
 	host._process(0.0)
-	check(host.notice_dialog.is_open(), "the held close resumes with the unsaved-changes prompt")
+	check_eq(host.modal_depth, 1, "no second prompt is stacked")
 	host.notice_dialog.dismiss(&"discard")
 	check_eq(files.quit_count, 1)
 

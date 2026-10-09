@@ -26,6 +26,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var chrome := UIFactory.make_window_chrome("Industries")
 	_root = chrome["root"]
+	# Wide enough for the sector table and its tax steppers at desktop size.
+	_root.size = Vector2(780, 540)
 	_body = chrome["body"]
 	var close_button: Button = chrome["close_button"]
 	close_button.pressed.connect(close)
@@ -172,6 +174,9 @@ func _build() -> void:
 		spinner.min_value = 0
 		spinner.max_value = EconomyParams.SECTOR_TAX_MAX
 		spinner.step = 1
+		# A one- or two-digit rate needs only a narrow value field.
+		spinner.get_line_edit().custom_minimum_size.x = 48
+		spinner.get_line_edit().size_flags_horizontal = Control.SIZE_FILL
 		spinner.value_changed.connect(_on_tax_changed.bind(i))
 		_grid.add_child(name_label)
 		_grid.add_child(demand_label)
@@ -203,6 +208,7 @@ func _on_tax_changed(value: float, index: int) -> void:
 	if economy != null and economy.has_method("sector_taxes_changed"):
 		economy.call("sector_taxes_changed")
 	refresh()
+	BudgetWindow.refresh_other_windows(self)
 
 
 func _on_month_ended(_year: int, _month: int) -> void:

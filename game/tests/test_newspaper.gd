@@ -301,6 +301,33 @@ func test_save_load_round_trip() -> void:
 	check_eq(s2.pending().size(), 0)
 
 
+func test_story_numbers_read_the_same_after_a_load() -> void:
+	var ctx := make_ctx()
+	var s := make_system(ctx)
+	s.submit(ctx, &"port_opened", {"kind": Zones.AIRPORT, "at": Vector2i(10, 10)})
+	s.submit(ctx, &"crime_wave", {"count": 7, "at": Vector2i(64, 64)})
+	var parsed: Dictionary = JSON.parse_string(JSON.stringify(s.save()))
+	var ctx2 := make_ctx()
+	var s2 := make_system(ctx2)
+	s2.load(parsed)
+	for story in s2.pending():
+		for k in story["args"]:
+			var v: Variant = story["args"][k]
+			check(typeof(v) != TYPE_FLOAT, "%s.%s is a whole number again" % [story["kind"], k])
+	s.monthly(ctx, 0)
+	s2.monthly(ctx2, 0)
+	var port := ""
+	for st in s2.latest_issue()["stories"]:
+		if st["kind"] == "port_opened":
+			port = st["headline"] + " " + st["body"]
+	check(port.contains("Airport"), "the reloaded port story names the airport: " + port)
+	check(not port.contains("8.0"), "no float zone kind in the story")
+	var first: Array = s.latest_issue()["stories"]
+	var second: Array = s2.latest_issue()["stories"]
+	for i in first.size():
+		check_eq(second[i]["headline"], first[i]["headline"], "same paper after reload")
+
+
 func test_advice_lists_needs_most_urgent_first() -> void:
 	var ctx := make_ctx()
 	var s := make_system(ctx)

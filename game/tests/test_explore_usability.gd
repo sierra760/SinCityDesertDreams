@@ -154,3 +154,50 @@ func test_platform_destination_header_and_change_hint() -> void:
 	hud.set_transit_status({"passenger":true,"current_stop":"North","next_stop":"West","destination":"East","door_state":"closed"})
 	check(hud._transit_label.text.contains("To: East"),"riders see the final stop")
 	hud.free()
+
+func test_keyboard_hint_is_shown_once_while_paused() -> void:
+	var hud := _hud()
+	check(hud._hint_panel.visible,"fixture: the entry hint is showing")
+	hud.set_suspended(true)
+	check(not hud._hint_panel.visible,"the bottom hint hides while the paused menu carries it")
+	check(hud._panel_hint_label.visible and not hud._panel_hint_label.text.is_empty(),"the paused menu lists the controls")
+	hud.free()
+
+# Guards against: a touch-only Windows or Linux tablet (no mouse) getting
+# mouse-look Explore with no on-screen controls.
+func test_desktop_explore_follows_the_pointer_in_use() -> void:
+	var hud := _hud()
+	var session := CityExplorationController.new()
+	session.hud = hud
+	session.follow_pointer_kind = true
+	session.set_touch_controls_enabled(false)
+	var changes: Array[bool] = []
+	session.touch_controls_changed.connect(func(on: bool) -> void: changes.append(on))
+	check(not session.touch_controls_enabled(),"a desktop starts with mouse and keyboard")
+	# Mouse movement the engine emulates from a touch does not count as a mouse.
+	var emulated := InputEventMouseMotion.new()
+	emulated.device = InputEvent.DEVICE_ID_EMULATION
+	emulated.relative = Vector2(4,0)
+	session.note_pointer_event(emulated)
+	check(not session.touch_controls_enabled())
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	touch.position = Vector2(200,200)
+	session.note_pointer_event(touch)
+	check(session.touch_controls_enabled(),"the first real touch turns on the touch controls")
+	check(hud._touch_enabled,"the HUD switches to its touch rows")
+	session.note_pointer_event(emulated)
+	check(session.touch_controls_enabled(),"emulated mouse from that touch keeps touch controls")
+	var moved := InputEventMouseMotion.new()
+	moved.relative = Vector2(3,1)
+	session.note_pointer_event(moved)
+	check(not session.touch_controls_enabled(),"real mouse movement returns to mouse and keyboard")
+	check(not hud._touch_enabled)
+	check_eq(changes,[true,false] as Array[bool])
+	# Mobile platforms never switch away from touch.
+	session.follow_pointer_kind = false
+	session.set_touch_controls_enabled(true)
+	session.note_pointer_event(moved)
+	check(session.touch_controls_enabled(),"touch-first platforms keep touch controls")
+	session.free()
+	hud.free()

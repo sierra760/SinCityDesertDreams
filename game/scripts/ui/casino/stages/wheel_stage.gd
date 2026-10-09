@@ -27,6 +27,11 @@ func spot_order() -> Array[StringName]:
 	return [&"seg_1", &"seg_2", &"seg_5", &"seg_10", &"seg_20", &"emblem_a", &"emblem_b"]
 
 
+## A first chip goes on the 1 segment, the wheel's lowest odds.
+func default_spot() -> StringName:
+	return &"seg_1"
+
+
 func spot_label(spot: StringName) -> String:
 	var emblems := ResortThemes.wheel_emblems(resort)
 	if spot == &"emblem_a" and emblems.size() > 0:

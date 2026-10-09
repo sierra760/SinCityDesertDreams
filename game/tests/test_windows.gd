@@ -267,7 +267,7 @@ func test_industries_table_and_sector_tax() -> void:
 func test_budget_shows_network_condition() -> void:
 	var text := BudgetWindow.condition_text(sim)
 	check(text.begins_with("Condition: "), text)
-	check(text.contains("Roads ") and text.contains("% worn"), text)
+	check_eq(text, "Condition: all networks in good repair", "fully funded networks are not listed one by one")
 	check(BudgetWindow.condition_text(null).is_empty())
 
 
@@ -276,9 +276,13 @@ func test_status_bar_lists_the_status_lines() -> void:
 	_mount(bar)
 	bar.refresh(sim)
 	var statistics := sim.get_system(&"statistics")
-	var lines: Array = statistics.call("status_lines")
+	var lines: Array = statistics.call("status_lines_now")
 	check_eq(bar.population_label.tooltip_text, "\n".join(PackedStringArray(lines)))
 	check(bar.population_label.tooltip_text.contains("Rain "), bar.population_label.tooltip_text)
+	# The summary is the city as it is now, not as of the last monthly report.
+	check(bar.population_label.tooltip_text.contains(sim.date_text()), bar.population_label.tooltip_text)
+	check(bar.population_label.tooltip_text.contains(NoticeLines.money(sim.city.funds)), bar.population_label.tooltip_text)
+	check(bar.population_label.tooltip_text.begins_with(sim.city.name + ", a "), bar.population_label.tooltip_text)
 
 
 # ── Ordinances ───────────────────────────────────────────────────────────

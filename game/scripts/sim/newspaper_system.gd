@@ -365,7 +365,7 @@ func load(data: Dictionary) -> void:
 			var args: Variant = d.get("args", {})
 			_queue.append({
 				"kind": StringName(String(d.get("kind", "generic"))),
-				"args": args if typeof(args) == TYPE_DICTIONARY else {},
+				"args": _json_ints(args) if typeof(args) == TYPE_DICTIONARY else {},
 				"priority": int(d.get("priority", 0)),
 				"born_day": int(d.get("born_day", 0)),
 				"seq": int(d.get("seq", 0)),
@@ -376,3 +376,27 @@ func load(data: Dictionary) -> void:
 	_seen_day = -1
 	_last_issue = {}
 	_sort_queue()
+
+
+## JSON reads every number back as a float. Story arguments that were whole
+## numbers when queued (counts, years, zone kinds) become ints again, so a
+## story printed after a load reads like one printed before it.
+static func _json_ints(value: Variant) -> Variant:
+	match typeof(value):
+		TYPE_FLOAT:
+			var f: float = value
+			if is_finite(f) and f == floorf(f) and absf(f) < 9.0e15:
+				return int(f)
+			return f
+		TYPE_DICTIONARY:
+			var out := {}
+			var d: Dictionary = value
+			for k in d:
+				out[k] = _json_ints(d[k])
+			return out
+		TYPE_ARRAY:
+			var out: Array = []
+			for v in value:
+				out.append(_json_ints(v))
+			return out
+	return value

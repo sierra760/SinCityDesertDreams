@@ -40,7 +40,7 @@ func test_tapping_locked_tools_explains_without_selecting_in_both_layouts() -> v
 		check_eq(toolbar.active_tool,Tools.Kind.ROAD,"lock explanation preserves the active tool")
 		if details == null: continue
 		var text := details.get_node("Body/Reason") as Label
-		check(text.text.contains("not available until") and text.text.contains("1910"),"explanation includes the actual unlock condition")
+		check(text.text.contains("Not available until") and text.text.contains("1910"),"explanation includes the actual unlock condition")
 		var title := details.get_node("Body/Identity") as Label
 		check(title.text.contains(Tools.display_name(Tools.Kind.SUBWAY)),"icon-only details name the tool")
 		var close := details.get_node("Body/Close") as Button

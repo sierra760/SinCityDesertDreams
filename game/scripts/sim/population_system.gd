@@ -28,6 +28,10 @@ var _complaints: Array[Dictionary] = []
 ## Last census: residents, commercial, industrial, abandoned, schools, colleges,
 ## hospitals, libraries, museums.
 var _census: Dictionary = {}
+## True once this system has counted the city's people: after a population
+## pass, or when a city that arrived with homes but no head count was settled.
+var _settled := false
+var _ctx_ref: WeakRef = null
 
 
 func _init() -> void:
@@ -53,9 +57,17 @@ func setup(ctx: SimContext) -> void:
 		for i in COHORTS:
 			_education[i] = stats.cohorts[i] * stats.education_quotient
 			_health[i] = stats.cohorts[i] * stats.life_expectancy
+	_ctx_ref = weakref(ctx)
+	if ctx.city.restored_layers.is_empty() and ctx.city.day > 0:
+		# A city that arrives with a history (an imported classic city): count
+		# it now so it opens with its people. A city founded today has no homes
+		# yet, and a saved city is settled, when it needs it, after load().
+		_run_census(ctx)
+		_settle_city(ctx)
 
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
+	_settled = true
 	_run_census(ctx)
 	var services := _service_capacity(ctx)
 	_advance_demographics(ctx, services)
@@ -262,6 +274,8 @@ func _advance_demographics(ctx: SimContext, services: Dictionary) -> void:
 		_health.fill(0)
 		stats.cohorts.fill(0)
 		stats.population = 0
+		# Everyone left: a big enough city makes that news once.
+		_report_exodus(ctx, previous, previous)
 		return
 	var incoming := maxi(0, target - previous)
 	var outgoing := maxi(0, previous - target)
@@ -481,6 +495,63 @@ static func job_shortfall_percent(stats: CityStats, jobs: int) -> int:
 	return (workers - jobs) * 100 / workers
 
 
+# ── Settling an uncounted city ───────────────────────────────────────────
+
+## A city that arrives with homes but no head count (an imported classic city,
+## or an included city saved before its first population pass) is given its
+## residents at once, with no randomness: they arrive as immigrants would, and
+## the headline scores, employment and settlement class are worked out from
+## them. Without this the city would read Population 0 until day 14 and then
+## take in everyone in one month. Requires a census already taken.
+func _settle_city(ctx: SimContext) -> void:
+	if _settled:
+		return
+	_settled = true
+	var stats := ctx.stats
+	if not _uncounted(stats):
+		return
+	var target := residents()
+	if target <= 0:
+		return
+	var p: Array[int] = []
+	p.resize(COHORTS)
+	p.fill(0)
+	_education.fill(0)
+	_health.fill(0)
+	_immigrate(p, target)
+	stats.cohorts = PackedInt32Array(p)
+	var total := 0
+	for n in p:
+		total += n
+	stats.population = total
+	var services := _service_capacity(ctx)
+	_publish_scores(ctx, services)
+	_update_employment(ctx)
+	# A stored class above what the people support (older imports carried
+	# one) comes down to it; a lower one rises month by month as news.
+	ctx.city.status = clampi(ctx.city.status, 0, derived_status(stats.total_population()))
+
+
+## True when the stats hold no head count at all.
+static func _uncounted(stats: CityStats) -> bool:
+	if stats.population > 0:
+		return false
+	for n in stats.cohorts:
+		if n > 0:
+			return false
+	return true
+
+
+## The settlement class a population belongs in.
+static func derived_status(total: int) -> int:
+	var status := 0
+	var thresholds := PopulationParams.STATUS_THRESHOLDS
+	for i in range(1, thresholds.size()):
+		if total > thresholds[i]:
+			status = i
+	return status
+
+
 # ── Settlement class ─────────────────────────────────────────────────────
 
 func _update_status(ctx: SimContext) -> void:
@@ -489,6 +560,10 @@ func _update_status(ctx: SimContext) -> void:
 	var last := PopulationParams.STATUS_THRESHOLDS.size() - 1
 	if city.status < 0:
 		city.status = 0
+	if city.status > last:
+		# Not a class at all (older imports carried one): take the class the
+		# population belongs in, quietly.
+		city.status = derived_status(total)
 	if city.status >= last:
 		return
 	if total > PopulationParams.STATUS_THRESHOLDS[city.status + 1]:
@@ -583,6 +658,7 @@ func save() -> Dictionary:
 		"exodus_reported": _exodus_reported,
 		"complaints": complaint_rows,
 		"census": _census.duplicate(),
+		"settled": _settled,
 	}
 
 
@@ -603,3 +679,24 @@ func load(data: Dictionary) -> void:
 	var saved: Dictionary = data.get("census", {})
 	for k in _census:
 		_census[k] = int(saved.get(k, 0))
+	# Saves from before this flag existed may never have been counted. A save
+	# that carries the flag is never settled again: one written before the
+	# first population pass gets its people on day 14 exactly as it would
+	# have without the reload.
+	var legacy := not data.has("settled")
+	_settled = bool(data.get("settled", false))
+	var ctx: SimContext = _ctx_ref.get_ref() if _ctx_ref != null else null
+	if ctx != null and ctx.city != null:
+		if legacy:
+			if _uncounted(ctx.stats):
+				var counted := _census.duplicate()
+				var jobs := ctx.stats.jobs
+				_run_census(ctx)
+				if residents() <= 0:
+					# Nobody to count: leave the saved figures exactly as they were.
+					_census = counted
+					ctx.stats.jobs = jobs
+				_settle_city(ctx)
+			_settled = true
+		if ctx.city.status < 0 or ctx.city.status >= PopulationParams.STATUS_NAMES.size():
+			ctx.city.status = derived_status(ctx.stats.total_population())

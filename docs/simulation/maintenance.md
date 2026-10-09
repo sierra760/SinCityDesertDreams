@@ -77,11 +77,13 @@ costs to maintain and how many tiles it has.
    `count × UPKEEP_CENTS[category] / 100 × funding / 100` dollars per year.
    Roads are the cheapest per tile; bridges, subways and tunnels the
    dearest.
-3. **Accrual.** On day 18 each category with at least one tile and funding
-   below 100 gains `count × (100 − funding)` wear points, jittered by a
-   random factor between `100 − WEAR_JITTER_PERCENT` and
-   `100 + WEAR_JITTER_PERCENT` percent. A category at full funding gains
-   nothing, and a category with no tiles has its wear reset to zero.
+3. **Accrual.** On day 18 each category with at least one losable tile and
+   funding below 100 gains `losable × (100 − funding)` wear points, where
+   `losable` counts the tiles rule 5 may remove (subway portals, pipe/subway
+   crossings and station links wear nothing), jittered by a random factor
+   between `100 − WEAR_JITTER_PERCENT` and `100 + WEAR_JITTER_PERCENT`
+   percent. A category at full funding gains nothing, and a category with no
+   losable tiles has its wear reset to zero.
 4. **Losses.** While a category's wear is at least `WEAR_THRESHOLD[category]`
    and the category still has losable tiles, the threshold is subtracted and
    one loss happens at a tile chosen uniformly at random from that

@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## Single-zero roulette: the wheel beside (or above) the betting layout. The
-## wheel turns one way and the ball the other; the ball slows, drops off the
-## rim and settles in the drawn pocket. Any number of spots can carry chips.
+## Single-zero roulette: the wheel beside the betting layout. The wheel turns
+## one way and the ball the other; the ball slows, drops off the rim and
+## settles in the drawn pocket. Any number of spots can carry chips. The tall
+## (phone) arrangement gives the whole picture to the layout, so its spots
+## stay large, and shows the wheel over it only while the ball is spinning.
 class_name RouletteStage
 extends CasinoStage
 
@@ -21,11 +23,11 @@ var _pocket := -1
 
 
 func design_size(tall_layout: bool) -> Vector2:
-	return Vector2(520, 860) if tall_layout else Vector2(940, 420)
+	return Vector2(520, 620) if tall_layout else Vector2(940, 420)
 
 
 func _banner_rest(_design: Vector2) -> Rect2:
-	return Rect2(30, 796, 460, 60) if _tall else Rect2(450, 350, 470, 64)
+	return Rect2(30, 6, 460, 60) if _tall else Rect2(450, 350, 470, 64)
 
 
 func spot_order() -> Array[StringName]:
@@ -36,6 +38,11 @@ func spot_order() -> Array[StringName]:
 			&"low", &"even", &"red", &"black", &"odd", &"high"]:
 		out.append(id)
 	return out
+
+
+## A first chip goes on Red (1 to 1), not straight up on zero.
+func default_spot() -> StringName:
+	return &"red"
 
 
 func spot_label(spot: StringName) -> String:
@@ -79,9 +86,17 @@ func _advance_clock(delta: float) -> void:
 
 
 func _draw_stage() -> void:
-	var center := Vector2(260, 150) if _tall else Vector2(200, 205)
-	var radius := 132.0 if _tall else 178.0
+	var center := Vector2(260, 300) if _tall else Vector2(200, 205)
+	var radius := 200.0 if _tall else 178.0
 	var spinning := String(_current.get("kind", "")) == "spin"
+	if _tall:
+		_draw_layout_tall()
+		_draw_history()
+		if not spinning:
+			return
+		# The spin plays over the layout; the pocket marker on the number
+		# and the result banner remain once it stops.
+		_round_rect(Rect2(Vector2(8, 8), Vector2(504, 604)), Color(palette.felt_dark, 0.8), 16.0)
 	var wheel := _wheel_angle
 	var ball_angle := 0.0
 	var ball_radius := radius * 0.62
@@ -103,11 +118,9 @@ func _draw_stage() -> void:
 		var at := center + Vector2.from_angle(ball_angle - PI * 0.5) * ball_radius
 		draw_circle(at + Vector2(1.5, 2.0), radius * 0.042, Color(0, 0, 0, 0.35), true, -1.0, true)
 		draw_circle(at, radius * 0.042, Color("fbf7ee"), true, -1.0, true)
-	if _tall:
-		_draw_layout_tall()
-	else:
+	if not _tall:
 		_draw_layout_wide()
-	_draw_history()
+		_draw_history()
 
 
 func _pocket_angle(pocket: int) -> float:
@@ -181,7 +194,7 @@ func _draw_layout_wide() -> void:
 
 func _draw_layout_tall() -> void:
 	var left := 130.0
-	var top := 300.0
+	var top := 70.0
 	_draw_number(0, Rect2(left, top, 300, 40))
 	for r in 12:
 		for c in 3:
@@ -211,7 +224,7 @@ func _draw_outside(origin: Vector2, cell: Vector2, column: bool) -> void:
 
 func _draw_history() -> void:
 	var history: Array = view.get("history", [])
-	var origin := Vector2(20, 836) if _tall else Vector2(450, 330)
+	var origin := Vector2(20, 604) if _tall else Vector2(450, 330)
 	var width := 480.0 if _tall else 470.0
 	_text_left(origin, "Last spins", 14, palette.felt_line)
 	var x := origin.x + 92.0

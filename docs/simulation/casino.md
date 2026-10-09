@@ -67,7 +67,11 @@ name (`{place}`).
    has limits `{0, 0}`.
 2. **Who may play.** `can_play(resort, funds)` refuses an unknown resort and a
    treasury below the table minimum ("The cage doesn't extend credit to the
-   city."). The treasury never goes negative because of play.
+   city. Tables here start at $250; the treasury has $180.", built by
+   `CasinoLines.no_credit`). The treasury never goes negative because of
+   play. The table view also asks for a second confirmation before an
+   opening stake of more than half of the treasury; that is presentation
+   only and changes nothing here.
 3. **Commit.** `commit_round(ctx, resort, game, staked)` debits `staked` from
    the treasury and returns true. It refuses (returns false, no change) an
    unknown resort, a game the resort does not offer, a stake of zero or less,

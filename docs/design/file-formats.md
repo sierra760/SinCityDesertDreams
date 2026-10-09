@@ -67,7 +67,17 @@ tool can open, while the map itself stays small.
   import: the selected area, import controls, data sources, acquisition time
   and diagnostics. An invalid record is dropped rather than saved.
 - `snapshot` is `Simulation.snapshot()` stored as given; `load()` hands it
-  back untouched for `Simulation.restore()`.
+  back untouched for `Simulation.restore()`. Before that, `load()` checks its
+  shape (`validate_snapshot`): every known field must hold the kind of value
+  the game stores there (a number, a list, a table, and for lists of records a
+  table per entry), checked against a fresh system's `save()`. A damaged
+  snapshot fails the load with the damaged-file message, before the open city
+  is replaced. Unknown fields are ignored and missing ones take defaults.
+- A city decoded from a save in play records the layers it read in
+  `City.restored_layers` (not saved). Systems keep those layers as saved when
+  the simulation is set up (the zone system's density and growth maps, the
+  water system's service flags and tower contents) instead of deriving them
+  again, so a reloaded city continues exactly like one that kept running.
 - `stage` is required: `"play"` for a founded city or
   `"editing"` for a map saved while the land was still being shaped. An
   editing save has no snapshot and carries `generator`, the New City
@@ -87,7 +97,8 @@ SaveFormat.decode_city(doc) -> {city, error, topology}
 ```
 
 `load()` rejects documents whose `format` is not `sc2d`, versions above
-`SaveFormat.VERSION`, and damaged layers, returning a readable `error`.
+`SaveFormat.VERSION`, damaged layers and damaged snapshots, returning a
+readable `error`.
 `topology` is the street topology built while validating `street_naming`;
 the caller may reuse it instead of rebuilding it from the same layers.
 `list_saves` only parses the header; unrelated files and other documents in
@@ -110,8 +121,8 @@ the tests use to build fixtures.
 
 | Tag | Size | Used for |
 |---|---|---|
-| `CNAM` | 32 | city name: a length byte, then text to the first zero byte; the file name is the fallback |
-| `MISC` | 4800 | 1200 32-bit integers; index 2 rotation, 3 founding year, 4 days elapsed, 5 funds, 7 difficulty (1 easy, 2 medium, 3 hard), 8 status, 480/507/534 residential, commercial and industrial tax rates |
+| `CNAM` | 32 | city name: a length byte, then text to the first zero byte; the file name is the fallback. A stored DOS file name (`OROCANYON.SC2`) loses its extension and becomes the file's own name when that is the same letters, otherwise it is title-cased |
+| `MISC` | 4800 | 1200 32-bit integers; index 2 rotation, 3 founding year, 4 days elapsed, 5 funds, 7 difficulty (1 easy, 2 medium, 3 hard), 8 status (clamped to the six classes; the population system lowers it to what the imported residents support), 480/507/534 residential, commercial and industrial tax rates |
 | `ALTM` | 32768 | one 16-bit word per tile: ground height in bits 0–4, water height in bits 5–9, tunnel bits above; repacked into the `altitude` layer |
 | `XTER` | 16384 | slope and water codes, identical to `Terrain` codes |
 | `XBLD` | 16384 | building ids; the roster in `Buildings` uses the same numbering |

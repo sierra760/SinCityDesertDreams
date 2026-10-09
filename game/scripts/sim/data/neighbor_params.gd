@@ -47,9 +47,9 @@ const SHOCK_CHANCE_DENOMINATOR := 64
 const SHOCK_POPULATION_PERCENT := 75
 const SHOCK_OUTPUT_PERCENT := 50
 
-## Utility trade in cents per unit per year; exports are capped per utility.
+## Utility exports in cents per unit per year, capped per utility. Neighbors
+## do not supply a shortfall, so nothing is imported or billed.
 const EXPORT_CENTS := {&"power": 2, &"water": 1}
-const IMPORT_CENTS := {&"power": 4, &"water": 2}
 const TRADE_UNIT_CAP := 20000
 
 ## Commercial and industrial demand added each month per road or rail link to

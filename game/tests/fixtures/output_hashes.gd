@@ -11,9 +11,9 @@ extends RefCounted
 
 const HASHES := {
 	"monthly_scan/economy": "6c85443e6fcd43742a82e1627efe7f69e0309761f6ede461357f520c49c09447",
-	"monthly_scan/population": "3bca5708cc7c7cc428850f76b522c157735e47a41ccc5bbebd43c63ca931dc87",
+	"monthly_scan/population": "8a76fa3d99038d65a1b4e714c8b48dbfa058d20fc5619e734ad9f9684c883102",
 	"monthly_scan/budget": "747d4a4edc9df901ac59f6f18b695695ef13278baa55ba6c23db2fad34373f29",
-	"monthly_scan/disaster": "80d7cd24231c76965019bbf34ee7024fadc2b9f221e19be0f5c20b547c902284",
+	"monthly_scan/disaster": "9b753d9357b0be043f9508ed8a21b5abcf03563397fc1f85416570aff775cd06",
 	"network_physics/mixed_far_city": "8dc223b8b9567fd125d42a342dc238fdb27cfb0e13b2779a53a89b0aa7fc56e3",
 	"resolve/curved_floor_walls_boxes": "2ddd1309c5d607b68c0050bfa6ba7cc5b2a9e3ed81e336f216dc32cf9f4717df",
 	"resolve/multigroup": "8d894ae1211036592b2cc9637958a48e3935ec70380765f158fb64734b6b2f52",

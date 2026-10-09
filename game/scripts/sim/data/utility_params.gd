@@ -30,7 +30,13 @@ static func weather(ctx: SimContext, method: StringName, fallback: int) -> int:
 	for k in WEATHER_SYSTEM_KEYS:
 		var s := ctx.system(k)
 		if s != null and s.has_method(method):
-			return int(s.call(method))
+			var value := int(s.call(method))
+			if value < 0 and s.has_method("ensure_weather"):
+				# Asked before the weather system was set up: use this month's
+				# seasonal means rather than an unset value.
+				s.call("ensure_weather", ctx)
+				value = int(s.call(method))
+			return value if value >= 0 else fallback
 	return fallback
 
 # ── Power ────────────────────────────────────────────────────────────────

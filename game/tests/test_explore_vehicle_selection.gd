@@ -58,6 +58,9 @@ func test_each_road_kind_selection_exit_and_suspension_release() -> void:
 		check(session.pedestrian.visible)
 	check_eq(SaveFormat.encode_city(city),saved,"possession leaves city bytes untouched")
 	session.suspend()
+	# The walker has driven off along the road; the helicopter is chosen from
+	# beside its parking spot (a distant one is refused, tested separately).
+	session.pedestrian.global_position = session.helicopter.global_position+Vector3(1,0,0)
 	check(session.select_vehicle(&"helicopter"),"helicopter remains selectable")
 	session._held[KEY_Q] = true
 	session._edges[KEY_F] = true
@@ -290,3 +293,91 @@ func test_elevator_hint_and_f_control_take_priority_over_nearby_vehicle() -> voi
 	var feet := session.pedestrian.global_position
 	session.camera_rig.update_follow(1.0/60.0)
 	check_lt(session.camera_rig.camera.global_position.distance_to(feet+Vector3.UP*.105),.001,"station status selects a stable eye camera")
+
+func test_passenger_cannot_choose_a_vehicle_and_keeps_riding() -> void:
+	var city := TransitFixtures.rail_city()
+	if not await _setup(city,Vector3(20.5,2.5,20.8)): return
+	var service := session.transit_service
+	service._prepare(service.network.route(0,1))
+	check(is_instance_valid(service.train),"fixture: a service train is running")
+	if not is_instance_valid(service.train): return
+	# Stand inside the carriage as a passenger.
+	session.pedestrian.global_position = service.train.global_transform*Vector3(0,ExploreTransitTrain.FLOOR_Y+.002,0)
+	check(service.train.contains(session.pedestrian.global_position),"fixture: the walker is in the cabin")
+	session.suspend()
+	for kind: StringName in [&"bus",&"helicopter",&"train"]:
+		check(not session.select_vehicle(kind),"a passenger cannot take a "+String(kind))
+		check_eq(session.occupied,session.pedestrian)
+		check(session.pedestrian.visible,"the passenger stays in the cabin, visible")
+	check_eq(session._message,"Leave the train first.")
+	session._publish_status()
+	check(hud._actor_label.text.begins_with("Riding"),"the HUD still shows the ride")
+
+func test_resort_floor_and_station_interior_refuse_road_vehicles() -> void:
+	var city := TransitFixtures.subway_city()
+	if not await _setup(city,Vector3(20.5,.5,21.5)): return
+	var service := session.transit_service
+	var platform: Vector3 = service.network.stations[0].platform
+	session.pedestrian.global_position = platform+Vector3.UP*.002
+	check(service.indoors(session.pedestrian.global_position),"fixture: the walker is on the underground platform")
+	session.suspend()
+	check(not session.select_vehicle(&"bus"),"no surface bus from underground")
+	check_eq(session._message,"Step outside the station first.")
+	check(not session.select_vehicle(&"helicopter"),"no helicopter from underground")
+	check_eq(session.occupied,session.pedestrian)
+	check_eq(session._selection_refusal(&"subway"),"","the station's own rail vehicle stays available")
+
+func test_helicopter_is_chosen_only_near_where_it_is_parked() -> void:
+	if not await _setup(flat_city()): return
+	var parked := session.helicopter.global_position
+	session.helicopter.global_position = parked+Vector3(10,0,0)
+	session.suspend()
+	check(not session.select_vehicle(&"helicopter"),"a distant parked helicopter is not summoned")
+	check(session._message.contains("Walk back"),"the refusal says what to do")
+	check_eq(session.occupied,session.pedestrian)
+	# Reach is measured across the ground, as the message reports it: a pad
+	# high on a roof but six tiles over is within reach.
+	var feet := session.pedestrian.global_position
+	session.helicopter.global_position = feet+Vector3(6,7,0)
+	check_eq(session._selection_refusal(&"helicopter"),"","a raised pad within reach across the ground is not refused")
+	session.helicopter.global_position = feet+Vector3(9,0,0)
+	check(session._selection_refusal(&"helicopter").contains("parked 9 tiles away"),"the message reports the distance the check uses")
+	session.helicopter.global_position = parked
+	check(session.select_vehicle(&"helicopter"),"the nearby helicopter is chosen")
+	check_eq(session.occupied,session.helicopter)
+
+func test_minimap_marker_follows_the_occupied_actor() -> void:
+	if not await _setup(flat_city()): return
+	var minimap := MiniMap.new()
+	root.add_child(minimap)
+	minimap.bind(view.city,view)
+	var marker := minimap.explore_marker()
+	check(not marker.is_empty(),"the minimap shows the player while exploring")
+	var scale: float = minimap._texture_rect.size.x/MiniMap.IMAGE_SIZE
+	var feet := session.pedestrian.global_position
+	if not marker.is_empty():
+		check_lt((marker.point as Vector2).distance_to(Vector2(feet.x,feet.z)*scale),.01,"unrotated marker sits on the walker")
+		var forward := session.pedestrian.global_basis*Vector3.FORWARD
+		check_lt((marker.heading as Vector2).distance_to(Vector2(forward.x,forward.z).normalized()),.01,"heading follows the walker")
+	session.suspend()
+	check(session.select_vehicle(&"helicopter"))
+	var flying := minimap.explore_marker()
+	var at := session.helicopter.global_position
+	if not flying.is_empty():
+		check_lt((flying.point as Vector2).distance_to(Vector2(at.x,at.z)*scale),.01,"the marker follows the occupied helicopter")
+	view.quarter_turn = 1
+	var turned := minimap.explore_marker()
+	if not turned.is_empty():
+		var expected := (RotationMapper.data_to_screen(Vector2(at.x,at.z)-Vector2(.5,.5),1)+Vector2(.5,.5))*scale
+		check_lt((turned.point as Vector2).distance_to(expected),.01,"the marker turns with the map")
+	session.leave()
+	check(minimap.explore_marker().is_empty(),"no marker after Explore ends")
+	minimap.free()
+
+func test_power_warning_bolts_hide_while_exploring() -> void:
+	if not await _setup(flat_city()): return
+	check(view.feedback.is_exploring(),"the overview feedback knows Explore is on")
+	check(not view.feedback.power_markers.visible,"unpowered bolts are not drawn over the street view")
+	session.leave()
+	check(not view.feedback.is_exploring())
+	check(view.feedback.power_markers.visible,"bolts return in Build")

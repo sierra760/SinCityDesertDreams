@@ -89,6 +89,9 @@ func actions() -> Array[Dictionary]:
 			out.append_array(_playing_actions())
 		SETTLED:
 			out.append(_action(NEXT, "Next round", true, true))
+			# "Same bet" from a settled table starts the next round with the
+			# last round's bets on the felt.
+			out.append(_action(REBET, "Same bet", _rebet_fits(), false))
 	return out
 
 
@@ -149,6 +152,8 @@ func act(action: StringName, payload: Dictionary = {}) -> Dictionary:
 			clear_bets()
 			return _accept()
 		REBET:
+			if state == SETTLED:
+				next_round()
 			_bets = _last_bets.duplicate()
 			return _accept()
 		NEXT:

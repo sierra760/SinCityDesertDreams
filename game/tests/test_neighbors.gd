@@ -146,7 +146,9 @@ func test_utility_trade_needs_a_connection() -> void:
 	ctx.stats.power_capacity = 0
 	ctx.stats.power_demand = 3000
 	n.monthly(ctx)
-	check_eq(int(ctx.stats.ledger[&"neighbor_trade"]), -120 / 12, "a shortfall on a connected line is bought in")
+	check_eq(int(ctx.stats.ledger.get(&"neighbor_trade", 0)), 0,
+		"neighbors supply no shortfall over a connected line, so none is billed")
+	check_eq(int(n.neighbor_report()[NeighborParams.EDGE_NORTH]["trade"]), 0, "nor reported as trade")
 
 
 func test_trade_settles_through_the_budget() -> void:

@@ -155,6 +155,8 @@ An issue is a JSON-safe Dictionary:
 
 `save()` returns `{"queue": [ {kind, args, priority, born_day, seq} ],
 "seq": int, "extra_day": int}`. Args are stored with string keys and
-JSON-safe values (positions as `"x,y"`, names as strings). The archive is part
+JSON-safe values (positions as `"x,y"`, names as strings). `load()` turns
+whole-number arguments, which JSON reads back as floats, into ints again, so a
+story printed after a load reads like one printed before it. The archive is part
 of `CityStats`, so the latest issue is recovered from it after a load.
 `load()` restores the queue and counters and tolerates missing fields.

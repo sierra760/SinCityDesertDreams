@@ -22,6 +22,8 @@ var details_label: Label
 var _saves: Array[Dictionary] = []
 ## The credit a city carries when no mayor name was chosen.
 const DEFAULT_MAYOR := "Mayor"
+## How the background recovery copy is named in the list and its details.
+const RECOVERY_LABEL := "Recovery copy (saved when the app went to the background)"
 var panel: PanelContainer
 ## Paths in the order of the list rows.
 var paths: PackedStringArray = PackedStringArray()
@@ -43,7 +45,7 @@ func _build() -> void:
 	var chrome := UIFactory.make_window_chrome("Load City")
 	panel = chrome["root"]
 	panel.name = "Panel"
-	panel.set_meta("preferred_size", Vector2(520, 440))
+	panel.set_meta("preferred_size", Vector2(600, 460))
 	(chrome["close_button"] as Button).pressed.connect(close)
 	var body: VBoxContainer = chrome["body"]
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -84,8 +86,8 @@ func _build() -> void:
 	load_button.pressed.connect(confirm)
 	row.add_child(load_button)
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -210
-	panel.offset_right = 210
+	panel.offset_left = -300
+	panel.offset_right = 300
 	panel.offset_top = -170
 	panel.offset_bottom = 170
 	add_child(panel)
@@ -109,17 +111,19 @@ func refresh(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void
 			item_list.set_item_tooltip(item_list.item_count - 1, "Start with an included city. Save a personal copy to keep your changes.")
 			paths.append(String(h.get("path", "")))
 			continue
+		# The city's name leads so a narrow list still shows which city it is;
+		# a backup or recovery marker follows the short summary.
 		var year := int(h.get("year", 0))
-		var text := "%s — %s — pop %s" % [String(h.get("name", "?")),
-			("year %d" % year) if year > 0 else "", UIFactory.commafy(int(h.get("population", 0)))]
+		var text := "%s · %spop %s" % [String(h.get("name", "?")),
+			("%d · " % year) if year > 0 else "", UIFactory.commafy(int(h.get("population", 0)))]
 		if String(h.get("stage", SaveFormat.STAGE_PLAY)) == SaveFormat.STAGE_EDITING:
-			text = "%s — unfounded map" % String(h.get("name", "?"))
+			text = "%s · unfounded map" % String(h.get("name", "?"))
 		if bool(h.get("suspended_recovery", false)):
-			text = "Recovered after the app closed · " + text
+			text += " · " + RECOVERY_LABEL
 		elif bool(h.get("automatic_backup", false)):
-			text = "Automatic backup · " + text
+			text += " · Automatic backup"
 		item_list.add_item(text)
-		item_list.set_item_tooltip(item_list.item_count - 1, "%s\nsaved %s" % [String(h.get("path", "")).get_file(), saved_text(h)])
+		item_list.set_item_tooltip(item_list.item_count - 1, "%s\n%s\nsaved %s" % [text, String(h.get("path", "")).get_file(), saved_text(h)])
 		paths.append(String(h.get("path", "")))
 	empty_label.visible = _saves.is_empty()
 	load_button.disabled = true
@@ -210,7 +214,7 @@ func _show_details(index: int) -> void:
 	var mayor_line := "" if mayor.is_empty() or mayor == DEFAULT_MAYOR else "Mayor: %s\n" % mayor
 	details_label.text = "%sFile: %s\nSaved: %s\n%s" % [mayor_line, filename, date if not date.is_empty() else "date unavailable", summary]
 	if bool(header.get("suspended_recovery", false)):
-		details_label.text = "Recovered after the app closed — save under a new name to keep it.\n" + details_label.text
+		details_label.text = RECOVERY_LABEL + " — save under a new name to keep it.\n" + details_label.text
 	elif bool(header.get("automatic_backup", false)):
 		details_label.text = "Automatic backup — save under a new name to keep it.\n" + details_label.text
 	details_label.show()

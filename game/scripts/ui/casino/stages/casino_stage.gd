@@ -63,10 +63,16 @@ func setup(table_game: CasinoGame, resort_key: StringName, colors: CasinoPalette
 	game = table_game
 	resort = resort_key
 	palette = colors
-	var ids := spot_order()
-	selected_spot = ids[0] if not ids.is_empty() else &""
+	selected_spot = default_spot()
 	view = game.view_state() if game != null else {}
 	reset_round()
+
+
+## The spot a first chip goes to: the table's plainest even bet. The first
+## spot in keyboard order unless a table names a safer one (roulette: Red).
+func default_spot() -> StringName:
+	var ids := spot_order()
+	return ids[0] if not ids.is_empty() else &""
 
 
 ## Forget the round's drawing state (a new round began).

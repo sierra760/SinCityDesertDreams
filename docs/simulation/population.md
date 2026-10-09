@@ -80,6 +80,13 @@ Getters for other systems and the UI:
 
 ## Timing
 
+- `setup`, for a city that arrives already dated but not from a native save
+  (an imported classic city): take the census (publishing `CityStats.jobs`)
+  and settle the city (rule 11). A city founded today has no homes to count.
+- `load`, for a saved city that has never been counted (no `settled` flag and
+  no head count, such as an included city saved straight after import):
+  settle it (rule 11). A saved settlement class outside the six classes is
+  replaced by the class the population belongs in.
 - `monthly`, day 14: census, demographics, employment, settlement class, and
   in March the approval vote.
 - `daily`, `yearly`, `networks_changed`: nothing.
@@ -217,7 +224,8 @@ A month whose emigration (the people who left beyond those who arrived) is at
 least `EXODUS_MIN_PEOPLE` and at least `EXODUS_PERCENT` of last month's
 residents reports `&"exodus"` `{count}` (leavers / `PEOPLE_PER_FAMILY`
 families) once; the report is held back until a month without such a
-departure.
+departure. A month in which every home is gone counts all of last month's
+residents as leavers.
 
 ### 9. Settlement class
 
@@ -247,6 +255,23 @@ departure.
    with the leading complaint. A rating that climbs from below
    `APPROVAL_MILESTONE` to at or above it raises the `&"approval_milestone"`
    notice.
+
+### 11. Settling an uncounted city
+
+A city that arrives with homes but no head count (an imported classic city, or
+an included city saved before its first population pass) is given its people
+at once instead of reading Population 0 until day 14 and then taking everyone
+in within one month:
+
+1. The census residents arrive through the immigration rule (rule 6's
+   migration, with no randomness): cohorts, pooled education and health.
+2. The headline scores, employment and `stats.population` are published from
+   them as on a monthly pass. No news is reported.
+3. A stored settlement class above the class the population belongs in (the
+   highest `STATUS_THRESHOLDS` index the total exceeds) comes down to it; a
+   lower one rises month by month under rule 9, as news.
+4. The city is marked settled (saved as `settled`), so a reload never
+   settles it again; a monthly pass also marks it settled.
 
 ## Parameters
 
@@ -304,6 +329,6 @@ departure.
 
 `save()` returns the twenty pooled education scores, the twenty pooled health
 scores, the record birth count, the complaint ranking of the last vote, and
-the last census counts. Head counts,
+the last census counts and the `settled` flag (rule 11). Head counts,
 headline scores and approval live in `CityStats` and are saved with it.
 `load()` restores everything and tolerates missing keys.

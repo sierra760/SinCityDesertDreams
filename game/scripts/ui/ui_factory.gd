@@ -153,6 +153,9 @@ static func contain_modal_focus(modal: Control, preferred: Control = null) -> vo
 		guard = ModalFocusGuard.new()
 		guard.name = "ModalFocusGuard"
 		modal.add_child(guard)
+		# Dialog panels size to their content once they are known to be modal.
+		for child: Node in modal.get_children():
+			if child is ResponsivePanel: (child as ResponsivePanel)._schedule_fit()
 	guard.refresh(preferred)
 
 
@@ -253,11 +256,47 @@ class ResponsivePanel:
 	extends PanelContainer
 	var preferred_size := Vector2.ZERO
 	var _fit_pending := false
+	## Where the last fit centred a modal dialog. A dialog that has since been
+	## dragged or placed by its owner keeps that place until it is shown again.
+	var _centred := false
+	var _centred_position := Vector2.ZERO
 	func _ready() -> void:
 		get_viewport().size_changed.connect(_schedule_fit)
-		visibility_changed.connect(_schedule_fit)
+		visibility_changed.connect(_visibility_changed)
 		minimum_size_changed.connect(_schedule_fit)
+		item_rect_changed.connect(_rect_changed)
+		# The body sits in a ScrollContainer, which hides its height from this
+		# panel's minimum; refit when the body's content changes.
+		var chrome: Dictionary = get_meta("window_chrome",{})
+		if chrome.has("body"): (chrome.body as Control).minimum_size_changed.connect(_schedule_fit)
 		call_deferred("_initial_fit")
+	## Another layout pass (DisplayLayout) may place this panel by its
+	## preferred size while a dialog has grown to its content; refit if the
+	## panel then runs past the usable rect.
+	func _rect_changed() -> void:
+		if _fit_pending or not is_inside_tree() or not is_visible_in_tree() or not _is_modal_dialog(): return
+		var available := _usable_rect()
+		if not available.grow(-7.0).encloses(Rect2(position,size)): _schedule_fit()
+	func _visibility_changed() -> void:
+		# Each showing of a dialog starts centred again.
+		if not is_visible_in_tree(): _centred = false
+		_schedule_fit()
+	## The rect a window must stay inside: a rect DisplayLayout or a test
+	## assigned, else the host's safe/keyboard bounds, else the viewport.
+	func _usable_rect() -> Rect2:
+		if has_meta("display_usable_rect"): return get_meta("display_usable_rect")
+		var ancestor := get_parent()
+		while ancestor != null:
+			if "display_layout" in ancestor:
+				var layout := ancestor.get("display_layout") as DisplayLayout
+				if is_instance_valid(layout) and not layout.metrics.is_empty():
+					if not layout.metrics_changed.is_connected(_on_metrics_changed):
+						layout.metrics_changed.connect(_on_metrics_changed)
+					return layout.logical_rect()
+			ancestor = ancestor.get_parent()
+		return get_viewport().get_visible_rect()
+	func _on_metrics_changed(_metrics: Dictionary) -> void:
+		_schedule_fit()
 	func _exit_tree() -> void:
 		if get_viewport().size_changed.is_connected(_schedule_fit):
 			get_viewport().size_changed.disconnect(_schedule_fit)
@@ -273,23 +312,85 @@ class ResponsivePanel:
 		_fit_pending = false
 		if not is_inside_tree():
 			return
-		var available := get_viewport().get_visible_rect()
-		available = get_meta("display_usable_rect",available)
+		var available := _usable_rect()
 		var wanted := preferred_size if preferred_size != Vector2.ZERO else size
-		var fitted := DisplayLayout.fit_window_rect(Rect2(position,wanted),available,44.0)
 		var chrome: Dictionary = get_meta("window_chrome",{})
+		var chrome_height := 0.0
+		var content_height := 0.0
+		var fit_content := chrome.has("body_scroll") and chrome.has("body") and _is_modal_dialog()
 		if chrome.has("body_scroll"):
 			var column := (chrome.body_scroll as Control).get_parent() as VBoxContainer
-			var chrome_height := get_theme_stylebox("panel").get_minimum_size().y + float(column.get_theme_constant("separation"))*2.0
+			chrome_height = get_theme_stylebox("panel").get_minimum_size().y + float(column.get_theme_constant("separation"))*2.0
 			chrome_height += (chrome.title_bar as Control).get_combined_minimum_size().y + (chrome.actions as Control).get_combined_minimum_size().y
-			(chrome.body_scroll as Control).custom_minimum_size.y = minf(80.0,maxf(0.0,fitted.size.y-chrome_height))
+		if fit_content:
+			# A dialog shows its whole body, including fields below the text,
+			# and grows past its preferred height up to the usable rect. It
+			# scrolls only when the content really exceeds that space.
+			content_height = (chrome.body as Control).get_combined_minimum_size().y
+			wanted.y = maxf(wanted.y,ceilf(chrome_height+content_height))
+		var fitted := DisplayLayout.fit_window_rect(Rect2(position,wanted),available,44.0)
+		# A modal dialog sits in the middle of the usable rect rather than
+		# growing down from where its first, smaller size put it. One the
+		# player dragged (or its owner placed) since the last fit stays put.
+		var moved := _centred and not position.is_equal_approx(_centred_position)
+		if fit_content and not moved:
+			var centre := available.get_center() - fitted.size*0.5
+			fitted = DisplayLayout.fit_window_rect(Rect2(centre.round(),fitted.size),available,44.0)
+		if chrome.has("body_scroll"):
+			var body_room := maxf(0.0,fitted.size.y-chrome_height)
+			(chrome.body_scroll as Control).custom_minimum_size.y = minf(ceilf(content_height) if fit_content else 80.0,body_room)
 		if chrome.has("body"):
+			var narrow := fitted.size.x < 600.0
 			for label: Label in (chrome.body as Control).find_children("*","Label",true,false):
 				if not label.has_meta("report_original_wrap"):
 					label.set_meta("report_original_wrap",label.autowrap_mode)
-				label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if fitted.size.x < 600.0 else label.get_meta("report_original_wrap")
+				label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if narrow else label.get_meta("report_original_wrap")
+				_fit_row_label(label,chrome.body as Control,narrow,fitted.size.x)
 		position = fitted.position
 		size = fitted.size
+		if fit_content and not moved:
+			# The panel's minimum may have kept it larger than the fitted rect.
+			if not size.is_equal_approx(fitted.size):
+				position = DisplayLayout.fit_window_rect(Rect2((available.get_center()-size*0.5).round(),size),available,44.0).position
+			_centred = true
+			_centred_position = position
+		# A shrinking body minimum is applied after this frame's size clamp;
+		# lay the column out again against the final panel size.
+		queue_sort()
+	## Modal dialogs carry a ModalFocusGuard on an ancestor (see
+	## contain_modal_focus); ordinary report windows keep their preferred size.
+	func _is_modal_dialog() -> bool:
+		var ancestor := get_parent()
+		while ancestor != null:
+			if ancestor.get_node_or_null("ModalFocusGuard") != null: return true
+			ancestor = ancestor.get_parent()
+		return false
+	## A wrapped label that shares a row (HBox, Grid, flow or horizontal box)
+	## has no width of its own and would shrink to one glyph per line. Keep
+	## its longest unbreakable word on one line; multi-word captions still wrap
+	## between words. Any minimum set by the window itself is kept as the base.
+	func _fit_row_label(label: Label, body: Control, narrow: bool, window_width: float) -> void:
+		var base := label.custom_minimum_size.x
+		if label.has_meta("report_word_min") and is_equal_approx(base,float(label.get_meta("report_word_min"))):
+			base = float(label.get_meta("report_base_min",0.0))
+		var target := base
+		if narrow and _in_row(label,body):
+			var font := label.get_theme_font("font")
+			var font_size := label.get_theme_font_size("font_size")
+			var longest := 0.0
+			for word: String in label.text.replace("\n"," ").replace("\t"," ").split(" ",false):
+				longest = maxf(longest,font.get_string_size(word,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size).x)
+			target = maxf(base,minf(ceilf(longest),floorf(window_width*0.5)))
+		label.set_meta("report_base_min",base)
+		label.set_meta("report_word_min",target)
+		label.custom_minimum_size.x = target
+	static func _in_row(label: Label, body: Control) -> bool:
+		var ancestor := label.get_parent()
+		while ancestor != null and ancestor != body:
+			if ancestor is FlowContainer or (ancestor is GridContainer and (ancestor as GridContainer).columns > 1): return true
+			if ancestor is BoxContainer and not (ancestor as BoxContainer).vertical: return true
+			ancestor = ancestor.get_parent()
+		return false
 
 ## Reports use the visible scroll width, not the overflowing body's width.
 ## A column reflow keeps every control and its signal connections.
@@ -351,22 +452,28 @@ class ResponsiveTable:
 			_scroll.resized.connect(_reflow)
 			_scroll.get_v_scroll_bar().visibility_changed.connect(func() -> void: _reflow.call_deferred())
 		_reflow()
+	## Cards stay tracked while their window moves between layers (a reparent
+	## sends tree_exiting to every descendant); freed cards are pruned here.
 	func _fit_captions() -> void:
+		if not is_inside_tree() or not is_instance_valid(_scroll): return
+		for index in range(_cards.size()-1,-1,-1):
+			if not is_instance_valid(_cards[index]): _cards.remove_at(index)
 		var available := _scroll.size.x
 		var scrollbar := _scroll.get_v_scroll_bar()
 		if scrollbar.is_visible_in_tree(): available -= scrollbar.size.x
 		for card: Control in _cards:
-			for row: HBoxContainer in card.get_children():
-				if row.get_child_count() < 2: continue
+			for child: Node in card.get_children():
+				var row := child as HBoxContainer
+				if row == null or row.get_child_count() < 2: continue
 				var caption := row.get_child(0) as Label
 				var cell := row.get_child(1) as Control
-				if caption == null: continue
+				if not is_instance_valid(caption) or not is_instance_valid(cell): continue
 				var longest_word := 0.0
 				for word: String in caption.text.split(" "):
 					longest_word = maxf(longest_word,caption.get_theme_font("font").get_string_size(word,HORIZONTAL_ALIGNMENT_LEFT,-1,UITheme.FONT_SMALL).x)
 				caption.custom_minimum_size.x = maxf(ceilf(longest_word),minf(96.0,available-cell.get_combined_minimum_size().x-row.get_theme_constant("separation")))
 	func _reflow() -> void:
-		if not is_instance_valid(_scroll) or _original.is_empty(): return
+		if not is_inside_tree() or not is_instance_valid(_scroll) or _original.is_empty(): return
 		var narrow := _scroll.size.x < 560.0
 		if narrow == _narrow:
 			if narrow: _fit_captions()
@@ -375,18 +482,22 @@ class ResponsiveTable:
 		if not narrow:
 			for index in _original.size():
 				var cell := _original[index]
+				if not is_instance_valid(cell): continue
 				if cell.get_parent() != self: cell.reparent(self,false)
-				move_child(cell,index)
+				move_child(cell,mini(index,get_child_count()-1))
 				if has_headers and index < _wide_columns: cell.show()
-			for card in _cards:
-				remove_child(card)
-				card.queue_free()
+			var old_cards := _cards.duplicate()
 			_cards.clear()
+			for card: Variant in old_cards:
+				if not is_instance_valid(card): continue
+				if (card as Node).get_parent() == self: remove_child(card)
+				(card as Node).queue_free()
 			columns = _wide_columns
 			return
 		columns = 1
 		var first := _wide_columns if has_headers else 0
-		for index in first: _original[index].hide()
+		for index in first:
+			if is_instance_valid(_original[index]): _original[index].hide()
 		for start in range(first,_original.size(),_wide_columns):
 			var card := VBoxContainer.new()
 			card.add_theme_constant_override("separation",4)
@@ -396,6 +507,7 @@ class ResponsiveTable:
 			for offset in _wide_columns:
 				if start+offset >= _original.size(): break
 				var cell := _original[start+offset]
+				if not is_instance_valid(cell): continue
 				var row := HBoxContainer.new()
 				row.add_theme_constant_override("separation",8)
 				card.add_child(row)

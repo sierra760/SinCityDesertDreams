@@ -67,3 +67,57 @@ func test_backup_is_listed_and_recovers_through_save_as() -> void:
 	check(FileAccess.get_file_as_bytes(BACKUP) == before, "recovery Save leaves backup unchanged")
 	check(host.load_city(MANUAL))
 	check_eq(host.save_path, MANUAL, "legacy autosave behaves as an ordinary manual save")
+
+# Guards against: a stale background recovery copy listed forever after the
+# city was saved or the app came back.
+func test_recovery_copy_is_discarded_when_no_longer_needed() -> void:
+	var recovery := CityFileFlow.application_recovery_path()
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(recovery.get_base_dir()))
+	check_eq(SaveFormat.save(recovery, host.sim.city, host.sim.snapshot()), OK)
+	host.files.open_load_dialog()
+	var index := host.load_dialog.paths.find(recovery)
+	check(index >= 0, "the recovery copy is listed")
+	if index >= 0:
+		check(host.load_dialog.item_list.get_item_text(index).contains(LoadDialog.RECOVERY_LABEL))
+		host.load_dialog.select(index)
+		check(host.load_dialog.details_label.text.begins_with(LoadDialog.RECOVERY_LABEL))
+	host.load_dialog.close()
+	# Saving another city keeps it.
+	var other := flat_city()
+	other.name = "Another town"
+	check_eq(SaveFormat.save(recovery, other, {}), OK)
+	check_eq(host.files.save_city_as("Recovered"), "user://saves/Recovered.sc2d")
+	check(FileAccess.file_exists(recovery), "another city's recovery copy stays")
+	# A named save of the city opened from the copy supersedes it.
+	check_eq(SaveFormat.save(recovery, host.sim.city, host.sim.snapshot()), OK)
+	check(host.load_city(recovery), "the recovery copy opens")
+	check_eq(host.files.save_city_as("Recovered"), "user://saves/Recovered.sc2d")
+	check(not FileAccess.file_exists(recovery), "saving the city removes its recovery copy")
+	host.files.open_load_dialog()
+	check(host.load_dialog.paths.find(recovery) < 0, "no recovery row afterwards")
+	host.load_dialog.close()
+	# A clean return from the background removes it as well.
+	check_eq(SaveFormat.save(recovery, other, {}), OK)
+	host.files.discard_recovery_copy()
+	check(not FileAccess.file_exists(recovery))
+
+# Guards against: a newer recovery copy (left when the OS closed the app in
+# the background) deleted because an older manual save of the same city was
+# opened and saved instead.
+func test_saving_an_older_save_of_the_same_city_keeps_a_newer_recovery_copy() -> void:
+	var recovery := CityFileFlow.application_recovery_path()
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(recovery.get_base_dir()))
+	var manual := "user://saves/Recovered.sc2d"
+	check_eq(host.files.save_city_as("Recovered"), manual)
+	host.sim.city.funds -= 777
+	var newer_funds := host.sim.city.funds
+	# An earlier session's newer copy of the same city.
+	check_eq(SaveFormat.save(recovery, host.sim.city, host.sim.snapshot()), OK)
+	check(host.load_city(manual), "the older manual save opens")
+	check_eq(host.sim.city.name, "Recovery fixture", "same city name as the recovery copy")
+	check_eq(host.files.save_city(), OK)
+	check(FileAccess.file_exists(recovery), "the newer recovery copy survives the older save")
+	var result := SaveFormat.load(recovery)
+	check(result.ok)
+	if result.ok: check_eq((result.city as City).funds, newer_funds, "the recovery copy keeps its newer progress")
+	host.files.discard_recovery_copy()

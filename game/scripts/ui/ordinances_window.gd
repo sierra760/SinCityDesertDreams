@@ -162,7 +162,11 @@ func _build() -> void:
 	_body.add_child(_status_label)
 	var columns := UIFactory.ResponsiveColumns.new()
 	columns.add_theme_constant_override("separation", UITheme.MARGIN)
-	_body.add_child(columns)
+	# Keep the cost column off the window's scrollbar.
+	var gutter := MarginContainer.new()
+	gutter.add_theme_constant_override("margin_right", UITheme.MARGIN)
+	gutter.add_child(columns)
+	_body.add_child(gutter)
 	for group in GROUPS:
 		var column := VBoxContainer.new()
 		column.add_theme_constant_override("separation", UITheme.MARGIN_COMPACT)
@@ -233,6 +237,8 @@ func _on_toggled(on: bool, k: StringName) -> void:
 	ordinances.call("set_enabled", k, on)
 	refresh()
 	ordinance_changed.emit(k, on)
+	# An open Budget shows the ordinance income and costs.
+	BudgetWindow.refresh_other_windows(self)
 
 
 func _on_month_ended(_year: int, _month: int) -> void:

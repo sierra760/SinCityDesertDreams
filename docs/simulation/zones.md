@@ -48,7 +48,8 @@ Read during the monthly pass:
   since last month, centered on 128 and scaled by `GROWTH_PEOPLE_PER_STEP`.
 - `CityStats.demand`: the three demand meters, each in −999..999.
 - `CityStats.jobs`: jobs offered by finished commercial and industrial
-  buildings.
+  buildings, plus the ports' `jobs()`: the same figure the population census
+  publishes on day 14, so it keeps one meaning all month.
 - `City.facilities`: one record per chapel (`key` = `chapel`, `built_day`).
 - Events (`ctx.events.report`):
 
@@ -72,6 +73,10 @@ Read during the monthly pass:
 
 ## Timing
 
+- `setup`: take the census and publish demand and `CityStats.jobs`. A new or
+  imported city also gets fresh density and growth maps; a city loaded from a
+  save keeps the maps it was saved with (see `City.restored_layers` in
+  file-formats.md) until the next phase 1.
 - `monthly`, phase 0 (day 5): take the census, recompute demand, then run
   the growth pass over the west half of the map (anchor column 0..63).
 - `monthly`, phase 1 (day 6): run the growth pass over the east half

@@ -60,7 +60,8 @@ func test_limits_and_refusals() -> void:
 	check(bool(casino.can_play(COMSTOCK, 100)["ok"]))
 	var poor := casino.can_play(ORBIT, 999)
 	check(not bool(poor["ok"]))
-	check_eq(String(poor["reason"]), "The cage doesn't extend credit to the city.")
+	check_eq(String(poor["reason"]), "The cage doesn't extend credit to the city. Tables here start at $1,000; the treasury has $999.",
+		"the refusal names the minimum and the treasury")
 	var unknown := casino.can_play(&"nowhere", 20000)
 	check(not bool(unknown["ok"]))
 	check_eq(String(unknown["reason"]), CasinoLines.UNKNOWN_RESORT)

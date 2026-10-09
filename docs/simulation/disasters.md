@@ -44,7 +44,7 @@ Events:
 | `report(&"disaster_ended", {kind, x, y, wrecked, burned})` | the disaster is over |
 | `report(&"fire_reported", {x, y})` | fires break out in a city that had none |
 | `notify(&"national_guard", {})` | the city has no crews of its own and the guard sends one |
-| `report(&"advisor_need", {need})` | the monthly advisor picks a need |
+| `report(&"advisor_need", {need})` | the monthly advisor's top need changes, or has stood for `ADVICE_NEWS_REPEAT_MONTHS` months |
 
 `mark_dirty` is called for every map change.
 
@@ -283,7 +283,10 @@ all released when the emergency ends.
 ### 16. Advisor need (day 20)
 
 The first matching line is the need; `advice()` returns every matching line in
-this order:
+this order. The need is reported to the newspaper (`advisor_need`) when it
+differs from the last one reported, and again every
+`ADVICE_NEWS_REPEAT_MONTHS` months while it stays the same, so the same story
+does not lead every issue:
 
 1. `needs_power`: power demand exceeds `USAGE_WARNING_PERCENT` of capacity, or
    buildings are unpowered.
@@ -334,6 +337,7 @@ All values live in `DisasterParams` (`game/scripts/sim/data/disaster_params.gd`)
 | `VOLCANO_*` | cone size and ember rain |
 | `FIRESTORM_FIRES` | firestorm size |
 | `USAGE_WARNING_PERCENT`, `*_PER_RESIDENT`, `ADVICE_POPULATION_*`, `SEAPORT_INDUSTRY_TILES`, `AIRPORT_COMMERCE_TILES` | advisor thresholds |
+| `ADVICE_NEWS_REPEAT_MONTHS` | months before an unchanged advisor need is news again |
 
 ## Save state
 
@@ -341,8 +345,9 @@ All values live in `DisasterParams` (`game/scripts/sim/data/disaster_params.gd`)
 `hot` (tile key → days), `flood` (tile key → depth), `flood_remaining`,
 `flood_total`, `active` (kind, x, y, remaining, wrecked, burned and any
 per-kind fields), `entities` (list of kind/x/y/frame/heading/target),
-`crews` (list of kind/x/y/day), `advice` (list of strings) and
-`outbreak_reported`. `load()` restores all of it and rebuilds
+`crews` (list of kind/x/y/day), `advice` (list of strings), `reported_need`
+and `need_months` (the advisor need last given to the newspaper and the months
+since) and `outbreak_reported`. `load()` restores all of it and rebuilds
 `city.flood_overlay` from `flood`.
 
 Native JSON preserves dictionary insertion order. Daily hazard workers use that

@@ -65,14 +65,14 @@ The folder label follows the installed app's display name.
 
 Named cities live in `saves/`. Annual backups and `recovery/suspended.sc2d` are
 separate. Leaving the app pauses city time and movement and attempts a verified
-suspension recovery save. **Load City** lists it as **Recovered after the app
-closed · …**. Loading it clears the manual save target; use **City → Save City
+suspension recovery save. **Load City** lists it as **Recovery copy (saved when the app
+went to the background)**. Loading it clears the manual save target; use **City → Save City
 As** to keep a named copy. This does not replace a named save or the annual
 backup. Unfounded maps keep their editing stage and generator settings. A
 recovery-write failure is reported upon return.
 
 Returning to the app leaves city time paused and Explore suspended. Resume city
-time through Speed and movement through the Explore panel. Actor positions remain
+time through Speed and movement through the Explore menu. Actor positions remain
 session-only and are not added to the city save format. As with any mobile app,
 a process killed before receiving its background notification cannot write a new
 recovery; named saves and annual backups are the durable checkpoints.
@@ -91,13 +91,23 @@ quality choices are preserved. Text is rendered at the interface resolution.
 These defaults require measurement on the target iPad, especially in large cities
 and during the first Explore entry.
 
+Sound uses the iOS **Ambient** audio session with mixing on
+(`audio/general/ios/mix_with_others=true` in `project.godot`): the game mixes
+with the player's own music or podcast instead of stopping it, and like other
+ambient game audio it is silenced by the Ring/Silent switch, music included.
+Choose the Playback category instead if the soundtrack should play in silent
+mode. This has not been checked on a device.
+
 ## Creating a device build
 
 To make a device build, install matching Godot 4.6.1 export templates
 and Xcode on macOS. Open `game/project.godot`, select **Project → Export → iOS**,
 set your Apple Team ID, and verify the bundle identifier against that
-account. Export into a new empty directory, open its Xcode project, configure
-development signing and select a connected iPad. This follows the
+account. The preset exports to `ios/SCDD.xcodeproj` beside `game/` and keeps
+files from earlier exports there (`delete_old_export_files_unconditionally` is
+off); to start clean, choose a new empty directory in the export dialog
+instead. Open the Xcode project, configure development signing and select a
+connected iPad. This follows the
 [Godot iOS export workflow](https://docs.godotengine.org/en/4.6/tutorials/export/exporting_for_ios.html).
 
 The preset is arm64 and includes iPhone and iPad, permits all rotations and exposes Documents

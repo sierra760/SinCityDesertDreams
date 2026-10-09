@@ -39,6 +39,9 @@ var _active: Dictionary = {}      ## the running major disaster, or empty
 var _entities: Array[Dictionary] = []
 var _crews: Array[Dictionary] = []
 var _advice: Array[StringName] = []
+## The top need last given to the newspaper, and months since then.
+var _reported_need := &""
+var _need_months := 0
 var _outbreak_reported := false
 
 
@@ -71,8 +74,12 @@ func daily(ctx: SimContext) -> void:
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_ctx = ctx
 	_advice = _compute_advice(ctx)
-	if not _advice.is_empty():
-		ctx.events.report(&"advisor_need", {"need": String(_advice[0])}, 0)
+	_need_months += 1
+	var need: StringName = _advice[0] if not _advice.is_empty() else &""
+	if need != &"" and (need != _reported_need or _need_months >= DisasterParams.ADVICE_NEWS_REPEAT_MONTHS):
+		ctx.events.report(&"advisor_need", {"need": String(need)}, 0)
+		_need_months = 0
+	_reported_need = need
 	_natural_roll(ctx)
 	_sync_stats(ctx)
 
@@ -310,6 +317,8 @@ func save() -> Dictionary:
 		"entities": _entities.duplicate(true),
 		"crews": _crews.duplicate(true),
 		"advice": _advice_to_json(),
+		"reported_need": String(_reported_need),
+		"need_months": _need_months,
 		"outbreak_reported": _outbreak_reported,
 	}
 
@@ -338,6 +347,8 @@ func load(data: Dictionary) -> void:
 	var advice_in: Array = data.get("advice", [])
 	for a in advice_in:
 		_advice.append(StringName(String(a)))
+	_reported_need = StringName(String(data.get("reported_need", "")))
+	_need_months = int(data.get("need_months", 0))
 	_outbreak_reported = bool(data.get("outbreak_reported", false))
 	_rebuild_overlay()
 

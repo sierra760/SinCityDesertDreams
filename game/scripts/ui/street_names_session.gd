@@ -98,6 +98,13 @@ func finish() -> void:
 		if not bool(result.get("ok",false)): return
 	leave()
 
+## Back while a name is being typed: the typed text is dropped (the
+## selection's own name returns) and typing stops; the editor stays open.
+func cancel_edit() -> void:
+	if not _active: return
+	_update_panel(true)
+	panel.name_edit.release_focus()
+
 func selected_links() -> Array[String]:
 	return _keys.duplicate()
 

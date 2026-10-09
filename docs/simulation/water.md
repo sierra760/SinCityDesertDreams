@@ -48,7 +48,11 @@ the construction tools follow when they lay pipes and subways.
 ## Timing
 
 - `setup`: rebuild conduction flags for the whole map, register records, run a
-  distribution.
+  distribution. A city loaded from a save instead keeps its saved service
+  flags and tower contents until the next scheduled pass: the summary for the
+  Water window is rebuilt from the saved flags, facility records and saved
+  stats, so it reads exactly what was saved. (Distributing at load would also
+  run before the weather is restored.)
 - Monthly, day 3: rebuild conduction flags, register records, distribute.
 - `networks_changed(rect)`: rebuild conduction flags inside `rect`, register
   records, distribute over the whole map. Towers charge or discharge on this
@@ -146,4 +150,5 @@ Codes 1–15 and 31–34 conduct water. `UtilityParams` exposes `is_pipe`,
 
 `save()` returns `{"shortage": bool, "consumed": int, "treatment_adequate": bool}`.
 Tower contents live in the `flags` layer and facility records in the city,
-both saved with the city.
+both saved with the city. Capacity, demand, unserved buildings and storage
+are read back from the saved `CityStats`.

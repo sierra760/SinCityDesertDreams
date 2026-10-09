@@ -13,10 +13,13 @@ const MARKER_HEIGHT := 1.6
 const SITE_COLOR := Color(1.0, 0.82, 0.42)
 const SELECTED_COLOR := Color(0.25, 1.0, 0.85)
 
-## The candidate tiles shown, and the index of the selected one.
+## The candidate tiles shown, and the index of the selected one (-1 when
+## none is, or when every site is marked at once).
 var sites: Array[Vector2i] = []
 var selected := -1
-var _marker: Node3D
+## True while every site is marked as selected (one question for them all).
+var all_selected := false
+var _markers: Array[Node3D] = []
 var _fill_material: StandardMaterial3D
 var _time := 0.0
 
@@ -26,23 +29,28 @@ func _init() -> void:
 	set_process(false)
 
 
-func show_sites(city: City, cells: Array, selection: int) -> void:
+## Mark `cells`, the one at `selection` with the glowing fill and marker,
+## or every one of them when `mark_all` is true.
+func show_sites(city: City, cells: Array, selection: int, mark_all := false) -> void:
 	_remove_geometry()
 	sites.clear()
+	all_selected = false
 	if city == null:
 		return
 	for cell: Variant in cells:
 		if cell is Vector2i and city.in_bounds(cell.x, cell.y):
 			sites.append(cell)
-	selected = selection if selection >= 0 and selection < sites.size() else -1
+	all_selected = mark_all and not sites.is_empty()
+	selected = selection if not all_selected and selection >= 0 and selection < sites.size() else -1
 	for i in sites.size():
-		_tile(city, sites[i], i == selected)
+		_tile(city, sites[i], all_selected or i == selected)
 	set_process(not sites.is_empty())
 
 
 func clear() -> void:
 	sites.clear()
 	selected = -1
+	all_selected = false
 	_remove_geometry()
 	set_process(false)
 
@@ -56,12 +64,12 @@ func _process(delta: float) -> void:
 	var pulse := 0.5 + 0.5 * sin(_time * TAU * 0.8)
 	if _fill_material != null:
 		_fill_material.albedo_color.a = lerpf(0.18, 0.42, pulse)
-	if _marker != null:
-		_marker.position.y = float(_marker.get_meta("base_y", 0.0)) + 0.18 * pulse
+	for marker: Node3D in _markers:
+		marker.position.y = float(marker.get_meta("base_y", 0.0)) + 0.18 * pulse
 
 
 func _remove_geometry() -> void:
-	_marker = null
+	_markers.clear()
 	_fill_material = null
 	for child in get_children():
 		remove_child(child)
@@ -110,7 +118,8 @@ func _tile(city: City, cell: Vector2i, chosen: bool) -> void:
 		vertices.append(corners[i] + Vector3.UP * LIFT)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	_fill_material = _material(Color(SELECTED_COLOR, 0.3), 123)
+	if _fill_material == null:
+		_fill_material = _material(Color(SELECTED_COLOR, 0.3), 123)
 	var fill := MeshInstance3D.new()
 	fill.name = "Fill"
 	fill.mesh = mesh
@@ -137,4 +146,4 @@ func _tile(city: City, cell: Vector2i, chosen: bool) -> void:
 	marker.position = Vector3(cell.x + 0.5, base_y, cell.y + 0.5)
 	marker.set_meta("base_y", base_y)
 	group.add_child(marker)
-	_marker = marker
+	_markers.append(marker)

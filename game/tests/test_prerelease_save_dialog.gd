@@ -32,12 +32,18 @@ func test_empty_extension_still_requires_a_name() -> void:
 	check(dialog.hint_label.text.contains("Type a name"))
 
 func test_save_location_is_a_real_folder_path() -> void:
+	var folder := ProjectSettings.globalize_path(SaveFormat.default_dir())
 	dialog.open("Town")
-	check(dialog.hint_label.text.contains(ProjectSettings.globalize_path(SaveFormat.default_dir())))
+	check(dialog.hint_label.text.contains(SaveDialog.display_folder(folder)))
+	check_eq(dialog.hint_label.tooltip_text, folder, "the full folder stays one hover away")
 	check(not dialog.hint_label.text.contains("user://"))
+	var home := OS.get_environment("HOME")
+	if not home.is_empty() and folder.begins_with(home + "/"):
+		check(not dialog.hint_label.text.contains(home), "the home folder is shortened to ~")
+		check(dialog.hint_label.text.contains("~" + folder.substr(home.length())))
 	dialog.close()
 	dialog.open("Other Town")
-	check(dialog.hint_label.text.contains(ProjectSettings.globalize_path(SaveFormat.default_dir())))
+	check(dialog.hint_label.text.contains(SaveDialog.display_folder(folder)))
 
 func test_picker_title_explains_the_requested_city_file() -> void:
 	var host: GameHost = load("res://scenes/main.tscn").instantiate()

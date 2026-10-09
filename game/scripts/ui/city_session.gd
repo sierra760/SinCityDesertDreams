@@ -18,8 +18,15 @@ extends RefCounted
 ## Imported and included cities open paused; tell the player how to start.
 const PAUSED_HINT := "Paused — choose a speed (Speed menu or P) to start."
 
+
+## The status line during the editing stage, before the city is founded.
+static func editing_message(city_name: String) -> String:
+	return "Shape the land, then found %s." % (city_name if not city_name.is_empty() else "the city")
+
 var _host: GameHost
 var _has_bound_camera := false
+## The speed the last loaded save was running at (Paused for an unfounded map).
+var loaded_speed: int = GameClock.Speed.PAUSED
 
 
 func _init(host: GameHost) -> void:
@@ -87,7 +94,7 @@ func begin_editing(city: City, settings: Dictionary) -> void:
 	host.menu_bar.set_shown(&"city_found", true)
 	host.select_tool(GameHost.NO_TOOL)
 	host.status_bar.show_editing(city.name)
-	host.status_bar.set_message("Shape the land, then found %s." % city.name)
+	host.status_bar.set_message(editing_message(city.name))
 
 
 ## Found the city on the shaped land: fix the founding year and difficulty
@@ -217,6 +224,7 @@ func load_city(path: String) -> bool:
 		begin_editing(city, settings)
 		_host.save_path = manual_path
 		_host.files.mark_saved()
+		if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(city)
 		_host.show_message("Loaded the unfounded map %s." % city.name)
 		return true
 	var snapshot: Dictionary = result["snapshot"]
@@ -224,11 +232,20 @@ func load_city(path: String) -> bool:
 	var sim := _host.sim
 	_host.save_path = manual_path
 	_host.files.mark_saved()
-	_host.speed_before_modal = sim.speed
-	_host.show_message("Loaded %s." % city.name)
+	if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(sim.city)
+	loaded_speed = sim.speed
 	if sim.budget_review_pending:
 		# Saved during the January review: reopen it, or time never resumes.
+		# Closing it continues at the saved speed, as finishing it would have.
+		_host.speed_before_modal = sim.speed
+		_host.show_message("Loaded %s." % city.name)
 		_host.present_budget_review()
+		return true
+	# Saved cities open paused like imported and included ones. Restoring the
+	# snapshot already reported its running speed, so P resumes that speed.
+	sim.set_speed(GameClock.Speed.PAUSED)
+	_host.speed_before_modal = GameClock.Speed.PAUSED
+	_host.show_message("Loaded %s. %s" % [city.name, PAUSED_HINT])
 	return true
 
 
@@ -236,13 +253,14 @@ func load_city(path: String) -> bool:
 ## Like a fresh import it is credited to the player, opens paused and needs a
 ## new personal save; the packaged file is never a save destination.
 func open_included_city(path: String) -> bool:
+	loaded_speed = GameClock.Speed.PAUSED
 	if not load_city(path):
 		return false
 	var sim := _host.sim
 	_host.save_path = ""
 	sim.city.mayor = _mayor_credit()
 	_host.files.forget_saved()
-	var resume_speed := sim.speed if sim.speed != GameClock.Speed.PAUSED else GameClock.Speed.SLOW
+	var resume_speed := loaded_speed if loaded_speed != GameClock.Speed.PAUSED else GameClock.Speed.SLOW
 	if _host.modal_depth > 0:
 		# A saved January review is open; it already holds the city paused.
 		_host.speed_before_modal = GameClock.Speed.PAUSED

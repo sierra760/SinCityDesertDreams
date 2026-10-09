@@ -117,10 +117,10 @@ func _station(record: Dictionary) -> void:
 			candidates.append(candidate)
 	var title := StationNameResolver.display_name(city,rect.position,subway)
 	if candidates.is_empty():
-		unavailable.append({"name":title,"anchor":rect.position,"subway":subway,"reason":"No reciprocally connected track beside the station."})
+		unavailable.append({"name":title,"anchor":rect.position,"subway":subway,"reason":"Trains can't reach this station. Run connected track past it." if not subway else "Trains can't reach this station. Run a connected subway tunnel past it."})
 		return
 	var options: Array[Dictionary] = []
-	var reason := "No accessible platform at the adjacent track height."
+	var reason := "The track beside this station is not level with its platform."
 	for choice: Dictionary in candidates:
 		var at: Vector3 = nodes[choice.node].point
 		var direction: Vector2i = choice.direction
@@ -131,10 +131,10 @@ func _station(record: Dictionary) -> void:
 		var surface := CityGeometry3D.ground_height(city,rect.position)
 		if not subway and absf(surface-at.y)>.09: continue
 		if subway and surface-at.y-.025<=0:
-			reason = "Adjacent tunnel is above this station entrance."
+			reason = "This entrance sits lower than the subway tunnel beside it. Move the station to higher ground."
 			continue
 		if subway and surface-at.y-.025>2.4:
-			reason = "Station is beyond the current elevator travel range."
+			reason = "The platform is too deep for the station lift. Build the station where the tunnel runs shallower."
 			continue
 		options.append({"id":stations.size(),"name":title,"anchor":rect.position,"rect":rect,
 			"subway":subway,"node":choice.node,"position":at,"forward":forward,"normal":normal,

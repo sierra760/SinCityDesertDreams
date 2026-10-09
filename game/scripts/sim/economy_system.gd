@@ -32,6 +32,11 @@ var _stats: CityStats
 ## The aggregate industrial rate last published to `stats.tax_industrial`; a
 ## different value there means someone set the rate directly (-1: unknown).
 var _published_industrial := -1
+## The player's own sector rates before the Budget's shift, unclamped, and
+## that shift in points: the sector rates are base + offset clamped to
+## 0..SECTOR_TAX_MAX. Empty until the first sync.
+var _sector_base := PackedInt32Array()
+var _sector_offset := 0
 ## Weak, so the context that owns this system is not kept alive by it.
 var _ctx_ref: WeakRef
 
@@ -109,7 +114,10 @@ static func aggregate_industrial_rate(stats: CityStats) -> int:
 	var taxes := stats.sector_taxes
 	if taxes.is_empty():
 		return stats.tax_industrial
-	var shares := stats.sector_shares
+	return _aggregate_of(taxes, stats.sector_shares)
+
+
+static func _aggregate_of(taxes: PackedInt32Array, shares: PackedFloat32Array) -> int:
 	var weighted := 0.0
 	var weight := 0.0
 	for i in taxes.size():
@@ -125,23 +133,92 @@ static func aggregate_industrial_rate(stats: CityStats) -> int:
 
 
 ## Call after the player edits sector rates: the aggregate follows at once.
+## A Budget write not yet folded into the sectors is applied first, so the
+## sector edit does not throw it away.
 func sector_taxes_changed() -> void:
 	if _stats != null:
+		_sync_industrial_rate(_stats)
 		_publish_industrial_rate(_stats)
+
+
+## Call after a direct write to `stats.tax_industrial` (the Budget's
+## industrial rate): every sector shifts by the same points at once and the
+## aggregate is republished, so the Industries window and the Budget agree
+## straight away. Sector clamping may leave the aggregate short of the rate
+## written.
+func industrial_rate_written() -> void:
+	sector_taxes_changed()
 
 
 ## A rate written straight to `stats.tax_industrial` (the budget's industrial
 ## slider, an import) moves every sector rate by the same number of points.
+## The shift is kept apart from the player's own sector spread
+## (`_sector_base`), so a rate pushed to 0% or 20% clamps the sectors without
+## losing their spread, and moving it back restores them. The shift chosen is
+## the one whose aggregate is exactly the rate written whenever that rate is
+## reachable (every rate from 0 to SECTOR_TAX_MAX is).
 func _sync_industrial_rate(stats: CityStats) -> void:
+	_reconcile_sector_base(stats.sector_taxes)
 	if _published_industrial < 0:
 		_published_industrial = aggregate_industrial_rate(stats)
 	var delta := stats.tax_industrial - _published_industrial
 	if delta != 0:
-		var taxes := stats.sector_taxes
-		for i in taxes.size():
-			taxes[i] = clampi(taxes[i] + delta, 0, EconomyParams.SECTOR_TAX_MAX)
-		stats.sector_taxes = taxes
+		_solve_sector_offset(stats, stats.tax_industrial, _sector_offset + delta)
 	_published_industrial = stats.tax_industrial
+
+
+## Fold direct sector edits (the Industries window, an import, a load) into
+## the player's spread: any sector that is not what spread + shift gives was
+## set by hand.
+func _reconcile_sector_base(taxes: PackedInt32Array) -> void:
+	if _sector_base.size() != taxes.size():
+		_sector_base = taxes.duplicate()
+		_sector_offset = 0
+		return
+	for i in taxes.size():
+		if taxes[i] != clampi(_sector_base[i] + _sector_offset, 0, EconomyParams.SECTOR_TAX_MAX):
+			_sector_base[i] = taxes[i] - _sector_offset
+
+
+## Shift the player's spread so the aggregate is `target` (or as close as the
+## shares allow), preferring `hint` (the plain shift by the rate's change)
+## and otherwise the smallest shift, which leaves the spread most intact.
+func _solve_sector_offset(stats: CityStats, target: int, hint: int) -> void:
+	var top := EconomyParams.SECTOR_TAX_MAX
+	if _sector_base.is_empty():
+		return
+	var lowest := _sector_base[0]
+	var highest := _sector_base[0]
+	for b in _sector_base:
+		lowest = mini(lowest, b)
+		highest = maxi(highest, b)
+	if target <= 0 or target >= top:
+		# An end of the range holds every sector at that end, so later share
+		# changes cannot pull the rate off it; the spread is kept in the base.
+		_sector_offset = -highest if target <= 0 else top - lowest
+		stats.sector_taxes = _shifted(_sector_offset)
+		return
+	var best := _sector_offset
+	var best_gap := -1
+	var candidates: Array[int] = [hint]
+	for k in range(-highest, top - lowest + 1):
+		candidates.append(k)
+	for k: int in candidates:
+		var gap := absi(_aggregate_of(_shifted(k), stats.sector_shares) - target)
+		if best_gap < 0 or gap < best_gap or (gap == best_gap and k != hint and best != hint \
+				and absi(k) < absi(best)):
+			best = k
+			best_gap = gap
+	_sector_offset = best
+	stats.sector_taxes = _shifted(best)
+
+
+func _shifted(offset: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	out.resize(_sector_base.size())
+	for i in _sector_base.size():
+		out[i] = clampi(_sector_base[i] + offset, 0, EconomyParams.SECTOR_TAX_MAX)
+	return out
 
 
 func _publish_industrial_rate(stats: CityStats) -> void:
@@ -418,6 +495,11 @@ func _roll_inventions(ctx: SimContext) -> void:
 	# A city saved before a technology joined the table gets a year for it
 	# now; one already in the past is treated as known, not announced as news.
 	var known_by := founded if fresh else maxi(founded, ctx.year())
+	# A city whose economy has never run (an imported city, or an included one
+	# saved straight after import) already has everything invented by today:
+	# that is history, not news.
+	var never_ran := _previous_residents < 0
+	var known_quietly := maxi(founded, ctx.year()) if never_ran else founded
 	for tech in EconomyParams.TECHNOLOGIES:
 		if stats.inventions.has(tech):
 			continue
@@ -426,7 +508,7 @@ func _roll_inventions(ctx: SimContext) -> void:
 		if not fresh and year <= known_by:
 			_announced[tech] = true
 	for tech in stats.inventions:
-		if int(stats.inventions[tech]) <= founded:
+		if int(stats.inventions[tech]) <= known_quietly:
 			_announced[StringName(tech)] = true
 
 
@@ -453,7 +535,7 @@ func save() -> Dictionary:
 	var announced: Array = []
 	for tech in _announced:
 		announced.append(String(tech))
-	return {
+	var data := {
 		"nation_population": _nation_population,
 		"nation_product": _nation_product,
 		"demand": _demand.duplicate(),
@@ -466,6 +548,12 @@ func save() -> Dictionary:
 		"announced": announced,
 		"published_industrial": _published_industrial,
 	}
+	if _stats != null and (_sector_offset != 0 or _sector_base != _stats.sector_taxes) and not _sector_base.is_empty():
+		# The player's sector spread under a Budget shift (only when it is not
+		# simply the rates themselves, so ordinary saves are unchanged).
+		data["sector_base"] = Array(_sector_base)
+		data["sector_offset"] = _sector_offset
+	return data
 
 
 func load(data: Dictionary) -> void:
@@ -481,6 +569,13 @@ func load(data: Dictionary) -> void:
 	# A city saved before sector rates fed the industrial rate lines them up
 	# with the player's rate at the next sync.
 	_published_industrial = int(data.get("published_industrial", -1))
+	_sector_base = PackedInt32Array()
+	_sector_offset = 0
+	var base: Array = data.get("sector_base", [])
+	if base.size() == EconomyParams.SECTOR_COUNT:
+		for rate: Variant in base:
+			_sector_base.append(int(rate))
+		_sector_offset = int(data.get("sector_offset", 0))
 	if _stats != null:
 		_sync_industrial_rate(_stats)
 	_announced.clear()

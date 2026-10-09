@@ -48,7 +48,8 @@ func _build() -> void:
 	filename_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(filename_label)
 	name_edit.text_changed.connect(func(_text: String): _update_filename())
-	hint_label = UIFactory.make_label("Save folder: %s" % ProjectSettings.globalize_path(SaveFormat.default_dir()), UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	hint_label = UIFactory.make_label(folder_hint(), UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	hint_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint_label)
 	var row: HBoxContainer = chrome["actions"]
@@ -71,7 +72,7 @@ func _build() -> void:
 
 func open(default_name: String = "") -> void:
 	name_edit.text = default_name
-	hint_label.text = "Save folder: %s" % ProjectSettings.globalize_path(SaveFormat.default_dir())
+	hint_label.text = folder_hint()
 	_update_filename()
 	visible = true
 	UIFactory.contain_modal_focus(self, name_edit)
@@ -87,6 +88,23 @@ func close() -> void:
 
 func is_open() -> bool:
 	return visible
+
+
+## Where saves go, with the home folder shortened to "~" so the hint stays
+## short and a screenshot does not show the account name. The full folder is
+## the hint's tooltip.
+func folder_hint() -> String:
+	var folder := ProjectSettings.globalize_path(SaveFormat.default_dir())
+	if hint_label != null: hint_label.tooltip_text = folder
+	return "Save folder: %s" % display_folder(folder)
+
+
+static func display_folder(folder: String) -> String:
+	var home := OS.get_environment("USERPROFILE" if OS.get_name() == "Windows" else "HOME").replace("\\", "/").trim_suffix("/")
+	var shown := folder.replace("\\", "/")
+	if home.length() > 1 and (shown == home or shown.begins_with(home + "/")):
+		return "~" + shown.substr(home.length())
+	return folder
 
 
 ## Accept the typed name; an empty name is refused.

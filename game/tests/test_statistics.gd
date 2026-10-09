@@ -188,7 +188,7 @@ func test_status_lines_show_weather_and_storage_and_riders_are_graphed() -> void
 	ctx.stats.water_storage_capacity = 400
 	s.monthly(ctx, 0)
 	var lines: Array = s.call("status_lines")
-	check_eq(lines[6], "Rain %d%%, wind %d from the %s" % [env.precipitation(), env.wind_speed(), env.wind_from_name()])
+	check_eq(lines[6], "Rain this month %d%%, wind %d mph from the map's %s" % [env.precipitation(), env.wind_speed(), env.wind_from_name()])
 	check_eq(lines[7], "Water towers hold 200 of 400")
 	check(StatisticsParams.SERIES.has(&"transit_riders"))
 	check_eq(int(ctx.stats.history[&"transit_riders"][-1]), 42, "the month's riders are graphed")

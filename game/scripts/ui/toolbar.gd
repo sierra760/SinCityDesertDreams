@@ -63,12 +63,12 @@ const CAPTIONS := {
 	Tools.Kind.SUBWAY_PORTAL: "Subway\nportal",
 	Tools.Kind.POWER_LINE: "Power\nline",
 	Tools.Kind.WATER_PIPE: "Water\npipe",
-	Tools.Kind.ZONE_RES_LOW: "Homes\nlight",
-	Tools.Kind.ZONE_RES_HIGH: "Homes\ndense",
-	Tools.Kind.ZONE_COM_LOW: "Shops\nlight",
-	Tools.Kind.ZONE_COM_HIGH: "Offices\ndense",
-	Tools.Kind.ZONE_IND_LOW: "Industry\nlight",
-	Tools.Kind.ZONE_IND_HIGH: "Industry\ndense",
+	Tools.Kind.ZONE_RES_LOW: "Light\nhomes",
+	Tools.Kind.ZONE_RES_HIGH: "Dense\nhomes",
+	Tools.Kind.ZONE_COM_LOW: "Light\nshops",
+	Tools.Kind.ZONE_COM_HIGH: "Dense\nshops",
+	Tools.Kind.ZONE_IND_LOW: "Light\nindustry",
+	Tools.Kind.ZONE_IND_HIGH: "Dense\nindustry",
 	Tools.Kind.AIRPORT: "Airport",
 	Tools.Kind.SEAPORT: "Seaport",
 	Tools.Kind.TREES: "Trees",
@@ -187,8 +187,11 @@ func _build() -> void:
 	shell.name = "Shell"
 	shell.add_theme_constant_override("separation",8)
 	add_child(shell)
-	selected_label = UIFactory.make_label("Tool: none",UITheme.FONT_SMALL)
-	selected_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	selected_label = UIFactory.make_label("Tool: None",UITheme.FONT_SMALL)
+	# One line: a long tool name is cut with an ellipsis; its tooltip has it all.
+	selected_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	selected_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	selected_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	selected_label.name = "SelectedTool"
 	shell.add_child(selected_label)
 	section_picker = OptionButton.new()
@@ -396,8 +399,27 @@ static func tooltip_for(tool: int, reason: String, free: bool = false, bindings:
 	elif tool == Tools.Kind.BULLDOZE: text += " [hold %s]" % input.caption(&"bulldoze")
 	if Tools.is_immediate(tool): text += " · applies on press"
 	if not reason.is_empty():
-		text += "\n" + reason
+		text += "\n" + ConstructionFlow.sentence(reason)
 	return text
+
+
+## A reward tool that has not been offered says how it is earned: the
+## population that brings the offer, or that the council turned the base down.
+static func reward_lock_reason(tool: int, reason: String, rewards: SimSystem = null) -> String:
+	if not Tools.is_reward_tool(tool) or reason != "not yet offered to the city":
+		return reason
+	var key := Tools.reward_key(tool)
+	if key == RewardParams.MILITARY_KEY and rewards != null and rewards.has_method("military_offer"):
+		var offer: Dictionary = rewards.call("military_offer")
+		if bool(offer.get("answered", false)) and not bool(offer.get("accepted", false)):
+			return "the council turned down the base"
+	for milestone: Dictionary in RewardParams.MILESTONES:
+		if StringName(milestone.get("key", &"")) == key:
+			var people := UIFactory.commafy(int(milestone.get("population", 0)))
+			if key == RewardParams.MILITARY_KEY:
+				return "the military may propose a base when the city reaches %s people" % people
+			return "offered when the city reaches %s people" % people
+	return reason
 
 
 func _on_button_pressed(tool: int) -> void:
@@ -412,7 +434,7 @@ func _show_lock_details(tool: int) -> void:
 	if not is_locked(tool) or not is_shown(tool): return
 	_explained_tool = tool
 	_lock_identity.text = tooltip_for(tool,"",is_free(tool),controls).get_slice("\n",0)
-	_lock_reason.text = String(lock_reasons[tool])
+	_lock_reason.text = ConstructionFlow.sentence(String(lock_reasons[tool]))
 	_lock_details.show()
 	_reveal_focused_tool()
 
@@ -493,14 +515,18 @@ func set_active(tool: int) -> void:
 
 
 func _update_selected_identity() -> void:
-	var identity := tooltip_for(active_tool, String(lock_reasons.get(active_tool,"")), is_free(active_tool),controls) if buttons.has(active_tool) else "none"
-	selected_label.text = "Tool: " + identity.get_slice("\n",0)
+	var identity := tooltip_for(active_tool, String(lock_reasons.get(active_tool,"")), is_free(active_tool),controls) if buttons.has(active_tool) else "None"
+	var text := "Tool: " + identity.get_slice("\n",0)
+	var changed := text != selected_label.text
+	selected_label.text = text
 	selected_label.tooltip_text = identity
+	# The tool list may have shifted under a changed name; keep focus in view.
+	if changed and is_inside_tree(): _reveal_focused_tool.call_deferred()
 
 
 ## Update every button's enabled state and tooltip from the city, its stats
 ## and the disaster system (which decides whether crews can be sent).
-func refresh(city: City, stats: CityStats, disasters: SimSystem = null) -> void:
+func refresh(city: City, stats: CityStats, disasters: SimSystem = null, rewards: SimSystem = null) -> void:
 	var emergency := false
 	if disasters != null and disasters.has_method("is_emergency"):
 		emergency = bool(disasters.call("is_emergency"))
@@ -512,16 +538,16 @@ func refresh(city: City, stats: CityStats, disasters: SimSystem = null) -> void:
 			crew_counts = disasters.call("crews_summary")
 			crews_known = true
 	for tool in buttons:
-		var reason := Tools.locked_reason(tool, city, stats)
+		var reason := reward_lock_reason(tool, Tools.locked_reason(tool, city, stats), rewards)
 		if reason.is_empty() and Tools.is_dispatch_tool(tool):
 			if not emergency:
-				reason = "only during an emergency"
+				reason = Builder.REASON_NO_EMERGENCY
 			elif crews_known or (disasters != null and disasters.has_method("crews_available")):
 				var kind: StringName = Tools.dispatch_kind(tool)
 				var crews := int(crew_counts.get(kind, 0)) if crews_known \
 						else int(disasters.call("crews_available", kind))
 				if crews <= 0:
-					reason = "no crews available"
+					reason = Builder.REASON_NO_CREWS
 				else:
 					reason = ""
 		lock_reasons[tool] = reason

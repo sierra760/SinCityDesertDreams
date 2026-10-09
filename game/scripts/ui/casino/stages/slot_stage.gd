@@ -130,7 +130,9 @@ func _draw_reel(reel: int, rect: Rect2) -> void:
 		var at := Vector2(center.x, center.y + sin(theta) * radius * 0.94)
 		var symbol := SlotsGame.symbol_at(reel, posmod(index, STRIP))
 		draw_set_transform_matrix(_xf * Transform2D(0.0, Vector2(1.0, squash), 0.0, at))
-		_draw_symbol(symbol, minf(rect.size.x, 120.0), true)
+		# Only rows turned toward the player keep their name: a row near
+		# the drum's edge is squashed too far for its caption to read.
+		_draw_symbol(symbol, minf(rect.size.x, 120.0), squash > 0.6)
 		draw_set_transform_matrix(_xf)
 	# Shade the drum's top and bottom so it reads as a turning reel.
 	var shade := Color(0, 0, 0, 0.32)

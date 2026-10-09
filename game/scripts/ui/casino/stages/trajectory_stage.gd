@@ -138,7 +138,9 @@ func _draw_stage() -> void:
 
 func _draw_chart(chart: Rect2) -> void:
 	_round_rect(chart, Color(palette.ink, 0.88), 10.0, palette.metal, 2.0)
-	var plot := chart.grow_individual(-48, -16, -16, -34)
+	# The left inset leaves the multiplier labels a column of their own, so
+	# the rocket resting at 1.0x (fins included) never covers "1.0x".
+	var plot := chart.grow_individual(-72, -16, -16, -34)
 	var x_max := maxf(10.0, flight_seconds * 1.15)
 	var y_max := maxf(2.0, maxf(multiplier, auto_target) * 1.2)
 	for k in 5:

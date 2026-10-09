@@ -40,17 +40,17 @@ and a bet bar. The resort's dealer comments on every deal and result.
 
 | Key | Action |
 | --- | --- |
-| `1`–`5` | Place a chip on the selected spot: 1, 2, 5 or 10 times the table minimum, or Max (the rest of what you can bet) |
-| `+` / `−` | Add or take back another of the selected chip |
+| `1`–`5` | Place a chip on the selected spot: 1, 2, 5 or 10 times the table minimum, or Max (the rest of what you can bet). The digit row works by key position, so AZERTY players need no Shift |
+| `+` / `−` | Add or take back another of the selected chip (hold to repeat; no other table key repeats while held) |
 | Arrow keys | Choose a betting spot (roulette, money wheel, faro, chuck-a-luck, baccarat) |
-| `Enter` | The table's main action: deal, spin, pull, turn, roll, launch, then next round |
+| `Enter` | The table's main action: deal, spin, pull, turn, roll, launch; stand in blackjack (Enter never hits); draw in video poker; cash out a launch; then next round. Enter on a chip or `+`/`−` also plays the main action instead of betting again |
 | `H` / `S` / `D` / `P` | Blackjack hit, stand, double, split; `D` also draws in video poker |
 | `1`–`5` (video poker, after the deal) | Hold or release a card |
 | `Space` | Cash out a launch (Static Fire) |
 | `A` | Choose an automatic cash-out target before a launch |
-| `R` | Repeat the last bet |
+| `R` | Repeat the last bet (after a result it starts the next round with it) |
 | `Backspace` | Clear the bets |
-| `Escape` | Leave the table |
+| `Escape` | Finish a result's animation; a second Escape leaves the table |
 
 On touch, tap a chip, tap a spot to place it, and tap the action buttons;
 the same buttons work with a mouse. **Rules** shows how the game plays and
@@ -58,6 +58,16 @@ pays. **Leave table** (or Escape) returns you to the floor, restores the
 city's previous speed and resumes Explore where you stood. Bets you have not
 played yet are simply returned. A round that has started must finish first,
 so Leave table is unavailable until the hand, spin or launch is settled.
+
+The first chip goes on the table's plainest bet: Red in roulette and the 1
+segment on the money wheel. The bet bar says where the next chip goes
+("Chips go on Red · pays 1 to 1"). After a result, **Same bet** (or `R`)
+starts the next round with the same bets on the felt.
+
+A round that would stake more than half of the treasury asks first: the
+dealer says, for example, "Bet $8,000 of the city's $8,000? Press Enter or
+Deal again to confirm." Pressing Enter or the button again plays it; changing
+the bets cancels the question.
 
 ## The games
 
@@ -109,7 +119,10 @@ Every bet comes from the city treasury, and the table's maximum is never more
 than the treasury holds, including blackjack doubles and splits. The treasury
 therefore never goes below zero because of play. With less than the table
 minimum the resort refuses to seat you: "The cage doesn't extend credit to the
-city." The stake leaves the treasury when the round starts and the return
+city. Tables here start at $250; the treasury has $180." The same line
+explains why the chips grey out when the treasury falls below the minimum
+between rounds. When the treasury caps the maximum below the table's own,
+the welcome line says how far it covers. The stake leaves the treasury when the round starts and the return
 arrives when it settles; the status bar follows both while the city is paused.
 
 Play is not a budget line: it never appears in the budget report, and it
@@ -118,7 +131,9 @@ is loaded in the middle of a round, the stake is returned first. If the app
 goes to the background (on iPhone and iPad, leaving the app or opening the
 Control Center), the round is played out as it stands instead: blackjack
 stands, video poker draws with the cards you hold, and a launch cashes out at
-the multiplier shown. Leaving the app never takes back a bad hand. On the
+the multiplier shown. Leaving the app never takes back a bad hand. When you
+come back, the status line says what happened, for example "Your Assay
+Twenty-One hand was played out while you were away: -$1,000." On the
 desktop, a launch stops climbing while the window is in the background and
 continues where it left off. A round in progress is never saved. Quitting
 while seated waits until you finish the round and leave the table, and the

@@ -68,14 +68,16 @@ func test_background_is_idempotent_and_resume_requires_deliberate_speed() -> voi
 func test_recovery_list_and_load_do_not_target_managed_file() -> void:
 	if not _available(): return
 	check_eq(host.call("suspend_for_background"), OK)
-	host.call("resume_from_background")
+	# The copy is listed while the app is away (or after it was closed there);
+	# a clean return discards it.
 	host.files.open_load_dialog()
 	var index := host.load_dialog.paths.find(RECOVERY)
 	check(index >= 0, "Load exposes background recovery")
 	if index >= 0:
-		check(host.load_dialog.item_list.get_item_text(index).contains("Recovered after the app closed"))
+		check(host.load_dialog.item_list.get_item_text(index).contains(LoadDialog.RECOVERY_LABEL))
 	host.load_dialog.close()
 	check(host.load_city(ProjectSettings.globalize_path(RECOVERY)))
+	host.call("resume_from_background")
 	check_eq(host.save_path, "", "recovery must use Save As for a named save")
 	check_eq(host.files.save_city_as("suspended"), MANUAL, "matching manual basename remains separate")
 

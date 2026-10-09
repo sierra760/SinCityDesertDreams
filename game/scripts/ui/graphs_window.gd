@@ -149,6 +149,8 @@ class GraphCanvas extends Control:
 		# Axis numbers only when every line shares the axis; dollars when the
 		# one line is Funds.
 		var axis_name: StringName = series[0]["name"] if series.size() == 1 else &""
+		# A narrow range rounds several grid lines to one number; label it once.
+		var labelled := {}
 		for i in GRID_LINES + 1:
 			var t := float(i) / float(GRID_LINES)
 			var y := rect.position.y + rect.size.y * (1.0 - t)
@@ -157,6 +159,9 @@ class GraphCanvas extends Control:
 			if own_scales():
 				continue
 			var value := int(round(float(range_v.x) + float(range_v.y - range_v.x) * t))
+			if labelled.has(value):
+				continue
+			labelled[value] = true
 			draw_string(font, Vector2(2.0, y + 4.0), value_text(axis_name, value),
 				HORIZONTAL_ALIGNMENT_LEFT, PAD_LEFT - 4.0, font_size, UITheme.TEXT_MUTED)
 		var years := maxi(months / GameClock.MONTHS_PER_YEAR, 1)

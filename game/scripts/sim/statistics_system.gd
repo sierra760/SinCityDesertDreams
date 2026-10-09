@@ -14,6 +14,8 @@ var _samples := 0
 var _status_lines: Array[String] = []
 var _last_status := -1
 var _stats: CityStats
+## Weak, so the context that owns this system is not kept alive by it.
+var _ctx_ref: WeakRef
 
 
 func _init() -> void:
@@ -22,6 +24,7 @@ func _init() -> void:
 
 func setup(ctx: SimContext) -> void:
 	_stats = ctx.stats
+	_ctx_ref = weakref(ctx)
 	if _status_lines.is_empty():
 		_refresh_status(ctx)
 
@@ -67,9 +70,20 @@ static func status_name(status: int) -> String:
 	return names[clampi(status, 0, names.size() - 1)]
 
 
-## Short summary lines: class, date, population, funds, employment, approval.
+## Short summary lines: class, date, population, funds, employment, approval,
+## as of the last monthly report.
 func status_lines() -> Array[String]:
 	return _status_lines.duplicate()
+
+
+## The same summary built from the city as it is right now (its current name,
+## date, treasury and weather), for the status bar; the monthly report when
+## there is no context.
+func status_lines_now() -> Array[String]:
+	var ctx: SimContext = _ctx_ref.get_ref() if _ctx_ref != null else null
+	if ctx == null or ctx.city == null:
+		return status_lines()
+	return _lines_for(ctx)
 
 
 ## Months sampled since founding.
@@ -138,10 +152,14 @@ static func _zone_tile_counts(city: City) -> Vector3i:
 
 
 func _refresh_status(ctx: SimContext) -> void:
+	_last_status = ctx.city.status
+	_status_lines = _lines_for(ctx)
+
+
+static func _lines_for(ctx: SimContext) -> Array[String]:
 	var st := ctx.stats
 	var city := ctx.city
-	_last_status = city.status
-	_status_lines = [
+	var lines: Array[String] = [
 		"%s, a %s" % [city.name, status_name(city.status)],
 		ctx.clock.date_text(),
 		"Population %s" % NewsStories.count_text({"count": st.total_population()}),
@@ -151,12 +169,14 @@ func _refresh_status(ctx: SimContext) -> void:
 	]
 	var environment := ctx.system(&"environment")
 	if environment != null and environment.has_method("precipitation"):
+		# Map directions: the view may be turned, so "west" names the map's west.
 		var name := String(environment.call("wind_from_name")) if environment.has_method("wind_from_name") else ""
-		_status_lines.append("Rain %d%%, wind %d%s" % [int(environment.call("precipitation")),
-			int(environment.call("wind_speed")), (" from the " + name) if name != "" else ""])
+		lines.append("Rain this month %d%%, wind %d mph%s" % [int(environment.call("precipitation")),
+			int(environment.call("wind_speed")), (" from the map's " + name) if name != "" else ""])
 	if st.water_storage_capacity > 0:
-		_status_lines.append("Water towers hold %s of %s" % [NewsStories.count_text({"count": st.water_stored}),
+		lines.append("Water towers hold %s of %s" % [NewsStories.count_text({"count": st.water_stored}),
 			NewsStories.count_text({"count": st.water_storage_capacity})])
+	return lines
 
 
 # ── Persistence ──────────────────────────────────────────────────────────

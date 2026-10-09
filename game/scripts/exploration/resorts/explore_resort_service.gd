@@ -20,7 +20,8 @@ const Layouts := preload("res://scripts/exploration/resorts/resort_interior_layo
 const Dresser := preload("res://scripts/exploration/resorts/resort_prop_dresser.gd")
 ## Whole fade-out/fade-in time of a door transition. Tests set 0.
 static var transition_seconds := .3
-const CLOSED_MESSAGE := "The resort closed around you."
+## Shown when the occupied resort is demolished or replaced (%s: its name).
+const CLOSED_MESSAGE := "%s is gone; you're back on the street."
 
 var view: CityView3D
 var traversal: CityTraversalWorld3D
@@ -34,6 +35,10 @@ var _transitioning := false
 var fill: DirectionalLight3D
 ## The last hall the walker occupied, for recovery after leaving it.
 var _last: ResortInteriorWorld3D
+## The anchor of a hall that closed around the walker, until the session has
+## rebuilt the physical world and `settle_ejection` finds a checked pose.
+var _pending_ejection := Vector2i(-1,-1)
+var _pending_code := -1
 
 func bind(value: CityView3D, physical: CityTraversalWorld3D, pedestrian: ExplorePedestrian, interface: ExploreHUD) -> void:
 	view = value
@@ -121,7 +126,15 @@ func _place(pose: Transform3D) -> void:
 ## The supported outdoor pose in front of the current resort's door.
 func _outdoor_pose() -> Transform3D:
 	var anchor: Vector2i = _resort.get("anchor",_inside.anchor if is_inside() else Vector2i.ZERO)
+	var clear := _clear_outdoor_pose(anchor)
+	if not clear.is_empty(): return clear.transform
 	var base := Access.threshold(view.city,anchor)
+	return Transform3D(base.basis*Basis(Vector3.UP,PI),base.origin+Vector3.UP*.002)
+
+## A supported, clear and dry pose in front of `anchor`'s door, facing the
+## street, or {} when none of the probed steps qualifies.
+func _clear_outdoor_pose(anchor: Vector2i, code: int = -1) -> Dictionary:
+	var base := Access.threshold(view.city,anchor,code)
 	# The threshold faces into the building; step out facing the street.
 	var facing := base.basis*Basis(Vector3.UP,PI)
 	var outward := facing*Vector3.FORWARD
@@ -137,8 +150,8 @@ func _outdoor_pose() -> Transform3D:
 		var pose := Transform3D(facing,Vector3(point.x,float(support.position.y)+skin,point.z))
 		var shape_pose := pose
 		shape_pose.origin.y += float(ExploreActorProfile.geometry(ExploreActorProfile.Mode.WALK).foot_offset)
-		if traversal.has_clearance(shape_pose,shape,exclude) and not traversal.touches_water(pose.origin): return pose
-	return Transform3D(facing,base.origin+Vector3.UP*.002)
+		if traversal.has_clearance(shape_pose,shape,exclude) and not traversal.touches_water(pose.origin): return {"transform": pose}
+	return {}
 
 ## True when `feet` is inside the occupied hall. Hidden halls are not
 ## consulted; a walker outside every hall has none.
@@ -178,8 +191,9 @@ func _target(feet: Vector3) -> Dictionary:
 func prompt(feet: Vector3) -> String:
 	var target := _target(feet)
 	if target.is_empty(): return ""
-	if target.has("door"): return "F to step outside"
-	return "F to play %s · $%s minimum" % [String(target.name),_grouped(Layouts.minimum(_inside.key))]
+	# The HUD swaps the leading "F to" for the bound key or "Interact".
+	if target.has("door"): return CasinoLines.exit_prompt()
+	return CasinoLines.play_prompt(String(target.name),Layouts.minimum(_inside.key))
 
 func interact(feet: Vector3) -> bool:
 	if _transitioning: return false
@@ -214,16 +228,40 @@ func refresh_geometry() -> void:
 			# A door fade to or from this hall cannot finish: stop it here.
 			if is_instance_valid(hud): hud.cancel_fade()
 			_transitioning = false
+		var closed_name := ResortThemes.resort_name(world.key) if is_instance_valid(world) else ""
+		if closed_name.is_empty(): closed_name = "The resort"
 		if was_inside:
 			_inside = null
 			_resort = {"anchor": anchor}
-			var door := Access.threshold(view.city,anchor)
+			# A provisional pose at the old door; the physical world still
+			# shows the old building, so `settle_ejection` checks the real
+			# pose once the session has rebuilt it.
+			var code := world.code if is_instance_valid(world) else -1
+			var door := Access.threshold(view.city,anchor,code)
 			_place(Transform3D(door.basis*Basis(Vector3.UP,PI),door.origin+Vector3.UP*.002))
+			_pending_ejection = anchor
+			_pending_code = code
 		if world == _last: _last = null
 		_worlds.erase(anchor)
 		if is_instance_valid(world): world.free()
 		_sync_presence()
-		if was_inside: ejected.emit(CLOSED_MESSAGE)
+		if was_inside: ejected.emit(CLOSED_MESSAGE % closed_name)
+
+func ejection_pending() -> bool:
+	return _pending_ejection != Vector2i(-1,-1)
+
+## After the physical world matches the edited city: move an ejected walker
+## to a supported, clear, dry pose in front of the old door. False when there
+## is none; the session then recovers the walker to the nearest road.
+func settle_ejection() -> bool:
+	if not ejection_pending(): return true
+	var anchor := _pending_ejection
+	_pending_ejection = Vector2i(-1,-1)
+	if not is_instance_valid(walker) or not is_instance_valid(traversal): return false
+	var pose := _clear_outdoor_pose(anchor,_pending_code)
+	if pose.is_empty(): return false
+	_place(pose.transform)
+	return true
 
 func status() -> Dictionary:
 	var feet := walker.global_position if is_instance_valid(walker) else Vector3.ZERO
@@ -234,6 +272,7 @@ func clear() -> void:
 	_inside = null
 	_last = null
 	_resort = {}
+	_pending_ejection = Vector2i(-1,-1)
 	_transitioning = false
 	if is_instance_valid(hud): hud.cancel_fade()
 	for world: ResortInteriorWorld3D in _worlds.values():
@@ -242,11 +281,3 @@ func clear() -> void:
 			world.free()
 	_worlds.clear()
 	if is_instance_valid(fill): fill.visible = false
-
-static func _grouped(value: int) -> String:
-	var digits := str(value)
-	var out := ""
-	for index: int in digits.length():
-		if index>0 and (digits.length()-index)%3==0: out += ","
-		out += digits[index]
-	return out

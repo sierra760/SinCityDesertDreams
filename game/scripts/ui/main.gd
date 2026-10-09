@@ -113,6 +113,8 @@ var _last_click_button := MOUSE_BUTTON_LEFT
 var _query_refresh_pending := false
 var _previous_auto_accept_quit := true
 var _application_suspended := false
+## False while another application has focus (minimized or behind another window).
+var _window_in_foreground := true
 var _background_save_error: Error = OK
 
 
@@ -193,6 +195,8 @@ func _ready() -> void:
 	add_child(exploration)
 	exploration.bind(city_view_3d,explore_hud)
 	exploration.set_touch_controls_enabled(Platform.uses_touch())
+	exploration.touch_controls_changed.connect(func(_on: bool) -> void:
+		if is_instance_valid(shell) and is_exploring(): shell.update_minimap_visibility())
 	exploration.input_blocked = is_explore_input_blocked
 	exploration.release_ui_focus = display_layout.release_city_focus
 	exploration.return_requested.connect(explore_switch.leave)
@@ -244,6 +248,8 @@ func _build_dialogs() -> void:
 	title_screen.quit_requested.connect(files.quit_game)
 	title_screen.settings_requested.connect(func() -> void: window_manager.open("options"))
 	title_screen.license_requested.connect(func() -> void: window_manager.open("license"))
+	title_screen.help_requested.connect(func() -> void: window_manager.open("help"))
+	title_screen.shortcuts_blocked = func() -> bool: return modal_depth > 0 or files.picker_modal or loading_screen.visible
 	modal_layer.add_child(title_screen)
 	new_city_dialog = NewCityDialog.new()
 	new_city_dialog.run_loading = run_loading
@@ -310,7 +316,7 @@ func _connect_presentation() -> void:
 
 
 func _show_title() -> void:
-	DisplayServer.screen_set_keep_on(false)
+	if not OS.has_feature("web"): DisplayServer.screen_set_keep_on(false)
 	explore_switch.dispose()
 	title_screen.open()
 	shell.set_chrome_visible(false)
@@ -443,6 +449,8 @@ func suspend_for_background(recovery_path: String = "") -> Error:
 	sim.set_speed(GameClock.Speed.PAUSED)
 	var path := CityFileFlow.application_recovery_path() if recovery_path.is_empty() else recovery_path
 	_background_save_error = SaveFormat.save(path, sim.city, {}, SaveFormat.STAGE_EDITING, editing_params) if stage == Stage.EDITING else SaveFormat.save(path, sim.city, sim.snapshot())
+	if _background_save_error == OK and is_instance_valid(files) and CityFileFlow.is_application_recovery_path(path):
+		files.note_recovery_copy(sim.city)
 	return _background_save_error
 
 
@@ -454,10 +462,15 @@ func resume_from_background() -> void:
 	cancel_map_gesture()
 	speed_before_modal = GameClock.Speed.PAUSED
 	if is_instance_valid(sim): sim.set_speed(GameClock.Speed.PAUSED)
+	# A casino round the app played out on the way to the background.
+	var casino_note := casino_overlay.take_background_summary() if is_instance_valid(casino_overlay) else ""
 	if _background_save_error != OK and _background_save_error != ERR_UNAVAILABLE:
 		notices.show("Recovery Backup Failed", "The recovery copy could not be written while the app was in the background. Your saved cities are unchanged. Save the city before leaving the app.")
+		if not casino_note.is_empty(): show_message(casino_note)
 	elif is_instance_valid(sim) and sim.city != null and stage == Stage.PLAY:
-		show_message("Paused while you were away. Choose a speed to continue.")
+		show_message(("%s " % casino_note if not casino_note.is_empty() else "") + "Paused while you were away. Choose a speed to continue.")
+	# The app came back, so the recovery copy written on the way out is not needed.
+	if _background_save_error == OK and is_instance_valid(files): files.discard_recovery_copy()
 	_background_save_error = OK
 
 
@@ -465,6 +478,13 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT \
 			or what == NOTIFICATION_WM_CLOSE_REQUEST:
 		prefs.flush()
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		# project.godot sets quit_on_go_back=false, so Android Back arrives here.
+		if is_instance_valid(files): go_back()
+		return
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_window_in_foreground = what == NOTIFICATION_APPLICATION_FOCUS_IN
+		if is_instance_valid(sim): sync_keep_screen_on()
 	if not Platform.is_mobile():
 		# Switching to another window keeps terrain downloads going; only an
 		# OS-level pause stops them. A hidden or background window renders
@@ -478,15 +498,51 @@ func _notification(what: int) -> void:
 				new_city_dialog.resume_online_work()
 		if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 			Engine.max_fps = BACKGROUND_MAX_FPS
-			if bool(preferences.get("pause_in_background", true)) and is_instance_valid(sim): acquire_sim_process_hold(&"desktop_background")
+			if bool(preferences.get("pause_in_background", true)):
+				if is_instance_valid(sim): acquire_sim_process_hold(&"desktop_background")
+				# Music and loops pause with the city instead of playing over other apps.
+				if is_instance_valid(audio): audio.set_background(true)
 		elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 			Engine.max_fps = 0
 			if is_instance_valid(sim): release_sim_process_hold(&"desktop_background")
+			if is_instance_valid(audio): audio.set_background(false)
 		return
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		if is_instance_valid(presentation): suspend_for_background()
 	elif what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if is_instance_valid(presentation): resume_from_background()
+
+
+## Android Back closes the front-most thing as Escape does (a notice, dialog,
+## window, the phone Tools drawer, the Explore menu, the tool). Exploring with
+## nothing open, it opens the Explore menu. With nothing left to close it
+## leaves through the normal quit path, which offers to save the city first.
+func go_back() -> void:
+	if loading_screen.visible: return
+	if _back_has_target(): escape(true)
+	else: files.quit_game()
+
+
+## True when Escape would close or cancel something rather than do nothing.
+func _back_has_target() -> bool:
+	return share_dialog.is_open() or is_casino_open() or notice_dialog.is_open() or choice_dialog.is_open() \
+		or new_city_dialog.is_open() or load_dialog.is_open() or save_dialog.is_open() or _help_sources_open() \
+		or window_manager.front() != null or _drag_active or query_panel.is_open() \
+		or (shell.phone_layout and shell.phone_tools_open) or is_exploring() \
+		or street_names.is_active() or tool != NO_TOOL
+
+
+## Keep the display awake only while a city's clock runs in the focused
+## window. A background, minimized or suspended game lets the display sleep;
+## Web has no keep-awake support (it would log a warning on every change).
+func keep_screen_on_wanted(speed: int = -1) -> bool:
+	var running := (sim.speed if speed < 0 else speed) != GameClock.Speed.PAUSED
+	return running and in_game and _window_in_foreground and not _application_suspended
+
+
+func sync_keep_screen_on(speed: int = -1) -> void:
+	if OS.has_feature("web"): return
+	DisplayServer.screen_set_keep_on(keep_screen_on_wanted(speed))
 
 
 # ── Tools and the inspector ──────────────────────────────────────────────
@@ -559,7 +615,14 @@ func refresh_toolbar() -> void:
 		toolbar.set_imported_terrain_reset(imported.ok, imported.error)
 	else:
 		toolbar.set_procedural_regeneration()
-	toolbar.refresh(sim.city, sim.stats, sim.get_system(&"disasters"))
+	toolbar.refresh(sim.city, sim.stats, sim.get_system(&"disasters"), sim.get_system(&"rewards"))
+	if Tools.is_dispatch_tool(tool) and toolbar.is_locked(tool):
+		# The emergency is over (or its last station is gone): crews can no
+		# longer be sent, so the tool goes back to Inspect.
+		var reason := String(toolbar.lock_reasons.get(tool, ""))
+		select_tool(Tools.Kind.QUERY)
+		if stage == Stage.PLAY:
+			show_message("The emergency is over; crews stood down." if reason == Builder.REASON_NO_EMERGENCY else ConstructionFlow.sentence(reason))
 	var disasters := sim.get_system(&"disasters") as DisasterSystem
 	var available := stage == Stage.PLAY and disasters != null and disasters.emergency_target().x >= 0
 	status_bar.set_emergency_available(available)
@@ -663,6 +726,18 @@ func _input(event: InputEvent) -> void:
 		open_cheat_dialog()
 		get_viewport().set_input_as_handled()
 		return
+	if _is_mac_fullscreen_chord(event):
+		if not loading_screen.visible: prefs.set_option(&"fullscreen", not display_layout.fullscreen)
+		get_viewport().set_input_as_handled()
+		return
+	# An editing text field would swallow the first Escape (it only stops
+	# editing), leaving its dialog open; the dialog closes on the first press.
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE \
+			and _dialog_text_field_focused():
+		escape()
+		get_viewport().set_input_as_handled()
+		return
+	if is_instance_valid(exploration): exploration.note_pointer_event(event)
 	if is_instance_valid(exploration) and event is InputEventKey and not event.pressed:
 		exploration.handle_event(event)
 	if is_instance_valid(exploration):
@@ -675,6 +750,23 @@ func _input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 	if event is InputEventKey and not event.pressed and controls.matches(event,&"bulldoze"):
 		restore_temporary_bulldoze(true)
+
+
+## True while a text field inside an open modal dialog has keyboard focus.
+func _dialog_text_field_focused() -> bool:
+	var focused := get_viewport().gui_get_focus_owner()
+	if not focused is LineEdit: return false
+	for dialog: Control in [notice_dialog, save_dialog, new_city_dialog, load_dialog, share_dialog]:
+		if is_instance_valid(dialog) and dialog.visible and dialog.is_ancestor_of(focused): return true
+	return false
+
+
+## macOS keeps F11 for Show Desktop; Ctrl+Cmd+F is the Mac fullscreen chord.
+func _is_mac_fullscreen_chord(event: InputEvent) -> bool:
+	if OS.get_name() != "macOS" or not event is InputEventKey: return false
+	var key := event as InputEventKey
+	return key.pressed and not key.echo and key.keycode == KEY_F and key.ctrl_pressed and key.meta_pressed \
+		and not key.alt_pressed and not key.shift_pressed
 
 
 ## Return from a held temporary Bulldoze to the tool under it.
@@ -741,8 +833,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## Escape: close the front-most thing, otherwise drop the tool.
-func escape() -> void:
+## Escape: close the front-most thing, otherwise drop the tool. Android Back
+## (`from_back`) does the same, except that while a street name is being
+## typed it cancels that edit (Escape leaves typing to the text field).
+func escape(from_back: bool = false) -> void:
 	if share_dialog.is_open():
 		share_dialog.close()
 		return
@@ -754,6 +848,9 @@ func escape() -> void:
 		notice_dialog.dismiss()
 	elif choice_dialog.is_open():
 		choice_dialog.cancel()
+	elif new_city_dialog.is_open() and new_city_dialog.terrain_dialog.sources_dialog.visible:
+		# Only the credits close; the chooser and its download keep going.
+		new_city_dialog.terrain_dialog.sources_dialog.close()
 	elif new_city_dialog.is_open():
 		if new_city_dialog.terrain_dialog.visible: new_city_dialog.terrain_dialog.close()
 		else: new_city_dialog.close()
@@ -777,6 +874,7 @@ func escape() -> void:
 		else: exploration.pause()
 	elif street_names.is_active():
 		if not street_names.panel.name_edit.has_focus(): street_names.leave()
+		elif from_back: street_names.cancel_edit()
 	elif tool != NO_TOOL:
 		select_tool(NO_TOOL)
 	elif display_layout.fullscreen:
@@ -859,7 +957,7 @@ func _on_about_closed(choice: StringName) -> void:
 func open_cheat_dialog() -> void:
 	if stage != Stage.PLAY or is_input_blocked() or WindowDrag.is_dragging(): return
 	var lines := preload("res://scripts/content/cheat_lines.gd")
-	notices.queue("Secret municipal paperwork", lines.PROMPT,
+	notices.queue("Secret Municipal Paperwork", lines.PROMPT,
 		[["Submit", &"submit"], ["Never mind", &"cancel"]], _on_cheat_submitted, true)
 
 
@@ -950,6 +1048,10 @@ func force_close_casino() -> void:
 func _on_casino_closed() -> void:
 	pop_modal()
 	if is_instance_valid(exploration): exploration.release_casino_table_view()
+	# Resume Explore now, when nothing else holds input, so the HUD comes
+	# back without flashing its paused panel until the next physics tick.
+	# The controller's own check keeps a manual pause and an open window.
+	if is_exploring() and exploration.is_suspended(): exploration.resume_if_unblocked()
 	if _casino_hid_hud:
 		_casino_hid_hud = false
 		if is_instance_valid(explore_hud): explore_hud.visible = is_exploring()
@@ -1042,7 +1144,7 @@ func _on_speed_changed(speed: int) -> void:
 	status_bar.set_speed(speed)
 	menu_bar.set_checked(&"speed", true, speed)
 	# Let the display sleep while the city is paused; keep it awake while time runs.
-	DisplayServer.screen_set_keep_on(speed != GameClock.Speed.PAUSED and not _application_suspended)
+	sync_keep_screen_on(speed)
 	if speed != GameClock.Speed.PAUSED:
 		_last_running_speed = speed
 	if modal_depth > 0 and speed != GameClock.Speed.PAUSED:
@@ -1202,7 +1304,7 @@ func _process(delta: float) -> void:
 	if message_seconds_left > 0.0:
 		message_seconds_left = maxf(0.0, message_seconds_left - maxf(delta, 0.0))
 		if message_seconds_left == 0.0:
-			status_bar.set_message("Shape the land, then found the city." if stage == Stage.EDITING else ("Underground · pipes and subway" if presentation.is_underground() else ""))
+			status_bar.set_message(CitySession.editing_message(sim.city.name if sim.city != null else "") if stage == Stage.EDITING else ("Underground · pipes and subway" if presentation.is_underground() else ""))
 	if _query_refresh_pending:
 		_query_refresh_pending = false
 		if query_panel.is_open(): query_panel.refresh(sim.city, sim)

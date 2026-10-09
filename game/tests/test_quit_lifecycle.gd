@@ -126,3 +126,74 @@ func test_ios_discard_disposes_active_explore_session() -> void:
 	await _await_title()
 	check_eq(actor.get_ref(), null, "closed cities retain no Explore actor")
 	check_eq(Input.mouse_mode, Input.MOUSE_MODE_VISIBLE)
+
+func test_android_back_closes_front_most_then_offers_save() -> void:
+	check_eq(ProjectSettings.get_setting("application/config/quit_on_go_back",true),false,"Back reaches the game instead of quitting the app")
+	host.begin_city(flat_city(), {}, 123, CityStats.new())
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+	host.sim.city.funds -= 100
+	var state := host.sim.snapshot().duplicate(true)
+	host.window_manager.open("options")
+	check(host.window_manager.front() != null)
+	host.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	check_eq(host.window_manager.front(), null, "Back closes the front window first")
+	check(not host.notice_dialog.is_open())
+	# Repeated Back works down to nothing open, then asks before leaving.
+	for press in 4:
+		if host.notice_dialog.is_open(): break
+		host.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	check(host.notice_dialog.is_open(), "an unsaved city is offered a save before leaving")
+	check_eq(host.notice_dialog.choice_buttons.size(), 3)
+	check(is_instance_valid(host) and host.in_game, "the city is still open")
+	check_eq(host.sim.snapshot(), state, "Back never advances or alters the city")
+	host.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	check(not host.notice_dialog.is_open(), "Back on the prompt cancels it")
+	check(host.in_game)
+
+# Guards against: Android Back doing nothing while a street name is being
+# typed (Escape leaves typing to the text field, so Back had no effect).
+func test_android_back_cancels_a_street_name_being_typed() -> void:
+	host.begin_city(flat_city(), {}, 42, CityStats.new())
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+	host.select_tool(Tools.Kind.ROAD)
+	check(host.handle_drag(Vector2i(50, 60), Vector2i(60, 60)).ok, "fixture: a road to name")
+	host.select_tool(GameHost.NO_TOOL)
+	var names: Node = host.get("street_names")
+	check(names.enter(), "Street Names opens")
+	var edit: LineEdit = names.panel.name_edit
+	edit.grab_focus()
+	edit.text = "Elm Stree"
+	check(edit.has_focus(), "fixture: a name is being typed")
+	var before := SaveFormat.encode_city(host.sim.city)
+	host.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	check(names.is_active(), "Back keeps the editor open")
+	check(not edit.has_focus(), "Back stops the typing")
+	check_eq(edit.text, "", "the typed text is dropped")
+	check(not host.notice_dialog.is_open(), "Back does not offer to leave the city")
+	check_eq(SaveFormat.encode_city(host.sim.city), before, "no name was applied")
+	host.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	check(not names.is_active(), "the next Back closes Street Names")
+	check(host.in_game)
+
+func test_background_window_lets_the_display_sleep() -> void:
+	host.begin_city(flat_city(), {}, 123, CityStats.new())
+	host.sim.set_speed(GameClock.Speed.FAST)
+	check(host.keep_screen_on_wanted(), "a running city in the focused window keeps the display awake")
+	host.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	check(not host.keep_screen_on_wanted(), "a background or minimized window lets the display sleep")
+	host.notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	check(host.keep_screen_on_wanted(), "returning to the window keeps a running city awake again")
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+	check(not host.keep_screen_on_wanted(), "a paused city lets the display sleep")
+
+func test_quit_from_minimized_window_restores_it_before_prompting() -> void:
+	host.begin_city(flat_city(), {}, 123, CityStats.new())
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+	host.sim.city.funds -= 100
+	host.display_layout.maximized = true
+	host.display_layout.mode_override = Window.MODE_MINIMIZED
+	host.files.quit_game()
+	check_eq(host.display_layout.mode_override, Window.MODE_MAXIMIZED, "the window returns to its maximized state before the prompt")
+	check(host.notice_dialog.is_open(), "the save question is queued in the restored window")
+	host.notice_dialog.dismiss()
+	host.display_layout.mode_override = -1

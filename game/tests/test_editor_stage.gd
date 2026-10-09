@@ -304,7 +304,13 @@ func test_loading_and_importing_skip_the_stage() -> void:
 	check(host.load_city(SAVE_PATH))
 	check_eq(host.stage, GameHost.Stage.PLAY, "a founded save skips the stage")
 	check_eq(host.sim.clock.day, 7)
-	check_eq(host.sim.speed, GameClock.Speed.SLOW, "the saved speed resumes")
+	check_eq(host.sim.speed, GameClock.Speed.PAUSED, "a loaded city opens paused")
+	var pause := InputEventKey.new()
+	pause.keycode = KEY_P
+	pause.physical_keycode = KEY_P
+	pause.pressed = true
+	host._unhandled_key_input(pause)
+	check_eq(host.sim.speed, GameClock.Speed.SLOW, "P resumes the saved speed")
 	DirAccess.remove_absolute(SAVE_PATH)
 
 

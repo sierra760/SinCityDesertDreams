@@ -24,6 +24,8 @@ var emergency_button: Button
 var _metrics_row: HFlowContainer
 var _column: VBoxContainer
 var _editing := false
+## True while no tool is selected ("Tool: None").
+var _no_tool := true
 var _phone := false
 var _details_open := false
 var _phone_row: HBoxContainer
@@ -96,7 +98,7 @@ func apply_phone_height_limit(height: float) -> void:
 func _sync_phone_summary() -> void:
 	if _phone_summary == null or _details_button == null: return
 	var paused := speed_label != null and speed_label.text == String(GameClock.SPEED_NAMES[GameClock.Speed.PAUSED])
-	_phone_summary.text = funds_label.text+" · "+date_label.text+(" · Paused" if paused else "")+"\n"+tool_label.text
+	_phone_summary.text = ("" if _editing else funds_label.text+" · ")+date_label.text+(" · Paused" if paused else "")+"\n"+tool_label.text
 	_details_button.text = "Less" if _details_open else ("Alerts" if not alert_label.text.is_empty() else "Details")
 	_details_button.add_theme_color_override("font_color",UITheme.MONEY_NEGATIVE if not alert_label.text.is_empty() else UITheme.TEXT_PRIMARY)
 	_details_button.tooltip_text = alert_label.text if not alert_label.text.is_empty() else "Tool, population, demand and simulation speed"
@@ -208,12 +210,19 @@ func _cell(row: Container, text: String, min_width: int, color := UITheme.TEXT_P
 func apply_layout(available_width: float) -> void:
 	custom_minimum_size.x = 0
 	_metrics_row.custom_minimum_size.x = 0
-	tool_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# A long tool name is cut with an ellipsis (full name in the tooltip)
+	# rather than wrapping and growing the row.
+	tool_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	tool_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	tool_label.custom_minimum_size.x = minf(220.0,available_width * 0.35)
 
 
 func set_tool_text(text: String) -> void:
-	tool_label.text = "Tool: " + text
+	_no_tool = text == "none" or text.is_empty()
+	tool_label.text = "Tool: " + ("None" if _no_tool else text)
+	tool_label.tooltip_text = tool_label.text
+	# Before founding, an empty tool cell says nothing worth reading.
+	tool_label.visible = not (_editing and _no_tool)
 	_sync_phone_summary()
 
 
@@ -264,10 +273,15 @@ func set_message(text: String) -> void:
 func show_editing(city_name: String) -> void:
 	_editing = true
 	set_emergency_available(false)
+	# There is no treasury before founding.
+	funds_label.visible = false
+	tool_label.visible = not _no_tool
 	funds_label.text = "—"
 	funds_label.add_theme_color_override("font_color", UITheme.MONEY_NEUTRAL)
 	date_label.text = "Shaping the land"
 	population_label.text = city_name
+	# No earlier city's summary while the land is shaped.
+	population_label.tooltip_text = "The city's name. Found the city to start its clock and treasury."
 	set_demand(Vector3i.ZERO)
 	set_speed(GameClock.Speed.PAUSED)
 	set_alerts(PackedStringArray())
@@ -279,13 +293,17 @@ func refresh(sim: Simulation) -> void:
 	if sim == null or sim.city == null:
 		return
 	_editing = false
+	funds_label.visible = true
+	tool_label.visible = true
 	set_funds(sim.city.funds)
 	set_date(sim.date_text())
 	set_population(sim.stats.total_population())
 	set_demand(sim.stats.demand)
 	var statistics := sim.get_system(&"statistics")
 	if statistics != null and statistics.has_method("status_lines"):
-		var lines: Array = statistics.call("status_lines")
+		# Built from the city as it is now, so it never contradicts the bar.
+		var lines: Array = statistics.call("status_lines_now") if statistics.has_method("status_lines_now") \
+			else statistics.call("status_lines")
 		population_label.tooltip_text = "\n".join(PackedStringArray(lines)) if not lines.is_empty() else "Total city population"
 	set_speed(sim.speed)
 	set_alerts(alerts_for(sim))

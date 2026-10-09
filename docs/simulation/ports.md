@@ -51,7 +51,11 @@ Events:
   ports; vehicles whose port stopped operating are removed.
 - **Monthly, day 25**: ports are re-enumerated and every port tile gets a
   development chance; the city center used by the helicopter is refreshed.
-- **On `networks_changed`**: the port list is rebuilt on the next query.
+- **On `networks_changed`**: the port list is rebuilt on the next query. It
+  is also rebuilt on the next query whenever the zone, building or flags layer
+  differs from the one it was built from, so damage no construction reported
+  (fires, disasters) is seen at once and a reloaded city sees the same ports
+  as one that kept running.
 
 ## Rules
 

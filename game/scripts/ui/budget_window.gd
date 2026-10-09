@@ -102,12 +102,16 @@ func bind(sim: Simulation) -> void:
 			_sim.month_ended.disconnect(_on_month_ended)
 		if _sim.year_ended.is_connected(_on_year_ended):
 			_sim.year_ended.disconnect(_on_year_ended)
+		if _sim.funds_changed.is_connected(_on_funds_changed):
+			_sim.funds_changed.disconnect(_on_funds_changed)
 	_sim = sim
 	if sim != null:
 		if not sim.month_ended.is_connected(_on_month_ended):
 			sim.month_ended.connect(_on_month_ended)
 		if not sim.year_ended.is_connected(_on_year_ended):
 			sim.year_ended.connect(_on_year_ended)
+		if not sim.funds_changed.is_connected(_on_funds_changed):
+			sim.funds_changed.connect(_on_funds_changed)
 	refresh()
 
 
@@ -165,24 +169,44 @@ static func condition_text(sim: Simulation) -> String:
 		var counts: Dictionary = wear.call("network_counts")
 		var lost: Dictionary = wear.call("losses")
 		var parts: PackedStringArray = []
+		var built := false
 		for category: StringName in TRANSPORT_FUNDING:
 			if int(counts.get(category, 0)) <= 0 and int(lost.get(category, 0)) <= 0:
 				continue
-			var text := "%s %d%% worn" % [String(FUNDING_LABELS.get(category, String(category))),
-				int(wear.call("wear_percent", category))]
+			built = true
+			# Only networks that are wearing or have lost pieces are listed.
+			var worn := int(wear.call("wear_percent", category))
+			if worn <= 0 and int(lost.get(category, 0)) <= 0:
+				continue
+			var text := "%s %d%% worn" % [String(FUNDING_LABELS.get(category, String(category))), worn]
 			if int(lost.get(category, 0)) > 0:
 				text += ", %s lost" % UIFactory.commafy(int(lost[category]))
 			parts.append(text)
-		lines.append("Condition: " + ("; ".join(parts) if not parts.is_empty() else "no networks built yet"))
+		var condition := "; ".join(parts)
+		if parts.is_empty():
+			condition = "all networks in good repair" if built else "no networks built yet"
+		lines.append("Condition: " + condition)
 	var history := sim.stats.history
 	var riders: PackedStringArray = []
 	for entry: Array in [[&"riders_bus", "bus"], [&"riders_rail", "rail"], [&"riders_subway", "subway"]]:
 		var series: PackedInt32Array = history.get(entry[0], PackedInt32Array())
-		if not series.is_empty():
+		# Modes nobody rode last year are left out.
+		if not series.is_empty() and series[series.size() - 1] > 0:
 			riders.append("%s %s" % [entry[1], UIFactory.commafy(series[series.size() - 1])])
 	if not riders.is_empty():
 		lines.append("Transit riders last year: " + ", ".join(riders))
 	return "\n".join(lines)
+
+
+## Redraw the other open report windows beside `from` after it changed
+## something they show (a tax rate, an ordinance's cost).
+static func refresh_other_windows(from: Control) -> void:
+	var parent := from.get_parent() if from != null else null
+	if parent == null:
+		return
+	for w: Node in parent.get_children():
+		if w != from and (w is BudgetWindow or w is IndustriesWindow) and (w as Control).visible:
+			w.call("refresh")
 
 
 func set_tax(kind: StringName, rate: int) -> void:
@@ -303,11 +327,16 @@ func _build_taxes(parent: VBoxContainer) -> void:
 	grid.add_theme_constant_override("h_separation", UITheme.MARGIN)
 	for entry: Array in [[&"residential", "Residential"], [&"commercial", "Commercial"], [&"industrial", "Industrial"]]:
 		var kind: StringName = entry[0]
-		grid.add_child(UIFactory.make_label(String(entry[1]) + " %"))
+		var caption := UIFactory.make_label(String(entry[1]) + " %")
+		grid.add_child(caption)
 		var spinner := TouchNumberField.new()
 		spinner.min_value = 0
 		spinner.max_value = TAX_MAX
 		spinner.step = 1
+		if kind == &"industrial":
+			caption.tooltip_text = "The share-weighted average of the eleven industry rates (Reports → Industries). Changing it shifts every sector by the same points."
+			caption.mouse_filter = Control.MOUSE_FILTER_PASS
+			spinner.tooltip_text = caption.tooltip_text
 		spinner.value_changed.connect(_on_tax_changed.bind(kind))
 		grid.add_child(spinner)
 		_tax_spinners[kind] = spinner
@@ -472,9 +501,21 @@ func _refresh_bonds(stats: CityStats) -> void:
 		debt = int(budget.call("total_debt"))
 	_debt_label.text = "Total debt %s, %d of %d bonds" % [UIFactory.format_amount(debt), stats.bonds.size(), BudgetParams.MAX_BONDS]
 	_refresh_quote()
-	var can_repay := budget != null and not stats.bonds.is_empty() \
-		and _sim.city.funds >= int(stats.bonds[0].get("principal", 0))
-	_repay_button.disabled = not can_repay
+	_refresh_repay(stats)
+
+
+## Repay is possible when the treasury covers the oldest bond; otherwise the
+## button says what it needs.
+func _refresh_repay(stats: CityStats) -> void:
+	var budget := _budget()
+	if budget == null or stats.bonds.is_empty():
+		_repay_button.disabled = true
+		_repay_button.tooltip_text = "No bonds to repay"
+		return
+	var principal := int(stats.bonds[0].get("principal", 0))
+	_repay_button.disabled = _sim.city.funds < principal
+	_repay_button.tooltip_text = "Pay off the oldest bond in full" if not _repay_button.disabled \
+		else "Needs %s in the treasury to repay bond 1" % UIFactory.format_amount(principal)
 
 
 func _refresh_quote() -> void:
@@ -505,8 +546,17 @@ func _on_tax_changed(value: float, kind: StringName) -> void:
 		&"commercial": _sim.stats.tax_commercial = rate
 		&"industrial": _sim.stats.tax_industrial = rate
 	_syncing = true
+	if kind == &"industrial":
+		# The rate is the average of the eleven sector rates: shift them now so
+		# a sector edit in Industries cannot throw this change away.
+		var economy := _sim.get_system(&"economy")
+		if economy != null and economy.has_method("industrial_rate_written"):
+			economy.call("industrial_rate_written")
+		(_tax_spinners[&"industrial"] as TouchNumberField).value = _sim.stats.tax_industrial
 	_refresh_ledger(_sim.stats)
 	_syncing = false
+	if kind == &"industrial":
+		refresh_other_windows(self)
 
 
 func _on_funding_changed(value: float, service: StringName) -> void:
@@ -535,6 +585,15 @@ func _on_auto_budget_toggled(on: bool) -> void:
 func _on_month_ended(_year: int, _month: int) -> void:
 	if visible:
 		refresh()
+
+
+## The treasury moves every day the city runs; keep its line and Repay current
+## without rebuilding the rest of the window.
+func _on_funds_changed(funds: int) -> void:
+	if not visible or not _built or _sim == null or _sim.city == null:
+		return
+	_funds_label.text = "Treasury: " + UIFactory.format_signed_amount(funds)
+	_refresh_repay(_sim.stats)
 
 
 func _on_year_ended(_year: int) -> void:

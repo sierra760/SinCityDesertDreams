@@ -86,7 +86,9 @@ func _playing_actions() -> Array[Dictionary]:
 	var cards: Array = hand["cards"]
 	var first_two := cards.size() == 2 and not bool(hand["split_aces"])
 	var room := total_staked() + int(hand["stake"]) <= int(limits["maximum"])
-	out.append(_action(HIT, "Hit", true, true))
+	# Stand is the only primary action: Enter stands and never draws a card
+	# (a stray or held Enter must not hit a hand away). Hit stays on H.
+	out.append(_action(HIT, "Hit", true, false))
 	out.append(_action(STAND, "Stand", true, true))
 	out.append(_action(DOUBLE, "Double", first_two and room, false))
 	out.append(_action(SPLIT, "Split", first_two and room and not _split_used

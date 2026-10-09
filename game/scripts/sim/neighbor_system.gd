@@ -253,14 +253,17 @@ func _trade(ctx: SimContext) -> void:
 		_trade_by_edge[connected[0]] += dollars - share * connected.size()
 
 
-## Yearly cents earned (positive) or owed (negative) for one utility.
+## Yearly cents earned for one utility. Neighbors buy the city's surplus over
+## a line or pipe to the edge. They do not supply a shortfall (the power and
+## water systems serve only from the city's own plants), so a shortfall is
+## not billed either.
 func _utility_trade_cents(utility: StringName, capacity: int, demand: int) -> int:
 	if not has_utility_link(utility):
 		return 0
 	var surplus := capacity - demand
-	if surplus >= 0:
-		return mini(surplus, NeighborParams.TRADE_UNIT_CAP) * int(NeighborParams.EXPORT_CENTS[utility])
-	return surplus * int(NeighborParams.IMPORT_CENTS[utility])
+	if surplus <= 0:
+		return 0
+	return mini(surplus, NeighborParams.TRADE_UNIT_CAP) * int(NeighborParams.EXPORT_CENTS[utility])
 
 
 ## Which networks reach each edge of the map.

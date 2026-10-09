@@ -10,6 +10,7 @@ extends Node
 signal return_requested
 signal status_changed(status: Dictionary)
 signal active_changed(on: bool)
+signal touch_controls_changed(on: bool)
 ## A casino table on a resort floor was chosen; the host opens the table and
 ## may hold `casino_table_pose(table)` as the camera while it is open.
 signal casino_table_requested(resort: StringName, game: StringName, table: Dictionary)
@@ -76,7 +77,26 @@ var _resume_when_unblocked := false
 var _suspended_at_frame := 0
 var _escape_pressed := false
 var _touch_enabled := MobilePlatform.uses_touch()
+## On a desktop platform (mouse and keyboard by default) the controls follow
+## the pointer actually in use: the first real screen touch turns on the touch
+## controls, and the next real mouse movement turns them off again. Phones,
+## tablets and mobile browsers always use touch.
+var follow_pointer_kind := not MobilePlatform.uses_touch()
 var _touch_hardware_quarantine: Dictionary = {}
+
+func _enter_tree() -> void:
+	# The corner minimap reads the player's position and heading from here.
+	add_to_group(MiniMap.EXPLORE_MARKER_GROUP)
+
+## Where the player is for the minimap: the occupied actor's map position
+## (x,z) and its heading on the map plane, or {} outside a session.
+func minimap_marker() -> Dictionary:
+	if not _active or not is_instance_valid(occupied) or not occupied.is_inside_tree(): return {}
+	var at := occupied.global_position
+	var forward := occupied.global_basis*Vector3.FORWARD
+	var heading := Vector2(forward.x,forward.z)
+	if heading.length_squared() < 1e-6 and is_instance_valid(camera_rig): heading = Vector2(-sin(camera_rig.yaw),-cos(camera_rig.yaw))
+	return {"position":Vector2(at.x,at.z),"heading":heading.normalized()}
 
 func bind(value: CityView3D, interface: ExploreHUD) -> void:
 	if is_instance_valid(view) and view.geometry_rebuilt.is_connected(_on_geometry_rebuilt):
@@ -149,6 +169,7 @@ func enter(city: City, origin: Vector3) -> bool:
 	camera_rig.configure_target(occupied,mode)
 	camera_rig.update_follow(0)
 	view.set_exploration_camera(camera_rig.camera)
+	if view.feedback != null: view.feedback.set_exploring(true)
 	_active = true
 	_suspended = false
 	_arming = true
@@ -304,9 +325,17 @@ func set_touch_controls_enabled(on: bool) -> void:
 	_reset_input()
 	if is_instance_valid(hud): hud.set_touch_controls_enabled(on)
 	if _active: Input.mouse_mode=Input.MOUSE_MODE_VISIBLE if on or _suspended else Input.MOUSE_MODE_CAPTURED
+	touch_controls_changed.emit(on)
 
 func touch_controls_enabled() -> bool:
 	return _touch_enabled
+
+## Main passes every input event here first. Events the engine emulates
+## (mouse from touch, touch from mouse) never switch the controls.
+func note_pointer_event(event: InputEvent) -> void:
+	if not follow_pointer_kind or event.device==InputEvent.DEVICE_ID_EMULATION: return
+	if event is InputEventScreenTouch and event.pressed and not _touch_enabled: set_touch_controls_enabled(true)
+	elif event is InputEventMouseMotion and _touch_enabled: set_touch_controls_enabled(false)
 
 func cancel_touch_input() -> void:
 	_reset_input()
@@ -375,6 +404,12 @@ func resume() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if _touch_enabled else Input.MOUSE_MODE_CAPTURED
 	hud.set_suspended(false)
 
+## For the host after a modal closes: resume now when the suspension was not
+## the player's own pause and nothing else (a modal or Build window) holds
+## input; otherwise stay paused exactly as the next physics tick would.
+func resume_if_unblocked() -> void:
+	if _active and _suspended: _check_auto_resume()
+
 ## While suspended: a modal that caused (or immediately followed) the
 ## suspension arms an automatic resume for the first tick after it closes.
 func _check_auto_resume() -> void:
@@ -422,6 +457,7 @@ func leave() -> void:
 	_edges.clear()
 	if is_instance_valid(hud): hud.clear_touch_input()
 	view.clear_exploration_camera()
+	if view.feedback != null: view.feedback.set_exploring(false)
 	_clear_actors()
 	hud.show_session(false)
 	active_changed.emit(false)
@@ -560,6 +596,12 @@ func _reconcile_revision() -> bool:
 	if is_instance_valid(resort_service): resort_service.refresh_geometry()
 	traversal.rebuild(view.city,snapshot.chunks,snapshot.networks,snapshot.revision)
 	_revision_pending = false
+	# A hall that closed around the walker: check the real outdoor pose now
+	# that the physical world shows the edited city, else go to a road.
+	if is_instance_valid(resort_service) and resort_service.ejection_pending() and not resort_service.settle_ejection():
+		if occupied == pedestrian and not _recover_to_road():
+			_request_return("No safe place remains. Returning to Build.")
+			return false
 	for actor: CharacterBody3D in [pedestrian,car,helicopter,selected_vehicle]:
 		var invalid_manual_route: bool = actor == occupied and actor is ExploreRouteVehicle and is_instance_valid(transit_service) and transit_service.manual_route_invalidated
 		if is_instance_valid(actor) and (invalid_manual_route or not _valid_actor(actor,true)):
@@ -766,7 +808,7 @@ func request_interaction() -> bool:
 			_ambient_claimed = false
 			if _board_ambient(): return true
 			# A claimed vehicle that could not be boarded already explained why.
-			if not _ambient_claimed: _message = "Walk closer to a vehicle, or choose one in the Explore panel."
+			if not _ambient_claimed: _message = "Walk closer to a vehicle, or choose one from the Explore menu (%s)." % ("Menu" if _touch_enabled else "Esc")
 			_publish_status()
 			return false
 		pedestrian.stop_input()
@@ -897,7 +939,7 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 	var inside_resort := mode == 0 and is_instance_valid(resort_service) and resort_service.is_inside()
 	var resort_door: Dictionary = ResortAccess.nearby(view.city,pedestrian.global_position) if mode == 0 and not inside_resort else {}
 	if inside_resort: prompt = resort_service.prompt(pedestrian.global_position)
-	elif not resort_door.is_empty(): prompt = "F to enter "+ResortThemes.resort_name(resort_door.key)
+	elif not resort_door.is_empty(): prompt = CasinoLines.enter_prompt(ResortThemes.resort_name(resort_door.key))
 	elif mode == 0:
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): prompt="F to board a boat at the marina"
@@ -945,6 +987,11 @@ func release_casino_table_view() -> void:
 
 func select_vehicle(kind: StringName) -> bool:
 	if not _active or not _suspended: return false
+	var refusal := _selection_refusal(kind)
+	if not refusal.is_empty():
+		_message = refusal
+		_publish_status()
+		return false
 	var ok := false
 	var boarded := false
 	if occupied == pedestrian and CityTrafficCatalog.domain(kind)==&"water":
@@ -956,6 +1003,31 @@ func select_vehicle(kind: StringName) -> bool:
 	# Choosing a vehicle from the paused panel starts driving it right away.
 	if ok: resume()
 	return ok
+
+## Furthest a parked helicopter may be from the walker to be chosen in the
+## Explore menu; other vehicles likewise appear on a route within this reach.
+const HELICOPTER_SELECT_REACH := 8.0
+
+## Why the Explore menu cannot hand over `kind` here, or "" when it can.
+## A passenger, a walker on a casino floor or inside a station (for anything
+## other than the rail vehicle running there) must step outside first, and
+## the session helicopter is only chosen near where it is parked.
+func _selection_refusal(kind: StringName) -> String:
+	if occupied != pedestrian or not is_instance_valid(pedestrian): return ""
+	var feet := pedestrian.global_position
+	if is_instance_valid(transit_service) and is_instance_valid(transit_service.train) and transit_service.train.contains(feet):
+		return "Leave the train first."
+	if is_instance_valid(resort_service) and (resort_service.is_inside() or resort_service.is_transitioning()):
+		return "Step outside the resort first."
+	if CityTrafficCatalog.domain(kind) != &"rail" and is_instance_valid(transit_service) and transit_service.indoors(feet):
+		return "Step outside the station first."
+	if kind == &"helicopter" and is_instance_valid(helicopter):
+		# Measured across the ground (a pad on a roof or bridge is as near as
+		# it looks), the same distance the message reports.
+		var away := Vector2(helicopter.global_position.x-feet.x,helicopter.global_position.z-feet.z).length()
+		if away > HELICOPTER_SELECT_REACH:
+			return "The helicopter is parked %d tiles away. Walk back to it to fly." % roundi(away)
+	return ""
 
 func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dictionary = {}) -> bool:
 	if not CityTrafficCatalog.is_drivable(kind):

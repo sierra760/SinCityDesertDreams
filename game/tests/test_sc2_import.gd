@@ -318,3 +318,50 @@ func test_import_reads_player_signs() -> void:
 		Vector2i(100, 7): "Bayshore Freeway",
 		Vector2i(127, 127): "Last Sign",
 	}, "player signs keep their tile and text")
+
+
+func test_dos_file_names_become_readable_city_names() -> void:
+	check_eq(Sc2Import.city_name("FOO.SC2"), "Foo")
+	check_eq(Sc2Import.city_name("OROCANYON.SC2", "Imported City"), "Orocanyon")
+	check_eq(Sc2Import.city_name("OROCANYON.SC2", "Oro Canyon"), "Oro Canyon", "the file's own name reads better")
+	check_eq(Sc2Import.city_name("Salton Shores"), "Salton Shores", "ordinary names are kept")
+	check_eq(Sc2Import.city_name("NYC"), "NYC", "capitals without a file extension are a choice")
+	var r := Sc2Import.load("res://assets/cities/Oro Canyon.sc2")
+	check(r["ok"], r["error"])
+	check_eq((r["city"] as City).name, "Oro Canyon")
+
+
+func test_an_imported_city_opens_with_its_people_counted() -> void:
+	for city_name in ["Oro Canyon", "Salton Shores"]:
+		var r := Sc2Import.load("res://assets/cities/%s.sc2" % city_name)
+		check(r["ok"], r["error"])
+		var city: City = r["city"]
+		check_lt(city.status, PopulationParams.STATUS_NAMES.size(), "a real class: " + city_name)
+		var sim := Simulation.new()
+		var stats := CityStats.new()
+		sim.setup(city, 99, stats)
+		var opened := sim.stats.total_population()
+		check_gt(opened, 0, "%s reads its population on open" % city_name)
+		check_gt(sim.stats.jobs, 0, "and its jobs")
+		check_eq(city.status, mini(city.status, PopulationSystem.derived_status(opened)), "class no higher than its people")
+		check_lt(sim.stats.education_quotient, 100, "scores come from the people, not placeholders")
+		var invented: Array[Dictionary] = []
+		var year := sim.clock.year()
+		sim.news_published.connect(func(story: Dictionary) -> void:
+			if story.get("kind", &"") == &"invention":
+				invented.append(story))
+		sim.advance_days(75)
+		for story in invented:
+			check_ge(int(story["args"]["year"]), year, "%s: no retroactive invention news (%s)" % [city_name, str(story["args"])])
+		check_between(sim.stats.population, opened / 2, opened * 2, "%s: the first pass does not move the whole city in" % city_name)
+		sim.free()
+
+
+func test_salton_shores_is_not_a_megalopolis() -> void:
+	var r := Sc2Import.load("res://assets/cities/Salton Shores.sc2")
+	var sim := Simulation.new()
+	sim.setup(r["city"], 5, CityStats.new())
+	sim.advance_days(30)
+	check(PopulationParams.status_name(sim.city.status) in ["Village", "Town"],
+		"Salton Shores is a %s" % PopulationParams.status_name(sim.city.status))
+	sim.free()

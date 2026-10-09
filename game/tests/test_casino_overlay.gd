@@ -468,3 +468,199 @@ func test_chip_faces_are_reused_between_refreshes() -> void:
 	check(chip.get_theme_stylebox("normal") == face, "an unchanged chip keeps its face")
 	overlay.press_chip(2)
 	check(chip.get_theme_stylebox("normal") != face, "selecting the chip restyles it")
+
+
+func _echo(code: Key) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.physical_keycode = code
+	event.pressed = true
+	event.echo = true
+	root.push_input(event)
+
+
+func _player_cards() -> int:
+	var hands: Array = overlay.game.view_state().get("hands", [])
+	return (hands[0]["cards"] as Array).size() if not hands.is_empty() else 0
+
+
+func test_enter_never_hits_and_held_keys_do_not_repeat() -> void:
+	overlay.open(sim, COMSTOCK, &"blackjack", CasinoRng.new(3))
+	await _settle_frames()
+	# Player 10+7 = 17 against the dealer's 9+8 = 17; a fifth card would bust.
+	overlay.game.rig([_card(10, 0), _card(9, 1), _card(7, 2), _card(8, 3), _card(10, 1)])
+	_key(KEY_1)
+	_echo(KEY_1)
+	_echo(KEY_1)
+	check_eq(overlay.game.total_staked(), 100, "a held digit adds one chip, not one per repeat")
+	_echo(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.BETTING, "a repeated Enter never deals")
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.PLAYING, "Enter deals")
+	var hit: Button = overlay.bet_bar.action_buttons.get(&"hit", null)
+	check(hit != null and hit.visible, "fixture: Hit is offered")
+	check(root.gui_get_focus_owner() != hit, "focus does not land on Hit after the deal")
+	check_eq(overlay.bet_bar.primary_button(), overlay.bet_bar.action_buttons.get(&"stand", null), "Stand is the main action in a hand")
+	_echo(KEY_ENTER)
+	_echo(KEY_H)
+	check_eq(_player_cards(), 2, "repeats of Enter and H draw nothing")
+	check_eq(overlay.game.state, CasinoGame.PLAYING)
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.SETTLED, "Enter stands")
+	check_eq(_player_cards(), 2, "Enter never drew a card")
+	check_eq(String(overlay.game.outcome()["reaction"]), "push", "17 stands against 17")
+	check_eq(sim.city.funds, START_FUNDS)
+	# A mouse click on Hit leaves focus there; Enter still stands, not hits.
+	overlay.perform_action(&"next")
+	overlay.game.rig([_card(10, 0), _card(9, 1), _card(7, 2), _card(8, 3), _card(10, 1)])
+	overlay.press_chip(0)
+	overlay.perform_action(&"deal")
+	hit.grab_focus()
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.SETTLED, "Enter on a focused Hit stands")
+	check_eq(_player_cards(), 2)
+	check(overlay.rules_label.text.contains("Enter never draws a card"), "the rules say what Enter does")
+
+
+# Guards against: every repeated key swallowed at the table, so holding an
+# arrow no longer stepped across the roulette layout.
+func test_held_arrows_keep_stepping_but_held_action_keys_do_not() -> void:
+	overlay.open(sim, COMSTOCK, &"roulette", CasinoRng.new(9))
+	await _settle_frames()
+	overlay.select_spot(&"n17")
+	_key(KEY_RIGHT)
+	var first := overlay.stage.selected_spot
+	check_ne(first, &"n17", "fixture: an arrow moves the selection")
+	_echo(KEY_RIGHT)
+	check_ne(overlay.stage.selected_spot, first, "a held arrow keeps stepping across the spots")
+	var held := InputEventKey.new()
+	held.keycode = KEY_TAB
+	held.physical_keycode = KEY_TAB
+	held.pressed = true
+	held.echo = true
+	check(not overlay.handle_key(held), "a held Tab passes through to move focus")
+	for code: Key in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_ESCAPE, KEY_1, KEY_KP_3, KEY_H, KEY_R, KEY_A]:
+		held.keycode = code
+		held.physical_keycode = code
+		check(overlay.handle_key(held), "a held %s is swallowed" % OS.get_keycode_string(code))
+	var staked := overlay.game.total_staked()
+	_echo(KEY_1)
+	check_eq(overlay.game.total_staked(), staked, "a repeated digit adds no chip")
+	_echo(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.BETTING, "a repeated Enter never spins")
+
+
+func test_enter_after_clicking_a_chip_plays_instead_of_betting_again() -> void:
+	overlay.open(sim, COMSTOCK, &"roulette", CasinoRng.new(9))
+	await _settle_frames()
+	check_eq(overlay.stage.selected_spot, &"red", "a first chip goes on Red, not on zero")
+	check(overlay.bet_bar.spot_label.text.begins_with("Chips go on Red"), overlay.bet_bar.spot_label.text)
+	var chip := overlay.bet_bar.chip_buttons[1]
+	chip.grab_focus()
+	chip.pressed.emit()
+	check_eq(overlay.game.bets(), {&"red": 200}, "the clicked chip goes on Red")
+	check_eq(root.gui_get_focus_owner(), chip, "fixture: the clicked chip holds focus")
+	overlay.game.rig([17])
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.SETTLED, "Enter spins")
+	check_eq(int(overlay.game.outcome()["staked"]), 200, "the stake is unchanged by Enter")
+	check_eq(sim.city.funds, START_FUNDS - 200)
+	overlay.close()
+	overlay.open(sim, COMSTOCK, &"money_wheel", CasinoRng.new(9))
+	check_eq(overlay.stage.selected_spot, &"seg_1", "the money wheel starts on its lowest odds")
+
+
+func test_same_bet_after_a_result_starts_the_next_round() -> void:
+	overlay.open(sim, COMSTOCK, &"roulette", CasinoRng.new(9))
+	await _settle_frames()
+	overlay.bet_on(&"black")
+	overlay.game.rig([17])
+	overlay.perform_action(&"spin")
+	check_eq(overlay.game.state, CasinoGame.SETTLED, "fixture: the spin settles")
+	var shown := false
+	for action: Dictionary in overlay.game.actions():
+		shown = shown or (StringName(action["id"]) == CasinoGame.REBET and bool(action["enabled"]))
+	check(shown, "Same bet is offered next to Next round")
+	_key(KEY_R)
+	check_eq(overlay.game.state, CasinoGame.BETTING, "R starts the next round")
+	check_eq(overlay.game.bets(), {&"black": 100}, "with the same bets")
+	overlay.game.rig([2])
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.SETTLED, "Enter spins again")
+	check_eq(int(sim.casino().ledger(COMSTOCK)["rounds"]), 2)
+
+
+func test_staking_over_half_the_treasury_asks_first() -> void:
+	sim.city.funds = 8000
+	overlay.open(sim, COMSTOCK, &"blackjack", CasinoRng.new(3))
+	await _settle_frames()
+	check(overlay.patter_label.text.contains("the treasury covers up to $8,000"), overlay.patter_label.text)
+	overlay.game.rig([_card(10, 0), _card(9, 1), _card(7, 2), _card(8, 3)])
+	_key(KEY_5)
+	check_eq(overlay.game.total_staked(), 8000, "fixture: Max is the whole treasury")
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.BETTING, "the first Enter only asks")
+	check_eq(sim.city.funds, 8000, "nothing is debited before the answer")
+	check_eq(overlay.patter_label.text, CasinoLines.confirm_stake(8000, 8000, "Deal"))
+	check(overlay.patter_label.text.begins_with("Bet $8,000 of the city's $8,000?"), overlay.patter_label.text)
+	_key(KEY_BACKSPACE)
+	_key(KEY_5)
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.BETTING, "changing the bets asks again")
+	overlay.perform_action(&"deal")
+	check_eq(overlay.game.state, CasinoGame.PLAYING, "a second press (here the Deal button) confirms")
+	check_eq(sim.city.funds, 0)
+	overlay.perform_action(&"stand")
+	check_eq(sim.city.funds, 8000, "17 against 17 pushes")
+	overlay.perform_action(&"next")
+	overlay.press_chip(3)
+	overlay.press_chip(3)
+	overlay.press_chip(3)
+	overlay.press_chip(3)
+	check_eq(overlay.game.total_staked(), 4000)
+	overlay.game.rig([_card(10, 0), _card(9, 1), _card(7, 2), _card(8, 3)])
+	_key(KEY_ENTER)
+	check_eq(overlay.game.state, CasinoGame.PLAYING, "half the treasury deals at once")
+
+
+func test_a_treasury_below_the_minimum_says_both_amounts() -> void:
+	sim.city.funds = 350
+	overlay.open(sim, COMSTOCK, &"blackjack", CasinoRng.new(3))
+	overlay.game.rig([_card(10, 0), _card(9, 1), _card(5, 2), _card(8, 3)])
+	overlay.press_chip(4)
+	check_eq(overlay.game.total_staked(), 350)
+	overlay.perform_action(&"deal")
+	overlay.perform_action(&"deal")
+	overlay.perform_action(&"stand")
+	check_eq(sim.city.funds, 0, "fixture: 15 loses to 17")
+	overlay.perform_action(&"next")
+	check_eq(overlay.patter_label.text, CasinoLines.no_credit(100, 0))
+	check(overlay.patter_label.text.contains("$100") and overlay.patter_label.text.contains("$0"), overlay.patter_label.text)
+
+
+func test_escape_finishes_the_result_before_leaving() -> void:
+	CasinoTableOverlay.animation_scale = 1.0
+	overlay.open(sim, COMSTOCK, &"roulette", CasinoRng.new(9))
+	await _settle_frames()
+	overlay.bet_on(&"red")
+	overlay.perform_action(&"spin")
+	check(overlay.stage.is_busy(), "fixture: the wheel is turning")
+	overlay.request_leave()
+	check(overlay.is_open(), "the first Escape stays at the table")
+	check(not overlay.stage.is_busy(), "and shows the result")
+	check(not String(overlay.stage._banner.get("text", "")).is_empty(), "the result banner is up")
+	overlay.request_leave()
+	check(not overlay.is_open(), "the second Escape leaves")
+	CasinoTableOverlay.animation_scale = 0.0
+
+
+func test_digit_chips_follow_the_key_position() -> void:
+	overlay.open(sim, COMSTOCK, &"blackjack", CasinoRng.new(3))
+	await _settle_frames()
+	# AZERTY: the unshifted key in the 1 position types an ampersand.
+	var event := InputEventKey.new()
+	event.keycode = KEY_AMPERSAND
+	event.physical_keycode = KEY_1
+	event.pressed = true
+	root.push_input(event)
+	check_eq(overlay.game.total_staked(), 100, "the first digit key bets the smallest chip")

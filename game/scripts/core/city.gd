@@ -70,6 +70,11 @@ var terrain_surface = null
 ## Temporary flood overlay maintained by the disaster system: tile -> depth.
 var flood_overlay: Dictionary = {}
 
+## Names of the layers read from a native save of a city in play (layer name ->
+## true). Not saved. Systems keep these layers as saved when the simulation is
+## set up, instead of deriving them again, so a reload continues exactly.
+var restored_layers: Dictionary = {}
+
 ## Altitude packing: ground height in the low five bits, water height in the
 ## next five, tunnel direction bits above that.
 const ALT_MASK := 0x1F
@@ -457,4 +462,5 @@ func duplicate_city() -> City:
 	c.terrain_origin = terrain_origin
 	c.terrain_surface = terrain_surface
 	c.flood_overlay = flood_overlay.duplicate()
+	c.restored_layers = restored_layers.duplicate()
 	return c

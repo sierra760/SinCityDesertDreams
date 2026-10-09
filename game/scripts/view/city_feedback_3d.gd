@@ -21,6 +21,9 @@ var _traffic_batch: MultiMesh
 var _traffic_buffer := PackedFloat32Array()
 var _catalog_key: Array = []
 var _catalog_hash := 0
+## While exploring at street level the overview's unpowered bolts (drawn
+## through walls at a fixed pixel size) are hidden.
+var _exploring := false
 
 
 func _ready() -> void:
@@ -29,6 +32,7 @@ func _ready() -> void:
 	add_child(markers)
 	power_markers = Node3D.new()
 	power_markers.name = "PowerWarnings"
+	power_markers.visible = not _exploring
 	add_child(power_markers)
 	traffic = MultiMeshInstance3D.new()
 	add_child(traffic)
@@ -36,6 +40,17 @@ func _ready() -> void:
 	disaster_visuals.name = "Disasters"
 	add_child(disaster_visuals)
 	sync_power()
+
+
+## Hide the overview-only power warnings while an Explore camera is in use;
+## they reappear unchanged on returning to Build.
+func set_exploring(on: bool) -> void:
+	_exploring = on
+	if power_markers != null: power_markers.visible = not on
+
+
+func is_exploring() -> bool:
+	return _exploring
 
 
 ## Attach the same city used by the other view layers.

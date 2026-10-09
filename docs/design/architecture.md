@@ -274,9 +274,9 @@ releases capture and opens the panel, and pressing it again resumes. Focus
 loss, menus and dialogs clear held movement. A notice or dialog that suspended
 the session resumes it automatically once it closes, unless a report or
 Settings window is still open; after Escape, the touch Menu, focus loss or a
-menu-bar menu, Explore waits for Resume. F11 is still handled by Main, and
-Escape in Explore does not exit fullscreen. Critical mode, speed, flight altitude
-and F interaction prompts stay outside the message scroll container so they
+menu-bar menu, Explore waits for Resume. Fullscreen (Ctrl+Cmd+F on macOS,
+F11 elsewhere) is still handled by Main, and Escape in Explore does not exit
+fullscreen. Critical mode, speed, flight altitude and F interaction prompts stay outside the message scroll container so they
 remain readable while pointer capture prevents scrolling. Longer feedback can
 scroll independently; the controls use a compact side panel.
 

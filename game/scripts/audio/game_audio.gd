@@ -32,6 +32,11 @@ const DUCK_NOTICE_DB := -6.0
 const DUCK_CASINO_DB := -10.0
 const FADE_SECONDS := 1.5
 
+## Loops that stop while city time stands still, and the city bed's level then.
+const FROZEN_RELEASED: Array[StringName] = [&"fire_loop", &"flood_loop", &"riot_loop", &"lava_loop",
+	&"firestorm_loop", &"tornado_loop", &"windstorm_loop", &"rain_loop"]
+const FROZEN_BED_DB := -30.0
+
 const BUS_MUSIC := &"Music"
 const BUS_EFFECTS := &"Effects"
 const BUS_INTERFACE := &"Interface"
@@ -111,6 +116,10 @@ var _hooked: Dictionary = {}
 ## The Dummy driver (headless tests) hears nothing: cues are still chosen and
 ## recorded, but no player starts, so nothing is left playing at exit.
 var _silent := false
+## The desktop window is in the background with "Pause while in the background" on.
+var _background := false
+## The OS paused the application (mobile).
+var _app_paused := false
 
 
 func _init() -> void:
@@ -250,6 +259,8 @@ func hold_loop(cue: StringName, volume_db := -6.0, pitch := 1.0) -> void:
 			played.append(cue)
 	if effects_enabled and not _silent and not player.playing:
 		player.play()
+		# Godot keeps a pause only on a live playback: apply it after starting.
+		player.stream_paused = is_sound_paused()
 	_loop_targets[cue] = volume_db
 	player.pitch_scale = lerpf(player.pitch_scale, pitch, 0.2)
 
@@ -258,6 +269,35 @@ func hold_loop(cue: StringName, volume_db := -6.0, pitch := 1.0) -> void:
 func release_loop(cue: StringName) -> void:
 	if _loops.has(cue):
 		_loop_targets[cue] = -INF
+
+
+## Pause (or resume) the music and every loop while the game window is in
+## the background. Main calls this only when the player asked to pause there.
+func set_background(on: bool) -> void:
+	_background = on
+	_apply_stream_pause()
+
+
+func is_background() -> bool:
+	return _background
+
+
+## True while music and loops are held (window in the background, or the
+## OS paused the application).
+func is_sound_paused() -> bool:
+	return _background or _app_paused
+
+
+func _apply_stream_pause() -> void:
+	var paused := is_sound_paused()
+	if _music != null: _music.stream_paused = paused
+	for player: AudioStreamPlayer in _loops.values():
+		player.stream_paused = paused
+
+
+## A short sample at the current effects level (Settings → Sound).
+func preview_effects() -> void:
+	play(&"click", 0.0, 1.0, 0.15)
 
 
 func is_looping(cue: StringName) -> bool:
@@ -289,6 +329,7 @@ func _start_song(song: StringName) -> void:
 	_music.stream = sound
 	_music.volume_db = MUSIC_DB + _duck_db
 	_music.play()
+	_music.stream_paused = is_sound_paused()
 
 
 func _next_song() -> StringName:
@@ -311,6 +352,8 @@ func _on_song_finished() -> void:
 
 
 func _update_music(delta: float) -> void:
+	# Held music keeps its place; no fade or next song starts meanwhile.
+	if is_sound_paused(): return
 	var title := _host != null and is_instance_valid(_host.title_screen) and _host.title_screen.visible
 	if title and not _on_title:
 		_on_title = true
@@ -333,9 +376,7 @@ func _update_music(delta: float) -> void:
 		if _fading_out:
 			_music.volume_db -= delta * (40.0 / FADE_SECONDS)
 			if _music.volume_db < -50.0:
-				_music.stop()
-				_fading_out = false
-				_on_song_finished()
+				_finish_fade_out()
 		else:
 			_music.volume_db = move_toward(_music.volume_db, goal, delta * 20.0)
 		return
@@ -349,6 +390,14 @@ func _update_music(delta: float) -> void:
 func _fade_out_song() -> void:
 	if _music.playing:
 		_fading_out = true
+
+
+## A faded song ends without choosing a new gap: the short pause set when the
+## title closed stays in place for the first city song.
+func _finish_fade_out() -> void:
+	_music.stop()
+	_fading_out = false
+	_song = &""
 
 
 # ── Per-frame state ──────────────────────────────────────────────────────
@@ -369,9 +418,23 @@ func _process(delta: float) -> void:
 		for cue: StringName in _loops.keys():
 			release_loop(cue)
 		return
+	if is_city_frozen():
+		# A paused city (or one held by a window such as the January review)
+		# is quiet: disasters and weather fall silent, the city bed drops low.
+		for cue: StringName in FROZEN_RELEASED:
+			release_loop(cue)
+		for cue: StringName in [&"city_day_loop", &"desert_loop"]:
+			if is_looping(cue): hold_loop(cue, FROZEN_BED_DB)
+		_update_explore(delta)
+		return
 	_update_disasters(0.25)
 	_update_ambience(0.25)
 	_update_explore(delta)
+
+
+## True while city time stands still: paused, or held by a modal window.
+func is_city_frozen() -> bool:
+	return _host != null and _host.sim != null and (_host.sim.speed == GameClock.Speed.PAUSED or _host.modal_depth > 0)
 
 
 func _update_disasters(step: float) -> void:
@@ -723,6 +786,8 @@ func _exit_tree() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED:
-		_music.stream_paused = true
+		_app_paused = true
+		_apply_stream_pause()
 	elif what == NOTIFICATION_APPLICATION_RESUMED:
-		_music.stream_paused = false
+		_app_paused = false
+		_apply_stream_pause()

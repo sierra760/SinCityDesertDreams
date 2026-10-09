@@ -31,6 +31,8 @@ var keyboard_section: VBoxContainer
 var sensitivity_slider: HSlider
 var music_slider: HSlider
 var effects_slider: HSlider
+## Percentage readouts beside the volume sliders, by volume key.
+var volume_labels: Dictionary = {}
 var invert_check: CheckBox
 var tabs: TabBar
 var display_page: VBoxContainer
@@ -74,6 +76,13 @@ func _build() -> void:
 	tabs.add_theme_color_override("font_unselected_color",UITheme.TEXT_PRIMARY)
 	tabs.add_theme_color_override("font_hovered_color",UITheme.TEXT_PRIMARY)
 	tabs.add_theme_color_override("font_selected_color",UITheme.TITLE_TEXT)
+	# Separate the tab faces and give each a comfortable width.
+	tabs.add_theme_constant_override("tab_separation",8)
+	for state: String in ["tab_unselected","tab_selected","tab_hovered"]:
+		var face := tabs.get_theme_stylebox(state).duplicate() as StyleBox
+		face.content_margin_left = maxf(face.content_margin_left,24.0)
+		face.content_margin_right = maxf(face.content_margin_right,24.0)
+		tabs.add_theme_stylebox_override(state,face)
 	root_body.add_child(tabs)
 	display_page = VBoxContainer.new()
 	display_page.add_theme_constant_override("separation",UITheme.VSEP)
@@ -93,6 +102,13 @@ func _build() -> void:
 	var mayor_hint := UIFactory.make_label("Used in your welcome and new cities. Changing it here also updates the open city.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	mayor_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(mayor_hint)
+	var ramps_check := CheckBox.new()
+	ramps_check.text = "Ask about highway ramps"
+	ramps_check.custom_minimum_size.y = 44
+	ramps_check.tooltip_text = "After a road or highway meets a highway, ask whether to add ramps there."
+	ramps_check.toggled.connect(func(on: bool) -> void: _changed(&"offer_ramps",on))
+	checks[&"offer_ramps"] = ramps_check
+	body.add_child(ramps_check)
 	body.add_child(UIFactory.make_section_header("Explore"))
 	body.add_child(UIFactory.make_label("Pedestrian character"))
 	character_button = OptionButton.new()
@@ -130,7 +146,7 @@ func _build() -> void:
 	effective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(effective_label)
 	var fullscreen_check := CheckBox.new()
-	fullscreen_check.text = "Fullscreen [F11]"
+	fullscreen_check.text = fullscreen_caption(controls.caption(&"fullscreen"))
 	fullscreen_check.custom_minimum_size.y = 44
 	fullscreen_check.visible = not _mobile_display
 	fullscreen_check.disabled = _mobile_display
@@ -210,31 +226,64 @@ func _build() -> void:
 	WindowDrag.enable(chrome["title_bar"], panel)
 
 
-## A checkbox that turns a sound group on or off, beside its volume slider.
+## A checkbox that turns a sound group on or off, beside its volume slider
+## and the slider's percentage. A switched-off group's slider is inactive.
 func _volume_row(row: Control, label: String, enabled_key: StringName, volume_key: StringName) -> HSlider:
 	var check := CheckBox.new()
 	check.text = label
 	check.custom_minimum_size.y = 44
-	check.toggled.connect(func(on: bool) -> void: _changed(enabled_key, on))
 	checks[enabled_key] = check
 	row.add_child(check)
+	var level := HBoxContainer.new()
+	level.add_theme_constant_override("separation", 8)
+	level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(level)
 	var slider := HSlider.new()
 	slider.name = String(volume_key).capitalize().replace(" ", "")
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.05
 	slider.value = 0.8
-	slider.custom_minimum_size = Vector2(160, 44)
+	slider.custom_minimum_size = Vector2(120, 44)
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	slider.tooltip_text = label + " volume"
-	slider.value_changed.connect(func(value: float) -> void: _changed(volume_key, value))
-	row.add_child(slider)
+	level.add_child(slider)
+	var percent := UIFactory.make_label(volume_percent(slider.value), UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	percent.name = slider.name + "Percent"
+	percent.custom_minimum_size.x = 44
+	percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	percent.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	percent.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	level.add_child(percent)
+	volume_labels[volume_key] = percent
+	check.toggled.connect(func(on: bool) -> void:
+		slider.editable = on
+		_changed(enabled_key, on))
+	slider.value_changed.connect(func(value: float) -> void:
+		percent.text = volume_percent(value)
+		_changed(volume_key, value))
 	return slider
+
+
+static func volume_percent(value: float) -> String:
+	return "%d%%" % roundi(value * 100.0)
+
+
+## The fullscreen checkbox caption. macOS keeps F11 for Show Desktop, so the
+## Mac chord Ctrl+Cmd+F is named there (with any key the player bound).
+static func fullscreen_caption(bound_key: String) -> String:
+	if OS.get_name() != "macOS": return "Fullscreen [%s]" % bound_key
+	if bound_key == ControlBindings.key_caption(KEY_F11): return "Fullscreen [Ctrl+Cmd+F]"
+	return "Fullscreen [Ctrl+Cmd+F or %s]" % bound_key
 
 
 func _changed(key: StringName, value: Variant) -> void:
 	if _updating:
 		return
+	# Any other change ends a key capture, so a later key press is not bound
+	# without the visible "Press key…" prompt.
+	if key != &"control_bindings": cancel_capture()
 	option_changed.emit(key, value)
 
 
@@ -255,6 +304,8 @@ func set_values(values: Dictionary) -> void:
 	if values.has("control_bindings"):
 		controls.configure(values.control_bindings)
 		_refresh_bindings()
+		# A refresh from elsewhere keeps an active capture's prompt visible.
+		if is_capturing(): (binding_buttons[String(_capture_action)][_capture_slot] as Button).text = "Press key…"
 	if values.has("explore_sensitivity"): sensitivity_slider.value = float(values.explore_sensitivity)
 	if values.has("music_volume"): music_slider.value = float(values.music_volume)
 	if values.has("effects_volume"): effects_slider.value = float(values.effects_volume)
@@ -267,6 +318,10 @@ func set_values(values: Dictionary) -> void:
 		if values.has(String(key)) or values.has(key):
 			var v: Variant = values.get(String(key), values.get(key, false))
 			(checks[key] as CheckBox).button_pressed = bool(v)
+	# A switched-off sound group's slider is inactive (toggled may not fire
+	# when the value is unchanged).
+	music_slider.editable = (checks[&"music_enabled"] as CheckBox).button_pressed
+	effects_slider.editable = (checks[&"effects_enabled"] as CheckBox).button_pressed
 	if values.has("ui_scale"):
 		var selected := SCALE_VALUES.find(int(values["ui_scale"]))
 		scale_button.select(maxi(selected,0))
@@ -315,7 +370,7 @@ func set_display_metrics(metrics: Dictionary) -> void:
 	var requested := int(metrics.get("requested_percent",0))
 	var effective := float(metrics.get("effective_percent",100.0))
 	var wanted := float(requested) if requested > 0 else 100.0
-	effective_label.text = "Effective size: %.2f%% (capped to fit this window)" % effective if effective < wanted - 0.01 else "Auto follows this display's pixel density." if requested == 0 else ""
+	effective_label.text = "Effective size: %d%% (capped to fit this window)" % roundi(effective) if effective < wanted - 0.01 else "Auto follows this display's pixel density." if requested == 0 else ""
 	effective_label.visible = not effective_label.text.is_empty()
 
 func _build_controls(body: VBoxContainer) -> void:
@@ -424,7 +479,7 @@ func _refresh_bindings() -> void:
 		for slot: int in 2:
 			(binding_buttons[action][slot] as Button).text = controls.caption(StringName(action),slot)
 			(binding_buttons[action][slot] as Button).tooltip_text = "%s: %s" % [ControlBindings.LABELS[action],controls.caption(StringName(action),slot)]
-	(checks[&"fullscreen"] as CheckBox).text = "Fullscreen [%s]" % controls.caption(&"fullscreen")
+	(checks[&"fullscreen"] as CheckBox).text = fullscreen_caption(controls.caption(&"fullscreen"))
 
 func begin_capture(action: StringName, slot: int) -> void:
 	if not visible or not _keyboard_available: return

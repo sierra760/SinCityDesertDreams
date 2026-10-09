@@ -53,7 +53,7 @@ func test_refresh_locks_by_year_reward_and_emergency() -> void:
 	toolbar.refresh(city, sim.stats, sim.get_system(&"disasters"))
 	check(toolbar.is_locked(Tools.Kind.SUBWAY), "subways are locked in 1900")
 	check((toolbar.buttons[Tools.Kind.SUBWAY] as Button).disabled)
-	check((toolbar.buttons[Tools.Kind.SUBWAY] as Button).tooltip_text.contains("not available until"))
+	check((toolbar.buttons[Tools.Kind.SUBWAY] as Button).tooltip_text.contains("Not available until"))
 	check(not toolbar.is_locked(Tools.Kind.ROAD))
 	check(toolbar.is_locked(Tools.Kind.REWARD_CITY_HALL), "rewards wait for their offer")
 	check(toolbar.is_locked(Tools.Kind.DISPATCH_FIRE), "no crews outside an emergency")
@@ -82,7 +82,7 @@ func test_nuclear_free_zone_locks_the_nuclear_plant() -> void:
 	check(toolbar.is_locked(Tools.Kind.NUCLEAR_PLANT), "the ordinance locks the nuclear plant")
 	var b: Button = toolbar.buttons[Tools.Kind.NUCLEAR_PLANT]
 	check(b.disabled)
-	check(b.tooltip_text.contains(Tools.NUCLEAR_FREE_ZONE_REASON), "the tooltip names the ordinance")
+	check(b.tooltip_text.contains(ConstructionFlow.sentence(Tools.NUCLEAR_FREE_ZONE_REASON)), "the tooltip names the ordinance")
 	check(not toolbar.is_locked(Tools.Kind.COAL_PLANT))
 	stats.ordinances[&"nuclear_free_zone"] = false
 	toolbar.refresh(city, stats)

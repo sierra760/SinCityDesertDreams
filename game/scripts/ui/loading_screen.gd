@@ -35,7 +35,7 @@ func _init() -> void:
 	column.add_theme_constant_override("separation",16)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(column)
-	var brand := UIFactory.make_label("SIN CITY: DESERT DREAMS",UITheme.FONT_SMALL,UITheme.HEADER)
+	var brand := UIFactory.make_label("SIN CITY · DESERT DREAMS",UITheme.FONT_SMALL,UITheme.HEADER)
 	brand.add_theme_font_override("font",UITheme.LOGO_FONT)
 	column.add_child(brand)
 	heading = UIFactory.make_label("Loading…",UITheme.FONT_TITLE)

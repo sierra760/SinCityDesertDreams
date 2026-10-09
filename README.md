@@ -132,7 +132,7 @@ last only for the session.
 | Fly | WASD moves; Q climbs; E descends. Release the keys to hover. |
 | Boat | Drive controls. Stop beside a berth or clear shoreline to leave. |
 | Enter or leave | `F` near a vehicle, marina, elevator, call button, resort door or casino table. Stop or land first. |
-| Menu | `Escape` opens and closes the Explore panel: Resume, vehicle choice, Recover, Return to Build. |
+| Menu | `Escape` opens and closes the Explore menu: Resume, vehicle choice, Recover, Return to Build. |
 
 Game controllers are not supported; play with a keyboard and mouse or
 trackpad, or with touch on iPhone and iPad. Every key can be reassigned in
@@ -224,7 +224,7 @@ NOAA and other providers) and water from ESA WorldCover 2021 (CC BY 4.0). The
 terrain chooser's street map and place search use map data © OpenStreetMap
 contributors (ODbL 1.0). Full credits and terms ship with the game in
 [`game/data/real_world_terrain_notices.txt`](game/data/real_world_terrain_notices.txt);
-open them from **Help → Playing the Game… → Terrain data sources** or the
+open them from **Help → Playing the Game… → Terrain Data Sources** or the
 chooser's **Data sources** button.
 
 Sin City: Desert Dreams is an independent project. It is not affiliated with or

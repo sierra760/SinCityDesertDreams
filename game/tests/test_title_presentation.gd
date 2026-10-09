@@ -8,7 +8,7 @@ func settle() -> void:
 	for frame in 6: await process_frame
 
 func actions(title: TitleScreen) -> Array[Button]:
-	return [title.new_button, title.load_button, title.import_button, title.settings_button, title.quit_button]
+	return [title.new_button, title.load_button, title.import_button, title.settings_button, title.help_button, title.quit_button]
 
 func test_title_actions_fit_and_keep_focus_across_display_sizes() -> void:
 	var title := TitleScreen.new()
@@ -90,3 +90,56 @@ func test_brand_and_artwork_follow_a_clear_reading_order_and_grid() -> void:
 	check(absf(headline.position.x - art.position.x) <= 1.0,"artwork follows the title grid")
 	check(art.end.x < title.new_button.get_global_rect().position.x,"artwork and action column remain separate")
 	title.free()
+
+func _command(code: Key) -> InputEventKey:
+	var key := InputEventKey.new()
+	key.keycode = code
+	key.physical_keycode = code
+	key.pressed = true
+	if OS.get_name() == "macOS": key.meta_pressed = true
+	else: key.ctrl_pressed = true
+	return key
+
+# Guards against: the City menu's file shortcuts doing nothing on the title.
+func test_title_shortcuts_reach_new_load_and_settings() -> void:
+	var title := TitleScreen.new()
+	root.add_child(title)
+	title.open()
+	var events: Array[String] = []
+	title.new_city_requested.connect(func() -> void: events.append("new"))
+	title.load_requested.connect(func() -> void: events.append("load"))
+	title.settings_requested.connect(func() -> void: events.append("settings"))
+	title.help_requested.connect(func() -> void: events.append("help"))
+	for code: Key in [KEY_N, KEY_O, KEY_COMMA]:
+		root.push_input(_command(code))
+	await process_frame
+	check_eq(events, ["new", "load", "settings"] as Array[String])
+	var blocked := true
+	title.shortcuts_blocked = func() -> bool: return blocked
+	root.push_input(_command(KEY_N))
+	await process_frame
+	check_eq(events.size(), 3, "a dialog that owns input keeps the shortcut from opening another")
+	title.help_button.pressed.emit()
+	check_eq(events.back(), "help", "the title offers Help")
+	title.free()
+
+# Guards against: Help unreachable before a city exists.
+func test_title_help_opens_above_the_title_in_main() -> void:
+	var host: GameHost = load("res://scenes/main.tscn").instantiate()
+	host.preferences_path = "user://title-help.cfg"
+	root.add_child(host)
+	await settle()
+	check(host.title_screen.visible)
+	host.title_screen.help_button.pressed.emit()
+	var help := host.windows.get("help") as Control
+	check(help != null and help.is_visible_in_tree(), "Help opens from the title")
+	if help != null:
+		check(help.get_parent() == host.modal_layer and help.get_index() > host.title_screen.get_index(), "Help sits above the title")
+		help.call("close")
+	root.push_input(_command(KEY_N))
+	await process_frame
+	check(host.new_city_dialog.is_open(), "Cmd/Ctrl+N opens New City from the title")
+	host.new_city_dialog.close()
+	host.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://title-help.cfg"))
+	await process_frame

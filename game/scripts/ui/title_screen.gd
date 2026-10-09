@@ -14,6 +14,7 @@ signal new_city_requested
 signal load_requested
 signal import_requested
 signal settings_requested
+signal help_requested
 signal license_requested
 signal quit_requested
 
@@ -23,6 +24,10 @@ var import_button: Button
 var quit_button: Button
 var subtitle: Label
 var settings_button: Button
+var help_button: Button
+## Main supplies whether a dialog, picker or loading screen owns input; the
+## title's keyboard shortcuts wait while it returns true.
+var shortcuts_blocked: Callable
 var license_button: Button
 var developer_credit: Label
 var copyright_credit: Label
@@ -157,6 +162,8 @@ func _build() -> void:
 	_preferences.add_theme_constant_override("separation", 8)
 	_actions.add_child(_preferences)
 	settings_button = _button(_preferences, "Settings", func() -> void: settings_requested.emit())
+	help_button = _button(_preferences, "Help", func() -> void: help_requested.emit())
+	help_button.tooltip_text = "Playing the Game: controls and how to start a city"
 	quit_button = _button(_preferences, "Quit", func() -> void: quit_requested.emit())
 	_guide = UIFactory.make_label("Shape the skyline.\nExplore the streets.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	_guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -239,7 +246,7 @@ func _reflow() -> void:
 	_actions.add_theme_constant_override("separation", 8)
 	_city_actions.vertical = (not compact and not portrait) or actions_only
 	_preferences.vertical = not compact or portrait or actions_only
-	for button: Button in [new_button, load_button, import_button, settings_button, quit_button]:
+	for button: Button in [new_button, load_button, import_button, settings_button, help_button, quit_button]:
 		button.custom_minimum_size = Vector2(0, 44 if compact else (56 if button == new_button else 48))
 		button.add_theme_font_size_override("font_size", 16 if compact else 18)
 	if not _city_actions.vertical:
@@ -283,6 +290,21 @@ func _reveal_after_layout(frames_left: int) -> void:
 		# The first action fits with its greeting; discard stale scroll from an earlier wrapped height.
 		if focused == new_button: _actions_scroll.scroll_vertical = 0
 		_actions_scroll.ensure_control_visible(focused)
+
+## The City menu's file shortcuts also work on the title, where the menu bar
+## is hidden: Cmd/Ctrl+N, Cmd/Ctrl+O and Cmd/Ctrl+, (Settings). Handled as a
+## shortcut so the hidden menu bar's accelerators cannot swallow them first.
+func _shortcut_input(event: InputEvent) -> void:
+	if not visible or not event is InputEventKey: return
+	var key := event as InputEventKey
+	if not key.pressed or key.echo or not key.is_command_or_control_pressed() or key.alt_pressed or key.shift_pressed: return
+	if shortcuts_blocked.is_valid() and bool(shortcuts_blocked.call()): return
+	match key.keycode:
+		KEY_N: new_city_requested.emit()
+		KEY_O: load_requested.emit()
+		KEY_COMMA: settings_requested.emit()
+		_: return
+	get_viewport().set_input_as_handled()
 
 func open() -> void:
 	visible = true

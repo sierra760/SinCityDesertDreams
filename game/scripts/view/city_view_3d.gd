@@ -924,11 +924,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			_panning = event.pressed
 			get_viewport().set_input_as_handled()
-		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_zoom_at(event.position, 1.0 / 1.25)
-			get_viewport().set_input_as_handled()
-		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_zoom_at(event.position, 1.25)
+		elif event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
+			# One wheel notch has factor 1; precision touchpads and free-spinning
+			# wheels send many fractional steps, so each zooms (or pans) only by
+			# its share instead of a whole notch.
+			var factor := (event as InputEventMouseButton).factor
+			var steps := clampf(factor, 0.0, 4.0) if is_finite(factor) and factor > 0.0 else 1.0
+			match event.button_index:
+				MOUSE_BUTTON_WHEEL_UP: _zoom_at(event.position, pow(1.0 / 1.25, steps))
+				MOUSE_BUTTON_WHEEL_DOWN: _zoom_at(event.position, pow(1.25, steps))
+				# Sideways scroll (a touchpad's horizontal swipe, a tilt wheel) pans.
+				MOUSE_BUTTON_WHEEL_LEFT: _pan_screen_delta(Vector2(steps * PAN_GESTURE_PIXELS, 0.0))
+				MOUSE_BUTTON_WHEEL_RIGHT: _pan_screen_delta(Vector2(-steps * PAN_GESTURE_PIXELS, 0.0))
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMagnifyGesture:
 		# Trackpad pinch: the same bounded zoom as a touch pinch.

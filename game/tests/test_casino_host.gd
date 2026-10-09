@@ -66,7 +66,9 @@ func test_unknown_tables_and_an_empty_treasury_explain_themselves() -> void:
 	host.notice_dialog.dismiss()
 	host.sim.city.funds = 50
 	check(not host.open_casino_table(COMSTOCK, &"blackjack"))
-	check_eq(host.notice_dialog.body_label.text, CasinoLines.NO_CREDIT)
+	check_eq(host.notice_dialog.body_label.text, CasinoLines.no_credit(100, 50))
+	check(host.notice_dialog.body_label.text.contains("$100") and host.notice_dialog.body_label.text.contains("$50"),
+		"the refusal names the minimum and the treasury")
 	host.notice_dialog.dismiss()
 	check_eq(host.modal_depth, 0)
 	check_eq(host.sim.speed, GameClock.Speed.FAST)
@@ -156,6 +158,9 @@ func test_backgrounding_mid_blackjack_stands_instead_of_refunding() -> void:
 			overlay.press_chip(0)
 			overlay.perform_action(&"deal"))
 	check_eq(host.sim.city.funds, 200000 - 100, "a losing hand is not refunded by leaving the app")
+	var message := host.status_bar.message_label.text
+	check(message.contains("Your Assay Twenty-One hand was played out while you were away: -$100."), message)
+	check(message.contains("Paused while you were away"), "the pause note stays: " + message)
 	var ledger := host.sim.casino().ledger(COMSTOCK)
 	check_eq(int(ledger.get("rounds", 0)), 1, "the hand is recorded as a round")
 	check_eq(int(ledger.get("year_net", 0)), -100)
@@ -168,6 +173,8 @@ func test_backgrounding_mid_launch_cashes_out_at_the_shown_multiplier() -> void:
 			overlay.perform_action(&"launch")
 			overlay.perform_action(&"advance", {"multiplier": 2.0}))
 	check_eq(host.sim.city.funds, 200000 + 1000, "a $1,000 launch cashed out at 2.00x")
+	var message := host.status_bar.message_label.text
+	check(message.contains("Your %s launch was played out while you were away: +$1,000." % ResortThemes.game_name(&"arcology_orbit", &"trajectory")), message)
 	check_eq(int(host.sim.casino().ledger(&"arcology_orbit").get("rounds", 0)), 1)
 
 
@@ -181,6 +188,8 @@ func test_backgrounding_mid_poker_draws_with_the_holds() -> void:
 			overlay.perform_action(&"hold", {"index": 1}))
 	# Aces held, the draw brings a third ace: three of a kind returns 3x.
 	check_eq(host.sim.city.funds, 200000 - 500 + 1500, "the draw is played with the cards held")
+	var message := host.status_bar.message_label.text
+	check(message.contains("Your %s hand was played out while you were away: +$1,000." % ResortThemes.game_name(&"arcology_boulder", &"video_poker")), message)
 	check_eq(int(host.sim.casino().ledger(&"arcology_boulder").get("rounds", 0)), 1)
 
 
@@ -223,7 +232,24 @@ func test_explore_suspends_while_seated_and_resumes_after() -> void:
 	check(host.exploration.is_suspended())
 	host.casino_overlay.close()
 	check(not host.is_casino_open())
+	check(not host.exploration.is_suspended(), "Explore resumes as the table closes")
+	check(not (host.explore_hud.visible and host.explore_hud._panel.visible), "the paused panel never flashes after the table")
 	for _i in 4:
 		await physics_frame
 	check(not host.exploration.is_suspended(), "Explore resumes after leaving the table")
 	check(host.is_exploring())
+
+
+func test_backgrounding_between_rounds_adds_no_casino_note() -> void:
+	found()
+	check(host.open_casino_table(COMSTOCK, &"slots", CasinoRng.new(1)), "fixture: the table opens")
+	var recovery := "user://casino-host-recovery.sc2d"
+	host.suspend_for_background(recovery)
+	check(host.is_casino_open(), "nothing in play: the table stays")
+	host.resume_from_background()
+	if FileAccess.file_exists(recovery):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(recovery))
+	while host.notice_dialog.is_open():
+		host.notice_dialog.dismiss()
+	check(not host.status_bar.message_label.text.contains("played out"), host.status_bar.message_label.text)
+	host.casino_overlay.close()

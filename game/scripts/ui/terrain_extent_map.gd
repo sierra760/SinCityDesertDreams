@@ -28,6 +28,7 @@ var _gesture := ""
 var _last := Vector2.ZERO
 var _handle := -1
 var _pinch_distance := 0.0
+var _zoom_accumulator := 0.0
 
 func _init() -> void:
  name="TerrainExtentMap"
@@ -154,6 +155,28 @@ func pan(delta: Vector2) -> void:
 func zoom_by(amount: int) -> void:
  view.zoom=clampi(int(view.zoom)+amount,0,MAX_ZOOM)
  _view_moved()
+## Trackpad pinches and precision-touchpad or free-spinning wheels arrive as a
+## stream of fractional steps. They add up, and the map moves one whole level
+## (2x) each time the total passes half a level, instead of a level per event.
+func zoom_gradually(levels: float) -> void:
+ if not is_finite(levels) or is_zero_approx(levels): return
+ _zoom_accumulator+=levels
+ var whole := 0
+ while _zoom_accumulator>=0.5:
+  _zoom_accumulator-=1.0
+  whole+=1
+ while _zoom_accumulator<=-0.5:
+  _zoom_accumulator+=1.0
+  whole-=1
+ if whole==0: return
+ var before := int(view.zoom)
+ zoom_by(whole)
+ # At the closest or widest level further steps would only build up.
+ if int(view.zoom)==before: _zoom_accumulator=0.0
+static func wheel_levels(event: InputEventMouseButton) -> float:
+ var factor := event.factor
+ var steps := clampf(factor,0.0,4.0) if is_finite(factor) and factor>0.0 else 1.0
+ return steps if event.button_index==MOUSE_BUTTON_WHEEL_UP else -steps
 func _begin_pointer(point: Vector2) -> void:
  grab_focus()
  _last=point
@@ -219,7 +242,7 @@ func _gui_input(event: InputEvent) -> void:
    _: return
   accept_event()
  elif event is InputEventMagnifyGesture:
-  zoom_by(1 if event.factor>1 else -1)
+  if event.factor>0.0: zoom_gradually(log(event.factor)/log(2.0))
   accept_event()
  elif event is InputEventPanGesture:
   pan(-event.delta*16)
@@ -229,7 +252,8 @@ func _gui_input(event: InputEvent) -> void:
   accept_event()
 func _pointer_input(event: InputEvent) -> void:
  if event is InputEventMouseButton:
-  if event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]: zoom_by(1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else -1)
+  if event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]: zoom_gradually(wheel_levels(event))
+  elif event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_LEFT,MOUSE_BUTTON_WHEEL_RIGHT]: pan(Vector2(32.0 if event.button_index==MOUSE_BUTTON_WHEEL_LEFT else -32.0,0.0)*absf(wheel_levels(event)))
   elif event.button_index==MOUSE_BUTTON_LEFT:
    if event.pressed and _touches.is_empty(): _begin_pointer(event.position)
    elif not event.pressed and _touches.is_empty(): cancel_gesture()

@@ -256,63 +256,193 @@ func test_host_prompts_for_the_link_after_the_drag() -> void:
 	host.choice_dialog.cancel_button.pressed.emit()
 	check_eq(city.building_at(0, 80), Buildings.NONE, "declined link stays unbuilt")
 	check(Buildings.is_road_like(city.building_at(1, 80)), "the rest of the road stays")
+	# A declined link is not asked about again on the next drag to that tile;
+	# a drag that starts on the edge tile asks.
+	host.handle_drag(Vector2i(4, 80), Vector2i(0, 80))
+	check(not host.choice_dialog.is_open(), "a declined link is not asked about again")
+	check(host.status_bar.message_label.text.contains("start a drag on the edge tile"), host.status_bar.message_label.text)
+	host.handle_drag(Vector2i(0, 80), Vector2i(0, 80))
+	check(host.choice_dialog.is_open(), "a drag from the edge tile asks again")
+	host.choice_dialog.cancel()
+	check_eq(host.modal_depth, 0)
 
 
 # ── On-ramps ─────────────────────────────────────────────────────────────
 
-func test_road_meeting_a_highway_asks_about_each_highlighted_ramp() -> void:
+func test_highway_meeting_a_road_asks_once_about_its_highlighted_ramps() -> void:
 	var city := _host_city()
+	host.select_tool(Tools.Kind.ROAD)
+	check(host.handle_drag(Vector2i(13, 4), Vector2i(13, 16))["applied"])
+	check(not host.choice_dialog.is_open(), "a road on open land asks nothing")
 	host.select_tool(Tools.Kind.HIGHWAY)
 	var highway := host.handle_drag(Vector2i(10, 10), Vector2i(21, 11))
 	check(highway["applied"], str(highway.get("reason", "")))
-	check(not host.choice_dialog.is_open(), "a highway on open land asks nothing")
-	host.select_tool(Tools.Kind.ROAD)
-	var road := host.handle_drag(Vector2i(13, 6), Vector2i(13, 15))
-	check(road["applied"], str(road.get("reason", "")))
-	check_eq(city.building_at(13, 10), NetworkShapes.HIGHWAY_EW_ROAD_NS, "the road crosses the highway")
+	check_eq(city.building_at(13, 10), NetworkShapes.HIGHWAY_EW_ROAD_NS, "the highway passes over the road")
 	var dialog := host.choice_dialog
 	var highlight := host.city_view_3d.ramp_highlight
 	var funds := city.funds
-	# Four sites, asked one at a time, nearest the drag end first.
-	var expected: Array[Vector2i] = [Vector2i(12, 12), Vector2i(14, 12), Vector2i(12, 9), Vector2i(14, 9)]
-	for i in expected.size():
+	# One question for every site, all of them marked at once.
+	check(dialog.is_open(), "the ramp sites are offered")
+	check_eq(dialog.title_label.text, "Add Highway Ramps?")
+	check(dialog.body_label.text.contains("new highway"), dialog.body_label.text)
+	check(dialog.body_label.text.contains("4 sites · $100 total"), dialog.body_label.text)
+	check_eq(dialog.build_button.text, "Add All")
+	check_eq(dialog.cancel_button.text, "Skip All")
+	check(dialog.extra_button.visible and dialog.extra_button.text == "Choose…", "Choose… is offered")
+	check(host.modal_depth > 0, "the city waits while the player decides")
+	check(highlight.is_showing() and highlight.all_selected, "every site is marked")
+	check_eq(highlight.sites.size(), 4)
+	# Choose…: each site in turn, nearest the end of the drag first.
+	dialog.extra_button.pressed.emit()
+	var expected: Array[Vector2i] = [Vector2i(14, 12), Vector2i(14, 9), Vector2i(12, 12), Vector2i(12, 9)]
+	for i in 3:
 		check(dialog.is_open(), "site %d of 4 is offered" % (i + 1))
-		check_eq(dialog.title_label.text, "Add an On-ramp? (%d of 4)" % (i + 1))
+		check_eq(dialog.title_label.text, "Add a Highway Ramp? (%d of 4)" % (i + 1))
+		check(dialog.body_label.text.begins_with("The new highway passes this road"), dialog.body_label.text)
 		check_eq(dialog.build_button.text, "Add Ramp")
-		check_eq(dialog.cancel_button.text, "Skip")
+		check_eq(dialog.extra_button.text, "Skip")
+		check_eq(dialog.cancel_button.text, "Skip All")
 		check_eq(dialog.option_buttons.size(), 1, "one site per question")
-		check(dialog.option_buttons[0].text.contains("%d, %d" % [expected[i].x, expected[i].y]))
-		check(host.modal_depth > 0, "the city waits while the player decides")
-		check(highlight.is_showing(), "the site is marked on the map")
+		check(dialog.option_buttons[0].text.begins_with("Highway Ramp at %d, %d" % [expected[i].x, expected[i].y]), dialog.option_buttons[0].text)
 		check_eq(highlight.sites[highlight.selected], expected[i], "the asked-about site is the selected one")
 		check_eq(highlight.sites.size(), 4 - i, "sites still to come stay outlined")
 		check(highlight.get_node_or_null("Selected") != null)
 		if i == 1:
 			dialog.build_button.pressed.emit()
+		elif i == 0:
+			dialog.extra_button.pressed.emit()
 		else:
-			dialog.cancel_button.pressed.emit()
-	check(not dialog.is_open(), "every site has been answered")
+			# Escape means Skip All for the rest.
+			host.escape()
+	check(not dialog.is_open(), "Escape ends the questions")
 	check(not highlight.is_showing(), "the highlight clears once answered")
-	check(NetworkShapes.is_onramp(city.building_at(14, 12)), "the accepted ramp is built")
-	for skipped: Vector2i in [Vector2i(12, 12), Vector2i(12, 9), Vector2i(14, 9)]:
+	check(NetworkShapes.is_onramp(city.building_at(14, 9)), "the accepted ramp is built")
+	for skipped: Vector2i in [Vector2i(14, 12), Vector2i(12, 12), Vector2i(12, 9)]:
 		check_eq(city.building_at(skipped.x, skipped.y), Buildings.NONE, "a skipped site stays open")
 	check_eq(city.funds, funds - Tools.cost(Tools.Kind.ONRAMP), "only the accepted ramp is paid for")
 	check_eq(host.modal_depth, 0)
 	# Skipped spots are not asked about again after a nearby edit.
+	host.select_tool(Tools.Kind.ROAD)
 	host.handle_drag(Vector2i(12, 4), Vector2i(12, 8))
 	check(not dialog.is_open(), "a skipped spot is not offered again")
+
+
+func test_a_road_ending_at_the_highway_is_offered_its_ramps_and_add_all_builds_them() -> void:
+	var city := _host_city()
+	host.select_tool(Tools.Kind.HIGHWAY)
+	check(host.handle_drag(Vector2i(10, 10), Vector2i(21, 11))["applied"])
+	host.select_tool(Tools.Kind.ROAD)
+	var dialog := host.choice_dialog
+	# A road carried over the highway is offered its ramps too, in the one
+	# batched question; Skip All answers for every site.
+	var across := host.handle_drag(Vector2i(13, 4), Vector2i(13, 16))
+	check(across["applied"], str(across.get("reason", "")))
+	check_eq(city.building_at(13, 10), NetworkShapes.HIGHWAY_EW_ROAD_NS, "the road crosses the highway")
+	check(dialog.is_open(), "an overpass is offered its ramps")
+	check_eq(dialog.title_label.text, "Add Highway Ramps?")
+	check(dialog.body_label.text.begins_with("Add on-ramps where this road meets the highway? 4 sites · $100 total"), dialog.body_label.text)
+	check_eq(dialog.cancel_button.text, "Skip All")
+	var before_skip := city.funds
+	dialog.cancel_button.pressed.emit()
+	check(not dialog.is_open(), "Skip All answers the one question")
+	check_eq(city.funds, before_skip, "skipping builds nothing")
+	for skipped: Vector2i in [Vector2i(12, 9), Vector2i(14, 9), Vector2i(12, 12), Vector2i(14, 12)]:
+		check_eq(city.building_at(skipped.x, skipped.y), Buildings.NONE, "a skipped overpass site stays open")
+	check_eq(host.modal_depth, 0)
 	# A road ending against the highway: two sites, either side of it.
+	var funds := city.funds
 	var stub := host.handle_drag(Vector2i(19, 4), Vector2i(19, 9))
 	check(stub["applied"])
 	check(dialog.is_open())
-	check_eq(dialog.title_label.text, "Add an On-ramp? (1 of 2)")
+	check_eq(dialog.title_label.text, "Add Highway Ramps?")
+	check(dialog.body_label.text.begins_with("Add on-ramps where this road meets the highway? 2 sites · $50 total"), dialog.body_label.text)
 	dialog.build_button.pressed.emit()
-	check(dialog.is_open(), "then the other side")
-	check_eq(dialog.title_label.text, "Add an On-ramp? (2 of 2)")
-	dialog.build_button.pressed.emit()
+	check(not dialog.is_open(), "Add All answers for every site")
 	check(NetworkShapes.is_onramp(city.building_at(18, 9)) and NetworkShapes.is_onramp(city.building_at(20, 9)))
-	check(not dialog.is_open())
+	check_eq(city.funds, funds - 6 * Tools.cost(Tools.Kind.ROAD) - 2 * Tools.cost(Tools.Kind.ONRAMP))
 	check_eq(host.modal_depth, 0)
+	check(host.status_bar.message_label.text.contains("Added 2 Highway Ramps"), host.status_bar.message_label.text)
+
+
+# Guards against: the camera coming back half a tile off (snapped to a cell)
+# after the ramp questions moved it to show a site and nothing was built.
+func test_skipped_ramp_questions_restore_the_exact_camera() -> void:
+	var city := _host_city()
+	host.select_tool(Tools.Kind.HIGHWAY)
+	check(host.handle_drag(Vector2i(10, 10), Vector2i(21, 11))["applied"])
+	var view := host.city_view_3d
+	var dialog := host.choice_dialog
+	check(view.active, "the city view is showing")
+	var framing := Vector3(100.37, 2.25, 104.81)
+	view.set_camera_state(framing, view.quarter_turn, view.camera_size)
+	var saved := view.center
+	host.select_tool(Tools.Kind.ROAD)
+	check(host.handle_drag(Vector2i(19, 4), Vector2i(19, 9))["applied"])
+	check(dialog.is_open(), "the ramp sites are offered")
+	check(view.center.distance_to(saved) > 1.0, "the camera moved to show the off-screen sites")
+	dialog.cancel_button.pressed.emit()
+	check(not dialog.is_open())
+	check_eq(view.center, saved, "the camera returns exactly where it was")
+	check_eq(city.building_at(18, 9), Buildings.NONE, "nothing was built")
+	check_eq(host.modal_depth, 0)
+
+
+func test_skip_all_remembers_every_site() -> void:
+	var city := _host_city()
+	host.select_tool(Tools.Kind.HIGHWAY)
+	check(host.handle_drag(Vector2i(10, 10), Vector2i(21, 11))["applied"])
+	host.select_tool(Tools.Kind.ROAD)
+	var dialog := host.choice_dialog
+	host.handle_drag(Vector2i(19, 4), Vector2i(19, 9))
+	check(dialog.is_open())
+	dialog.cancel_button.pressed.emit()
+	check(not dialog.is_open(), "Skip All ends the question")
+	check_eq(city.building_at(18, 9), Buildings.NONE)
+	check_eq(city.building_at(20, 9), Buildings.NONE)
+	host.handle_drag(Vector2i(18, 6), Vector2i(18, 8))
+	check(not dialog.is_open(), "skipped sites are not offered again")
+	check_eq(host.modal_depth, 0)
+
+
+func test_unaffordable_ramps_are_not_asked_and_are_offered_again_with_money() -> void:
+	var city := _host_city()
+	host.select_tool(Tools.Kind.HIGHWAY)
+	check(host.handle_drag(Vector2i(10, 10), Vector2i(21, 11))["applied"])
+	host.select_tool(Tools.Kind.ROAD)
+	var dialog := host.choice_dialog
+	city.funds = 6 * Tools.cost(Tools.Kind.ROAD) + 10
+	check(host.handle_drag(Vector2i(19, 4), Vector2i(19, 9))["applied"])
+	check(not dialog.is_open(), "no question the treasury cannot answer")
+	check_eq(host.modal_depth, 0)
+	check(host.status_bar.message_label.text.contains("Ramp sites available"), host.status_bar.message_label.text)
+	city.funds = 20000
+	host.handle_drag(Vector2i(18, 7), Vector2i(18, 8))
+	check(dialog.is_open(), "the site is offered once there is money")
+	# One site is asked about on its own: Add Ramp or Skip.
+	check_eq(dialog.title_label.text, "Add a Highway Ramp?")
+	check(dialog.option_buttons[0].text.begins_with("Highway Ramp at 18, 9"), dialog.option_buttons[0].text)
+	check_eq(dialog.cancel_button.text, "Skip")
+	check(not dialog.extra_button.visible, "no Choose… for one site")
+	host.escape()
+	check_eq(host.modal_depth, 0)
+
+
+func test_the_ramp_offer_can_be_turned_off_in_settings() -> void:
+	var city := _host_city()
+	check(bool(host.prefs.option_values().get("offer_ramps", false)), "offered by default")
+	check(ViewPreferences.DEFAULTS.get("offer_ramps", false), "the default is on")
+	check(not ViewPreferences.sanitize({"offer_ramps": false}).offer_ramps, "the choice is kept when read back")
+	host.prefs.set_option(&"offer_ramps", false)
+	host.select_tool(Tools.Kind.HIGHWAY)
+	check(host.handle_drag(Vector2i(10, 10), Vector2i(21, 11))["applied"])
+	host.select_tool(Tools.Kind.ROAD)
+	check(host.handle_drag(Vector2i(19, 4), Vector2i(19, 9))["applied"])
+	check(not host.choice_dialog.is_open(), "no ramp question while the option is off")
+	host.prefs.set_option(&"offer_ramps", true)
+	host.handle_drag(Vector2i(18, 7), Vector2i(18, 8))
+	check(host.choice_dialog.is_open(), "offered again once it is back on")
+	host.escape()
+	check_eq(city.building_at(18, 9), Buildings.NONE)
 
 
 func test_ramp_offer_follows_the_neighbor_link_for_the_same_road() -> void:
@@ -323,36 +453,62 @@ func test_ramp_offer_follows_the_neighbor_link_for_the_same_road() -> void:
 	var dialog := host.choice_dialog
 	var highlight := host.city_view_3d.ramp_highlight
 	# Accepting the link: the ramps for the same road are asked about next.
-	var road := host.handle_drag(Vector2i(10, 30), Vector2i(0, 30))
+	var road := host.handle_drag(Vector2i(3, 30), Vector2i(0, 30))
 	check(road["applied"], str(road.get("reason", "")))
-	check_eq(city.building_at(4, 30), NetworkShapes.HIGHWAY_NS_ROAD_EW, "the road crosses the highway on its way out")
 	check(dialog.is_open())
 	check(dialog.title_label.text.contains("Connect"), "the link is asked first")
 	check(not highlight.is_showing())
 	dialog.build_button.pressed.emit()
 	check(Buildings.is_road_like(city.building_at(0, 30)), "the link is built")
 	check(dialog.is_open(), "then the ramps for the same road")
-	check_eq(dialog.title_label.text, "Add an On-ramp? (1 of 4)")
-	check_eq(highlight.sites[highlight.selected], Vector2i(3, 29))
-	for i in 4:
-		dialog.cancel_button.pressed.emit()
+	check_eq(dialog.title_label.text, "Add Highway Ramps?")
+	check(highlight.sites.has(Vector2i(3, 29)) and highlight.sites.has(Vector2i(3, 31)), str(highlight.sites))
+	dialog.cancel_button.pressed.emit()
 	check(not dialog.is_open())
 	check_eq(host.modal_depth, 0)
 	# Declining the link: the ramps are still asked about.
-	host.handle_drag(Vector2i(10, 40), Vector2i(0, 40))
+	host.handle_drag(Vector2i(3, 40), Vector2i(0, 40))
 	check(dialog.title_label.text.contains("Connect"))
 	dialog.cancel_button.pressed.emit()
 	check_eq(city.building_at(0, 40), Buildings.NONE, "the declined link stays unbuilt")
 	check(dialog.is_open(), "the ramp offer still follows")
-	check_eq(dialog.title_label.text, "Add an On-ramp? (1 of 4)")
-	check_eq(highlight.sites[highlight.selected], Vector2i(3, 39))
+	check_eq(dialog.title_label.text, "Add Highway Ramps?")
 	dialog.build_button.pressed.emit()
-	check(NetworkShapes.is_onramp(city.building_at(3, 39)))
-	for i in 3:
-		check(dialog.is_open())
-		dialog.cancel_button.pressed.emit()
+	check(NetworkShapes.is_onramp(city.building_at(3, 39)) and NetworkShapes.is_onramp(city.building_at(3, 41)))
 	check(not dialog.is_open())
 	check_eq(host.modal_depth, 0)
+	# A road carried over the highway to the limit: the link first, then its
+	# ramps in one question, which Skip All declines for every site.
+	host.handle_drag(Vector2i(10, 34), Vector2i(0, 34))
+	check(dialog.title_label.text.contains("Connect"))
+	dialog.build_button.pressed.emit()
+	check(dialog.is_open(), "the overpass ramps follow its link")
+	check_eq(dialog.title_label.text, "Add Highway Ramps?")
+	dialog.cancel_button.pressed.emit()
+	check(not dialog.is_open())
+	check_eq(host.modal_depth, 0)
+	host.handle_drag(Vector2i(10, 34), Vector2i(5, 34))
+	check(not dialog.is_open(), "the skipped overpass sites are not asked about again")
+	check_eq(host.modal_depth, 0)
+
+
+func test_choice_dialog_reopens_centred_after_stepping_aside() -> void:
+	var dialog := ConstructionChoiceDialog.new()
+	root.add_child(dialog)
+	dialog.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	dialog.size = Vector2(900, 240)
+	dialog.open("Build", "Body", [{"key": &"a", "label": "A", "cost": 1}], 100)
+	dialog.panel.size = Vector2(ConstructionChoiceDialog.PANEL_WIDTH, 260)
+	var centred := (dialog.size.x - dialog.panel.size.x) / 2.0
+	dialog.panel.position = Vector2(centred, 0)
+	dialog.keep_clear_of(dialog.panel.get_global_rect().get_center())
+	check(absf(dialog.panel.position.x - centred) > 1.0, "a short screen moves the panel sideways")
+	dialog.cancel()
+	dialog.open("Build", "Body", [{"key": &"a", "label": "A", "cost": 1}], 100)
+	check(is_equal_approx(dialog.panel.position.x, centred), "the next question opens centred")
+	dialog.cancel()
+	root.remove_child(dialog)
+	dialog.free()
 
 
 # ── Objections and protests ──────────────────────────────────────────────

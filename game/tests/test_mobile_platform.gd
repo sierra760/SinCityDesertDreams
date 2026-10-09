@@ -15,8 +15,39 @@ func test_touch_detection_keeps_mobile_and_desktop_touch_distinct() -> void:
 	check(platform.is_mobile({"os_name":"iOS"}))
 	check(platform.uses_touch({"os_name":"iOS","touchscreen":false}))
 	check(not platform.is_mobile({"os_name":"macOS","touchscreen":true}))
-	check(platform.uses_touch({"os_name":"macOS","touchscreen":true}))
-	check(not platform.uses_touch({"os_name":"macOS","touchscreen":false}))
+	check(not platform.uses_touch({"os_name":"macOS","touchscreen":true,"features":[]}),"a touch-capable desktop keeps its mouse and keyboard presentation")
+	check(not platform.uses_touch({"os_name":"Windows","touchscreen":true,"features":[]}))
+	check(not platform.uses_touch({"os_name":"macOS","touchscreen":false,"features":[]}))
+	check(not platform.uses_touch({"os_name":"Web","features":["web"]}),"a desktop browser is not touch-first")
+	check(platform.uses_touch({"os_name":"Web","features":["web","web_android"]}),"a phone or tablet browser is touch-first")
+	check(platform.uses_touch({"os_name":"Web","features":["web","web_ios"]}))
+	check(not platform.is_mobile({"os_name":"Web","features":["web","web_ios"]}),"browser builds keep the desktop window policy")
+
+func test_desktop_picker_starts_in_downloads_then_documents() -> void:
+	var platform: Variant = _platform()
+	if platform == null: return
+	var downloads := OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS)
+	var documents := OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	var existing := ProjectSettings.globalize_path("user://")
+	check_eq(platform.desktop_picker_start_dir({"os_name":"macOS","system_dirs":["/no/such/downloads",existing]}),existing,"a missing Downloads folder falls back to the next")
+	check_eq(platform.desktop_picker_start_dir({"os_name":"Windows","system_dirs":["","/no/such/dir"]}),"","no readable folder leaves the picker's default")
+	check_eq(platform.desktop_picker_start_dir({"os_name":"iOS","system_dirs":[existing]}),"","mobile pickers are configured separately")
+	var live: String = platform.desktop_picker_start_dir()
+	if not downloads.is_empty() and DirAccess.dir_exists_absolute(downloads): check_eq(live,downloads)
+	elif not documents.is_empty() and DirAccess.dir_exists_absolute(documents): check_eq(live,documents)
+
+func test_android_native_picker_starts_in_downloads() -> void:
+	var platform: Variant = _platform()
+	if platform == null: return
+	# A real folder stands in for Android's shared Download directory.
+	var downloads := ProjectSettings.globalize_path("user://android-downloads-fixture")
+	check_eq(DirAccess.make_dir_recursive_absolute(downloads),OK)
+	var picker := FileDialog.new()
+	root.add_child(picker)
+	platform.configure_file_picker(picker,{"os_name":"Android","native_file_dialog":true,"downloads_dir":downloads})
+	check_eq(picker.current_dir,downloads,"the system picker opens where shared cities arrive, not app-private storage")
+	picker.free()
+	DirAccess.remove_absolute(downloads)
 
 func test_ios_picker_is_bounded_to_files_visible_userdata() -> void:
 	var platform: Variant = _platform()
@@ -98,7 +129,7 @@ func test_ipad_export_is_files_visible_and_automatically_signed() -> void:
 	check(not section.is_empty(),"iPad export preset is configured")
 	if section.is_empty(): return
 	var options := section + ".options"
-	check_eq(presets.get_value(options,"application/targeted_device_family",-1),1)
+	check_eq(presets.get_value(options,"application/targeted_device_family",-1),2,"iPhone and iPad (the iPhone layout shipped after the iPad-only preset)")
 	check_eq(presets.get_value(options,"user_data/accessible_from_files_app",false),true)
 	check_eq(presets.get_value(options,"user_data/accessible_from_itunes_sharing",false),true)
 	check_eq(presets.get_value(options,"application/app_store_team_id",""),"2LK9LNU9V8")

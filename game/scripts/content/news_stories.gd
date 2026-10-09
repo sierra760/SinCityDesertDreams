@@ -1069,8 +1069,8 @@ static func kind_text(kind: StringName, args: Dictionary) -> String:
 		if not args.has(k):
 			continue
 		var v: Variant = args[k]
-		if k == "kind" and kind in [&"port_opened", &"port_closed"] and typeof(v) == TYPE_INT:
-			return String(Zones.NAMES.get(v, "Port"))
+		if k == "kind" and kind in [&"port_opened", &"port_closed"] and typeof(v) in [TYPE_INT, TYPE_FLOAT]:
+			return String(Zones.NAMES.get(int(v), "Port"))
 		if k == "name" and typeof(v) == TYPE_STRING:
 			return String(v)
 		if k == "key":

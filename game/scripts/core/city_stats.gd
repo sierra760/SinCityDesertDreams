@@ -133,6 +133,9 @@ func from_dict(data: Dictionary) -> void:
 			continue
 		var current = get(p.name)
 		var v = data[p.name]
+		if not accepts(current, v):
+			# A damaged field keeps its default rather than failing the load.
+			continue
 		match typeof(current):
 			TYPE_VECTOR3I:
 				set(p.name, Vector3i(int(v[0]), int(v[1]), int(v[2])))
@@ -153,9 +156,40 @@ func from_dict(data: Dictionary) -> void:
 				var arr: Array = get(p.name)
 				arr.clear()
 				for item in v:
+					if arr.is_typed() and typeof(item) != arr.get_typed_builtin():
+						continue
 					arr.append(item)
 			_:
 				set(p.name, v)
+
+
+## Whether a saved JSON value can stand in for a field holding `current`.
+static func accepts(current: Variant, v: Variant) -> bool:
+	var numeric := typeof(v) in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL]
+	match typeof(current):
+		TYPE_VECTOR3I:
+			if typeof(v) != TYPE_ARRAY or (v as Array).size() < 3:
+				return false
+			for i in 3:
+				if typeof(v[i]) not in [TYPE_INT, TYPE_FLOAT]:
+					return false
+			return true
+		TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_FLOAT32_ARRAY:
+			if typeof(v) != TYPE_ARRAY:
+				return false
+			for item in v:
+				if typeof(item) not in [TYPE_INT, TYPE_FLOAT]:
+					return false
+			return true
+		TYPE_INT, TYPE_FLOAT, TYPE_BOOL:
+			return numeric
+		TYPE_DICTIONARY:
+			return typeof(v) == TYPE_DICTIONARY
+		TYPE_ARRAY:
+			return typeof(v) == TYPE_ARRAY
+		TYPE_STRING, TYPE_STRING_NAME:
+			return typeof(v) in [TYPE_STRING, TYPE_STRING_NAME]
+	return true
 
 
 static func _dict_to_json(d: Dictionary) -> Dictionary:
@@ -171,11 +205,24 @@ static func _dict_to_json(d: Dictionary) -> Dictionary:
 	return out
 
 
+static func _numbers_only(values: Array) -> bool:
+	for item in values:
+		if typeof(item) not in [TYPE_INT, TYPE_FLOAT]:
+			return false
+	return true
+
+
 static func _dict_from_json(v: Dictionary, template: Dictionary) -> Dictionary:
 	var out := {}
 	for k in v:
 		var val = v[k]
 		var sample = template.get(StringName(k), template.get(k, null))
+		if typeof(val) == TYPE_ARRAY and not _numbers_only(val):
+			continue
+		if typeof(sample) == TYPE_PACKED_INT32_ARRAY and typeof(val) != TYPE_ARRAY:
+			continue
+		if typeof(sample) in [TYPE_INT, TYPE_BOOL] and typeof(val) not in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL]:
+			continue
 		if typeof(sample) == TYPE_PACKED_INT32_ARRAY or (typeof(val) == TYPE_ARRAY and not val.is_empty() and typeof(val[0]) == TYPE_FLOAT and template.is_empty()):
 			out[StringName(k)] = PackedInt32Array(val)
 		elif typeof(sample) == TYPE_INT:
@@ -184,6 +231,11 @@ static func _dict_from_json(v: Dictionary, template: Dictionary) -> Dictionary:
 			out[StringName(k)] = bool(val)
 		elif typeof(val) == TYPE_ARRAY:
 			out[StringName(k)] = PackedInt32Array(val)
+		elif typeof(val) == TYPE_FLOAT and sample == null and is_finite(val) and val == floorf(val) \
+				and absf(val) < 9.0e15:
+			# JSON reads whole numbers back as floats; every stats table holds
+			# whole numbers, so a key the defaults do not list is an int too.
+			out[StringName(k)] = int(val)
 		else:
 			out[StringName(k)] = val
 	return out

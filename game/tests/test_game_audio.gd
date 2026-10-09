@@ -184,3 +184,75 @@ func test_casino_rounds_make_their_sounds() -> void:
 	check(&"casino_win" in played or &"casino_lose" in played or &"chips_collect" in played
 		or &"casino_big_win" in played, "the result is announced")
 	host.escape()
+
+
+# Guards against: the short pause before the first city song becoming a
+# 30–90 second silence once the title theme finished fading.
+func test_first_city_song_follows_the_title_after_a_short_pause() -> void:
+	var audio := host.audio
+	audio._on_title = true
+	audio._song = GameAudio.TITLE_SONG
+	host.title_screen.close()
+	audio._update_music(0.0)
+	check_between(audio._gap_left, 4.0, 10.0, "leaving the title sets a short pause")
+	var gap := audio._gap_left
+	audio._fading_out = true
+	audio._finish_fade_out()
+	check_eq(audio._gap_left, gap, "the finished fade keeps that pause")
+	check_eq(audio._song, &"")
+	check(not audio._fading_out)
+
+
+# Guards against: music and loops playing over other apps with "Pause while
+# in the background" on.
+func test_background_pauses_music_and_loops() -> void:
+	found()
+	var audio := host.audio
+	audio.hold_loop(&"fire_loop", -8.0)
+	audio.set_background(true)
+	check(audio.is_sound_paused(), "music and loops are held in the background")
+	# Headless players never start, so Godot reports no paused playback; the
+	# held state also keeps the next song from starting while away.
+	audio._gap_left = 1.0
+	var song := audio._song
+	audio._update_music(5.0)
+	check_eq(audio._gap_left, 1.0, "the pause before the next song waits")
+	check_eq(audio._song, song, "no song starts in the background")
+	audio.set_background(false)
+	check(not audio.is_sound_paused())
+	audio._update_music(5.0)
+	check(audio._gap_left != 1.0 or audio._song != song, "the music schedule moves again on return")
+	# Main follows the window focus only when the player chose to pause there.
+	host.preferences["pause_in_background"] = false
+	host._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	check(not audio.is_background(), "sound keeps playing when pausing in the background is off")
+	host._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	host.preferences["pause_in_background"] = true
+	host._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	if not MobilePlatform.is_mobile(): check(audio.is_background(), "focus-out pauses the sound")
+	host._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	check(not audio.is_background(), "focus-in resumes it")
+
+
+# Guards against: a fire loop roaring over a paused city or the January review.
+func test_disaster_loops_rest_while_the_city_is_frozen() -> void:
+	found()
+	var audio := host.audio
+	audio.hold_loop(&"fire_loop", -8.0)
+	audio._poll_left = 0.0
+	audio._process(0.3)
+	check(audio.is_city_frozen(), "a paused city is frozen")
+	check(not audio.is_looping(&"fire_loop"), "disaster loops stop while time stands still")
+	host.sim.set_speed(GameClock.Speed.SLOW)
+	check(not audio.is_city_frozen())
+	host.push_modal()
+	check(audio.is_city_frozen(), "a modal window freezes the city too")
+	host.pop_modal()
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+
+
+# Guards against: the effects slider giving no sample of its level.
+func test_effects_volume_plays_a_sample() -> void:
+	host.audio.played.clear()
+	host.prefs.set_option(&"effects_volume", 0.6)
+	check(&"click" in host.audio.played, "moving the effects level plays a sample")

@@ -310,7 +310,8 @@ func _refresh_complaints(population: SimSystem) -> void:
 		return
 	for i in ranking.size():
 		var row: Dictionary = ranking[i]
-		var line := "%d. %s: %d votes" % [i + 1, String(row.get("name", "")), int(row.get("votes", 0))]
+		var votes := int(row.get("votes", 0))
+		var line := "%d. %s: %d vote%s" % [i + 1, String(row.get("name", "")), votes, "" if votes == 1 else "s"]
 		_complaints_box.add_child(UIFactory.make_label(line, UITheme.FONT_SMALL))
 
 

@@ -60,7 +60,7 @@ func _init() -> void:
  shade.color=Color(0,0,0,0.35)
  shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  add_child(shade)
- var chrome := UIFactory.make_window_chrome("Real-world terrain")
+ var chrome := UIFactory.make_window_chrome("Real-World Terrain")
  panel=chrome.root
  panel.set_meta("preferred_size",Vector2(820,720))
  panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -73,10 +73,10 @@ func _init() -> void:
  availability_label=_label(body,"Checking connection…")
  var actions := UIFactory.WrappingActions.new()
  body.add_child(actions)
- retry_button=_button(actions,"Retry connection",func() -> void:
+ retry_button=_button(actions,"Retry Connection",func() -> void:
   if importer!=null: importer.set_visible(true); importer.check_online(true))
- clear_button=_button(actions,"Clear terrain cache",_clear_cache)
- source_button=_button(actions,"Data sources",func() -> void:
+ clear_button=_button(actions,"Clear Terrain Cache",_clear_cache)
+ source_button=_button(actions,"Data Sources",func() -> void:
   sources_dialog.open()
   data_sources_requested.emit())
  _label(body,"Elevation: Mapzen / Joerd terrain providers · Water: ESA WorldCover 2021 v200 (CC BY 4.0) · Map: © OpenStreetMap contributors")
@@ -121,7 +121,7 @@ func _init() -> void:
  _button(navigation,"South",func() -> void: extent_map.pan(Vector2(0,-96)))
  _button(navigation,"−",func() -> void: extent_map.zoom_by(-1))
  _button(navigation,"+",func() -> void: extent_map.zoom_by(1))
- _button(navigation,"Fit selection",extent_map.fit_selection)
+ _button(navigation,"Fit Selection",extent_map.fit_selection)
  selection_grid=GridContainer.new()
  selection_grid.columns=4
  body.add_child(selection_grid)
@@ -169,8 +169,8 @@ func _init() -> void:
  preserve_narrow.toggled.connect(func(_on: bool) -> void: _controls_changed())
  var conversion_actions := UIFactory.WrappingActions.new()
  body.add_child(conversion_actions)
- download_button=_button(conversion_actions,"Download terrain",download)
- fit_button=_button(conversion_actions,"Fit relief",fit_relief)
+ download_button=_button(conversion_actions,"Download Terrain",download)
+ fit_button=_button(conversion_actions,"Fit Relief",fit_relief)
  progress_label=_label(body,"Choose a square, then download its terrain.")
  preview_rect=TextureRect.new()
  preview_rect.custom_minimum_size=Vector2(128,128)
@@ -180,7 +180,7 @@ func _init() -> void:
  body.add_child(preview_rect)
  diagnostics_label=_label(body,"The playable preview appears here. Elevation and water are adapted to the city's terrain grid.")
  cancel_button=_button(chrome.actions,"Cancel",close)
- use_button=UIFactory.make_primary_button("Use terrain")
+ use_button=UIFactory.make_primary_button("Use Terrain")
  chrome.actions.add_child(use_button)
  use_button.pressed.connect(_accept)
  sources_dialog=TerrainSourcesDialog.new()
@@ -331,7 +331,7 @@ func _selection_from_map(value: Dictionary) -> void:
  for key in ["latitude","longitude","side_km","bearing"]: fields[key].set_value_no_signal(value[key])
  _syncing=false
  _invalidate()
- progress_label.text="Selection changed. Download terrain for this square."
+ progress_label.text="Selection changed. Select Download Terrain for this square."
 func _selection_from_fields() -> void:
  if _syncing: return
  var value := {}
@@ -344,7 +344,7 @@ func _selection_from_fields() -> void:
   download_button.disabled=true
   return
  extent_map.set_selection(value)
- progress_label.text="Selection changed. Download terrain for this square."
+ progress_label.text="Selection changed. Select Download Terrain for this square."
 func _controls_changed() -> void:
  if _syncing: return
  controls.exaggeration=fields.exaggeration.value
@@ -356,7 +356,7 @@ func _controls_changed() -> void:
  if _selection_valid and _packet_selection==extent_map.selection and not _packet_selection.is_empty():
   _rebuild_delay=0.25
   progress_label.text="Preview settings changed."
- else: progress_label.text="Download terrain for this square first."
+ else: progress_label.text="Select Download Terrain for this square first."
 func _invalidate() -> void:
  _revision+=1
  _fit_revision=-1
@@ -370,7 +370,7 @@ func _process(delta: float) -> void:
  if _online and not importer.is_online_fresh():
   _online=false
   # An expired check repeats on its own; only a failed check needs Retry.
-  availability_label.text="Checking…" if importer.recheck_if_expired() else "Unavailable · Select Retry connection."
+  availability_label.text="Checking…" if importer.recheck_if_expired() else "Unavailable · Select Retry Connection."
   _update_actions()
  if _rebuild_delay>=0:
   _rebuild_delay-=delta
@@ -427,7 +427,7 @@ func _failed(generation: int,detail: String) -> void:
  if not visible or _operation.is_empty() or (_generation!=-1 and generation!=_generation): return
  _operation=""
  _fit_revision=-1
- progress_label.text="Unavailable preview · "+detail+". Retry connection or download again."
+ progress_label.text="Unavailable preview · "+detail+". Select Retry Connection or download again."
  _update_actions()
 func _candidate_ready(generation: int,candidate: Dictionary) -> void:
  if not visible or _operation not in ["download","rebuild"] or generation!=_generation or not importer.is_ready(): return

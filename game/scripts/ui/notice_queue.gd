@@ -33,8 +33,9 @@ func raise(kind: StringName, payload: Dictionary) -> void:
 	if _host.audio != null:
 		_host.audio.on_notice(kind)
 	_host.refresh_toolbar()
+	# Raised notices arrive unasked, possibly mid-keystroke: no choice has focus.
 	queue(String(spec["title"]), String(spec["body"]), spec.get("choices", [["OK", &"ok"]]),
-		spec.get("handler", Callable()))
+		spec.get("handler", Callable()), false, "", true)
 
 
 ## Title, body, choices and handler for a notice kind; empty to show nothing.
@@ -71,7 +72,8 @@ func _reward_notice(payload: Dictionary) -> Dictionary:
 		var site: Array = payload.get("site", [])
 		if site.size() == 4:
 			spec["body"] = "%s\n\nThe proposed site is %d tiles square at %d, %d." % [String(spec["body"]), int(site[2]), int(site[0]), int(site[1])]
-		spec["choices"] = [["Accept", &"accept"], ["Decline", &"decline"]]
+		# Declining is the first, default choice: accepting builds the base for good.
+		spec["choices"] = [["Decline", &"decline"], ["Accept", &"accept"]]
 		spec["handler"] = _on_military_offer_answered
 		return spec
 	var reward_tool := reward_tool_for(key)
@@ -149,10 +151,11 @@ func show(title: String, body: String) -> void:
 
 
 ## Queue a notice. `handler` receives the chosen key; a `prompt` notice also
-## has a text field, filled with `initial`.
-func queue(title: String, body: String, choices: Array, handler: Callable, prompt := false, initial := "") -> void:
+## has a text field, filled with `initial`. An `unrequested` notice (one the
+## player did not ask for) opens without focusing a choice.
+func queue(title: String, body: String, choices: Array, handler: Callable, prompt := false, initial := "", unrequested := false) -> void:
 	_queue.append({"title": title, "body": body, "choices": choices, "handler": handler,
-		"prompt": prompt, "initial": initial})
+		"prompt": prompt, "initial": initial, "unrequested": unrequested})
 	_show_next()
 
 
@@ -165,7 +168,7 @@ func _show_next() -> void:
 	_host.modal_layer.move_child(dialog, _host.modal_layer.get_child_count() - 1)
 	_host.push_modal()
 	dialog.show_notice(String(spec["title"]), String(spec["body"]), spec["choices"],
-		bool(spec["prompt"]), String(spec["initial"]))
+		bool(spec["prompt"]), String(spec["initial"]), &"", not bool(spec.get("unrequested", false)))
 
 
 func _on_notice_closed(choice: StringName) -> void:

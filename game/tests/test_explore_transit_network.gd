@@ -72,6 +72,10 @@ func test_unsupported_station_has_explanation_and_no_route() -> void:
 	check(network.stations.is_empty())
 	check_eq(network.unavailable.size(),1)
 	check(not String(network.unavailable[0].reason).is_empty())
+	var reason := String(network.unavailable[0].reason)
+	check(reason.begins_with("Trains can't reach this station"),"the reason is plain language: "+reason)
+	for jargon: String in ["reciprocal","Adjacent","travel range"]:
+		check(not reason.contains(jargon),"no engine jargon: "+jargon)
 
 func test_route_rejects_unsafe_grade_and_perpendicular_platform() -> void:
 	var network := _network(rail_city())

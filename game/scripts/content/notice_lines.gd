@@ -23,7 +23,7 @@ const NOTICES: Dictionary = {
 	},
 	&"plant_retired": {
 		"title": "Power Plant Retired",
-		"body": "The {name} near {place} has worn out after a lifetime of service and has been taken down. Its customers are without power until a new plant is built. Clear the rubble and rebuild before the lights go out across {city}.",
+		"body": "The {name} near {place} has worn out after a lifetime of service and has been taken down. Its customers will lose power until a replacement is built. Clear the rubble and rebuild the plant before the lights go out across {city}.",
 	},
 	&"fiscal_crisis": {
 		"title": "Fiscal Crisis",
@@ -91,12 +91,33 @@ const PROMPTS: Dictionary = {
 	},
 	&"neighbor": {
 		"title": "Connect to {neighbor}",
-		"body": "Carry this {kind} across the city limit to {neighbor}? The link costs {cost} and opens trade and travel between the two towns.",
+		"body": "Carry this {kind} across the city limit to {neighbor}? The link costs {cost} and {purpose}.",
 	},
 	&"onramp": {
-		"title": "Add an On-ramp?",
-		"body": "This road now meets the highway. Add an on-ramp so traffic can get on and off? The highlighted tile marks the spot.",
+		"title": "Add a Highway Ramp?",
+		"body": "This road now meets the highway. Add a Highway Ramp for {cost} so traffic can get on and off? The highlighted tile marks the spot.",
 	},
+	&"onramp_highway": {
+		"title": "Add a Highway Ramp?",
+		"body": "The new highway passes this road. Add a Highway Ramp for {cost} so traffic can get on and off? The highlighted tile marks the spot.",
+	},
+	&"onramp_batch": {
+		"title": "Add Highway Ramps?",
+		"body": "Add on-ramps where this road meets the highway? {count} sites · {cost} total. Every site is highlighted on the map.",
+	},
+	&"onramp_batch_highway": {
+		"title": "Add Highway Ramps?",
+		"body": "Add on-ramps where the new highway meets the roads? {count} sites · {cost} total. Every site is highlighted on the map.",
+	},
+}
+
+## What a city-limit link is called, and what it does, by network kind.
+const LINK_NOUNS: Dictionary = {&"road": "road", &"rail": "railway", &"power": "power line", &"water": "water pipe"}
+const LINK_PURPOSES: Dictionary = {
+	&"road": "opens trade and travel between the two towns",
+	&"rail": "opens trade and travel between the two towns",
+	&"power": "lets the city sell its surplus power there",
+	&"water": "lets the city sell its surplus water there",
 }
 
 ## Labels for the bridge and tunnel options a plan can offer.
@@ -138,7 +159,7 @@ const MILITARY_PHRASES: Dictionary = {
 }
 
 const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "name", "count", "amount", "approval",
-	"neighbor", "cost", "kind", "place", "phrase", "limit"]
+	"neighbor", "cost", "kind", "place", "phrase", "limit", "purpose"]
 
 
 ## Whether a notice, reward or prompt of this kind has text.
@@ -173,6 +194,8 @@ static func values_for(kind: StringName, payload: Dictionary, city_name: String,
 		kind_text = NewsStories.kind_label(kind)
 	if kind == &"newspaper":
 		kind_text = String(payload.get("date", ""))
+	elif kind == &"neighbor":
+		kind_text = String(LINK_NOUNS.get(StringName(String(payload.get("kind", "road"))), kind_text.to_lower()))
 	elif PROMPTS.has(kind):
 		kind_text = kind_text.to_lower()
 	var name_text := String(payload.get("name", ""))
@@ -192,6 +215,7 @@ static func values_for(kind: StringName, payload: Dictionary, city_name: String,
 		"place": NewsStories.place_text(payload),
 		"phrase": phrase_for(kind, payload),
 		"limit": money(BudgetParams.BANKRUPTCY_FUNDS),
+		"purpose": String(LINK_PURPOSES.get(StringName(String(payload.get("kind", "road"))), LINK_PURPOSES[&"road"])),
 	}
 
 

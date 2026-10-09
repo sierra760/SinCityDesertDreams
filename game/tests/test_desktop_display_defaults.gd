@@ -135,3 +135,65 @@ func test_terrain_tile_cache_lives_in_the_os_cache() -> void:
 	DirAccess.remove_absolute("user://terrain_tiles_v1")
 	DirAccess.remove_absolute(root)
 	DirAccess.remove_absolute(root.get_base_dir())
+
+func test_x11_physical_dpi_does_not_overscale_ordinary_laptops() -> void:
+	# X11 reports EDID DPI, not the desktop's scaling choice.
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,166),1.0,"a 14-inch 1080p laptop (~166 dpi) stays 100%")
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,141,1080),1.0,"a 15.6-inch 1080p laptop stays 100%")
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,192,1200),1.0,"a dense but short screen is not doubled")
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,220,1800),2.0,"a dense, tall screen doubles")
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,163,2160),1.5,"a 27-inch 4K monitor gets 150%")
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,96,2160,2.0),2.0,"GDK_SCALE/QT_SCALE_FACTOR wins")
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,96,1080,2.0),1.5,"the scale always leaves at least 720 points of height")
+	check_eq(Layout.backing_from_readings("Linux","X11",1.0,0,0,NAN),1.0,"missing readings keep 100%")
+	check_eq(Layout.backing_from_readings("Windows","Windows",1.0,168,1080),1.75,"Windows effective DPI is the player's choice and is kept")
+
+func test_restored_window_frame_fits_and_centers_with_decorations() -> void:
+	# Windows draws an 8px border and a 31px caption outside the client area.
+	var usable := Rect2i(0,0,1366,728)
+	var offset := Vector2i(8,31)
+	var extra := Vector2i(16,39)
+	var placed := Layout.centered_window_rect(Vector2i(1280,800),usable,offset,extra)
+	var frame := Rect2i(placed.position - offset,placed.size + extra)
+	check(usable.encloses(frame),"the whole frame, title bar included, starts inside the work area")
+	check_eq(frame.position.y,0,"a work-area-tall window's caption sits at the top edge, not above it")
+	check_eq(placed.size,Vector2i(1280,689))
+	var small := Layout.centered_window_rect(Vector2i(800,600),Rect2i(100,0,1920,1080),offset,extra)
+	var small_frame := Rect2i(small.position - offset,small.size + extra)
+	check_eq(small_frame.position,Vector2i(100,0) + (Vector2i(1920,1080) - small_frame.size) / 2,"the decorated frame is centered")
+	check_eq(Layout.centered_window_rect(Vector2i(1280,800),Rect2i(100,0,1920,1080)),Rect2i(420,140,1280,800),"no decorations: unchanged placement")
+
+func test_minimized_and_fullscreen_window_state_is_remembered() -> void:
+	var window := Window.new()
+	window.size = Vector2i(1000,640)
+	root.add_child(window)
+	var layout := Layout.new()
+	root.add_child(layout)
+	layout.bind(window)
+	var restore_size := layout.windowed_size
+	layout.mode_override = Window.MODE_MAXIMIZED
+	window.size = Vector2i(1800,1100)
+	layout.refresh_metrics()
+	check(layout.maximized)
+	check_eq(layout.windowed_size,restore_size,"a maximized drawable is not the restore size")
+	var metrics := layout.metrics.duplicate()
+	layout.mode_override = Window.MODE_MINIMIZED
+	window.size = Vector2i(160,28)
+	layout.refresh_metrics()
+	check(layout.maximized,"minimizing keeps the maximized state")
+	check(not layout.fullscreen)
+	check_eq(layout.windowed_size,restore_size,"a minimized drawable is not the restore size")
+	check_eq(layout.metrics,metrics,"minimizing does not reflow the UI")
+	check_eq(layout.restore_from_minimized(),Window.MODE_MAXIMIZED,"restoring a minimized window returns it maximized")
+	check_eq(layout.restore_from_minimized(),-1,"a visible window is left alone")
+	window.size = Vector2i(1800,1100)
+	layout.mode_override = Window.MODE_FULLSCREEN
+	layout.refresh_metrics()
+	check(layout.fullscreen)
+	check(layout.maximized,"fullscreen remembers it was entered from a maximized window")
+	layout.set_fullscreen(false)
+	check_eq(layout.restored_mode(),Window.MODE_MAXIMIZED,"leaving fullscreen returns to maximized, not a small window")
+	check_eq(layout.windowed_size,restore_size)
+	layout.mode_override = -1
+	layout.free()
+	window.free()

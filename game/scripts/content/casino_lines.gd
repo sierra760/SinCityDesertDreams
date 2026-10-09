@@ -31,7 +31,6 @@ const BAD_MULTIPLIER := "That multiplier isn't on the board."
 const MULTIPLIER_FALLS := "The multiplier only climbs."
 const ROUND_OPEN := "Finish the round before leaving the table."
 const QUIT_SEATED := "Finish the round and leave the table first."
-const EJECTED := "The resort closed around you."
 
 # ── Prompts ──────────────────────────────────────────────────────────────
 
@@ -330,6 +329,35 @@ static func money(amount: int) -> String:
 
 static func below_minimum(minimum: int) -> String:
 	return "The table minimum is %s." % money(minimum)
+
+
+## The cage's refusal with the numbers the mayor needs: the table minimum
+## and what the treasury holds.
+static func no_credit(minimum: int, funds: int) -> String:
+	return "%s Tables here start at %s; the treasury has %s." % [NO_CREDIT, money(minimum), money(funds)]
+
+
+## The dealer's question before a round that stakes more than half of the
+## treasury; `commit_label` names the button that confirms (Deal, Spin...).
+static func confirm_stake(stake: int, funds: int, commit_label: String) -> String:
+	return "Bet %s of the city's %s? Press Enter or %s again to confirm." % [money(stake), money(funds), commit_label]
+
+
+## What became of a round played out while the app was in the background.
+## `noun` is the round's name at that game (hand, launch, round); `net` is
+## the round's result for the treasury.
+static func background_result(game_name: String, noun: String, net: int) -> String:
+	var result := "even"
+	if net > 0:
+		result = "+" + money(net)
+	elif net < 0:
+		result = money(net)
+	return "Your %s %s was played out while you were away: %s." % [game_name, noun, result]
+
+
+## A round that could not be played out in the background was refunded.
+static func background_refund(game_name: String, stake: int) -> String:
+	return "Your %s round was called off while you were away; %s came back to the treasury." % [game_name, money(stake)]
 
 
 static func enter_prompt(resort_name: String, touch: bool = false) -> String:

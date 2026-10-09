@@ -356,3 +356,68 @@ func test_tax_changes_are_reported_once() -> void:
 	restored.monthly(ctx)
 	check(ctx.events.news.filter(func(n): return n["kind"] == &"tax_change").is_empty(),
 		"a reload does not repeat the story")
+
+
+func test_budget_industrial_rate_survives_a_sector_edit_and_windows_agree() -> void:
+	var c := flat_city(20000)
+	c.founded_year = 2000
+	var sim := make_simulation(c)
+	if not simulation_loaded(sim, &"economy", "res://scripts/sim/economy_system.gd"):
+		_free_simulation(sim)
+		return
+	var holder := Control.new()
+	root.add_child(holder)
+	var budget := BudgetWindow.new()
+	var industries := IndustriesWindow.new()
+	holder.add_child(budget)
+	holder.add_child(industries)
+	budget.bind(sim)
+	industries.bind(sim)
+	budget.open()
+	industries.open()
+	budget.set_tax(&"industrial", 15)
+	check_eq(sim.stats.tax_industrial, 15)
+	for t in sim.stats.sector_taxes:
+		check_eq(t, 15, "every sector follows the Budget rate at once")
+	check(industries.sector_text(3).ends_with("| 15"), "the open Industries window shows it: " + industries.sector_text(3))
+	industries.set_sector_tax(3, 16)
+	check_eq(sim.stats.sector_taxes[3], 16, "the sector edit lands")
+	check_eq(sim.stats.sector_taxes[4], 15, "the Budget change is not thrown away")
+	check_eq(sim.stats.tax_industrial, EconomySystem.aggregate_industrial_rate(sim.stats))
+	check(sim.stats.tax_industrial >= 15, "the aggregate keeps the Budget's rise")
+	check_eq(int((budget._tax_spinners[&"industrial"] as TouchNumberField).value), sim.stats.tax_industrial,
+		"the open Budget agrees with Industries")
+	root.remove_child(holder)
+	holder.free()
+	_free_simulation(sim)
+
+
+func test_open_budget_follows_ordinances_and_the_treasury() -> void:
+	var c := zoned_city()
+	c.founded_year = 2000
+	var sim := make_simulation(c)
+	if not simulation_loaded(sim, &"ordinances", "res://scripts/sim/ordinance_system.gd"):
+		_free_simulation(sim)
+		return
+	sim.stats.population = 200000
+	var holder := Control.new()
+	root.add_child(holder)
+	var budget := BudgetWindow.new()
+	var ordinances := OrdinancesWindow.new()
+	holder.add_child(budget)
+	holder.add_child(ordinances)
+	budget.bind(sim)
+	ordinances.bind(sim)
+	budget.open()
+	ordinances.open()
+	var before := budget.ledger_text(&"ordinance_cost")
+	ordinances.set_ordinance(&"energy_conservation", true)
+	check(budget.ledger_text(&"ordinance_cost") != before, "the open Budget shows the new ordinance cost: " + budget.ledger_text(&"ordinance_cost"))
+	# The treasury line and Repay follow the funds without waiting for month end.
+	sim.adjust_funds(1234)
+	check(budget.funds_text().contains(UIFactory.commafy(c.funds)), budget.funds_text())
+	check(budget._repay_button.disabled, "no bonds to repay")
+	check_eq(budget._repay_button.tooltip_text, "No bonds to repay")
+	root.remove_child(holder)
+	holder.free()
+	_free_simulation(sim)

@@ -320,3 +320,15 @@ func test_main_rejects_existing_road_without_safe_physical_support() -> void:
 	check(host.notice_dialog.is_open(),"unsafe entry also explains failure in a blocking dialog")
 	check(not host.exploration.is_active())
 	check(host.city_view_3d.aerial_controls_enabled and host.toolbar.visible)
+
+func test_entering_explore_closes_open_build_windows() -> void:
+	await setup_host()
+	host.select_tool(Tools.Kind.ROAD)
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+	host.handle_drag(Vector2i(22,20),Vector2i(22,20))
+	await physics_frame
+	host.window_manager.open("budget")
+	check(host.window_manager.front() != null,"fixture: a Build window is open")
+	check(host.enter_explore(),"Explore starts with a Build window open")
+	check(host.window_manager.front() == null,"the Build window is closed instead of covering the captured walk")
+	check(host.exploration.is_active() and not host.exploration.is_suspended(),"Explore runs without waiting for the window")

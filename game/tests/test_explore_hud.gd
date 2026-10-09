@@ -175,3 +175,32 @@ func test_passenger_status_shows_train_motion_and_friendly_doors() -> void:
 	hud.set_transit_status({"passenger":false})
 	check_eq(hud._actor_label.text,"Walking","alighting restores walking status")
 	hud.free()
+
+func test_driver_is_never_labelled_a_passenger() -> void:
+	var hud := ExploreHUD.new()
+	root.add_child(hud)
+	hud.set_status({"mode":ExploreActorProfile.Mode.DRIVE,"vehicle":"bus","speed":.5})
+	hud.set_transit_status({"passenger":true,"transit_kind":"train","speed_mps":0.0,"next_stop":"West"})
+	check_eq(hud._actor_label.text,CityTrafficCatalog.display_name(&"bus"),"the driven vehicle keeps its name")
+	check(not hud._actor_label.text.begins_with("Riding"))
+	check(not hud._transit_label.text.contains("Doors"),"no ride status while driving")
+	hud.free()
+
+func test_paused_panel_fits_its_content_and_status_card_its_lines() -> void:
+	var hud := ExploreHUD.new()
+	root.add_child(hud)
+	hud.show_session(true)
+	hud.set_chrome_insets(44,48)
+	hud.set_status({"mode":0,"prompt":"F to enter nearby vehicle"})
+	hud.set_suspended(true)
+	await process_frame
+	await process_frame
+	var usable := Rect2(0,44,1280,800-44-48)
+	var panel := hud._panel.get_rect()
+	check(usable.grow(.5).encloses(panel),"the paused panel stays in the usable area")
+	var column := hud._scroll.get_child(0) as Control
+	check_lt(column.size.y,hud._scroll.size.y+1.0,"every line of the Explore menu shows without scrolling")
+	var status := hud._status_panel.get_rect()
+	var status_column := hud._actor_label.get_parent() as Control
+	check_lt(status.size.y,status_column.size.y+UITheme.MARGIN*2.0+20.0,"the status card has no empty band below its lines")
+	hud.free()

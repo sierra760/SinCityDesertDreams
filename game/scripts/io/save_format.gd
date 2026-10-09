@@ -264,11 +264,23 @@ static func load(path: String) -> Dictionary:
 		result["detail"] = String(decoded["error"])
 		return result
 	result["city"] = decoded["city"]
+	if stage != STAGE_PLAY:
+		# An unfounded map has never run; founding derives its maps afresh.
+		(decoded["city"] as City).restored_layers.clear()
 	# The street topology built while validating names belongs to this City;
 	# callers may reuse it instead of rebuilding it from the same layers.
 	result["topology"] = decoded.get("topology", null)
 	var snap: Variant = doc.get("snapshot", {})
 	result["snapshot"] = snap if typeof(snap) == TYPE_DICTIONARY else {}
+	if stage == STAGE_PLAY:
+		var problem := validate_snapshot(result["snapshot"])
+		if problem != "":
+			# Refuse it here, before the open city is replaced.
+			result["city"] = null
+			result["topology"] = null
+			result["error"] = MESSAGE_DAMAGED
+			result["detail"] = problem
+			return result
 	result["stage"] = stage
 	var generator: Variant = doc.get("generator", {})
 	result["generator"] = generator if typeof(generator) == TYPE_DICTIONARY else {}
@@ -276,6 +288,98 @@ static func load(path: String) -> Dictionary:
 		result["generator"]["terrain_origin"] = RealWorldManifest.sanitize_origin(generator.get("terrain_origin"))
 	result["ok"] = true
 	return result
+
+
+## Default save() shape of every simulation system, by system key, for
+## validate_snapshot. Built once from fresh systems.
+static var _system_shapes: Dictionary = {}
+
+
+## Why a saved simulation snapshot cannot be restored, or "" when it can. Each
+## field is checked against the kind of value the game stores there: numbers
+## where numbers belong, lists and tables where those belong. Fields the game
+## does not know are left alone; missing fields take their defaults.
+static func validate_snapshot(snap: Dictionary) -> String:
+	if snap.is_empty():
+		return ""
+	for k in ["clock_day", "speed", "accumulator"]:
+		if snap.has(k) and not _is_number(snap[k]):
+			return "Snapshot field '%s' is not a number." % k
+	if snap.has("budget_review_pending") and not _is_number(snap["budget_review_pending"]):
+		return "Snapshot field 'budget_review_pending' is not a flag."
+	for k in ["rng_seed", "rng_state"]:
+		if snap.has(k) and typeof(snap[k]) not in [TYPE_STRING, TYPE_INT, TYPE_FLOAT]:
+			return "Snapshot field '%s' is damaged." % k
+	if snap.has("stats"):
+		if typeof(snap["stats"]) != TYPE_DICTIONARY:
+			return "Snapshot stats are damaged."
+		var defaults := CityStats.new()
+		var stats: Dictionary = snap["stats"]
+		for p in defaults.get_property_list():
+			if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE == 0 or not stats.has(p.name):
+				continue
+			if not CityStats.accepts(defaults.get(p.name), stats[p.name]):
+				return "Snapshot stat '%s' is damaged." % p.name
+	if snap.has("systems"):
+		if typeof(snap["systems"]) != TYPE_DICTIONARY:
+			return "Snapshot systems are damaged."
+		var systems: Dictionary = snap["systems"]
+		var shapes := _shapes()
+		for key in systems:
+			if not shapes.has(String(key)):
+				continue
+			if typeof(systems[key]) != TYPE_DICTIONARY:
+				return "Snapshot system '%s' is damaged." % key
+			var problem := _shape_problem(shapes[String(key)], systems[key], String(key))
+			if problem != "":
+				return problem
+	return ""
+
+
+static func _shapes() -> Dictionary:
+	if _system_shapes.is_empty():
+		for path in Simulation.SYSTEM_SCRIPTS:
+			if not ResourceLoader.exists(path):
+				continue
+			var system: SimSystem = (ResourceLoader.load(path) as Script).new()
+			_system_shapes[String(system.key)] = system.save()
+	return _system_shapes
+
+
+static func _is_number(v: Variant) -> bool:
+	return typeof(v) in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL]
+
+
+static func _is_list(v: Variant) -> bool:
+	return typeof(v) == TYPE_ARRAY or (typeof(v) >= TYPE_PACKED_BYTE_ARRAY and typeof(v) <= TYPE_PACKED_VECTOR4_ARRAY)
+
+
+## A saved value against the value a fresh system saves for the same field.
+static func _shape_problem(expected: Dictionary, saved: Dictionary, where: String) -> String:
+	for field in expected:
+		if not saved.has(field):
+			continue
+		var want: Variant = expected[field]
+		var got: Variant = saved[field]
+		var name := "%s.%s" % [where, field]
+		if _is_number(want):
+			if not _is_number(got):
+				return "Snapshot field '%s' is not a number." % name
+		elif typeof(want) == TYPE_DICTIONARY:
+			if typeof(got) != TYPE_DICTIONARY:
+				return "Snapshot field '%s' is not a table." % name
+		elif _is_list(want):
+			if typeof(got) != TYPE_ARRAY:
+				return "Snapshot field '%s' is not a list." % name
+			# Lists of records (one table per entry) must hold tables.
+			var records: bool = want.size() > 0
+			for item in want:
+				records = records and typeof(item) == TYPE_DICTIONARY
+			if records:
+				for item in got:
+					if typeof(item) != TYPE_DICTIONARY:
+						return "Snapshot field '%s' holds a damaged entry." % name
+	return ""
 
 
 ## Saves in a directory, newest first: [{path, name, date_text, population,
@@ -369,7 +473,10 @@ static func _header(city: City, snap: Dictionary, stage: String = STAGE_PLAY) ->
 	var population := 0
 	var stats: Variant = snap.get("stats", {})
 	if typeof(stats) == TYPE_DICTIONARY:
-		population = int(stats.get("population", 0)) + int(stats.get("arcology_population", 0))
+		for k in ["population", "arcology_population"]:
+			var v: Variant = stats.get(k, 0)
+			if _is_number(v):
+				population += int(v)
 	return {
 		"name": city.name,
 		"mayor": city.mayor,
@@ -487,6 +594,7 @@ static func decode_city(doc: Dictionary) -> Dictionary:
 		else:
 			var grid: Grid8 = grids[layer_name]
 			grid.data = bytes
+		city.restored_layers[layer_name] = true
 	var power_links: Variant = doc.get("imported_power_links", {})
 	if typeof(power_links) != TYPE_DICTIONARY:
 		return {"city": null, "error": "Save has invalid imported power links."}

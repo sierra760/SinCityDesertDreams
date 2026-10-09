@@ -68,26 +68,62 @@ static func resolve_scale(drawable_px: Vector2i, backing_scale: float, requested
 
 ## Godot 4.6 implements screen_get_scale() only on macOS, iOS, Android, Web and
 ## Wayland; Windows and X11 always report 1.0 although they are DPI aware and
-## size windows in physical pixels. There the effective DPI (Windows) or the
-## monitor's physical DPI (X11) is the only scale reading, snapped to the
-## familiar 25% steps. Other platforms keep their native backing scale.
-static func backing_from_readings(os_name: String, display_server: String, screen_scale: float, dpi: int) -> float:
+## size windows in physical pixels. On Windows the effective DPI (the player's
+## display-scaling choice) is the scale reading, snapped to 25% steps.
+## X11 reports the monitor's physical EDID DPI instead, which says nothing about
+## the desktop's scaling: an ordinary 14" 1080p laptop reads ~160 dpi yet runs
+## at 100%. There an explicit GDK_SCALE/QT_SCALE_FACTOR wins; otherwise only a
+## genuinely dense, tall screen doubles (the Godot editor's rule), and the
+## result never leaves fewer than 720 points of height. Other platforms keep
+## their native backing scale.
+static func backing_from_readings(os_name: String, display_server: String, screen_scale: float, dpi: int, screen_height_px: int = 0, environment_scale: float = 0.0) -> float:
 	var scale := screen_scale if is_finite(screen_scale) and screen_scale > 0.0 else 1.0
-	var dpi_scaled := (os_name == "Windows" and display_server == "Windows") or (os_name in ["Linux","FreeBSD","NetBSD","OpenBSD","BSD"] and display_server == "X11")
-	if dpi_scaled and is_equal_approx(scale,1.0) and dpi > 0:
-		return clampf(snappedf(float(dpi) / 96.0,0.25),1.0,3.0)
+	if not is_equal_approx(scale,1.0):
+		return scale
+	if os_name == "Windows" and display_server == "Windows":
+		return clampf(snappedf(float(dpi) / 96.0,0.25),1.0,3.0) if dpi > 0 else scale
+	if os_name in ["Linux","FreeBSD","NetBSD","OpenBSD","BSD"] and display_server == "X11":
+		var x11 := 1.0
+		if is_finite(environment_scale) and environment_scale > 0.0:
+			x11 = clampf(snappedf(environment_scale,0.25),1.0,3.0)
+		elif dpi >= 192 and (screen_height_px <= 0 or screen_height_px >= 1400):
+			x11 = 2.0
+		elif screen_height_px >= 1700:
+			x11 = 1.5
+		if screen_height_px > 0:
+			x11 = maxf(1.0,minf(x11,floorf(float(screen_height_px) / 720.0 * 4.0) / 4.0))
+		return x11
 	return scale
+
+## The desktop's own scale request on X11 (GDK_SCALE, then QT_SCALE_FACTOR);
+## 0 when neither is set or readable.
+static func x11_environment_scale() -> float:
+	for key: String in ["GDK_SCALE","QT_SCALE_FACTOR"]:
+		var text := OS.get_environment(key).strip_edges()
+		if text.is_valid_float() and text.to_float() > 0.0:
+			return text.to_float()
+	return 0.0
 
 ## Live backing scale of a screen, before any window exists (first-run defaults).
 static func screen_backing(screen: int = -1) -> float:
-	return backing_from_readings(OS.get_name(),DisplayServer.get_name(),DisplayServer.screen_get_scale(screen),DisplayServer.screen_get_dpi(screen))
+	var height := DisplayServer.screen_get_size(screen).y if DisplayServer.get_name() == "X11" else 0
+	var environment_scale := x11_environment_scale() if DisplayServer.get_name() == "X11" else 0.0
+	return backing_from_readings(OS.get_name(),DisplayServer.get_name(),DisplayServer.screen_get_scale(screen),DisplayServer.screen_get_dpi(screen),height,environment_scale)
 
 ## Centered placement of a restored window inside the screen's usable area.
-static func centered_window_rect(window_px: Vector2i, usable_px: Rect2i) -> Rect2i:
+## Sizes and positions are the client area's, as Window.size/position are;
+## `frame_offset` is where the client sits inside the decorated frame
+## (position - position_with_decorations) and `frame_extra` the frame's added
+## size (size_with_decorations - size). Windows and X11 draw the title bar
+## outside the client area, so the decorated frame is what must fit and center.
+static func centered_window_rect(window_px: Vector2i, usable_px: Rect2i, frame_offset: Vector2i = Vector2i.ZERO, frame_extra: Vector2i = Vector2i.ZERO) -> Rect2i:
 	if usable_px.size.x <= 0 or usable_px.size.y <= 0:
 		return Rect2i(Vector2i.ZERO,window_px)
-	var size := window_px.min(usable_px.size)
-	return Rect2i(usable_px.position + (usable_px.size - size) / 2,size)
+	var extra := frame_extra.max(Vector2i.ZERO)
+	var offset := frame_offset.clamp(Vector2i.ZERO,extra)
+	var size := window_px.min((usable_px.size - extra).max(Vector2i.ONE))
+	var outer := usable_px.position + (usable_px.size - (size + extra)) / 2
+	return Rect2i(outer + offset,size)
 
 static func fit_window_rect(rect: Rect2, available: Rect2, title_height: float) -> Rect2:
 	var inset := available.grow(-8.0)
@@ -187,12 +223,16 @@ func restore_window(values: Dictionary) -> void:
 		if usable.size.x > 0 and usable.size.y > 0:
 			# The OS centered the project's default size; recenter the restored
 			# size so no edge or title bar starts outside the usable area.
-			var placed := centered_window_rect(Vector2i(windowed_size * backing),usable)
+			var frame_extra := _window.get_size_with_decorations() - _window.size
+			var frame_offset := _window.position - _window.get_position_with_decorations()
+			var placed := centered_window_rect(Vector2i(windowed_size * backing),usable,frame_offset,frame_extra)
 			_window.size = placed.size
 			_window.position = placed.position
 		else:
 			_window.size = Vector2i(windowed_size * backing)
-		if bool(clean.get("maximized",false)) and not bool(clean["fullscreen"]):
+		# Fullscreen returns to the maximized window it was entered from.
+		maximized = bool(clean.get("maximized",false))
+		if maximized and not bool(clean["fullscreen"]):
 			_window.mode = Window.MODE_MAXIMIZED
 	set_fullscreen(clean["fullscreen"])
 	if _injected and not metrics.is_empty():
@@ -215,10 +255,35 @@ func set_fullscreen(enabled: bool) -> void:
 		return
 	fullscreen = enabled
 	if _window != null:
-		_window.mode = Window.MODE_FULLSCREEN if enabled else Window.MODE_WINDOWED
-		if not enabled:
+		# Leaving fullscreen returns to the maximized or windowed state it was
+		# entered from; `maximized` keeps that state while fullscreen.
+		_window.mode = Window.MODE_FULLSCREEN if enabled else restored_mode()
+		if not enabled and not maximized:
 			_window.size = Vector2i(windowed_size * _backing())
 	_schedule_refresh()
+
+## The window state a minimized (or fullscreen-ending) window returns to.
+func restored_mode() -> int:
+	if fullscreen: return Window.MODE_FULLSCREEN
+	return Window.MODE_MAXIMIZED if maximized else Window.MODE_WINDOWED
+
+## The OS window mode; `mode_override` (>= 0) stands in for it in tests, since
+## headless windows cannot be minimized.
+var mode_override := -1
+func window_mode() -> int:
+	if mode_override >= 0: return mode_override
+	return _window.mode if _window != null else Window.MODE_WINDOWED
+
+## Bring a minimized desktop window back to its remembered state so a prompt
+## queued for it (the save question on quit) can be seen. Returns the mode it
+## restored, or -1 when the window was not minimized.
+func restore_from_minimized() -> int:
+	if _window == null or _mobile or window_mode() != Window.MODE_MINIMIZED:
+		return -1
+	var target := restored_mode()
+	_window.mode = target
+	if mode_override >= 0: mode_override = target
+	return target
 
 func _backing() -> float:
 	if _window == null:
@@ -252,8 +317,15 @@ func refresh_metrics() -> void:
 	_mobile = readings.mobile
 	_safe_area_px = readings.safe_area_px
 	_keyboard_height_px = readings.keyboard_height_px
-	fullscreen = not _mobile and _window.mode in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN]
-	maximized = not _mobile and _window.mode == Window.MODE_MAXIMIZED
+	var mode := window_mode()
+	# A minimized window's drawable says nothing about the window the player
+	# restores to: keep the last fullscreen/maximized state, restore size and metrics.
+	if not _mobile and mode == Window.MODE_MINIMIZED:
+		return
+	fullscreen = not _mobile and mode in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN]
+	# While fullscreen, `maximized` keeps the state fullscreen returns to.
+	if not fullscreen:
+		maximized = not _mobile and mode == Window.MODE_MAXIMIZED
 	var backing := _backing()
 	_apply_min_size(backing)
 	_update(_window.size,backing)

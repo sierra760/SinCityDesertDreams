@@ -29,7 +29,8 @@ var spot_label: Label
 var total_label: Label
 
 var _column: VBoxContainer
-var _readout: HBoxContainer
+## A row on wide bars, stacked on narrow ones (see apply_layout).
+var _readout: BoxContainer
 var _row: HBoxContainer
 var _chips: HFlowContainer
 var _actions: HFlowContainer
@@ -52,7 +53,7 @@ func _init() -> void:
 	_column = VBoxContainer.new()
 	_column.add_theme_constant_override("separation", 6)
 	add_child(_column)
-	_readout = HBoxContainer.new()
+	_readout = BoxContainer.new()
 	_readout.add_theme_constant_override("separation", 12)
 	_column.add_child(_readout)
 	spot_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_PRIMARY)
@@ -239,6 +240,14 @@ func set_auto(value: float, shown: bool) -> void:
 func apply_layout(width: float, short: bool, side: Container = null) -> void:
 	_readout.visible = not short
 	_wide = width >= WIDE
+	# Narrow bars let the spot caption wrap instead of cutting it short.
+	spot_label.autowrap_mode = TextServer.AUTOWRAP_OFF if _wide else TextServer.AUTOWRAP_WORD_SMART
+	spot_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS if _wide else TextServer.OVERRUN_NO_TRIMMING
+	spot_label.clip_text = _wide
+	# ...and on a line of its own, above the bet total.
+	_readout.vertical = not _wide
+	_readout.add_theme_constant_override("separation", 12 if _wide else 0)
+	total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if _wide else HORIZONTAL_ALIGNMENT_LEFT
 	var chips_target: Container = _row if _wide else _column
 	var actions_target: Container = side if short and side != null else chips_target
 	if _chips.get_parent() != chips_target:

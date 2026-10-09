@@ -12,7 +12,7 @@ the aerial camera's focus; with no such road, Explore is refused with a notice
 and Build stays open. WASD or the arrow keys move, Shift runs and Space jumps.
 With a keyboard, a short controls hint appears on entering and whenever you
 switch between walking, driving, flying and riding. **F** enters a nearby
-drivable vehicle. **Escape** opens the Explore panel, including the vehicle
+drivable vehicle. **Escape** opens the Explore menu, including the vehicle
 selector, Resume, Recover and Return to Build. All 17 non-airplane catalog types
 are available when their route and clearance requirements are met. Road
 vehicles steer freely on safe support; trains follow connected tracks; boats
@@ -33,7 +33,7 @@ Wait behind the yellow edge and **walk through an open door**; no interaction
 key or attachment prompt is needed. Walk inside the cabin while
 it moves, then walk through an open door at a stop to leave. Doors stay fully
 open for eight seconds and reopen if occupied. Connected branch destinations
-are selectable in the Explore panel. A station with unusable track/access
+are selectable in the Explore menu. A station with unusable track/access
 reports why service is unavailable.
 
 Passenger travel is local Explore presentation: one prepared service runs the

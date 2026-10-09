@@ -68,11 +68,16 @@ func set_option(key: StringName, value: Variant) -> void:
 			set_value("tile_grid",bool(value))
 		&"pause_in_background":
 			set_value("pause_in_background",bool(value))
+		&"offer_ramps":
+			set_value("offer_ramps",bool(value))
 		&"music_enabled", &"effects_enabled", &"music_volume", &"effects_volume":
 			var settings := _host.preferences.duplicate()
 			settings[String(key)] = value
 			settings = ViewPreferences.sanitize(settings)
-			if _host.audio != null: _host.audio.apply_preferences(settings)
+			if _host.audio != null:
+				_host.audio.apply_preferences(settings)
+				# Moving the effects level plays a sample at the new level.
+				if key == &"effects_volume": _host.audio.preview_effects()
 			# A volume slider reports every step; write once it settles.
 			if String(key).ends_with("_volume"): defer(String(key),settings[String(key)])
 			else: set_value(String(key),settings[String(key)])
@@ -113,6 +118,7 @@ func option_values() -> Dictionary:
 		"explore_invert_y": preferences.get("explore_invert_y",false),
 		"water_animation": preferences.get("water_animation",true),
 		"pause_in_background": preferences.get("pause_in_background",true),
+		"offer_ramps": preferences.get("offer_ramps",true),
 		"music_enabled": preferences.get("music_enabled",true),
 		"effects_enabled": preferences.get("effects_enabled",true),
 		"music_volume": preferences.get("music_volume",0.8),

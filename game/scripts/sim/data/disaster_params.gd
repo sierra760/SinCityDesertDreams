@@ -176,6 +176,9 @@ const FIRESTORM_FIRES := 65
 
 # ── Advisor ──────────────────────────────────────────────────────────────
 const USAGE_WARNING_PERCENT := 98
+## The newspaper hears the advisors' top need when it changes, and again after
+## this many months while it stays the same.
+const ADVICE_NEWS_REPEAT_MONTHS := 6
 const TRANSIT_PER_RESIDENT := 200
 const ADVICE_POPULATION_1 := 1000
 const ADVICE_POPULATION_2 := 3000

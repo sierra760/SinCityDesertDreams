@@ -105,3 +105,21 @@ func test_share_button_selection_and_modal_return() -> void:
 	check_eq(host.load_dialog.selected_path(),saved)
 	host.load_dialog.refresh([], [{"name":"Classic","path":"res://assets/cities/La Presa.sc2"}])
 	check(button.disabled,"included classic cities must first become native personal saves")
+
+# Guards against: City → Share City silently doing nothing while Settings is open.
+func test_share_city_works_while_settings_is_open() -> void:
+	host.window_manager.open("options")
+	check(host.window_manager.is_open("options"))
+	host.files.request_city_share()
+	for frame in 40:
+		RenderingServer.force_draw(false)
+		await process_frame
+		if not host.loading_screen.visible: break
+	var dialog := host.find_child("ShareCityDialog",true,false) as Control
+	check(dialog != null and dialog.visible,"the share dialog opens")
+	check(not host.window_manager.is_open("options"),"Settings steps aside")
+	if dialog != null and dialog.visible:
+		var prepared: Dictionary = dialog.get("copy")
+		if prepared.has("path"): paths.append(String(prepared.path))
+		dialog.call("close")
+	check_eq(host.modal_depth,0)

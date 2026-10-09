@@ -15,6 +15,10 @@ const YEARS: Array[int] = [1900, 1950, 2000, 2050]
 const DIFFICULTY_NAMES: Array[String] = ["Easy", "Medium", "Hard"]
 const COASTS: Array[String] = ["none", "north", "south", "east", "west"]
 const PREVIEW_SIZE := 192
+## Preferred dialog size; it shrinks to fit small displays.
+const PANEL_SIZE := Vector2(700, 660)
+## Space reserved beside the preview for the body's vertical scrollbar.
+const SCROLLBAR_GUTTER := 18
 
 var name_edit: LineEdit
 var reroll_button: Button
@@ -141,7 +145,7 @@ func _build() -> void:
 	source_status = UIFactory.make_label("Checking connection…", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	source_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	form.add_child(source_status)
-	source_retry = UIFactory.make_button("Retry connection")
+	source_retry = UIFactory.make_button("Retry Connection")
 	source_retry.pressed.connect(func() -> void:
 		_ensure_importer()
 		terrain_importer.set_visible(true)
@@ -194,10 +198,13 @@ func _build() -> void:
 	var side := VBoxContainer.new()
 	side.add_theme_constant_override("separation", 6)
 	columns.add_child(side)
+	# A gutter keeps the preview clear of the body's vertical scrollbar.
+	side.custom_minimum_size.x = PREVIEW_SIZE + SCROLLBAR_GUTTER
 	side.add_child(UIFactory.make_section_header("Preview"))
 	preview_rect = TextureRect.new()
 	preview_rect.name = "Preview"
 	preview_rect.custom_minimum_size = Vector2(PREVIEW_SIZE, PREVIEW_SIZE)
+	preview_rect.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	preview_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -225,10 +232,13 @@ func _build() -> void:
 	row.add_child(start_button)
 
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -290
-	panel.offset_right = 290
-	panel.offset_top = -250
-	panel.offset_bottom = 250
+	panel.offset_left = -PANEL_SIZE.x / 2.0
+	panel.offset_right = PANEL_SIZE.x / 2.0
+	panel.offset_top = -PANEL_SIZE.y / 2.0
+	panel.offset_bottom = PANEL_SIZE.y / 2.0
+	# Room for the form beside the preview and its scrollbar on desktop; the
+	# panel still fits smaller screens and scrolls there.
+	panel.set_meta("preferred_size", PANEL_SIZE)
 	add_child(panel)
 	WindowDrag.enable(chrome["title_bar"], panel)
 	terrain_dialog = RealWorldTerrainDialog.new()
@@ -423,9 +433,13 @@ func start() -> void:
 	if p["name"].is_empty():
 		reroll_name()
 		p = params()
-	if preview_city == null or p != _preview_params:
+	if preview_city == null or not _same_terrain(p, _preview_params):
 		generate_preview()
 		p = _preview_params
+	else:
+		# Only the name, difficulty or year changed: keep the previewed land.
+		_apply_metadata(preview_city, p)
+		_preview_params = p.duplicate()
 	cancel_online_work()
 	_open_when_online = false
 	visible = false
@@ -453,6 +467,8 @@ func open() -> void:
 	# Procedural maps need no network: the online check starts only when
 	# Real-world terrain is chosen.
 	UIFactory.contain_modal_focus(self, name_edit)
+	# Now that the dialog is modal its panel may grow to show the whole form.
+	if panel.has_method("_schedule_fit"): panel.call("_schedule_fit")
 
 
 func close() -> void:
@@ -486,8 +502,39 @@ func _mark_preview_changed() -> void:
 	if source == "real_world":
 		_update_imported_metadata()
 		return
-	if preview_city != null:
-		preview_label.text = "Your settings changed. Select Generate for a fresh preview, or Shape City to use them."
+	if preview_city == null: return
+	# An emptied seed field is being retyped; reading it would roll a new seed.
+	var p := params() if not seed_edit.text.strip_edges().is_empty() else {}
+	if not p.is_empty() and not p["name"].is_empty() and _same_terrain(p, _preview_params):
+		# Name, difficulty and year are labels on the same land; no new preview.
+		_apply_metadata(preview_city, p)
+		_preview_params = p.duplicate()
+		preview_label.text = "%s\nFounding year %d\nSeed %s" % [preview_city.name, preview_city.founded_year, _seed_caption(int(p["seed"]))]
+		return
+	preview_label.text = "Your settings changed. Select Generate for a fresh preview, or Shape City to use them."
+
+
+## Generator settings that only label the city; changing them keeps the land.
+const METADATA_KEYS: Array[String] = ["name", "difficulty", "founded_year"]
+
+
+## True when two parameter sets generate the same land.
+static func _same_terrain(a: Dictionary, b: Dictionary) -> bool:
+	var left := a.duplicate()
+	var right := b.duplicate()
+	for key: String in METADATA_KEYS:
+		left.erase(key)
+		right.erase(key)
+	return not right.is_empty() and left == right
+
+
+## Give a generated city the form's name, difficulty and founding year, as
+## the generator would have.
+static func _apply_metadata(city: City, p: Dictionary) -> void:
+	city.name = String(p.get("name", city.name))
+	city.founded_year = int(p.get("founded_year", city.founded_year))
+	city.difficulty = clampi(int(p.get("difficulty", city.difficulty)), City.Difficulty.EASY, City.Difficulty.HARD)
+	city.funds = int(City.STARTING_FUNDS[city.difficulty])
 
 
 func metadata() -> Dictionary:
@@ -516,7 +563,7 @@ func _update_online_entry() -> void:
 		source_status.text = "Checking…"
 	import_button.disabled = terrain_importer == null or not terrain_importer.is_online_fresh()
 	if import_button.disabled and source_status.text.begins_with("Ready"):
-		source_status.text = "Checking…" if terrain_importer != null and terrain_importer.is_checking_online() else "Unavailable · Select Retry connection."
+		source_status.text = "Checking…" if terrain_importer != null and terrain_importer.is_checking_online() else "Unavailable · Select Retry Connection."
 
 ## Finish a real-world entry that waited for the connection check.
 func _open_pending_real_world() -> void:
