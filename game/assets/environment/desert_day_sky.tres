@@ -1,4 +1,4 @@
-[gd_resource type="Sky" load_steps=2 format=3]
+[gd_resource type="Sky" format=3 uid="uid://d286whkdr0jh2"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_desert"]
 resource_name = "Nevada clear daytime"
@@ -13,6 +13,6 @@ sun_curve = 0.08
 
 [resource]
 resource_name = "Explore desert sky"
-radiance_size = 0
-process_mode = 2
 sky_material = SubResource("ProceduralSkyMaterial_desert")
+process_mode = 2
+radiance_size = 0
