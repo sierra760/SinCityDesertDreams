@@ -197,7 +197,7 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 	draws += _multimesh(hall_space,"SlotStools",parts("slot_stool"),stools,finish_materials)
 	var cabinet_triangles := int(parts("slot_cabinet").get("triangles",0))*slots.size()+int(parts("slot_stool").get("triangles",0))*stools.size()
 	triangles += cabinet_triangles
-	var art_surfaces := _artwork(hall_space,key,slots)
+	var art_surfaces := _artwork(hall_space,key,slots,plan)
 	draws += art_surfaces
 	if art_surfaces > 0: triangles += (3+slots.size()*2)*2
 	var body := StaticBody3D.new()
@@ -221,15 +221,20 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 
 ## All illustrated cabinet inserts and three framed wall paintings, grouped by
 ## texture into one mesh. Raised above the walking lanes; no collision changes.
-static func _artwork(parent: Node3D, key: StringName, slots: Array[Transform3D]) -> int:
+static func _artwork(parent: Node3D, key: StringName, slots: Array[Transform3D], plan: Dictionary) -> int:
 	var batches := {}
-	for index: int in 2:
-		var asset := "mural-history" if index == 0 else "mural-industry"
-		_art_quad(batches,key,asset,Transform3D(Basis(Vector3.UP,PI),Vector3(-15 if index == 0 else 15,6.6,21.18)),Vector2(4.0,4.0))
-	_art_quad(batches,key,"mural-heritage",Transform3D(Basis(Vector3.UP,PI*.5),Vector3(-21.01,6.5,-12)),Vector2(4.45,4.45))
+	if plan.has("art"):
+		for row: Dictionary in plan.art:
+			_art_quad(batches,key,String(row.asset),row.pose,row.size)
+	else:
+		for index: int in 2:
+			var asset := "mural-history" if index == 0 else "mural-industry"
+			_art_quad(batches,key,asset,Transform3D(Basis(Vector3.UP,PI),Vector3(-15 if index == 0 else 15,6.6,21.18)),Vector2(4.0,4.0))
+		_art_quad(batches,key,"mural-heritage",Transform3D(Basis(Vector3.UP,PI*.5),Vector3(-21.01,6.5,-12)),Vector2(4.45,4.45))
+	var badge: Dictionary = plan.get("slot_badge",{"position":Vector3(0,1.68,.148),"size":Vector2(.16,.16)})
 	for at: Transform3D in slots:
 		_art_quad(batches,key,"cabinet-reels",at*Transform3D(Basis.IDENTITY,Vector3(0,1.29,.204)),Vector2(.56,.327))
-		_art_quad(batches,key,"symbol-B",at*Transform3D(Basis.IDENTITY,Vector3(0,1.68,.148)),Vector2(.16,.16))
+		_art_quad(batches,key,"symbol-B",at*Transform3D(Basis.IDENTITY,badge.position),badge.size)
 	var mesh := ArrayMesh.new()
 	for asset: String in batches:
 		var texture := ResortArtwork.texture(key,asset)

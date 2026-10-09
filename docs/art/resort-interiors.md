@@ -74,3 +74,31 @@ Run `python3 tools/check_resort_assets.py` to verify hashes, budgets,
 collision shells, material names, import settings and export inclusion of the
 catalog. These models are licensed under CC BY-NC-SA 4.0; see the
 [licensing scope](../../LICENSING.md).
+
+
+## Despicable's convenience-store casino
+
+`hall_126.glb` adds a 12 × 10 m interior with a 3.2 m ceiling, half store tile
+and half casino carpet. The authored hall carries stocked double-sided grocery
+shelves, drink coolers, checkout register and coffee counter, fluorescent
+fixtures, four signs, three print frames and a closed physical street door.
+The shared prop kit supplies four slots, two video poker machines and stools.
+The game plan is `game/scripts/exploration/resorts/despicables_interior_layout.gd`;
+its small bounds and one-tile lot centre are shared by containment and Explore.
+It has two lamps plus the shared fill. The exterior model is unchanged.
+
+Rebuild with Blender `--background --python
+tools/blender_exploration/build_despicables_interior.py`. The generator writes
+an editable local master at `assets/resort-interiors/hall_126.blend` and appends
+its model and `stores` record to the existing resort catalog. The generated
+Blender master is kept outside the public package. Rebuilding the original resort
+halls preserves this separate store record. The package checker includes all
+22 models and verifies the equal 60 m² store and gaming areas.
+
+Despicable's 20 illustrations ship under
+`game/assets/desert-dreams-casino-art/despicables/`. Its packaging tool is
+`tools/build_despicables_art.py`; source images and generation records remain
+local under `assets/casino-art/despicables/`. The shared card/reel renderer
+uses these textures without changing game rules. The native preview script is
+`tools/qa/despicables_preview.gd`, run in a caller-owned isolated project with
+`DESPICABLES_EVIDENCE` naming an output folder.

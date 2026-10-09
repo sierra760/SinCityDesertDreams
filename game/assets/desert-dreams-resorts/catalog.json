@@ -271,6 +271,41 @@
       ],
       "sha256": "c0447c63cb666411914adee704c399d5f5a7efd7d377d9cc9502dc5ec7b3c97c"
     },
+    "hall_126": {
+      "triangles": 12840,
+      "parts": 12,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_felt",
+        "resort_floor",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 15,
+      "min_godot": [
+        -6.199999809265137,
+        -0.11999999731779099,
+        -5.199999809265137
+      ],
+      "max_godot": [
+        6.199999809265137,
+        3.359999895095825,
+        5.199999809265137
+      ],
+      "size_godot": [
+        12.399999618530273,
+        3.479999892413616,
+        10.399999618530273
+      ],
+      "sha256": "2dc7aba2820decd10fcff5f2af653bd506925d365a221d3719b134a45950230f"
+    },
     "hall_251": {
       "triangles": 32284,
       "parts": 13,
@@ -646,6 +681,18 @@
       "floor": "Mission Control",
       "chandelier": "chandelier_starburst",
       "signature": "trajectory_console"
+    }
+  },
+  "stores": {
+    "126": {
+      "model": "hall_126",
+      "venue": "com_corner_store",
+      "generator": "tools/blender_exploration/build_despicables_interior.py",
+      "floor_area_m2": 120,
+      "retail_area_m2": 60,
+      "gaming_area_m2": 60,
+      "slots": 4,
+      "video_poker": 2
     }
   }
 }

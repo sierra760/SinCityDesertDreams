@@ -27,7 +27,7 @@ func _init() -> void:
 
 ## Day 22, before the newspaper prints: month stories, then month nets reset.
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
-	for resort in ResortThemes.keys():
+	for resort in ResortThemes.venues():
 		var row: Dictionary = _ledgers[resort]
 		var net := int(row["month_net"])
 		if net >= CasinoParams.STORY_NET:
@@ -72,6 +72,8 @@ func commit_round(ctx: SimContext, resort: StringName, game: StringName, staked:
 	if ctx == null or ctx.city == null:
 		return false
 	if not ResortThemes.offers(resort, game):
+		return false
+	if resort == ResortThemes.STORE_KEY and staked > int(CasinoParams.table_limits(resort).maximum):
 		return false
 	if staked <= 0 or staked > ctx.city.funds:
 		return false
@@ -151,7 +153,7 @@ func load(data: Dictionary) -> void:
 	var rows: Variant = data.get("ledgers", {})
 	if typeof(rows) == TYPE_DICTIONARY:
 		var saved: Dictionary = rows
-		for resort in ResortThemes.keys():
+		for resort in ResortThemes.venues():
 			var item: Variant = saved.get(String(resort), {})
 			if typeof(item) != TYPE_DICTIONARY:
 				continue
@@ -164,7 +166,7 @@ func load(data: Dictionary) -> void:
 
 func _reset_ledgers() -> void:
 	_ledgers.clear()
-	for resort in ResortThemes.keys():
+	for resort in ResortThemes.venues():
 		_ledgers[resort] = _empty_ledger()
 
 

@@ -37,3 +37,11 @@ python3 tools/check_resort_assets.py
 
 These models are licensed under CC BY-NC-SA 4.0, not the GPL; see
 [LICENSING.md](../../../LICENSING.md).
+
+
+Despicable's uses `hall_126.glb`, built by
+`tools/blender_exploration/build_despicables_interior.py`, with its record in
+`catalog.json` → `stores`. Its compact floor is exactly half convenience store
+and half slots/video poker. It reuses the machine/stool kit and shared finishes;
+its populated layout, lights and signs are supplied by the game. Together with
+the four resort halls and 17 props the package contains 22 models.

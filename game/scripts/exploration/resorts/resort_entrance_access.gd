@@ -46,7 +46,7 @@ static func nearby(city: City, position: Vector3) -> Dictionary:
 			var pose := threshold(city,anchor,code)
 			if absf(pose.origin.y-position.y)>HEIGHT_REACH: continue
 			var gap := Vector2(position.x-pose.origin.x,position.z-pose.origin.z).length_squared()
-			if gap>distance: continue
+			if gap>distance or (code == 126 and gap>.14*.14): continue
 			distance = gap
 			best = {"key": Layouts.key_for_building(code), "code": code, "anchor": anchor,
 				"rect": Rect2i(anchor,Buildings.size(code)), "threshold": pose}
@@ -57,9 +57,13 @@ static func nearby(city: City, position: Vector3) -> Dictionary:
 ## the building. Its basis is the model's yaw, so its forward (-Z) points in.
 static func threshold(city: City, anchor: Vector2i, code: int = -1) -> Transform3D:
 	if code<0 and city != null and city.in_bounds(anchor.x,anchor.y): code = city.building.atv(anchor)
-	var yaw := CityBuildings3D.resort_yaw(city,Rect2i(anchor,Vector2i(4,4))) if city != null else 0.0
+	var size := Buildings.size(code) if code >= 0 else Vector2i(4,4)
+	# The one-tile store retains its authored exterior facing; resorts turn to streets.
+	var yaw := CityBuildings3D.resort_yaw(city,Rect2i(anchor,size)) if city != null and code != 126 else 0.0
 	var front := Vector2(sin(yaw),cos(yaw))
-	var point := Vector2(anchor)+Vector2(2,2)+front*(float(FRONT_BY_CODE.get(code,FRONT))-2.0)
+	var center := Vector2(size)*.5
+	var distance := .25 if code == 126 else float(FRONT_BY_CODE.get(code,FRONT))-2.0
+	var point := Vector2(anchor)+center+front*distance
 	var cell := Vector2i(floori(point.x),floori(point.y))
 	var ground := 0.0
 	if city != null and city.in_bounds(cell.x,cell.y):

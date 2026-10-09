@@ -18,6 +18,17 @@ demand, approval or any map, and the games never draw from the simulation's
 random stream; its effects reach the rest of the city only through the
 treasury and the newspaper (see rule 7).
 
+## Convenience-store venue
+
+Despicable's uses the existing building key `com_corner_store` (126) as an
+additional playable venue. It offers only `slots` and `video_poker`, with limits
+of $1–$1,000, capped further by funds. `commit_round` also refuses a store stake
+over $1,000. These two games commit once per round and have no supplemental
+bets. `ResortThemes.keys()` continues to describe the four resorts;
+`ResortThemes.venues()` includes the store and owns ledger initialization,
+restoration and monthly reporting. Old saves missing the store ledger restore
+it as an empty history; all Despicable's locations share that history.
+
 ## Inputs
 
 - `city.funds` – the treasury. Table limits and refusals are computed from it.

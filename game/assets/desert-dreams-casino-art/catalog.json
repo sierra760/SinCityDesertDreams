@@ -1205,6 +1205,367 @@
           "sha256": "e89f479e9dc8ed4741304e2063d6ca73243d4e24132b6968981f132e30b80c01"
         }
       }
+    },
+    "despicables": {
+      "source": "assets/casino-art/despicables/cutouts.png",
+      "source_sha256": "4b38aa19c922f0c6f922fcd1a8453f420b105db1b9eefc43279a0bb30584e939",
+      "generator": "tools/build_despicables_art.py",
+      "additional_sources": {
+        "cutouts.png": {
+          "source": "assets/casino-art/despicables/cutouts.png",
+          "sha256": "4b38aa19c922f0c6f922fcd1a8453f420b105db1b9eefc43279a0bb30584e939"
+        },
+        "decor.png": {
+          "source": "assets/casino-art/despicables/decor.png",
+          "sha256": "5b7b45e34faeb2fb5d2112e10c3f893ff2e436ae8344fb0d673a44398cc1f276"
+        }
+      },
+      "source_regions": {
+        "cutouts": [
+          [
+            0,
+            0,
+            418,
+            425
+          ],
+          [
+            418,
+            0,
+            836,
+            425
+          ],
+          [
+            836,
+            0,
+            1254,
+            425
+          ],
+          [
+            0,
+            426,
+            418,
+            810
+          ],
+          [
+            418,
+            426,
+            836,
+            810
+          ],
+          [
+            836,
+            426,
+            1254,
+            810
+          ],
+          [
+            0,
+            811,
+            418,
+            1254
+          ],
+          [
+            418,
+            811,
+            836,
+            1254
+          ],
+          [
+            836,
+            811,
+            1254,
+            1254
+          ]
+        ],
+        "decor": [
+          [
+            0,
+            0,
+            627,
+            589
+          ],
+          [
+            627,
+            0,
+            1254,
+            589
+          ],
+          [
+            0,
+            589,
+            627,
+            1254
+          ],
+          [
+            627,
+            589,
+            1254,
+            1254
+          ]
+        ]
+      },
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            418,
+            425
+          ],
+          "sha256": "5059799bf18d1526eea437a12d3838c8c355bdf49bdff20e6b653b1a5ecc20f6",
+          "content_region": [
+            96,
+            78,
+            295,
+            330
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            418,
+            425
+          ],
+          "sha256": "5059799bf18d1526eea437a12d3838c8c355bdf49bdff20e6b653b1a5ecc20f6",
+          "content_region": [
+            96,
+            78,
+            295,
+            330
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            418,
+            425
+          ],
+          "sha256": "86f5251d2cd4df86ab489d465ae6d8bd1de13d1971f14fc9e1207b43a1accbde",
+          "content_region": [
+            116,
+            49,
+            187,
+            367
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            418,
+            425
+          ],
+          "sha256": "86f5251d2cd4df86ab489d465ae6d8bd1de13d1971f14fc9e1207b43a1accbde",
+          "content_region": [
+            116,
+            49,
+            187,
+            367
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            418,
+            425
+          ],
+          "sha256": "2c5dfdc7c3cc584a88dc6004747636fb0c5e79d6b8551c856c8919dd79329982",
+          "content_region": [
+            141,
+            67,
+            125,
+            353
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            418,
+            425
+          ],
+          "sha256": "2c5dfdc7c3cc584a88dc6004747636fb0c5e79d6b8551c856c8919dd79329982",
+          "content_region": [
+            141,
+            67,
+            125,
+            353
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            418,
+            384
+          ],
+          "sha256": "fd4ff0354d5c74dbc0416cb520f234b2a15ea9dab56279cdfffe2cf7e7584981",
+          "content_region": [
+            90,
+            47,
+            281,
+            304
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            418,
+            384
+          ],
+          "sha256": "fd4ff0354d5c74dbc0416cb520f234b2a15ea9dab56279cdfffe2cf7e7584981",
+          "content_region": [
+            90,
+            47,
+            281,
+            304
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            418,
+            384
+          ],
+          "sha256": "d8b115c824a7ed992a6fa34cbd5c39c7258ac4884fe5a42d6c2cf663f13785a6",
+          "content_region": [
+            37,
+            73,
+            350,
+            260
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            418,
+            384
+          ],
+          "sha256": "d8b115c824a7ed992a6fa34cbd5c39c7258ac4884fe5a42d6c2cf663f13785a6",
+          "content_region": [
+            37,
+            73,
+            350,
+            260
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            418,
+            384
+          ],
+          "sha256": "c38de770b70ed8520f5794c73be53319ee62c21943795350c67d6249dad488b0",
+          "content_region": [
+            55,
+            28,
+            300,
+            353
+          ]
+        },
+        "payout-B": {
+          "size": [
+            418,
+            384
+          ],
+          "sha256": "c38de770b70ed8520f5794c73be53319ee62c21943795350c67d6249dad488b0",
+          "content_region": [
+            55,
+            28,
+            300,
+            353
+          ]
+        },
+        "court-jack": {
+          "size": [
+            418,
+            443
+          ],
+          "sha256": "1f241ef5a1e4967135e3e52905303eac23c06456cf299ecb08cb926ab902bc24",
+          "content_region": [
+            69,
+            16,
+            305,
+            358
+          ]
+        },
+        "court-queen": {
+          "size": [
+            418,
+            443
+          ],
+          "sha256": "8e8f5a62b837c1c1b04c3cfe107d5598d7b6e184b58051a72f68338caea4a01a",
+          "content_region": [
+            49,
+            19,
+            327,
+            360
+          ]
+        },
+        "court-king": {
+          "size": [
+            418,
+            443
+          ],
+          "sha256": "da818ce09ec104a640df0dd3c208b82b258e3fce5bb79ff174a70b92ec0c8469",
+          "content_region": [
+            29,
+            25,
+            323,
+            349
+          ]
+        },
+        "card-back": {
+          "size": [
+            627,
+            589
+          ],
+          "sha256": "52132a219582ad41808017a81c05af49d2f7fccc8822a4b7435d07600f81bc29",
+          "content_region": [
+            0,
+            0,
+            627,
+            589
+          ]
+        },
+        "mural-history": {
+          "size": [
+            627,
+            589
+          ],
+          "sha256": "84b0fa83d6fad265ccbfb63f509d132dc90f025ea8972e0ca610ea5ab429bb23",
+          "content_region": [
+            0,
+            0,
+            627,
+            589
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            627,
+            665
+          ],
+          "sha256": "09a5f7c76d397ffdf306e52a048887ac86288325220fcf3b089d49b00348c1ae",
+          "content_region": [
+            0,
+            0,
+            627,
+            665
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            627,
+            665
+          ],
+          "sha256": "0dc7c3415ba6bce68a9508e30b5248f35bdb4f3e8130d93465048bad6e8acaee",
+          "content_region": [
+            0,
+            0,
+            627,
+            665
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "ce1a49cf82b1d4743a4ed3d8135d76d43a4b0ec04d2c75e251f02c8fcd81bb6b",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      }
     }
   },
   "refinement_prompts": "assets/casino-art/refinement-prompts.json",

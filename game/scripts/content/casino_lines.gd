@@ -44,6 +44,15 @@ const LEAVE_TABLE := "Leave table"
 
 ## voice -> event kind -> lines
 const LINES: Dictionary = {
+	&"shopkeeper": {
+		&"deal": ["Fresh cards by the coffee pot.", "Five cards, straight from the counter.", "Take your pick, Mayor.", "Let's see what came in with the delivery."],
+		&"win": ["A little extra in the grocery bag.", "The till pays out.", "That's a tidy receipt.", "Collect your change, Mayor."],
+		&"lose": ["The till keeps this one.", "Nothing on that receipt.", "That's the way the reels land.", "No prize in this bag."],
+		&"push": ["Exact change.", "Even at the checkout.", "Your stake comes back.", "Nothing spent, nothing gained."],
+		&"jackpot": ["A whole bag of good fortune.", "Now that's a low-down windfall.", "The black hat pays today.", "The till has a surprise for you."],
+		&"spin": ["Coffee's hot and reels are ready.", "Give those drums a turn.", "A little luck beside the soda cooler.", "The black hat's on the reels."],
+		&"debut": ["Welcome to the Low-Down Lounge.", "Groceries on the left, games on the right.", "Pull up a stool, Mayor.", "Despicable's is open for business."],
+	},
 	&"assayer": {
 		&"deal": [
 			"Fresh ore on the scales. Let's see what it weighs.",

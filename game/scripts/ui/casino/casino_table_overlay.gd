@@ -47,6 +47,7 @@ static var animation_scale := 1.0
 ## Automatic cash-out targets offered before a trajectory launch.
 const AUTO_TARGETS: Array[float] = [0.0, 1.5, 2.0, 3.0, 5.0, 10.0]
 const VOICE_NAMES := {
+	&"shopkeeper": "The shopkeeper",
 	&"assayer": "The assayer",
 	&"conductor": "The conductor",
 	&"foreman": "The foreman",

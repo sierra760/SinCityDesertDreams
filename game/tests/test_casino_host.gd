@@ -253,3 +253,21 @@ func test_backgrounding_between_rounds_adds_no_casino_note() -> void:
 		host.notice_dialog.dismiss()
 	check(not host.status_bar.message_label.text.contains("played out"), host.status_bar.message_label.text)
 	host.casino_overlay.close()
+
+
+func test_despicables_is_available_before_resort_budget_and_keeps_low_limits() -> void:
+	found(10000)
+	var store := &"com_corner_store"
+	check(host.open_casino_table(store,&"video_poker",CasinoRng.new(7)))
+	check_eq(host.casino_overlay.game.limits,{"minimum":1,"maximum":1000})
+	check(host.casino_overlay.rules_label.text.contains("$1,000"))
+	host.escape()
+	host.sim.city.funds = 17
+	check(host.open_casino_table(store,&"slots",CasinoRng.new(7)))
+	check_eq(host.casino_overlay.game.limits,{"minimum":1,"maximum":17})
+	host.casino_overlay.press_chip(0)
+	host.casino_overlay.perform_action(&"pull")
+	check_eq(host.casino_overlay.game.state,CasinoGame.SETTLED)
+	check_eq(int(host.sim.casino().ledger(store).staked),1)
+	host.escape()
+	check_eq(host.modal_depth,0)

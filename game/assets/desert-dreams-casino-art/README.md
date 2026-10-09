@@ -23,7 +23,7 @@ renderer by `tools/qa/bake_slot_cabinets.gd`, showing multiple symbol rows.
 Measured visible-content bounds center portraits, card backs and paintings;
 transparent payout illustrations retain the alpha created by image_gen.
 The local source records retain the additional prompts.
-There are 80 runtime images across the four sets, plus four shared suit SVGs.
+There are 100 runtime images across the four resorts and Despicable's, plus four shared suit SVGs.
 The suits are original continuous silhouettes with clean joins; ranks and suit
 marks remain separate from the generated portraits. Face cards leave paper
 between the portrait and both suit marks. Whole-card flip transforms keep all
@@ -35,3 +35,12 @@ Historical sources inform fictional interpretations, rather than replicas:
 - [Nevada rail history, Nevada DOT](https://www.dot.nv.gov/mobility/rail-planning/history)
 - [Hoover Dam design, Bureau of Reclamation](https://www.usbr.gov/lc/hooverdam/history/articles/rhinehart1.html)
 - [Rocket research, NASA](https://www.nasa.gov/rocket-systems-area-nuclear-rockets/)
+
+
+Despicable's adds its own convenience-store/outlaw set under `despicables/`:
+six reel images, six transparent payout icons, three transparent court
+portraits, card back, three store paintings and a complete three-reel cabinet
+face. `tools/build_despicables_art.py` losslessly extracts inspected source
+regions; the common packager invokes it when local store sources are present.
+The original resort images remain unchanged. Sources and exact generation
+records stay local in `assets/casino-art/despicables/`, outside the game package.

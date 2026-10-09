@@ -30,14 +30,14 @@ func build(resort_key: StringName, building_code: int, lot_anchor: Vector2i) -> 
 	anchor = lot_anchor
 	name = "ResortInterior_%d_%d" % [anchor.x,anchor.y]
 	plan = Layouts.layout(key)
-	position = Layouts.hall_origin(anchor)
+	position = Layouts.hall_origin(anchor,code)
 	stats = Dresser.populate(self,key,code,plan)
 	build_usec = Time.get_ticks_usec()-started
 
 ## True when `feet` (world) is inside this hall's walkable volume.
 func contains(feet: Vector3) -> bool:
 	if not feet.is_finite(): return false
-	return Layouts.POCKET_BOUNDS.has_point(feet-position)
+	return not plan.is_empty() and (plan.bounds as AABB).has_point(feet-position)
 
 func to_world(local: Transform3D) -> Transform3D:
 	return Transform3D(local.basis,local.origin+position)

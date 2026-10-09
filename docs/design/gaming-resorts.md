@@ -106,10 +106,26 @@ game. Returns include the stake.
   engine burns out. Cashing out returns the bet times the multiplier; burning
   out loses it. You may set an automatic cash-out target before launch.
 
+## Despicable's: groceries and low-stakes games
+
+Every Despicable's corner store (building 126) can be entered from its front
+door in Explore. Its 12 × 10 m interior splits evenly between stocked grocery
+shelves, drink coolers, coffee and checkout on the left, and four slot machines
+plus two video poker terminals on the right. Walk up to any machine and use the
+same interaction as at a resort. Return to the door mat to step outside.
+
+The Low-Down Lounge offers **Low-Down Luck** slots and **Five-Finger Draw** video
+poker, with its own coral-and-teal illustrations and playing cards. It is
+available as soon as a corner store exists, without a gaming-resort unlock or
+purchase. Limits are **$1–$1,000 per round**, further limited by the treasury.
+The store uses the same round settlement, backgrounding, ledger and save rules
+as the resorts; all stores in a city share the Despicable's play history.
+
 ## Limits and the treasury
 
 | Resort | Minimum | Maximum |
 | --- | --- | --- |
+| Despicable's | $1 | $1,000 |
 | Comstock Grand | $100 | $10,000 |
 | Silver Junction | $250 | $25,000 |
 | Boulder Crown | $500 | $50,000 |

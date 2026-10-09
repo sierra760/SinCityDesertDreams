@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "game/assets/desert-dreams-resorts"
-HALLS = ["hall_251", "hall_252", "hall_253", "hall_254"]
+HALLS = ["hall_126", "hall_251", "hall_252", "hall_253", "hall_254"]
 PROPS = ["slot_cabinet", "slot_stool", "blackjack_table", "roulette_table", "money_wheel",
          "video_poker_terminal", "faro_table", "chuck_a_luck_cage", "baccarat_table", "trajectory_console",
          "chandelier_gaslamp", "chandelier_lantern", "chandelier_turbine", "chandelier_starburst",
@@ -41,6 +41,12 @@ def check() -> tuple[int, int]:
     models = catalog["models"]
     assert sorted(models) == sorted(HALLS + PROPS), "model coverage"
     assert sorted(catalog["halls"]) == ["251", "252", "253", "254"], "hall coverage"
+    stores = catalog.get("stores", {})
+    assert set(stores) == {"126"}, "store coverage"
+    store = stores["126"]
+    assert store["model"] == "hall_126" and store["slots"] == 4 and store["video_poker"] == 2, "store machines"
+    assert store["retail_area_m2"] == store["gaming_area_m2"] == 60, "half store, half casino"
+    assert (ROOT / store["generator"]).exists(), "store generator present"
     total = 0
     for name, entry in models.items():
         assert set(entry) == FIELDS, f"{name}: catalog fields"

@@ -13,6 +13,7 @@ extends RefCounted
 ## out of the high-stakes rooms; the maximum caps one round's exposure (the
 ## treasury caps it further).
 const TABLE_LIMITS := {
+	&"com_corner_store": {"minimum": 1, "maximum": 1000},
 	&"arcology_comstock": {"minimum": 100, "maximum": 10000},
 	&"arcology_junction": {"minimum": 250, "maximum": 25000},
 	&"arcology_boulder": {"minimum": 500, "maximum": 50000},

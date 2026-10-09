@@ -1,9 +1,13 @@
 {
-  "subject": "Gaming resort casino floors: four halls and a shared prop kit for Explore mode",
+  "subject": "Four gaming resort casino halls, Despicable's store and a shared prop kit for Explore",
   "generator": "tools/blender_exploration/build_resort_interiors.py",
   "tool": "Blender 5.2 (procedural Python authoring)",
   "sources": "assets/resort-interiors/ (editable .blend files written by the generator)",
   "method": "Original procedural geometry (boxes, lathes, tori, extrusions) with flat-colour materials named resort_<finish>; the game replaces each material with a procedural finish shader in the resort palette. No bitmap textures, scans, purchased, downloaded or third-party models or artwork are used.",
   "lettering": "Sign lettering is set at runtime from the bundled fonts (Fontdiner Swanky, BioRhyme, BioRhyme Expanded, Atomic Age) under their own licences; no lettering is baked into these models.",
-  "license": "CC BY-NC-SA 4.0 (project-owned art); see LICENSING.md"
+  "license": "CC BY-NC-SA 4.0 (project-owned art); see LICENSING.md",
+  "generators": [
+    "tools/blender_exploration/build_resort_interiors.py",
+    "tools/blender_exploration/build_despicables_interior.py"
+  ]
 }

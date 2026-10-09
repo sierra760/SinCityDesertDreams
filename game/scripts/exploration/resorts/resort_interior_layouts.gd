@@ -33,7 +33,7 @@ const POCKET_BOUNDS := AABB(Vector3(-HALF,-.02,-HALF),Vector3(HALF*2.0,CEILING+.
 const DOOR_REACH := .16
 const SEAT_REACH := .14
 
-const BUILDINGS := {251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit"}
+const BUILDINGS := {126: &"com_corner_store", 251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit"}
 const SIGNATURE_PROPS := {&"faro": "faro_table", &"chuck_a_luck": "chuck_a_luck_cage",
 	&"baccarat": "baccarat_table", &"trajectory": "trajectory_console"}
 const GAME_PROPS := {&"blackjack": "blackjack_table", &"roulette": "roulette_table",
@@ -134,6 +134,7 @@ static func key_for_building(code: int) -> StringName:
 ## and palette as Colors) plus the hall's chandelier; {} for an unknown key.
 static func theme(key: StringName) -> Dictionary:
 	var source := ResortThemes.theme(key)
+	if key == ResortThemes.STORE_KEY: return source
 	if source.is_empty() or not CHANDELIERS.has(key): return {}
 	var result := source.duplicate(true)
 	result.chandelier = CHANDELIERS[key]
@@ -163,6 +164,10 @@ static func _tiles(metres: Vector3) -> Vector3:
 ## centre. Cached; callers must not modify it.
 static func layout(key: StringName) -> Dictionary:
 	if _cache.has(key): return _cache[key]
+	if key == ResortThemes.STORE_KEY:
+		var store := preload("res://scripts/exploration/resorts/despicables_interior_layout.gd").layout()
+		_cache[key] = store
+		return store
 	var look := theme(key)
 	if look.is_empty(): return {}
 	var signature: StringName = look.signature
@@ -249,8 +254,9 @@ static func _turned(half: Vector2, basis: Basis) -> Vector2:
 	return Vector2(absf(x.x)+absf(z.x),absf(x.z)+absf(z.z))
 
 ## Lot centre (hall origin) in world tile units for a resort anchor.
-static func hall_origin(anchor: Vector2i) -> Vector3:
-	return Vector3(anchor.x+2.0,POCKET_Y,anchor.y+2.0)
+static func hall_origin(anchor: Vector2i, code: int = 251) -> Vector3:
+	var half := Vector2(Buildings.size(code))*.5
+	return Vector3(anchor.x+half.x,POCKET_Y,anchor.y+half.y)
 
 static func clear_cache() -> void:
 	_cache.clear()

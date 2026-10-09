@@ -8,7 +8,7 @@ class_name ResortArtwork
 extends RefCounted
 
 const ROOT := "res://assets/desert-dreams-casino-art/"
-const SETS := {&"arcology_comstock": "comstock", &"arcology_junction": "junction",
+const SETS := {&"com_corner_store": "despicables", &"arcology_comstock": "comstock", &"arcology_junction": "junction",
 	&"arcology_boulder": "boulder", &"arcology_orbit": "orbit"}
 const ASSETS := ["symbol-s1", "symbol-s2", "symbol-s3", "symbol-s4", "symbol-s5", "symbol-B",
 	"court-jack", "court-queen", "court-king", "card-back", "mural-history", "mural-industry",

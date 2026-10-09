@@ -130,6 +130,9 @@ def build():
                     catalog['sets'][name].setdefault('additional_sources',{})[suffix]={
                         'source':extra.relative_to(ROOT).as_posix(),'sha256':hashlib.sha256(extra.read_bytes()).hexdigest()}
     (DEST / 'catalog.json').write_text(json.dumps(catalog, indent=2) + '\n')
+    if (SOURCE/'despicables'/'cutouts.png').exists():
+        from build_despicables_art import build as build_store
+        build_store()
     print('Casino artwork:',sum(len(s['assets']) for s in catalog['sets'].values()),'lossless sprites packaged')
 
 if __name__ == '__main__':

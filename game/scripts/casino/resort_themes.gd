@@ -100,6 +100,25 @@ const RESORTS: Dictionary = {
 }
 
 
+## The early-game convenience-store venue; the four resort keys stay separate.
+const STORE_KEY := &"com_corner_store"
+const STORE_THEME := {
+	"building": 126, "name": "Despicable's", "floor": "Low-Down Lounge",
+	"voice": &"shopkeeper", "font": "biorhyme", "body_font": "biorhyme",
+	"games": {&"slots": "Low-Down Luck", &"video_poker": "Five-Finger Draw"},
+	"palette": {"stone": Color("f2e6cf"), "metal": Color("c49a50"), "wood": Color("4a3025"),
+		"glass": Color("237f78"), "lamp": Color("ffe2b0"), "carpet": Color("b7443e"),
+		"felt": Color("237f78"), "accent": Color("df6b59"), "ink": Color("29221f"), "paper": Color("f8eedc")},
+	"reels": ["Cherries", "Coffee", "Soda", "Horseshoe", "Black Hat", "DESPICABLE"],
+}
+
+## All playable venues, including the store, for treasury history and saves.
+static func venues() -> Array[StringName]:
+	var result := keys()
+	result.append(STORE_KEY)
+	return result
+
+
 ## Every resort key, in building-code order.
 static func keys() -> Array[StringName]:
 	var out: Array[StringName] = []
@@ -110,6 +129,7 @@ static func keys() -> Array[StringName]:
 
 ## The resort key for a building code, or &"" when it is not a resort.
 static func key_for_building(code: int) -> StringName:
+	if code == 126: return STORE_KEY
 	for k in RESORTS:
 		if int(RESORTS[k]["building"]) == code:
 			return k
@@ -117,12 +137,12 @@ static func key_for_building(code: int) -> StringName:
 
 
 static func has(key: StringName) -> bool:
-	return RESORTS.has(key)
+	return key == STORE_KEY or RESORTS.has(key)
 
 
 ## The resort's full theme record, or {} for an unknown key.
 static func theme(key: StringName) -> Dictionary:
-	return RESORTS.get(key, {})
+	return STORE_THEME if key == STORE_KEY else RESORTS.get(key, {})
 
 
 static func resort_name(key: StringName) -> String:
@@ -147,6 +167,9 @@ static func game_name(key: StringName, game: StringName) -> String:
 static func games(key: StringName) -> Array[StringName]:
 	var out: Array[StringName] = []
 	if not has(key):
+		return out
+	if key == STORE_KEY:
+		out.append_array([&"slots", &"video_poker"])
 		return out
 	out.append_array(SHARED_GAMES)
 	out.append(signature(key))
