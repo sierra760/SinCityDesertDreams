@@ -307,7 +307,8 @@ func _make_actor(actor_mode: int, pose: Transform3D) -> CharacterBody3D:
 		actor.connect("recovery_requested",func(reason: String) -> void:
 			_message = reason
 			_pending_recovery = true)
-	actor.global_transform = pose
+	if actor is ExplorePedestrian: actor.place(pose)
+	else: actor.global_transform = pose
 	_last_safe[actor.get_instance_id()] = pose
 	return actor
 
@@ -840,7 +841,7 @@ func _leave_vehicle(pose: Transform3D) -> void:
 	var returned_ambient := not _traffic_claim.is_empty() and occupied == selected_vehicle
 	var ended_rail_drive: bool = occupied is ExploreRouteVehicle and occupied.kind in [&"train",&"subway"]
 	_release_traffic_claim()
-	pedestrian.global_transform = pose
+	pedestrian.place(pose)
 	pedestrian.collision_layer = ExploreActorProfile.ACTOR
 	pedestrian.collision_mask = ExploreActorProfile.WORLD|ExploreActorProfile.ACTOR
 	pedestrian.show()

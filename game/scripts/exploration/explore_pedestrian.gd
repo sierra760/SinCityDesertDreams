@@ -68,6 +68,16 @@ func stop_input() -> void:
 	_reported = false
 	if is_instance_valid(_visual): _visual.set_motion(0.0,0.0,not _grounded)
 
+## Put the walker at `pose`, standing still and with the model facing the
+## pose's forward. The model keeps its own yaw while walking (it turns toward
+## the motion), so a bare transform assignment leaves it facing wherever it
+## last walked, on top of the body's new yaw.
+func place(pose: Transform3D) -> void:
+	clear_support_frame()
+	global_transform = pose
+	if is_instance_valid(_visual): _visual.rotation.y = 0.0
+	stop_input()
+
 func set_camera_occluded(hidden: bool) -> void:
 	# Only the visible model is hidden; the controller still sees an active
 	# pedestrian and keeps physical walking, doors and moving support running.
@@ -224,6 +234,9 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	var actual := global_position-before
 	var planar := Vector2(actual.x,actual.z).length()/dt
 	if planar>.0001:
-		_visual.rotation.y = lerp_angle(_visual.rotation.y,atan2(-actual.x,-actual.z),1.0-exp(-12.0*dt))
+		# The model's yaw is local to the body, which may itself face a street or
+		# a door after place(); aim it at the world motion minus the body's yaw.
+		var heading := atan2(-actual.x,-actual.z)-global_rotation.y
+		_visual.rotation.y = lerp_angle(_visual.rotation.y,heading,1.0-exp(-12.0*dt))
 	_visual.set_motion(planar,0.0,not _grounded)
 	_visual.advance_visual(dt)

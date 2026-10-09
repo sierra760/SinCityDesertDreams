@@ -308,9 +308,7 @@ func _revalidate() -> void:
 	_revision = view.geometry_revision()
 	if in_transit:
 		var pose := traversal.safe_pose(Vector3(clampf(old.x,.1,127.9),maxf(old.y,0),clampf(old.z,.1,127.9)),0,[walker.get_rid()])
-		if not pose.is_empty():
-			walker.global_transform = pose.transform
-			walker.stop_input()
+		if not pose.is_empty(): walker.place(pose.transform)
 		_message = "The transit route changed. Service stopped; return to a station."
 
 func refresh_geometry() -> void:

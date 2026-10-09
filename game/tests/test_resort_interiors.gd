@@ -123,6 +123,15 @@ func test_table_prompt_and_request_and_door_returns_to_threshold() -> void:
 		check(not Dictionary(request[2]).is_empty(),"releasing the view leaves the requested table record intact")
 		check(not _status().has("table_camera"),"released view leaves the status")
 		check(not session.camera_rig.table_view_active)
+	# Walk back up to the door from inside the hall, as a player does, so the
+	# model is turned toward the door (+Z) when the door is used.
+	await _walk_to(world.mat_transform().origin+Vector3(0,0,-.6))
+	var toward_door := ExploreInputFrame.idle()
+	toward_door.move = Vector2(0,1)
+	for _i in 24:
+		session.pedestrian.step(toward_door,0.0,1.0/60.0)
+		await physics_frame
+	check_gt((session.pedestrian._visual.global_basis*Vector3.FORWARD).z,.9,"the model faces the door while walking up to it")
 	await _walk_to(world.mat_transform().origin)
 	check_eq(String(_status().get("prompt","")),"F to step outside","mat offers the door")
 	check(session.request_interaction(),"F at the mat leaves")
@@ -134,6 +143,9 @@ func test_table_prompt_and_request_and_door_returns_to_threshold() -> void:
 	check_lt(Vector2(feet.x-threshold.origin.x,feet.z-threshold.origin.z).length(),.35,"door returns to the threshold")
 	check_lt(absf(feet.y-threshold.origin.y),.02,"threshold is on the ground")
 	check_gt((session.pedestrian.global_basis*Vector3.FORWARD).z,.9,"walker faces the street")
+	# The visible model turns with the walker's motion; stepping out must turn
+	# it to the street too, not leave it facing the door it walked up to.
+	check_gt((session.pedestrian._visual.global_basis*Vector3.FORWARD).z,.9,"the model faces the street as well")
 	check_eq(SaveFormat.encode_city(city),before,"playing never edits the city")
 
 func test_marina_beside_resort_never_prompts_inside() -> void:

@@ -118,9 +118,9 @@ func _transition(midpoint: Callable) -> void:
 		_transitioning = false,transition_seconds)
 
 func _place(pose: Transform3D) -> void:
-	walker.clear_support_frame()
-	walker.global_transform = pose
-	walker.stop_input()
+	# place() also turns the model to the pose's forward (into the hall on the
+	# mat, toward the street on the threshold).
+	walker.place(pose)
 	moved.emit()
 
 ## The supported outdoor pose in front of the current resort's door.
