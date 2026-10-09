@@ -253,6 +253,33 @@ func _reflow() -> void:
 		var shared_width := maxf(load_button.get_minimum_size().x, import_button.get_minimum_size().x)
 		load_button.custom_minimum_size.x = shared_width
 		import_button.custom_minimum_size.x = shared_width
+	if not _body.vertical:
+		# The action column scrolls only as a last resort. Whenever the screen
+		# has the room, the panel grows past its preferred height so every
+		# action, the greeting and the credits are in view at once. On a
+		# short screen the layout tightens step by step before it may scroll:
+		# shorter buttons with the preferences in a row, then no greeting,
+		# then no subtitle, then narrower padding.
+		var room := available.size.y - edge * 2
+		for tighten in 5:
+			var body_min := _body.get_combined_minimum_size().y
+			var needed := _content.get_combined_minimum_size().y - body_min + maxf(body_min, _actions.get_combined_minimum_size().y) + float(padding) * 2.0
+			if needed <= room or tighten == 4:
+				wanted.y = minf(maxf(wanted.y, needed), room)
+				break
+			match tighten:
+				0:
+					for button: Button in [new_button, load_button, import_button, settings_button, help_button, quit_button]:
+						button.custom_minimum_size.y = 44
+					_actions.add_theme_constant_override("separation", 6)
+					_preferences.vertical = false
+				1: _eyebrow.visible = false
+				2: subtitle.visible = false
+				3:
+					padding = 16
+					for side in ["left", "right", "top", "bottom"]:
+						_content_margin.add_theme_constant_override("margin_" + side, padding)
+					_content.add_theme_constant_override("separation", 8)
 	if _body.vertical:
 		# Reserve the complete button list before assigning portrait artwork
 		# height. The illustration yields space rather than clipping actions.

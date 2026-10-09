@@ -29,6 +29,34 @@ func test_title_actions_fit_and_keep_focus_across_display_sizes() -> void:
 			check(button.size.x >= 44 and button.size.y >= 44, "action target retained")
 	title.free()
 
+func test_title_never_scrolls_on_common_desktop_and_tablet_screens() -> void:
+	# Every action, the greeting and the credits stay in view without a scroll
+	# clip: the panel grows to its content when the screen has room, and
+	# tightens its rows before it would ever scroll on a short screen.
+	var title := TitleScreen.new()
+	root.add_child(title)
+	title.open()
+	var screens := {
+		"macOS 1440x900": Rect2(0,0,1440,900), "macOS 1280x800": Rect2(0,0,1280,800),
+		"Windows 1366x768": Rect2(0,0,1366,768), "Windows 1280x720": Rect2(0,0,1280,720),
+		"Windows 1920x1080": Rect2(0,0,1920,1080), "iPad 1180x820": Rect2(0,24,1180,796),
+		"iPad 1024x768": Rect2(0,24,1024,744), "iPad portrait 820x1180": Rect2(0,24,820,1156),
+		"short 900x620": Rect2(0,0,900,620), "short 1000x660": Rect2(0,0,1000,660),
+	}
+	for label: String in screens:
+		var bounds: Rect2 = screens[label]
+		root.size = Vector2i(bounds.end)
+		title.apply_layout(bounds)
+		await settle()
+		var clip := title._actions_scroll.get_global_rect()
+		check(bounds.encloses(title.get_node("Panel").get_global_rect()), label + ": title frame fits")
+		check(title._actions.get_combined_minimum_size().y <= clip.size.y + .5, label + ": the action column needs no scrolling")
+		check_eq(title._actions_scroll.scroll_vertical, 0, label + ": nothing is scrolled away")
+		for button: Button in actions(title):
+			check(clip.encloses(button.get_global_rect()), label + ": " + button.text + " is fully in view")
+			check(button.size.y >= 44, label + ": " + button.text + " keeps its touch height")
+	title.free()
+
 func test_actions_fill_the_available_column_when_artwork_is_hidden() -> void:
 	root.size = Vector2i(640,400)
 	var title := TitleScreen.new()
