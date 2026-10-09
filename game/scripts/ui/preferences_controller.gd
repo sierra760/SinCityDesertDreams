@@ -68,6 +68,14 @@ func set_option(key: StringName, value: Variant) -> void:
 			set_value("tile_grid",bool(value))
 		&"pause_in_background":
 			set_value("pause_in_background",bool(value))
+		&"music_enabled", &"effects_enabled", &"music_volume", &"effects_volume":
+			var settings := _host.preferences.duplicate()
+			settings[String(key)] = value
+			settings = ViewPreferences.sanitize(settings)
+			if _host.audio != null: _host.audio.apply_preferences(settings)
+			# A volume slider reports every step; write once it settles.
+			if String(key).ends_with("_volume"): defer(String(key),settings[String(key)])
+			else: set_value(String(key),settings[String(key)])
 		&"ui_scale":
 			_host.display_layout.set_ui_scale(int(value))
 			set_value("ui_scale", _host.display_layout.ui_scale)
@@ -105,6 +113,10 @@ func option_values() -> Dictionary:
 		"explore_invert_y": preferences.get("explore_invert_y",false),
 		"water_animation": preferences.get("water_animation",true),
 		"pause_in_background": preferences.get("pause_in_background",true),
+		"music_enabled": preferences.get("music_enabled",true),
+		"effects_enabled": preferences.get("effects_enabled",true),
+		"music_volume": preferences.get("music_volume",0.8),
+		"effects_volume": preferences.get("effects_volume",0.9),
 		"tile_grid": _host.city_view_3d.tile_grid_visible,
 		"render_quality": preferences.get("render_quality", "high"),
 		"render_scale": preferences.get("render_scale", 100),

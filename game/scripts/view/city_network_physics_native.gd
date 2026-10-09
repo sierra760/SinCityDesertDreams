@@ -3,7 +3,8 @@
 # See LICENSE and LICENSING.md in the repository root.
 
 ## Dispatches physical surface extraction to the native geometry kernel on
-## Apple platforms and to the GDScript resolver everywhere else. Both paths
+## Apple platforms and x86_64 Windows, and to the GDScript resolver everywhere
+## else. Both paths
 ## produce the same results; the kernel only removes the GDScript cost.
 extends RefCounted
 
@@ -18,12 +19,17 @@ static var _load_attempted := false
 
 static func available() -> bool:
 	if force_fallback: return false
-	if OS.get_name() not in ["macOS","iOS"]: return false
+	if not supported_platform(): return false
 	if not ClassDB.class_exists(NATIVE_CLASS) and not _load_attempted:
 		_load_attempted = true
 		var status := GDExtensionManager.load_extension(CONFIG)
 		if status not in [GDExtensionManager.LOAD_STATUS_OK,GDExtensionManager.LOAD_STATUS_ALREADY_LOADED]: return false
 	return ClassDB.class_exists(NATIVE_CLASS)
+
+
+## Platforms that ship a kernel library (see scdd_geometry.cfg).
+static func supported_platform() -> bool:
+	return OS.get_name() in ["macOS","iOS"] or (OS.get_name()=="Windows" and OS.has_feature("x86_64"))
 
 
 static func resolve(patch_inputs: Array[Dictionary], box_inputs: Array[Dictionary], obstacle_inputs: PackedVector3Array) -> Dictionary:

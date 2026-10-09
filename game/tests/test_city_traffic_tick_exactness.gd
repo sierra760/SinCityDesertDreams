@@ -11,31 +11,69 @@ extends "res://tests/exploration/async_test_case.gd"
 
 ## Unoptimized reference versions of _step, _record_render_state, actor_pose
 ## and _render, kept unchanged so the optimized ones have something to match.
+## _step follows the October 8 junction/interchange flow rules with direct
+## graph queries in place of the per-revision route caches.
 class FrozenTraffic:
 	extends CityTraffic3D
 	var _paused_render_hash := 0
 
 	func _step(delta: float) -> void:
+		for i: int in range(actors.size()-1,-1,-1):
+			var waiting_actor: Dictionary = actors[i]
+			if _claims.has(waiting_actor.id): continue
+			waiting_actor.wait = float(waiting_actor.get(&"wait",0.0))+delta if waiting_actor.stopped else 0.0
+			if float(waiting_actor.wait) > STUCK_LIMIT and (waiting_actor.type == &"road" or waiting_actor.type == &"highway"): actors.remove_at(i)
 		var occupied: Dictionary = {}
-		var junctions: Dictionary = {}
 		var entries: Dictionary = {}
 		var rail_crossings: Dictionary = {}
 		var ramps: Dictionary = {}
+		var boxes: Dictionary = {}
+		var box_exits: Dictionary = {}
+		var waiting: Dictionary = {}
+		var merging: Dictionary = {}
 		for a: Dictionary in actors:
 			if _claims.has(a.id): continue
 			_record_render_state(a)
-			if graph.is_ramp(a.cell): ramps[a.cell] = a.id
+			var cell: Vector2i = a.cell
+			var ramp := graph.is_ramp(cell)
+			if ramp: ramps[cell] = a.id
 			if a.domain == &"rail":
-				rail_crossings[a.cell] = true
+				rail_crossings[cell] = true
 				rail_crossings[a.next] = true
-			var key := _lane_key(a.type,a.domain,a.cell,a.next,int(a.get("lane",0)) if a.domain == &"highway" and not graph.is_ramp(a.cell) else 0)
-			if not occupied.has(key): occupied[key] = []
-			occupied[key].append(a)
-			var entry_key := _lane_key(a.type,a.domain,a.cell,a.previous,int(a.get("lane",0)) if a.domain == &"highway" and not graph.is_ramp(a.cell) else 0)
-			if not entries.has(entry_key): entries[entry_key] = []
-			entries[entry_key].append(a)
-			if graph.degree(a.cell,a.domain) > 2 and float(a.t) > .2 and float(a.t) < .8:
-				junctions[(int(a.cell.y)*City.WIDTH+int(a.cell.x))*4+(1 if a.domain == &"rail" else 2 if a.domain == &"water" else 0)] = a.id
+			var lane := int(a.get(&"lane",0)) if a.domain == &"highway" and not ramp else 0
+			var key := _lane_key(a.type,a.domain,cell,a.next,lane)
+			var occupants: Variant = occupied.get(key)
+			if occupants == null: occupied[key] = [a]
+			else: occupants.append(a)
+			var entry_key := _lane_key(a.type,a.domain,cell,a.previous,lane)
+			var entrants: Variant = entries.get(entry_key)
+			if entrants == null: entries[entry_key] = [a]
+			else: entrants.append(a)
+			if a.domain == &"highway" and graph.is_ramp(a.previous):
+				# A vehicle that merged from a ramp leads the carriageway behind it.
+				var joined := graph.highway_segment(cell,a.previous,a.next,lane)
+				if joined.has("previous") and joined.previous != a.previous:
+					var behind := _lane_key(a.type,a.domain,cell,joined.previous,lane)
+					var carriageway: Variant = entries.get(behind)
+					if carriageway == null: entries[behind] = [a]
+					else: carriageway.append(a)
+			if ramp and a.domain == &"road" and float(a.get(&"wait",0.0)) >= MERGE_PATIENCE and graph.continuation_domain(cell,a.next,&"road") == &"highway":
+				merging[a.next] = true
+			# Pedestrians cross beside the box and never hold it for vehicles.
+			if a.domain == &"road" and a.type != &"pedestrian" and graph.degree(cell,&"road") > 2:
+				var junction := cell.y*City.WIDTH+cell.x
+				if float(a.t) < STOP_LINE:
+					var queue: Variant = waiting.get(junction)
+					if queue == null: waiting[junction] = [a]
+					else: queue.append(a)
+				else:
+					if float(a.t) < BOX_CLEAR: boxes[junction] = int(boxes.get(junction,0)) | _axis_bit(a)
+					var exit := _lane_key(&"road",&"road",cell,a.next)
+					box_exits[exit] = int(box_exits.get(exit,0))+1
+		var grants: Dictionary = {}
+		for junction: int in waiting:
+			grants[junction] = _junction_grant(waiting[junction],int(boxes.get(junction,0)),entries,box_exits,{})
+		var leaving: Dictionary = {}
 		for a: Dictionary in actors:
 			if _claims.has(a.id): continue
 			if a.domain == &"rail" and _reserved_rail.has(a.next):
@@ -43,40 +81,60 @@ class FrozenTraffic:
 				continue
 			a.stopped = false
 			var speed := float(a.speed)
-			if a.type in [&"road",&"highway"]: speed *= 1.0 - float(graph.demand(a.cell).congestion) * .6
-			var key := _lane_key(a.type,a.domain,a.cell,a.next,int(a.get("lane",0)) if a.domain == &"highway" and not graph.is_ramp(a.cell) else 0)
-			for other: Dictionary in occupied.get(key,[]):
-				if other.id != a.id and float(other.t) > float(a.t) and float(other.t)-float(a.t) < _following_gap(a,other): speed = 0
+			if a.type == &"road" or a.type == &"highway": speed *= 1.0 - float(graph.demand(a.cell).congestion) * .6
+			var occupants: Variant = occupied.get(_lane_key(a.type,a.domain,a.cell,a.next,int(a.get(&"lane",0)) if a.domain == &"highway" and not graph.is_ramp(a.cell) else 0))
+			if occupants != null:
+				for other: Dictionary in occupants:
+					# Different approaches to one exit only share a lane past the stop line.
+					if other.previous != a.previous and (float(a.t) < STOP_LINE or float(other.t) < STOP_LINE): continue
+					if other.id != a.id and float(other.t) > float(a.t) and float(other.t)-float(a.t) < _following_gap(a,other): speed = 0
 			var degree := graph.degree(a.cell,a.domain)
 			if a.domain == &"road" and rail_crossings.has(a.cell) and float(a.t)<.22: speed = 0
-			if degree > 2 and a.domain == &"road":
-				var phase := posmod(int(_elapsed/3.0)+int(a.cell.x)+int(a.cell.y),3)
-				var axis := 0 if a.next.x == a.cell.x else 1
-				var allowed := phase == 2 if a.type == &"pedestrian" else phase == axis
-				var owner := int(junctions.get((int(a.cell.y)*City.WIDTH+int(a.cell.x))*4+(1 if a.domain == &"rail" else 2 if a.domain == &"water" else 0),a.id))
-				if float(a.t) < .22 and (not allowed or owner != int(a.id)): speed = 0
+			# Unpermitted arrivals creep up to the stop line and wait there.
+			var limit := INF
+			var junction := -1
+			if degree > 2 and a.domain == &"road" and float(a.t) < STOP_LINE:
+				junction = int(a.cell.y)*City.WIDTH+int(a.cell.x)
+				var bit := _axis_bit(a)
+				var granted := int(grants.get(junction,0))
+				if a.type == &"pedestrian":
+					if int(boxes.get(junction,0)) & (3^bit) or granted == 3^bit: limit = STOP_LINE-.001
+				elif granted != bit or not _exit_ready(a,entries,box_exits): limit = STOP_LINE-.001
+			if a.domain == &"highway" and int(a.get(&"lane",0)) == 1 and merging.has(a.next) and float(a.t) < .5: limit = .5
 			if float(a.t) > .1:
-				for other: Dictionary in entries.get(_lane_key(a.type,a.domain,a.next,a.cell,int(a.get("lane",0)) if a.domain == &"highway" and not graph.is_ramp(a.next) else 0),[]):
-					if other.id != a.id and 1.0-float(a.t)+float(other.t) < _following_gap(a,other): speed = 0; break
+				var entrants: Variant = entries.get(_lane_key(a.type,a.domain,a.next,a.cell,int(a.get(&"lane",0)) if a.domain == &"highway" and not graph.is_ramp(a.next) else 0))
+				if entrants != null:
+					for other: Dictionary in entrants:
+						if other.id != a.id and 1.0-float(a.t)+float(other.t) < _following_gap(a,other): speed = 0; break
 			# Slow terminal turns rather than advancing a narrow reversal at street speed.
 			if a.previous == a.next and a.type != &"pedestrian": speed = minf(speed,.25)
-			a.stopped = speed == 0
 			var prior_t := float(a.t)
-			var segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get("lane",0))) if a.domain==&"highway" else {}
-			a.t = float(a.t) + speed*delta / maxf(.12,float(segment.get("length",1.0)))
+			var segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
+			a.t = maxf(prior_t,minf(prior_t + speed*delta / maxf(.12,float(segment.get("length",1.0))),limit))
+			a.stopped = float(a.t) == prior_t
+			if junction >= 0 and a.type != &"pedestrian" and float(a.t) >= STOP_LINE:
+				boxes[junction] = int(boxes.get(junction,0)) | _axis_bit(a)
+				var exit := _lane_key(&"road",&"road",a.cell,a.next)
+				box_exits[exit] = int(box_exits.get(exit,0))+1
+			if float(a.t) >= 1 and a.domain == &"highway" and not graph.neighbors(a.cell,&"highway").has(a.next):
+				# Reached the end of a carriageway that leaves the map: drive off.
+				leaving[a.id] = true
+				continue
 			if float(a.t) >= 1:
 				var next_domain := graph.continuation_domain(a.cell,a.next,a.domain)
-				var next_lane := 1 if graph.is_ramp(a.cell) and next_domain==&"highway" else int(a.get("lane",0))
+				var next_lane := 1 if graph.is_ramp(a.cell) and next_domain==&"highway" else int(a.get(&"lane",0))
 				if graph.is_ramp(a.cell) and next_domain==&"highway" and graph.highways.routes.has(a.next):
 					var blocked := false
 					for merge: Dictionary in graph.highways.segments(a.next,CityTrafficGraph.INVALID,1):
-						if not occupied.get(_lane_key(&"highway",&"highway",a.next,merge.next,1),[]).is_empty(): blocked = true
+						for ahead: Dictionary in occupied.get(_lane_key(&"highway",&"highway",a.next,merge.next,1),[]):
+							if float(ahead.t) < _following_gap(a,ahead): blocked = true
+						# Stopped traffic is not about to arrive; it follows the merged vehicle.
 						for approaching: Dictionary in occupied.get(_lane_key(&"highway",&"highway",merge.previous,a.next,1),[]):
-							if float(approaching.t)>.5: blocked = true
+							if float(approaching.t)>.5 and not approaching.stopped: blocked = true
 					if blocked:
 						a.t=prior_t; a.stopped=true
 						continue
-				if next_domain==&"highway" and graph.highways.routes.has(a.next) and graph.traffic_choices(a.next,next_domain,a.cell,next_lane).is_empty():
+				if next_domain==&"highway" and graph.highways.routes.has(a.next) and graph.traffic_choices(a.next,next_domain,a.cell,next_lane).is_empty() and _exit_choice(a.next,next_domain,a.cell,next_lane) == CityTrafficGraph.INVALID:
 					a.t = prior_t
 					a.stopped = true
 					continue
@@ -93,6 +151,22 @@ class FrozenTraffic:
 				if next_domain == &"rail":
 					choices = choices.filter(func(cell: Vector2i) -> bool: return not _reserved_rail.has(cell))
 				if choices.size() > 1: choices.erase(prior)
+				if choices.size() > 1 and next_domain == &"highway" and a.next-a.cell != a.cell-a.previous:
+					# One turn per interchange: a vehicle that just turned continues
+					# straight instead of circling the crossing's four cells.
+					var straight: Vector2i = a.next+(a.next-a.cell)
+					if choices.has(straight): choices.assign([straight])
+				if choices.size() > 1 and not ramps.is_empty():
+					# Leave a ramp that is in use for the vehicle already on it.
+					var busy := false
+					for choice: Vector2i in choices:
+						if ramps.has(choice) and graph.is_ramp(choice): busy = true; break
+					if busy:
+						var open := choices.filter(func(cell: Vector2i) -> bool: return not (ramps.has(cell) and graph.is_ramp(cell)))
+						if not open.is_empty(): choices.assign(open)
+				if choices.is_empty() and next_domain == &"highway":
+					var exit := _exit_choice(a.next,next_domain,prior,next_lane)
+					if exit != CityTrafficGraph.INVALID: choices.append(exit)
 				if choices.is_empty():
 					a.t = prior_t
 					a.stopped = true
@@ -106,8 +180,11 @@ class FrozenTraffic:
 				a.cell = a.next
 				a.turns = int(a.turns)+1
 				a.next = choices[posmod(int(a.id)*11+int(a.turns)*7,choices.size())]
-				var following_segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get("lane",0))) if a.domain==&"highway" else {}
+				var following_segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
 				a.t = (float(a.t)-1)*maxf(.12,float(segment.get("length",1.0)))/maxf(.12,float(following_segment.get("length",1.0)))
+		if not leaving.is_empty():
+			for i: int in range(actors.size()-1,-1,-1):
+				if leaving.has(actors[i].id): actors.remove_at(i)
 
 	func _record_render_state(a: Dictionary) -> void:
 		var previous: Dictionary = a.get("_render_previous",{})
@@ -382,7 +459,9 @@ func test_real_city_tick_pose_and_draw_match_reference() -> void:
 		# Diagonal raw jumps put rendered history near the 1.5-tile handoff bound.
 		for traffic: CityTraffic3D in [actual, frozen]:
 			for i: int in range(10, 60):
-				traffic.actors[i].cell = traffic.actors[i].cell + Vector2i(1, 1)
+				# Stay on the map: an off-map cell has no ground to pose on.
+				if traffic.actors[i].cell.x < City.WIDTH-1 and traffic.actors[i].cell.y < City.HEIGHT-1:
+					traffic.actors[i].cell = traffic.actors[i].cell + Vector2i(1, 1)
 		_run_frames(actual, frozen, 4, overview, false, path + " diagonal raw jumps")
 		# Claims and a release back into traffic.
 		var claimed: Dictionary = actual.claim_nearby_vehicle(actual.actor_pose(actual.actors[5]).origin, 3.0)

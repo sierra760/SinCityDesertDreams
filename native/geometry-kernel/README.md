@@ -33,7 +33,11 @@ the GDScript packing cost (about 0.4 s for La Presa).
 
 The runtime dispatcher `game/scripts/view/city_network_physics_native.gd` loads
 `res://addons/scdd_geometry/scdd_geometry.cfg` explicitly on macOS/iOS and
-falls back to the GDScript resolver elsewhere or when the library is missing.
+x86_64 Windows and falls back to the GDScript resolver elsewhere (Linux,
+Android, Web, Windows on ARM) or when the library is missing. Exports copy the
+library beside the executable: the Windows build needs
+`SCDDGeometry.windows.x86_64.dll` next to the `.exe`, or it silently uses the
+GDScript resolver.
 Boxes stay in GDScript as a pass-through copy.
 
 ## Incremental resolution
@@ -52,16 +56,38 @@ incremental result with a full resolution after every edit, on both paths.
 
 ## Rebuild the libraries
 
-Requires Xcode on macOS and the pinned official godot-cpp checkout at
-`godot-4.5-stable` (commit `e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77`, compatible
-with Godot 4.6.1) with its `template_release` static libraries already built
-using `native/apple-share/build_profile.json`. Run from the repository root:
+Requires Xcode on macOS, MinGW-w64 for the Windows DLL (`brew install
+mingw-w64`) and the pinned official godot-cpp checkout at `godot-4.5-stable`
+(commit `e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77`, compatible with Godot 4.6.1)
+with its `template_release` static libraries built using
+`native/apple-share/build_profile.json` (Windows with `use_mingw=yes`). Run
+from the repository root:
 
 ```sh
 python3 native/geometry-kernel/build.py --godot-cpp /path/to/godot-cpp
 ```
 
-Pass `--scons /path/to/scons` only when a static library is missing. The
-macOS dylib is universal arm64/x86_64; iOS is an arm64 dynamic framework.
-Matching output has been verified on arm64 macOS; the x86_64 slice is built
-with the same uncontracted arithmetic.
+Pass `--scons /path/to/scons` only when a static library is missing, and
+`--platform macos|ios|windows` (repeatable) to rebuild only some libraries. The
+macOS dylib is universal arm64/x86_64; iOS is an arm64 dynamic framework;
+Windows is an x86_64 DLL cross-compiled with MinGW-w64 GCC, with the C++
+runtime linked statically so it imports only `KERNEL32` and the Universal CRT
+(Windows 10 and later). It targets baseline x86_64, so it contains no FMA
+instructions; check with
+`x86_64-w64-mingw32-objdump -d SCDDGeometry.windows.x86_64.dll | grep -c vfmadd`
+(expect 0).
+
+Matching output has been verified on arm64 macOS and on the x86_64 macOS
+engine under Rosetta (the same SSE float32 arithmetic the Windows engine uses).
+The Windows DLL itself has not yet been run on Windows. `tools/run_tests.py`
+needs a Unix host, so on Windows run the two suites directly from a copy of the
+`game` folder with the Godot 4.6.1 console executable:
+
+```bat
+Godot_v4.6.1-stable_win64_console.exe --headless --path game --import
+Godot_v4.6.1-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_native_network_physics.gd
+Godot_v4.6.1-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_network_physics_incremental.gd
+```
+
+Each must end with `Results: N passed, 0 failed`, and the first must not print
+"native geometry kernel unavailable".

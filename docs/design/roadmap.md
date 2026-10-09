@@ -13,7 +13,7 @@ game has today and what may come next.
 | Interface | Ivory, teal and brass controls with BioRhyme lettering, scalable from 100% to 200%, with touch support for iPhone and iPad |
 | Explore | Walking, driving, flying, sailing and riding rail and subway trains through the city |
 | Entities | Procedural 3D traffic, pedestrians, disasters and emergency crews |
-| Audio | None yet |
+| Audio | Ten original songs, interface sounds and effects, with Sound settings (see [audio](audio.md)) |
 | Distribution | macOS and Windows downloads; export presets also exist for Linux, iOS, Android and Web |
 
 ## Next
@@ -23,7 +23,7 @@ game has today and what may come next.
 - Keep improving performance on large cities, especially the first entry into
   Explore and the cost of road and rail construction. See the
   [performance notes](performance.md).
-- Sound and music.
+- Positional sound in Explore, and audio checks on iOS, Android and the web build.
 - Localization.
 - Custom scenarios written for this game. The commercial game's bundled
   scenarios are not included.

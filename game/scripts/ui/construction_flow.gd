@@ -3,8 +3,8 @@
 # See LICENSE and LICENSING.md in the repository root.
 
 ## Building with the selected tool: applying it over a drag, the cursor
-## preview of that drag, the bridge/tunnel, neighbor-link and objection
-## prompts, signs, facility names and demolition from the inspector.
+## preview of that drag, the bridge/tunnel, neighbor-link, on-ramp and
+## objection prompts, signs, facility names and demolition from the inspector.
 class_name ConstructionFlow
 extends RefCounted
 
@@ -17,6 +17,10 @@ var _pending_choice: Dictionary = {}
 var _drag_tool := GameHost.NO_TOOL
 var _drag_from := Vector2i(-1, -1)
 var _presentation_id := 0
+## On-ramp sites the player turned down, per city, so the same spot is not
+## offered again after every nearby edit.
+var _declined_ramps: Dictionary = {}
+var _declined_city_id := 0
 
 
 func _init(host: GameHost) -> void:
@@ -128,10 +132,15 @@ func _edit_terrain(from: Vector2i, to: Vector2i, tool: int = -2) -> Dictionary:
 
 
 ## Act on a Builder result: report a refusal, ask about an objection, or
-## record the build and ask about a neighbor link at the city limit.
-func _finish_apply(result: Dictionary, from: Vector2i, end: Vector2i, tool: int = -2) -> Dictionary:
+## record the build and ask about a neighbor link at the city limit and an
+## on-ramp where a new road meets a highway. `earlier` lists tiles the same
+## drag already built before this result (the run up to a neighbor link), so
+## ramps along the whole segment are offered.
+func _finish_apply(result: Dictionary, from: Vector2i, end: Vector2i, tool: int = -2, earlier: Array = []) -> Dictionary:
 	if tool == -2:
 		tool = _host.tool
+	if _host.audio != null:
+		_host.audio.on_construction(result, tool)
 	if not bool(result["ok"]):
 		_host.show_message(refusal_text(result))
 		return result
@@ -139,8 +148,15 @@ func _finish_apply(result: Dictionary, from: Vector2i, end: Vector2i, tool: int 
 		_prompt_opposition(from, end, tool)
 		return result
 	_after_build(result, tool)
+	var built: Array = []
+	if bool(result.get("applied", false)) and (tool == Tools.Kind.ROAD or tool == Tools.Kind.HIGHWAY):
+		built = earlier + result.get("tiles", [])
+	var toward := end if end.x >= 0 else from
 	if result.has("neighbor"):
-		_prompt_neighbor(result["neighbor"], tool)
+		# The ramp offer for this segment follows the link question.
+		_prompt_neighbor(result["neighbor"], tool, built, toward)
+	elif not built.is_empty():
+		_offer_onramp(built, toward)
 	return result
 
 
@@ -160,8 +176,9 @@ func _open_choice(quote: Dictionary, from: Vector2i, end: Vector2i, tool: int) -
 
 
 ## Offer the link to the town beyond the city limit for the tile the drag
-## ended on.
-func _prompt_neighbor(neighbor: Dictionary, tool: int) -> void:
+## ended on. `ramp_tiles` are the tiles the drag built, whose on-ramp offer
+## follows once the link is answered.
+func _prompt_neighbor(neighbor: Dictionary, tool: int, ramp_tiles: Array = [], toward := Vector2i(-1, -1)) -> void:
 	var tile: Vector2i = neighbor.get("tile", Vector2i(-1, -1))
 	if tile.x < 0:
 		return
@@ -170,33 +187,124 @@ func _prompt_neighbor(neighbor: Dictionary, tool: int) -> void:
 		name = "the town beyond the %s edge" % ["north", "east", "south", "west"][clampi(int(neighbor.get("edge", 0)), 0, 3)]
 	var cost := int(neighbor.get("cost", 0))
 	var lines := _host.notices.lines(&"neighbor", {"neighbor": name, "cost": cost, "kind": String(neighbor.get("kind", "road"))})
-	_pending_choice = {"kind": &"neighbor", "tool": tool, "from": tile, "to": tile}
+	_pending_choice = {"kind": &"neighbor", "tool": tool, "from": tile, "to": tile,
+		"ramp_tiles": ramp_tiles, "ramp_toward": toward if toward.x >= 0 else tile}
 	_host.push_modal()
 	_host.choice_dialog.open(String(lines["title"]), String(lines["body"]),
 		[{"key": &"connect", "label": "Link to %s" % name, "cost": cost}], _host.sim.city.funds, "Connect")
 
 
+## Offer an on-ramp where the tiles just built let a road meet a highway.
+## Each possible site is asked about in turn, nearest the end of the drag
+## first, with that site highlighted on the map. Nothing is built unless
+## the player accepts it.
+func _offer_onramp(built: Array, toward: Vector2i) -> void:
+	if _host.builder == null or _host.choice_dialog == null or _host.choice_dialog.is_open():
+		return
+	var city := _host.sim.city
+	if city.get_instance_id() != _declined_city_id:
+		_declined_city_id = city.get_instance_id()
+		_declined_ramps.clear()
+	var sites: Array[Vector2i] = []
+	for site: Vector2i in _host.builder.onramp_sites(built, toward):
+		if not _declined_ramps.has(site):
+			sites.append(site)
+	if not sites.is_empty():
+		_ask_ramp({"kind": &"onramp", "tool": Tools.Kind.ONRAMP, "sites": sites, "index": 0,
+			"city": city.get_instance_id()})
+
+
+## Ask about the site at `pending.index`, skipping sites an answer before it
+## has made unbuildable. The other sites still to be asked about stay
+## outlined so the player sees what is coming.
+func _ask_ramp(pending: Dictionary) -> void:
+	if not _host.in_game or _host.builder == null or _host.sim.city.get_instance_id() != int(pending["city"]):
+		return
+	var sites: Array = pending["sites"]
+	var index := int(pending["index"])
+	while index < sites.size():
+		var quote := _host.builder.preview(Tools.Kind.ONRAMP, sites[index])
+		if bool(quote["ok"]) or String(quote.get("reason", "")) == Builder.REASON_FUNDS:
+			break
+		index += 1
+	if index >= sites.size():
+		return
+	pending["index"] = index
+	var site: Vector2i = sites[index]
+	var cost := Tools.cost(Tools.Kind.ONRAMP)
+	var lines := _host.notices.lines(&"onramp", {"cost": cost})
+	var title := String(lines["title"])
+	if sites.size() > 1:
+		title += " (%d of %d)" % [index + 1, sites.size()]
+	_pending_choice = pending
+	_host.push_modal()
+	var view := _host.city_view_3d
+	if view != null and view.ramp_highlight != null:
+		view.ramp_highlight.show_sites(_host.sim.city, sites.slice(index), 0)
+	if view != null and view.active and not _host.display_layout.logical_rect().grow(-48.0).has_point(view.project_cell(site)):
+		# Bring the site into view before the dialog opens.
+		view.set_center_cell(site)
+	var dialog := _host.choice_dialog
+	dialog.open(title, String(lines["body"]),
+		[{"key": &"onramp", "label": "On-ramp at %d, %d" % [site.x, site.y], "cost": cost}],
+		_host.sim.city.funds, "Add Ramp", "Skip")
+	if view != null and view.active:
+		dialog.keep_clear_of(view.project_cell(site))
+
+
+func _clear_ramp_highlight() -> void:
+	var view := _host.city_view_3d
+	if view != null and view.ramp_highlight != null:
+		view.ramp_highlight.clear()
+
+
+## The next ramp site after this one was answered, if any.
+func _ask_next_ramp(pending: Dictionary) -> void:
+	var next := pending.duplicate()
+	next["index"] = int(pending["index"]) + 1
+	_ask_ramp(next)
+
+
 func _on_choice_made(key: StringName) -> void:
 	var pending := _pending_choice
 	_pending_choice = {}
+	_clear_ramp_highlight()
 	_host.pop_modal()
 	if pending.is_empty() or not _host.in_game or _host.builder == null:
+		return
+	if pending["kind"] == &"onramp":
+		var site: Vector2i = pending["sites"][int(pending["index"])]
+		_finish_apply(_host.builder.apply(Tools.Kind.ONRAMP, site), site, Vector2i(-1, -1), Tools.Kind.ONRAMP)
+		_ask_next_ramp(pending)
 		return
 	var options := {"connect": true} if pending["kind"] == &"neighbor" else {"choice": key}
 	var from: Vector2i = pending["from"]
 	var end: Vector2i = pending["to"]
-	_finish_apply(_host.builder.apply(int(pending["tool"]), from, end, options), from, end, int(pending["tool"]))
+	var ramp_tiles: Array = pending.get("ramp_tiles", [])
+	var result := _finish_apply(_host.builder.apply(int(pending["tool"]), from, end, options), from, end, int(pending["tool"]), ramp_tiles)
+	if not bool(result["ok"]) and not ramp_tiles.is_empty():
+		# The link failed (funds, say); the segment already built still meets the highway.
+		_offer_onramp(ramp_tiles, pending.get("ramp_toward", end))
 
 
 func _on_choice_cancelled() -> void:
 	var pending := _pending_choice
 	_pending_choice = {}
+	_clear_ramp_highlight()
 	_host.pop_modal()
+	if not pending.is_empty() and pending.get("kind") == &"onramp":
+		_declined_ramps[pending["sites"][int(pending["index"])]] = true
+		if _host.in_game:
+			_host.show_message("Ramp skipped.")
+			_ask_next_ramp(pending)
+		return
 	if _host.in_game:
 		# The run up to the border is already built and paid for; only the
 		# link was declined.
 		var neighbor: bool = not pending.is_empty() and pending.get("kind") == &"neighbor"
 		_host.show_message("Built up to the city limit; no link made." if neighbor else "Nothing built.")
+		if neighbor and not (pending.get("ramp_tiles", []) as Array).is_empty():
+			_offer_onramp(pending["ramp_tiles"], pending["ramp_toward"])
 
 
 ## The citizens object to a placement: build anyway or walk away unbilled.

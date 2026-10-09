@@ -40,6 +40,10 @@ const DEFAULTS := {
 	"control_bindings_version": CONTROL_BINDINGS_VERSION,
 	"render_quality": "high",
 	"render_scale": 100,
+	"music_enabled": true,
+	"effects_enabled": true,
+	"music_volume": 0.8,
+	"effects_volume": 0.9,
 }
 
 
@@ -60,7 +64,7 @@ static func sanitize(settings: Dictionary) -> Dictionary:
 	var resolution: Variant = settings.get("render_scale", 100)
 	if typeof(resolution) == TYPE_INT and resolution in [50, 75, 100]:
 		clean["render_scale"] = resolution
-	for flag: String in ["water_animation", "tile_grid", "labels", "button_labels", "vehicles", "minimap", "fullscreen", "maximized", "explore_invert_y", "pause_in_background"]:
+	for flag: String in ["water_animation", "tile_grid", "labels", "button_labels", "vehicles", "minimap", "fullscreen", "maximized", "explore_invert_y", "pause_in_background", "music_enabled", "effects_enabled"]:
 		var value: Variant = settings.get(flag, clean[flag])
 		if typeof(value) == TYPE_BOOL:
 			clean[flag] = value
@@ -77,6 +81,10 @@ static func sanitize(settings: Dictionary) -> Dictionary:
 	var sensitivity: Variant = settings.get("explore_sensitivity", clean["explore_sensitivity"])
 	if (typeof(sensitivity) == TYPE_INT or typeof(sensitivity) == TYPE_FLOAT) and is_finite(float(sensitivity)):
 		clean["explore_sensitivity"] = clampf(float(sensitivity), 0.25, 3.0)
+	for level: String in ["music_volume", "effects_volume"]:
+		var amount: Variant = settings.get(level, clean[level])
+		if (typeof(amount) == TYPE_INT or typeof(amount) == TYPE_FLOAT) and is_finite(float(amount)):
+			clean[level] = clampf(float(amount), 0.0, 1.0)
 	if (typeof(size_3d) == TYPE_INT or typeof(size_3d) == TYPE_FLOAT) and is_finite(float(size_3d)):
 		clean["size_3d"] = clampf(float(size_3d), 0.5, 2048.0)
 	var rotation_3d: Variant = settings.get("rotation_3d", clean["rotation_3d"])

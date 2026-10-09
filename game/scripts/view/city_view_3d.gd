@@ -39,6 +39,8 @@ var networks: CityNetworks3D
 var mesh_batches: MeshBatcher
 var cursor: Node3D
 var query_feedback: CityQueryFeedback3D
+## Candidate on-ramp tiles while the player is asked whether to add one.
+var ramp_highlight: CityRampHighlight3D
 var feedback: CityFeedback3D
 var traffic: CityTraffic3D
 var active := false
@@ -171,6 +173,8 @@ func _ready() -> void:
 	query_feedback = CityQueryFeedback3D.new()
 	query_feedback.name = "QueryTileFeedback"
 	world.add_child(query_feedback)
+	ramp_highlight = CityRampHighlight3D.new()
+	world.add_child(ramp_highlight)
 	feedback = CityFeedback3D.new()
 	feedback.catalog = catalog
 	world.add_child(feedback)
@@ -212,6 +216,7 @@ func bind_city(value: City) -> void:
 	var reuse := value != null and _has_rendered and _geometry_inputs(value) == _geometry_state
 	city = value
 	if query_feedback != null: query_feedback.clear()
+	if ramp_highlight != null: ramp_highlight.clear()
 	if street_signage != null: street_signage.refresh()
 	if not reuse:
 		_traversal_chunks = []
@@ -250,6 +255,7 @@ func set_active(value: bool) -> void:
 	else:
 		clear_cursor()
 		if query_feedback != null: query_feedback.clear()
+		if ramp_highlight != null: ramp_highlight.clear()
 
 
 ## Merge repeated edit notifications into one deferred refresh.

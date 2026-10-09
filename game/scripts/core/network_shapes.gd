@@ -228,6 +228,23 @@ static func highway_crossing_id(axis: int, existing: int) -> int:
 	return Buildings.NONE
 
 
+## Crossing id when a road, rail or power line is laid across an existing
+## straight, level highway tile, or NONE. The crossing runs at right angles
+## to the highway: a north-south highway carries it east-west.
+static func highway_overpass_id(family: int, highway: int) -> int:
+	if highway == HIGHWAY_NS:
+		match family:
+			Family.ROAD: return HIGHWAY_NS_ROAD_EW
+			Family.RAIL: return HIGHWAY_NS_RAIL_EW
+			Family.POWER: return HIGHWAY_NS_POWER_EW
+	elif highway == HIGHWAY_EW:
+		match family:
+			Family.ROAD: return HIGHWAY_EW_ROAD_NS
+			Family.RAIL: return HIGHWAY_EW_RAIL_NS
+			Family.POWER: return HIGHWAY_EW_POWER_NS
+	return Buildings.NONE
+
+
 ## Underground crossing code for laying `family` over an existing straight
 ## run of the other underground network.
 static func underground_crossing(family: int, existing: int) -> int:

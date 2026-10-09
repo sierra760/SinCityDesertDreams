@@ -31,7 +31,7 @@ server that names those map and search providers. Downloading terrain
 contacts two public elevation and water datasets. None of these services needs
 an account, and nothing from the map or search is saved with a city.
 
-There is no sound or music yet.
+The score, interface sounds and effects are made for this game; see `docs/design/audio.md`.
 
 ## What's in it
 

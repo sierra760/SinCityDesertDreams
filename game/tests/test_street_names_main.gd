@@ -34,6 +34,9 @@ static func paid_setup(target: GameHost) -> Array[Dictionary]:
 		[Tools.Kind.ONRAMP,Vector2i(44,18),Vector2i(44,18)]]:
 		target.select_tool(item[0])
 		results.append(target.handle_drag(item[1],item[2]))
+		# A road meeting the highway asks about ramps; the setup places its
+		# one ramp explicitly below, so it skips each offer.
+		while target.choice_dialog.is_open(): target.choice_dialog.cancel()
 	target.presentation.set_view_mode(CityPresentationController.ViewMode.SURFACE)
 	target.city_view_3d.set_camera_state(Vector3(29,1,24),0,32)
 	return results

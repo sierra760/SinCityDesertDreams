@@ -30,6 +30,8 @@ func raise(kind: StringName, payload: Dictionary) -> void:
 	if kind in STATUS_ONLY:
 		_host.show_message(status_line(String(spec["title"]), String(spec["body"])))
 		return
+	if _host.audio != null:
+		_host.audio.on_notice(kind)
 	_host.refresh_toolbar()
 	queue(String(spec["title"]), String(spec["body"]), spec.get("choices", [["OK", &"ok"]]),
 		spec.get("handler", Callable()))

@@ -434,12 +434,19 @@ func test_highway_ramp_and_tunnel() -> void:
 	check_eq(c.building_at(22, 14), NS.HIGHWAY_NS)
 	check(not b.preview(Tools.Kind.HIGHWAY, Vector2i(10, 10), Vector2i(21, 10))["ok"], "existing blocks are free")
 	check(not b.preview(Tools.Kind.ONRAMP, Vector2i(12, 12))["ok"], "ramp needs a road too")
+	# A road straight behind the ramp, facing the highway, has no ramp piece:
+	# the ramp sits beside the road where it meets the highway.
 	b.apply(Tools.Kind.ROAD, Vector2i(12, 13), Vector2i(12, 14))
+	var behind := b.preview(Tools.Kind.ONRAMP, Vector2i(12, 12))
+	check(not behind["ok"], "a ramp needs the road beside it, along the highway")
+	b.apply(Tools.Kind.ROAD, Vector2i(13, 12), Vector2i(13, 14))
 	var ramp := b.apply(Tools.Kind.ONRAMP, Vector2i(12, 12))
 	check(ramp["ok"], ramp["reason"])
 	check_eq(ramp["cost"], 25)
 	check_eq(c.building_at(12, 12), Buildings.ONRAMP_FIRST, "ramp faces north to the highway")
-	check_eq(NS.connection_mask(c, 12, 13, NS.Family.ROAD) & NS.NORTH, NS.NORTH)
+	check(not c.flags.has_bits(12, 12, TileFlags.RESERVED_A), "the unswapped piece: road east, highway north")
+	check_eq(NS.onramp_endpoints(c.building_at(12, 12), false), [Vector2i.RIGHT, Vector2i.UP])
+	check_eq(NS.connection_mask(c, 13, 12, NS.Family.ROAD) & NS.WEST, NS.WEST)
 	# A hill three tiles wide takes a tunnel with two portals.
 	for x in range(40, 43):
 		c.set_heights(x, 40, 6)
@@ -843,3 +850,102 @@ func test_lattice_land_tools_keep_the_lattice_in_sync() -> void:
 	check(water["ok"], water["reason"])
 	check(s.has_water(50, 50))
 	check(c.is_water(50, 50))
+
+
+# ── Crossing highways and offered ramps ──────────────────────────────────
+
+func test_road_rail_and_power_cross_a_highway() -> void:
+	var b := _builder()
+	var c := b.city
+	b.apply(Tools.Kind.HIGHWAY, Vector2i(10, 10), Vector2i(21, 11))
+	var funds := c.funds
+	var road := b.apply(Tools.Kind.ROAD, Vector2i(13, 6), Vector2i(13, 15))
+	check(road["ok"], road["reason"])
+	check(not road.has("stopped"), "the road runs straight through")
+	check_eq(road["cost"], 10 * Tools.cost(Tools.Kind.ROAD), "both highway tiles are priced as road")
+	check_eq(c.funds, funds - 10 * Tools.cost(Tools.Kind.ROAD))
+	check_eq(c.building_at(13, 10), NS.HIGHWAY_EW_ROAD_NS, "the road passes under the highway")
+	check_eq(c.building_at(13, 11), NS.HIGHWAY_EW_ROAD_NS)
+	check_eq(NS.connection_mask(c, 13, 9, NS.Family.ROAD) & NS.SOUTH, NS.SOUTH)
+	check_eq(NS.connection_mask(c, 13, 12, NS.Family.ROAD) & NS.NORTH, NS.NORTH)
+	check_eq(NS.highway_block_mask(c, 12, 10) & (NS.EAST | NS.WEST), NS.EAST | NS.WEST, "the highway stays joined")
+	# Drawn from the far side too.
+	var back := b.apply(Tools.Kind.ROAD, Vector2i(15, 15), Vector2i(15, 6))
+	check(back["ok"], back["reason"])
+	check_eq(c.building_at(15, 10), NS.HIGHWAY_EW_ROAD_NS)
+	check_eq(c.building_at(15, 11), NS.HIGHWAY_EW_ROAD_NS)
+	var rail := b.apply(Tools.Kind.RAIL, Vector2i(17, 6), Vector2i(17, 15))
+	check(rail["ok"], rail["reason"])
+	check_eq(c.building_at(17, 10), NS.HIGHWAY_EW_RAIL_NS)
+	check_eq(c.building_at(17, 11), NS.HIGHWAY_EW_RAIL_NS)
+	var power := b.apply(Tools.Kind.POWER_LINE, Vector2i(19, 6), Vector2i(19, 15))
+	check(power["ok"], power["reason"])
+	check_eq(c.building_at(19, 10), NS.HIGHWAY_EW_POWER_NS)
+	check(c.conducts_power(19, 10) and c.conducts_power(19, 11), "the line carries power across")
+	# A run that stops on the highway's first lane is cut short before it.
+	var half := b.apply(Tools.Kind.ROAD, Vector2i(11, 6), Vector2i(11, 10))
+	check(half["ok"], half["reason"])
+	check_eq(String(half.get("stopped", "")), "a road must cross the whole highway")
+	check_eq(c.building_at(11, 10), NS.HIGHWAY_EW, "the highway is untouched")
+	check(Buildings.is_road_like(c.building_at(11, 9)))
+	# Along the highway is no crossing.
+	var lengthwise := b.preview(Tools.Kind.ROAD, Vector2i(12, 10), Vector2i(20, 10))
+	check(not lengthwise["ok"], "a road cannot run along a highway lane")
+	check_eq(lengthwise["reason"], "a road must cross the highway at right angles")
+	# North-south highways take east-west crossings.
+	b.apply(Tools.Kind.HIGHWAY, Vector2i(40, 20), Vector2i(41, 31))
+	var east := b.apply(Tools.Kind.ROAD, Vector2i(36, 25), Vector2i(45, 25))
+	check(east["ok"], east["reason"])
+	check_eq(c.building_at(40, 25), NS.HIGHWAY_NS_ROAD_EW)
+	check_eq(c.building_at(41, 25), NS.HIGHWAY_NS_ROAD_EW)
+	check_eq(NS.connection_mask(c, 42, 25, NS.Family.ROAD) & NS.WEST, NS.WEST)
+	# Corners are no crossing.
+	b.apply(Tools.Kind.HIGHWAY, Vector2i(60, 40), Vector2i(60, 47))
+	b.apply(Tools.Kind.HIGHWAY, Vector2i(60, 40), Vector2i(67, 40))
+	var corner := b.preview(Tools.Kind.ROAD, Vector2i(60, 36), Vector2i(60, 44))
+	check(corner["ok"])
+	check_eq(String(corner.get("stopped", "")), "a road can only cross a straight, level highway")
+	# Removing the crossing removes the highway block with it, as before.
+	var gone := b.apply(Tools.Kind.BULLDOZE, Vector2i(13, 10))
+	check(gone["ok"], gone["reason"])
+	check_eq(c.building_at(13, 10), Buildings.NONE)
+
+
+func test_onramp_sites_where_a_road_meets_a_highway() -> void:
+	var b := _builder()
+	var c := b.city
+	b.apply(Tools.Kind.HIGHWAY, Vector2i(10, 10), Vector2i(21, 11))
+	var road := b.apply(Tools.Kind.ROAD, Vector2i(13, 6), Vector2i(13, 15))
+	var sites := b.onramp_sites(road["tiles"], Vector2i(13, 15))
+	check_eq(sites, [Vector2i(12, 12), Vector2i(14, 12), Vector2i(12, 9), Vector2i(14, 9)] as Array[Vector2i],
+		"both sides of the road on both sides of the highway, nearest the drag end first")
+	var expect := {
+		Vector2i(12, 12): [Vector2i.RIGHT, Vector2i.UP],
+		Vector2i(14, 12): [Vector2i.LEFT, Vector2i.UP],
+		Vector2i(12, 9): [Vector2i.RIGHT, Vector2i.DOWN],
+		Vector2i(14, 9): [Vector2i.LEFT, Vector2i.DOWN],
+	}
+	for site: Vector2i in expect:
+		var probe := Builder.new(c.duplicate_city(), CityStats.new())
+		var r := probe.apply(Tools.Kind.ONRAMP, site)
+		check(r["ok"], r["reason"])
+		var id := probe.city.building_at(site.x, site.y)
+		var axis := probe.city.flags.has_bits(site.x, site.y, TileFlags.RESERVED_A)
+		check_eq(NS.onramp_endpoints(id, axis), expect[site], "ramp at %s joins its road and highway" % site)
+	b.apply(Tools.Kind.ONRAMP, Vector2i(12, 12))
+	check_eq(b.onramp_sites(road["tiles"], Vector2i(13, 15)), [Vector2i(12, 9), Vector2i(14, 9)] as Array[Vector2i],
+		"a road tile with a ramp beside it is not offered another")
+	# A road reaching the highway from the side, ending against it.
+	var stub := b.apply(Tools.Kind.ROAD, Vector2i(18, 4), Vector2i(18, 9))
+	check_eq(b.onramp_sites(stub["tiles"], Vector2i(18, 9)), [Vector2i(17, 9), Vector2i(19, 9)] as Array[Vector2i])
+	# A new highway beside an existing road end offers the same spot.
+	var b2 := _builder()
+	b2.apply(Tools.Kind.ROAD, Vector2i(30, 2), Vector2i(30, 9))
+	var hw := b2.apply(Tools.Kind.HIGHWAY, Vector2i(24, 10), Vector2i(37, 11))
+	check_eq(b2.onramp_sites(hw["tiles"], Vector2i(37, 11)), [Vector2i(31, 9), Vector2i(29, 9)] as Array[Vector2i])
+	# A road running alongside with a gap row is no meeting: nothing offered.
+	var b3 := _builder()
+	b3.apply(Tools.Kind.HIGHWAY, Vector2i(10, 10), Vector2i(21, 11))
+	var parallel := b3.apply(Tools.Kind.ROAD, Vector2i(12, 13), Vector2i(19, 13))
+	check(b3.onramp_sites(parallel["tiles"], Vector2i(19, 13)).is_empty())
+

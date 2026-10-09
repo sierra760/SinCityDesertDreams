@@ -1,0 +1,507 @@
+{
+ "_about": "Prompts for tools/generate_sfx.py. Each entry names a game event, never another game. kind: oneshot (trimmed, peak-normalized) or loop (seamless, loudness-normalized). voice entries use text-to-speech plus a radio filter. steps entries are sliced into single footsteps and an even walking loop.",
+ "sounds": [
+  {
+   "name": "bulldoze",
+   "kind": "oneshot",
+   "seconds": 2.5,
+   "influence": 0.5,
+   "prompt": "Small bulldozer knocks down a wooden shack: diesel engine growl, splintering wood, rubble tumbling, dust settling"
+  },
+  {
+   "name": "bulldozer_loop",
+   "kind": "loop",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Working diesel bulldozer engine with clanking steel tracks, steady"
+  },
+  {
+   "name": "explosion",
+   "kind": "oneshot",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Building explosion: deep boom, debris crashing down, long rumbling tail"
+  },
+  {
+   "name": "fire_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "influence": 0.5,
+   "prompt": "Large building fire: roaring flames, crackling timber, occasional pops, steady"
+  },
+  {
+   "name": "windstorm_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Howling desert windstorm with strong gusts and whistling, steady"
+  },
+  {
+   "name": "tornado_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Tornado roaring like a freight train with swirling debris, steady"
+  },
+  {
+   "name": "flood_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Floodwater rushing through city streets, heavy turbulent water, steady"
+  },
+  {
+   "name": "earthquake",
+   "kind": "oneshot",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Earthquake: deep ground rumble, rattling windows, creaking buildings, rumble fading out"
+  },
+  {
+   "name": "police_siren",
+   "kind": "oneshot",
+   "seconds": 5,
+   "influence": 0.5,
+   "prompt": "1960s American police car siren wailing as the car drives past"
+  },
+  {
+   "name": "fire_engine",
+   "kind": "oneshot",
+   "seconds": 5,
+   "influence": 0.5,
+   "prompt": "Vintage fire engine siren wailing with two blasts of its air horn"
+  },
+  {
+   "name": "civil_siren",
+   "kind": "oneshot",
+   "seconds": 7,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Mechanical civil defense siren slowly rising and falling over a city"
+  },
+  {
+   "name": "helicopter_loop",
+   "kind": "loop",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Small helicopter hovering overhead, steady rotor thump and turbine whine"
+  },
+  {
+   "name": "crowd_cheer",
+   "kind": "oneshot",
+   "seconds": 4,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Large outdoor crowd cheering, whistling and applauding"
+  },
+  {
+   "name": "crowd_boo",
+   "kind": "oneshot",
+   "seconds": 4,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Large outdoor crowd booing loudly in disapproval"
+  },
+  {
+   "name": "riot_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Angry crowd rioting in the street: shouting, chanting, glass breaking in the distance"
+  },
+  {
+   "name": "gunshot",
+   "kind": "oneshot",
+   "seconds": 1.5,
+   "influence": 0.6,
+   "prompt": "Single distant pistol shot echoing between city buildings"
+  },
+  {
+   "name": "beam_strike",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "Retro science fiction energy beam fired from orbit: rising electric whine, then a sizzling zap hitting the ground"
+  },
+  {
+   "name": "ship_horn",
+   "kind": "oneshot",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Deep cargo ship horn blast echoing across a harbor"
+  },
+  {
+   "name": "jet_takeoff",
+   "kind": "oneshot",
+   "seconds": 7,
+   "influence": 0.5,
+   "prompt": "Jet airliner taking off and climbing away, engines roaring then fading"
+  },
+  {
+   "name": "jet_landing",
+   "kind": "oneshot",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Jet airliner landing: engines whine down, tires chirp on the runway, reverse thrust roar"
+  },
+  {
+   "name": "car_horns",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "City traffic jam: several car horns honking impatiently"
+  },
+  {
+   "name": "prison_alarm",
+   "kind": "oneshot",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Prison break alarm: loud klaxon blaring with an alarm bell ringing"
+  },
+  {
+   "name": "school_bell",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "Old electric school bell ringing in a hallway"
+  },
+  {
+   "name": "train_pass",
+   "kind": "oneshot",
+   "seconds": 7,
+   "stereo": true,
+   "influence": 0.5,
+   "prompt": "Diesel passenger train passing by with a horn blast and clacking wheels"
+  },
+  {
+   "name": "resort_jackpot",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "Glitzy Las Vegas casino jackpot: ringing bells and a cascade of coins, celebratory"
+  },
+  {
+   "name": "giant_roar",
+   "kind": "oneshot",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Enormous giant's deep bellowing roar echoing through a desert canyon, heavy footstep thuds"
+  },
+  {
+   "name": "mayday",
+   "kind": "voice",
+   "voice": "SOYHLrjzK2X1ezoPC6cr",
+   "text": "[panicked, shouting] Mayday! Mayday! We're going down!"
+  },
+  {
+   "name": "pilot_hit",
+   "kind": "voice",
+   "voice": "pNInz6obpgDQGcFmaJgB",
+   "text": "[shouting] I'm hit! I'm hit! Losing altitude!"
+  },
+  {
+   "name": "meltdown_alarm",
+   "kind": "oneshot",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Nuclear power plant emergency: pulsing reactor alarm klaxon over a deep rumbling hum"
+  },
+  {
+   "name": "volcano_eruption",
+   "kind": "oneshot",
+   "seconds": 7,
+   "influence": 0.5,
+   "prompt": "Volcano erupting: deep explosive boom, ground rumbling, rocks and ash raining down",
+   "stereo": true
+  },
+  {
+   "name": "lava_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "influence": 0.5,
+   "prompt": "Molten lava flowing slowly, bubbling and hissing, steady"
+  },
+  {
+   "name": "firestorm_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "influence": 0.5,
+   "prompt": "Huge firestorm: roaring wind-driven flames and whooshing gusts of fire, steady",
+   "stereo": true
+  },
+  {
+   "name": "rain_loop",
+   "kind": "loop",
+   "seconds": 10,
+   "influence": 0.5,
+   "prompt": "Steady heavy rain falling on city streets and rooftops",
+   "stereo": true
+  },
+  {
+   "name": "thunder",
+   "kind": "oneshot",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Close thunderclap followed by long rolling thunder",
+   "stereo": true
+  },
+  {
+   "name": "plane_dive",
+   "kind": "oneshot",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Airliner diving out of control, engines screaming with a rising whine"
+  },
+  {
+   "name": "building_collapse",
+   "kind": "oneshot",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Building collapsing: groaning steel, crumbling concrete, heavy debris crashing down"
+  },
+  {
+   "name": "giant_footsteps",
+   "kind": "oneshot",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Three enormous slow footsteps of a giant, each a heavy ground-shaking thud"
+  },
+  {
+   "name": "casino_floor_loop",
+   "kind": "loop",
+   "seconds": 12,
+   "influence": 0.5,
+   "prompt": "Busy casino floor ambience: murmuring crowd, slot machine bells and chimes in the background, chips clacking",
+   "stereo": true
+  },
+  {
+   "name": "slot_spin",
+   "kind": "oneshot",
+   "seconds": 2.5,
+   "influence": 0.5,
+   "prompt": "Mechanical slot machine: lever pulled, reels spinning with ratcheting clicks"
+  },
+  {
+   "name": "slot_reel_stop",
+   "kind": "oneshot",
+   "seconds": 0.8,
+   "influence": 0.6,
+   "prompt": "Single mechanical slot machine reel stopping with a heavy clunk"
+  },
+  {
+   "name": "coins_payout",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "Coins pouring out of a slot machine into a metal tray"
+  },
+  {
+   "name": "roulette_spin",
+   "kind": "oneshot",
+   "seconds": 7,
+   "influence": 0.5,
+   "prompt": "Roulette wheel spinning, ivory ball rolling around the rim, then bouncing and settling into a pocket"
+  },
+  {
+   "name": "money_wheel_spin",
+   "kind": "oneshot",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Large wooden carnival money wheel spinning, leather clapper clicking on pegs, slowing down and stopping"
+  },
+  {
+   "name": "dice_cage",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "Dice tumbling inside a spinning wire birdcage"
+  },
+  {
+   "name": "dice_roll",
+   "kind": "oneshot",
+   "seconds": 1.5,
+   "influence": 0.5,
+   "prompt": "Three dice thrown, rolling and settling on a felt table"
+  },
+  {
+   "name": "card_shuffle",
+   "kind": "oneshot",
+   "seconds": 2.5,
+   "influence": 0.5,
+   "prompt": "Dealer riffle-shuffling a deck of playing cards and bridging them"
+  },
+  {
+   "name": "card_deal",
+   "kind": "oneshot",
+   "seconds": 0.6,
+   "influence": 0.6,
+   "prompt": "A single playing card dealt, sliding across a felt table"
+  },
+  {
+   "name": "chips_bet",
+   "kind": "oneshot",
+   "seconds": 1,
+   "influence": 0.6,
+   "prompt": "A short stack of clay casino chips set down on a felt table"
+  },
+  {
+   "name": "chips_collect",
+   "kind": "oneshot",
+   "seconds": 1.5,
+   "influence": 0.5,
+   "prompt": "Dealer sweeping up and stacking clay casino chips"
+  },
+  {
+   "name": "rocket_launch",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "Small retro toy rocket launching with a fizzing whoosh"
+  },
+  {
+   "name": "rocket_burnout",
+   "kind": "oneshot",
+   "seconds": 1.5,
+   "influence": 0.5,
+   "prompt": "Small rocket engine sputtering, coughing out and popping"
+  },
+  {
+   "name": "footsteps_pavement_loop",
+   "kind": "loop",
+   "seconds": 4,
+   "influence": 0.5,
+   "prompt": "Footsteps walking at a steady pace on concrete pavement, hard-soled shoes"
+  },
+  {
+   "name": "car_idle_loop",
+   "kind": "loop",
+   "seconds": 5,
+   "influence": 0.5,
+   "prompt": "Classic 1950s V8 car engine idling, steady"
+  },
+  {
+   "name": "car_drive_loop",
+   "kind": "loop",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "1950s V8 car cruising at steady speed, engine and tire noise, steady"
+  },
+  {
+   "name": "car_door",
+   "kind": "oneshot",
+   "seconds": 1.5,
+   "influence": 0.5,
+   "prompt": "Heavy 1950s car door opening and slamming shut"
+  },
+  {
+   "name": "car_horn",
+   "kind": "oneshot",
+   "seconds": 1,
+   "influence": 0.6,
+   "prompt": "Single short honk of a 1950s car horn"
+  },
+  {
+   "name": "tire_skid",
+   "kind": "oneshot",
+   "seconds": 2,
+   "influence": 0.5,
+   "prompt": "Car tires skidding on asphalt"
+  },
+  {
+   "name": "boat_motor_loop",
+   "kind": "loop",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Small outboard motorboat cruising on a lake, engine drone and water splashing, steady"
+  },
+  {
+   "name": "sailing_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "influence": 0.5,
+   "prompt": "Sailboat gliding on a calm lake: water lapping on the hull, rigging creaking, light wind",
+   "stereo": true
+  },
+  {
+   "name": "train_ride_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "influence": 0.5,
+   "prompt": "Inside a moving passenger train carriage: wheels clacking over rail joints, low rumble, steady"
+  },
+  {
+   "name": "train_doors",
+   "kind": "oneshot",
+   "seconds": 3,
+   "influence": 0.5,
+   "prompt": "Passenger train sliding doors opening with a pneumatic hiss"
+  },
+  {
+   "name": "subway_arrive",
+   "kind": "oneshot",
+   "seconds": 6,
+   "influence": 0.5,
+   "prompt": "Subway train arriving at an underground station: rumbling closer, brakes squealing, stopping",
+   "stereo": true
+  },
+  {
+   "name": "elevator_loop",
+   "kind": "loop",
+   "seconds": 5,
+   "influence": 0.5,
+   "prompt": "Elevator cabin moving: smooth motor hum and cable whir, steady"
+  },
+  {
+   "name": "fountain_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "influence": 0.5,
+   "prompt": "Stone fountain splashing water steadily in a large indoor hall",
+   "stereo": true
+  },
+  {
+   "name": "city_day_loop",
+   "kind": "loop",
+   "seconds": 15,
+   "influence": 0.5,
+   "prompt": "Distant city daytime ambience: light traffic far away, an occasional distant horn, birds",
+   "stereo": true
+  },
+  {
+   "name": "desert_loop",
+   "kind": "loop",
+   "seconds": 15,
+   "influence": 0.5,
+   "prompt": "Quiet open desert ambience: gentle warm wind, distant birds, insects",
+   "stereo": true
+  },
+  {
+   "name": "construction_loop",
+   "kind": "loop",
+   "seconds": 8,
+   "influence": 0.5,
+   "prompt": "Distant construction site: hammering, a power saw, workers calling out",
+   "stereo": true
+  },
+  {
+   "name": "newspaper",
+   "kind": "oneshot",
+   "seconds": 1.5,
+   "influence": 0.6,
+   "prompt": "Newspaper unfolding with a crisp paper rustle"
+  },
+  {
+   "name": "footsteps_sand",
+   "kind": "steps",
+   "seconds": 6,
+   "influence": 0.7,
+   "stride": 0.53,
+   "variants": 4,
+   "prompt": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between"
+  }
+ ]
+}

@@ -13,6 +13,19 @@ const MAX_PEDESTRIANS := 512
 const MAX_EXTERNAL := 64
 const FOLLOW_GAP := .48
 const STEP := 1.0 / 30.0
+## Junction control. Vehicles wait before STOP_LINE; past it they are in the
+## box until BOX_CLEAR, after which crossing traffic may follow them in. Both
+## directions of one axis share the box; it passes to the crossing axis once
+## that axis has waited AXIS_HOLD seconds (or at once when the box is empty).
+const STOP_LINE := .22
+const BOX_CLEAR := .75
+const AXIS_HOLD := 2.5
+## A vehicle stopped this long is in a queue nothing will release (a saturated
+## loop of junctions); it leaves and admission replaces it elsewhere.
+const STUCK_LIMIT := 20.0
+## An on-ramp vehicle waiting this long gets a gap: outer-lane traffic bound
+## for its merge cell holds at mid-cell until it has joined.
+const MERGE_PATIENCE := 2.0
 var graph := CityTrafficGraph.new()
 var actors: Array[Dictionary] = []
 var statistics: Dictionary = {}
@@ -173,7 +186,7 @@ func advance(delta: float, paused: bool, records: Array = [], camera: Camera3D =
 func _reconcile() -> void:
 	for i: int in range(actors.size()-1,-1,-1):
 		var a: Dictionary = actors[i]
-		if not _choice_continues(a.cell,a.domain,a.previous,int(a.get(&"lane",0)),a.next) or not (_route_has(a.previous,a.domain) or (a.domain in [&"road",&"highway"] and _route_has(a.previous,&"road"))) or (a.domain == &"rail" and (_reserved_rail.has(a.cell) or _reserved_rail.has(a.next))): actors.remove_at(i)
+		if not (_choice_continues(a.cell,a.domain,a.previous,int(a.get(&"lane",0)),a.next) or _exit_choice(a.cell,a.domain,a.previous,int(a.get(&"lane",0))) == a.next) or not (_route_has(a.previous,a.domain) or (a.domain in [&"road",&"highway"] and _route_has(a.previous,&"road"))) or (a.domain == &"rail" and (_reserved_rail.has(a.cell) or _reserved_rail.has(a.next))): actors.remove_at(i)
 	var cars := 0.0
 	var people := 0.0
 	var highway_cars := 0.0
@@ -264,11 +277,19 @@ func _choose_kind(type: StringName, cell: Vector2i, id: int) -> StringName:
 	return [&"car",&"compact",&"sedan",&"pickup",&"van"][id%5]
 
 func _step(delta: float) -> void:
+	for i: int in range(actors.size()-1,-1,-1):
+		var waiting_actor: Dictionary = actors[i]
+		if _claims.has(waiting_actor.id): continue
+		waiting_actor.wait = float(waiting_actor.get(&"wait",0.0))+delta if waiting_actor.stopped else 0.0
+		if float(waiting_actor.wait) > STUCK_LIMIT and (waiting_actor.type == &"road" or waiting_actor.type == &"highway"): actors.remove_at(i)
 	var occupied: Dictionary = {}
-	var junctions: Dictionary = {}
 	var entries: Dictionary = {}
 	var rail_crossings: Dictionary = {}
 	var ramps: Dictionary = {}
+	var boxes: Dictionary = {}
+	var box_exits: Dictionary = {}
+	var waiting: Dictionary = {}
+	var merging: Dictionary = {}
 	for a: Dictionary in actors:
 		if _claims.has(a.id): continue
 		_record_render_state(a)
@@ -287,8 +308,32 @@ func _step(delta: float) -> void:
 		var entrants: Variant = entries.get(entry_key)
 		if entrants == null: entries[entry_key] = [a]
 		else: entrants.append(a)
-		if _route_degree(cell,a.domain) > 2 and float(a.t) > .2 and float(a.t) < .8:
-			junctions[(int(cell.y)*City.WIDTH+int(cell.x))*4+(1 if a.domain == &"rail" else 2 if a.domain == &"water" else 0)] = a.id
+		if a.domain == &"highway" and _ramp(a.previous):
+			# A vehicle that merged from a ramp leads the carriageway behind it.
+			var joined := graph.highway_segment(cell,a.previous,a.next,lane)
+			if joined.has("previous") and joined.previous != a.previous:
+				var behind := _lane_key(a.type,a.domain,cell,joined.previous,lane)
+				var carriageway: Variant = entries.get(behind)
+				if carriageway == null: entries[behind] = [a]
+				else: carriageway.append(a)
+		if ramp and a.domain == &"road" and float(a.get(&"wait",0.0)) >= MERGE_PATIENCE and graph.continuation_domain(cell,a.next,&"road") == &"highway":
+			merging[a.next] = true
+		# Pedestrians cross beside the box and never hold it for vehicles.
+		if a.domain == &"road" and a.type != &"pedestrian" and _route_degree(cell,&"road") > 2:
+			var junction := cell.y*City.WIDTH+cell.x
+			if float(a.t) < STOP_LINE:
+				var queue: Variant = waiting.get(junction)
+				if queue == null: waiting[junction] = [a]
+				else: queue.append(a)
+			else:
+				if float(a.t) < BOX_CLEAR: boxes[junction] = int(boxes.get(junction,0)) | _axis_bit(a)
+				var exit := _lane_key(&"road",&"road",cell,a.next)
+				box_exits[exit] = int(box_exits.get(exit,0))+1
+	var grants: Dictionary = {}
+	var ready: Dictionary = {}
+	for junction: int in waiting:
+		grants[junction] = _junction_grant(waiting[junction],int(boxes.get(junction,0)),entries,box_exits,ready)
+	var leaving: Dictionary = {}
 	for a: Dictionary in actors:
 		if _claims.has(a.id): continue
 		if a.domain == &"rail" and _reserved_rail.has(a.next):
@@ -300,15 +345,22 @@ func _step(delta: float) -> void:
 		var occupants: Variant = occupied.get(_lane_key(a.type,a.domain,a.cell,a.next,int(a.get(&"lane",0)) if a.domain == &"highway" and not _ramp(a.cell) else 0))
 		if occupants != null:
 			for other: Dictionary in occupants:
+				# Different approaches to one exit only share a lane past the stop line.
+				if other.previous != a.previous and (float(a.t) < STOP_LINE or float(other.t) < STOP_LINE): continue
 				if other.id != a.id and float(other.t) > float(a.t) and float(other.t)-float(a.t) < _following_gap(a,other): speed = 0
 		var degree := _route_degree(a.cell,a.domain)
 		if a.domain == &"road" and rail_crossings.has(a.cell) and float(a.t)<.22: speed = 0
-		if degree > 2 and a.domain == &"road":
-			var phase := posmod(int(_elapsed/3.0)+int(a.cell.x)+int(a.cell.y),3)
-			var axis := 0 if a.next.x == a.cell.x else 1
-			var allowed := phase == 2 if a.type == &"pedestrian" else phase == axis
-			var owner := int(junctions.get((int(a.cell.y)*City.WIDTH+int(a.cell.x))*4+(1 if a.domain == &"rail" else 2 if a.domain == &"water" else 0),a.id))
-			if float(a.t) < .22 and (not allowed or owner != int(a.id)): speed = 0
+		# Unpermitted arrivals creep up to the stop line and wait there.
+		var limit := INF
+		var junction := -1
+		if degree > 2 and a.domain == &"road" and float(a.t) < STOP_LINE:
+			junction = int(a.cell.y)*City.WIDTH+int(a.cell.x)
+			var bit := _axis_bit(a)
+			var granted := int(grants.get(junction,0))
+			if a.type == &"pedestrian":
+				if int(boxes.get(junction,0)) & (3^bit) or granted == 3^bit: limit = STOP_LINE-.001
+			elif granted != bit or not _ready_now(a,entries,box_exits,ready): limit = STOP_LINE-.001
+		if a.domain == &"highway" and int(a.get(&"lane",0)) == 1 and merging.has(a.next) and float(a.t) < .5: limit = .5
 		if float(a.t) > .1:
 			var entrants: Variant = entries.get(_lane_key(a.type,a.domain,a.next,a.cell,int(a.get(&"lane",0)) if a.domain == &"highway" and not _ramp(a.next) else 0))
 			if entrants != null:
@@ -316,23 +368,33 @@ func _step(delta: float) -> void:
 					if other.id != a.id and 1.0-float(a.t)+float(other.t) < _following_gap(a,other): speed = 0; break
 		# Slow terminal turns rather than advancing a narrow reversal at street speed.
 		if a.previous == a.next and a.type != &"pedestrian": speed = minf(speed,.25)
-		a.stopped = speed == 0
 		var prior_t := float(a.t)
 		var segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
-		a.t = float(a.t) + speed*delta / maxf(.12,float(segment.get("length",1.0)))
+		a.t = maxf(prior_t,minf(prior_t + speed*delta / maxf(.12,float(segment.get("length",1.0))),limit))
+		a.stopped = float(a.t) == prior_t
+		if junction >= 0 and a.type != &"pedestrian" and float(a.t) >= STOP_LINE:
+			boxes[junction] = int(boxes.get(junction,0)) | _axis_bit(a)
+			var exit := _lane_key(&"road",&"road",a.cell,a.next)
+			box_exits[exit] = int(box_exits.get(exit,0))+1
+		if float(a.t) >= 1 and a.domain == &"highway" and not _neighbor_list(a.cell,&"highway").has(a.next):
+			# Reached the end of a carriageway that leaves the map: drive off.
+			leaving[a.id] = true
+			continue
 		if float(a.t) >= 1:
 			var next_domain := graph.continuation_domain(a.cell,a.next,a.domain)
 			var next_lane := 1 if _ramp(a.cell) and next_domain==&"highway" else int(a.get(&"lane",0))
 			if _ramp(a.cell) and next_domain==&"highway" and graph.highways.routes.has(a.next):
 				var blocked := false
 				for merge: Dictionary in graph.highways.segments(a.next,CityTrafficGraph.INVALID,1):
-					if not occupied.get(_lane_key(&"highway",&"highway",a.next,merge.next,1),[]).is_empty(): blocked = true
+					for ahead: Dictionary in occupied.get(_lane_key(&"highway",&"highway",a.next,merge.next,1),[]):
+						if float(ahead.t) < _following_gap(a,ahead): blocked = true
+					# Stopped traffic is not about to arrive; it follows the merged vehicle.
 					for approaching: Dictionary in occupied.get(_lane_key(&"highway",&"highway",merge.previous,a.next,1),[]):
-						if float(approaching.t)>.5: blocked = true
+						if float(approaching.t)>.5 and not approaching.stopped: blocked = true
 				if blocked:
 					a.t=prior_t; a.stopped=true
 					continue
-			if next_domain==&"highway" and graph.highways.routes.has(a.next) and graph.traffic_choices(a.next,next_domain,a.cell,next_lane).is_empty():
+			if next_domain==&"highway" and graph.highways.routes.has(a.next) and graph.traffic_choices(a.next,next_domain,a.cell,next_lane).is_empty() and _exit_choice(a.next,next_domain,a.cell,next_lane) == CityTrafficGraph.INVALID:
 				a.t = prior_t
 				a.stopped = true
 				continue
@@ -349,6 +411,22 @@ func _step(delta: float) -> void:
 			if next_domain == &"rail":
 				choices = choices.filter(func(cell: Vector2i) -> bool: return not _reserved_rail.has(cell))
 			if choices.size() > 1: choices.erase(prior)
+			if choices.size() > 1 and next_domain == &"highway" and a.next-a.cell != a.cell-a.previous:
+				# One turn per interchange: a vehicle that just turned continues
+				# straight instead of circling the crossing's four cells.
+				var straight: Vector2i = a.next+(a.next-a.cell)
+				if choices.has(straight): choices.assign([straight])
+			if choices.size() > 1 and not ramps.is_empty():
+				# Leave a ramp that is in use for the vehicle already on it.
+				var busy := false
+				for choice: Vector2i in choices:
+					if ramps.has(choice) and _ramp(choice): busy = true; break
+				if busy:
+					var open := choices.filter(func(cell: Vector2i) -> bool: return not (ramps.has(cell) and _ramp(cell)))
+					if not open.is_empty(): choices.assign(open)
+			if choices.is_empty() and next_domain == &"highway":
+				var exit := _exit_choice(a.next,next_domain,prior,next_lane)
+				if exit != CityTrafficGraph.INVALID: choices.append(exit)
 			if choices.is_empty():
 				a.t = prior_t
 				a.stopped = true
@@ -364,6 +442,63 @@ func _step(delta: float) -> void:
 			a.next = choices[posmod(int(a.id)*11+int(a.turns)*7,choices.size())]
 			var following_segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
 			a.t = (float(a.t)-1)*maxf(.12,float(segment.get("length",1.0)))/maxf(.12,float(following_segment.get("length",1.0)))
+	if not leaving.is_empty():
+		for i: int in range(actors.size()-1,-1,-1):
+			if leaving.has(actors[i].id): actors.remove_at(i)
+
+## 1 for travel along y, 2 along x: the approach's axis through a junction.
+static func _axis_bit(a: Dictionary) -> int:
+	return 1 if int(a.cell.x) == int(a.previous.x) else 2
+
+## Don't block the box: a vehicle enters only when its exit lane can take it,
+## counting vehicles already in the box bound for the same exit. One standard
+## space for every vehicle keeps first-come order fair to buses and trucks.
+func _exit_ready(a: Dictionary, entries: Dictionary, box_exits: Dictionary) -> bool:
+	var gap := .6
+	var room := 2.0
+	var ahead: Variant = entries.get(_lane_key(&"road",&"road",a.next,a.cell))
+	if ahead != null:
+		for other: Dictionary in ahead:
+			if other.id != a.id: room = minf(room,float(other.t)+(0.0 if other.stopped else .25))
+	room -= float(box_exits.get(_lane_key(&"road",&"road",a.cell,a.next),0))*gap
+	return room >= gap
+
+## _exit_ready for a waiting vehicle, reusing the answer `ready` recorded for
+## it this tick unless another vehicle has since entered the box for its exit.
+func _ready_now(a: Dictionary, entries: Dictionary, box_exits: Dictionary, ready: Dictionary) -> bool:
+	var count := int(box_exits.get(_lane_key(&"road",&"road",a.cell,a.next),0))
+	var known: Variant = ready.get(a.id)
+	if known != null and int(known.x) == count: return known.y != 0
+	var result := _exit_ready(a,entries,box_exits)
+	ready[a.id] = Vector2i(count,1 if result else 0)
+	return result
+
+## The axis bit allowed to enter this junction now, or 0 for none. Only
+## arrivals whose exit has room compete; the longest wait wins an empty box.
+func _junction_grant(queue: Array, occupied: int, entries: Dictionary, box_exits: Dictionary, ready: Dictionary = {}) -> int:
+	if occupied == 3: return 0
+	var best := 0
+	var best_wait := -1.0
+	var best_id := 0
+	for a: Dictionary in queue:
+		if not _ready_now(a,entries,box_exits,ready): continue
+		var bit := _axis_bit(a)
+		var wait := float(a.get(&"wait",0.0))
+		if occupied != 0 and bit != occupied and wait >= AXIS_HOLD: return 0
+		if wait > best_wait or (wait == best_wait and int(a.id) < best_id):
+			best = bit
+			best_wait = wait
+			best_id = int(a.id)
+	return occupied if occupied != 0 else best
+
+## A carriageway segment out of `cell` that leads nowhere on the map (its edge
+## or an unfinished end). Vehicles follow it to the edge of the cell and leave.
+func _exit_choice(cell: Vector2i, domain: StringName, previous: Vector2i, lane: int) -> Vector2i:
+	if domain != &"highway" or not graph.highways.routes.has(cell): return CityTrafficGraph.INVALID
+	var connected := graph.neighbors(cell,domain)
+	for segment: Dictionary in graph.highways.segments(cell,previous,lane):
+		if not segment.has("radius") and not connected.has(segment.next): return segment.next
+	return CityTrafficGraph.INVALID
 
 ## Capture every logic tick, including stopped/offscreen actors. Geometry is
 ## evaluated lazily for visible actors; multiple ticks retain only the last pair.
@@ -690,13 +825,20 @@ func _choice_continues(cell: Vector2i, domain: Variant, previous: Vector2i, lane
 	var index: Variant = _CULL_DOMAINS.get(domain)
 	if index == null or domain == &"highway" or cell.x < 0 or cell.y < 0 or cell.x >= City.WIDTH or cell.y >= City.HEIGHT:
 		return graph.traffic_choices(cell,domain,previous,lane).has(next)
+	return _neighbor_list(cell,domain).has(next)
+
+## graph.neighbors(cell, domain), shared for this revision. Read only.
+func _neighbor_list(cell: Vector2i, domain: Variant) -> Array:
+	var index: Variant = _CULL_DOMAINS.get(domain)
+	if index == null or cell.x < 0 or cell.y < 0 or cell.x >= City.WIDTH or cell.y >= City.HEIGHT:
+		return graph.neighbors(cell,domain)
 	_sync_route_cache()
 	var slot: int = (int(index)*City.HEIGHT+cell.y)*City.WIDTH+cell.x
 	var list: Variant = _route_neighbors[slot]
 	if list == null:
 		list = graph.neighbors(cell,domain)
 		_route_neighbors[slot] = list
-	return list.has(next)
+	return list
 
 ## Stable small integer for a StringName, used in allocation-free group keys.
 static func _name_id(value: StringName) -> int:

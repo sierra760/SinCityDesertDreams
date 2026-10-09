@@ -4,7 +4,7 @@
 
 ## The native geometry kernel must reproduce the GDScript resolver byte for byte.
 ## On platforms without the library the comparisons report that and pass; on
-## macOS the kernel must load and run.
+## macOS and x86_64 Windows the kernel must load and run.
 extends "res://tests/test_case.gd"
 const Native := preload("res://scripts/view/city_network_physics_native.gd")
 const Resolver := preload("res://scripts/view/city_network_physics.gd")
@@ -66,8 +66,8 @@ func _compare(label: String, patches: Array[Dictionary], boxes: Array[Dictionary
 
 func test_native_kernel_loads_on_apple_platforms() -> void:
 	Native.force_fallback = false
-	if OS.get_name() in ["macOS","iOS"]:
-		check(Native.available(),"native kernel loads on Apple platforms")
+	if Native.supported_platform():
+		check(Native.available(),"native kernel loads on %s" % OS.get_name())
 		check(ClassDB.class_exists(&"SCDDNetworkPhysics"),"native class is registered")
 		check(bool(ClassDB.class_call_static(&"SCDDNetworkPhysics",&"available")),"native kernel reports availability")
 	else:

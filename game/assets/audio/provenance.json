@@ -1,0 +1,1700 @@
+{
+  "music": {
+    "amargosa_lope.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/amargosa_lope.mid",
+      "midi_sha256": "ba93b7d5e0257de2e19f96251cbcfb4607308827d394e2209676974142f6c789",
+      "seconds": 146.33,
+      "sha256": "d0216762bfdc7bab83809b28fbcc8635555b9c75c1548ac6092c96f6effe1f38",
+      "title": "Amargosa Lope"
+    },
+    "cabana_number_nine.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/cabana_number_nine.mid",
+      "midi_sha256": "b6b3322510dfc241c7ec65f2f19e37ba6eb3479fd4dbac9dfc56b6a28d3e95b1",
+      "seconds": 141.7,
+      "sha256": "5fc9254710d79497b02b3d38b9ba54953a31dda6702a227801e14192eb05dc24",
+      "title": "Cabana Number Nine"
+    },
+    "cashiers_cage_cha_cha.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/cashiers_cage_cha_cha.mid",
+      "midi_sha256": "16105d96f4dc167c779db7885d795f64e3fe3c34bc70d45590dca018df47048a",
+      "seconds": 154.59,
+      "sha256": "8845488706d0015fa6722d874f0a118d04015c1e2b243074965368b7b2d8683d",
+      "title": "Cashier's Cage Cha-Cha"
+    },
+    "glitter_gulch.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/glitter_gulch.mid",
+      "midi_sha256": "224d7943f97abc886df6be7303c4e6aad38113a320a4a2eac54ec8c548d6b483",
+      "seconds": 159.0,
+      "sha256": "0c0f31f74359aa06499a3c7e54caa4aebd504a1290e1a855d3b342117bd428a3",
+      "title": "Glitter Gulch"
+    },
+    "keno_at_three.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/keno_at_three.mid",
+      "midi_sha256": "0287d2c355bfcef0bd8e92488ebe60c34fd11b7409adb6e43b6c7421c0cbfdde",
+      "seconds": 209.5,
+      "sha256": "74ac2cdbe43a93fe19facff9f070d3fcafd026d13c15abc48cb74e9aac60b013",
+      "title": "Keno at Three A.M."
+    },
+    "pawn_shop_boogie.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/pawn_shop_boogie.mid",
+      "midi_sha256": "cf9471647204f339f5a4bec7b49bbbaca79d76335ada0c05b59c894dd781e4ea",
+      "seconds": 155.95,
+      "sha256": "6bba8ea50589c51c0bd894a149520e077846efa48b7ca6358674ba219c4d95e7",
+      "title": "Pawn Shop Boogie"
+    },
+    "swizzle_stick.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/swizzle_stick.mid",
+      "midi_sha256": "6d6c1d84348f7d01701e18dfd7268c1c5d611ed9687c861665c424e788100119",
+      "seconds": 145.19,
+      "sha256": "ae1ee2d0d2dba501344020b9c407008c5fd1295edb226b737384971affeed6f3",
+      "title": "Swizzle Stick"
+    },
+    "tip_jar_waltz.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/tip_jar_waltz.mid",
+      "midi_sha256": "76a205e669a7f9a3d42077a89e7484cdcc2f6bcb224ac53e057a93c8d8b67264",
+      "seconds": 158.59,
+      "sha256": "2b69a4a202b9a5907e99f278232f26a59ede51de5c2bc311fa97ae90240acb9f",
+      "title": "Tip Jar Waltz"
+    },
+    "tonopah_turnoff.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/tonopah_turnoff.mid",
+      "midi_sha256": "28561a8a0fd6eac477d9898a76b448e93133a77987d02ee5866e53a1b9eba2b6",
+      "seconds": 143.78,
+      "sha256": "17d29e74da85e536a4682d72b8c3b227382500549c186b057ae7055ddce3f511",
+      "title": "Tonopah Turnoff"
+    },
+    "yucca_flat_luau.ogg": {
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "composed for this game as MIDI, rendered by the project's own synthesized instrument bank",
+      "midi": "assets/audio/music/yucca_flat_luau.mid",
+      "midi_sha256": "74db53238262a7ba0e9d97c79a1b5e20a72f5f90ec81db0d8fac88de79e6737f",
+      "seconds": 137.04,
+      "sha256": "6ad99c78cc281eae80c5d1f4233abbf696d0bef11278669eff08778d4cd8779b",
+      "title": "Yucca Flat Luau"
+    }
+  },
+  "sfx": {
+    "beam_strike.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/beam_strike.mp3",
+      "master_sha256": "4ea06172cfa53ba7e540f9ad95d15050d1ea1fe7e55d5caab78474cb9ad00da9",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Retro science fiction energy beam fired from orbit: rising electric whine, then a sizzling zap hitting the ground",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Retro science fiction energy beam fired from orbit: rising electric whine, then a sizzling zap hitting the ground"
+      },
+      "request_id": null,
+      "seconds": 2.133,
+      "sha256": "be5cf5700248f282d3d88fc75abc31ad29048f08dcfcea80035a1872742639eb"
+    },
+    "boat_motor_loop.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/boat_motor_loop.mp3",
+      "master_sha256": "3a2a131215093f919a3296486b18e95a4356ed43fa12e279b6f1e45c25154aee",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Small outboard motorboat cruising on a lake, engine drone and water splashing, steady",
+      "request": {
+        "duration_seconds": 6,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Small outboard motorboat cruising on a lake, engine drone and water splashing, steady"
+      },
+      "request_id": null,
+      "seconds": 6.0,
+      "sha256": "a3d4a9c17418a773cf1c7e565b9b1ee9f020e544f0f0f21f070b239e5ce71d8b"
+    },
+    "building_collapse.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/building_collapse.mp3",
+      "master_sha256": "1be637b942792c113f44ba8120c287f9a189434be3b35cf4823f26bf1d01bc33",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Building collapsing: groaning steel, crumbling concrete, heavy debris crashing down",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Building collapsing: groaning steel, crumbling concrete, heavy debris crashing down"
+      },
+      "request_id": null,
+      "seconds": 2.93,
+      "sha256": "7116aefb584c97d146bb91a06a6270c408cf13c56ceae863d474f06f330c3be0"
+    },
+    "bulldoze.ogg": {
+      "cost": "28",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/bulldoze.mp3",
+      "master_sha256": "eb63790f3edaccd39b303d583816b9a1963dab59d1e7df4a35e90efbe6a4df13",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Small bulldozer knocks down a wooden shack: diesel engine growl, splintering wood, rubble tumbling, dust settling",
+      "request": {
+        "duration_seconds": 2.5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Small bulldozer knocks down a wooden shack: diesel engine growl, splintering wood, rubble tumbling, dust settling"
+      },
+      "request_id": null,
+      "seconds": 2.316,
+      "sha256": "64771b29f3fed2822bbe89873e3ad597ab360a1e460e6a1f6994250d1a52dbb5"
+    },
+    "bulldozer_loop.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/bulldozer_loop.mp3",
+      "master_sha256": "d53d355ba19bbc0114400ea626768531f69e285550d40c199e740a198987902b",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Working diesel bulldozer engine with clanking steel tracks, steady",
+      "request": {
+        "duration_seconds": 6,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Working diesel bulldozer engine with clanking steel tracks, steady"
+      },
+      "request_id": null,
+      "seconds": 6.0,
+      "sha256": "cadb7347ef6eaa2e83fbc932d02dd4f0e4c9f893f5fc79b3031b1dd7247f7eff"
+    },
+    "car_door.ogg": {
+      "cost": "17",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/car_door.mp3",
+      "master_sha256": "38d4ed1d0012d8a5857823cba2dff21bb90b5513a11ba5be99fde2d807cb7c71",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Heavy 1950s car door opening and slamming shut",
+      "request": {
+        "duration_seconds": 1.5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Heavy 1950s car door opening and slamming shut"
+      },
+      "request_id": null,
+      "seconds": 0.703,
+      "sha256": "32a7ca687604fbe00205904be49d6fb943ad0d93ae02db595644270fb0fa40f0"
+    },
+    "car_drive_loop.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/car_drive_loop.mp3",
+      "master_sha256": "708c41331d85550c93ab60d37da3ed5a79deff2f9e518ae9faba5bb8f4d425a9",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "1950s V8 car cruising at steady speed, engine and tire noise, steady",
+      "request": {
+        "duration_seconds": 6,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "1950s V8 car cruising at steady speed, engine and tire noise, steady"
+      },
+      "request_id": null,
+      "seconds": 6.0,
+      "sha256": "d34edc0186ef72d52fe43a1add0f2f81003e57690a50d5097a0d2a4bda02b2d1"
+    },
+    "car_horn.ogg": {
+      "cost": "11",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/car_horn.mp3",
+      "master_sha256": "5f8d9c35eb2c82ac47e804e9be706f6d1a93e55dc90306aca3760ce961fd14d5",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Single short honk of a 1950s car horn",
+      "request": {
+        "duration_seconds": 1,
+        "loop": false,
+        "prompt_influence": 0.6,
+        "text": "Single short honk of a 1950s car horn"
+      },
+      "request_id": null,
+      "seconds": 1.0,
+      "sha256": "32b4ddd0744e9e62c81f069d4aade683f276d516bb0a1ec28cd7dd147e002b8e"
+    },
+    "car_horns.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/car_horns.mp3",
+      "master_sha256": "63ee10446d9d6046ee22787a19ea892aabdc08c720e6d5b1b6249dbb2b9db6be",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "City traffic jam: several car horns honking impatiently",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "City traffic jam: several car horns honking impatiently"
+      },
+      "request_id": null,
+      "seconds": 3.0,
+      "sha256": "f46646d1a562f7426a7b13f1f79a49df0b45b4322adac86be31c7cae593f5ab8"
+    },
+    "car_idle_loop.ogg": {
+      "cost": "55",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/car_idle_loop.mp3",
+      "master_sha256": "51fb27b36cf09c51ce936343dab5e55d7569881cbe4508bc44d64ba61361e535",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Classic 1950s V8 car engine idling, steady",
+      "request": {
+        "duration_seconds": 5,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Classic 1950s V8 car engine idling, steady"
+      },
+      "request_id": null,
+      "seconds": 5.0,
+      "sha256": "b2896a2f83d747c9df46e9246756fbdd6072ac51c9eea0e7a57a9df026f6ce72"
+    },
+    "card_deal.ogg": {
+      "cost": "7",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/card_deal.mp3",
+      "master_sha256": "4a1fb0771144e3023ebfc9267226c58d67cbe8ddfbb3d430d0a55313e3caadc9",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "A single playing card dealt, sliding across a felt table",
+      "request": {
+        "duration_seconds": 0.6,
+        "loop": false,
+        "prompt_influence": 0.6,
+        "text": "A single playing card dealt, sliding across a felt table"
+      },
+      "request_id": null,
+      "seconds": 0.6,
+      "sha256": "a58a42b5caba4805c17b149ceacfa05b9d8cfe6c79bcb548bafebda9d0e25084"
+    },
+    "card_shuffle.ogg": {
+      "cost": "28",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/card_shuffle.mp3",
+      "master_sha256": "770351c69d398c9aa4a7ef24650dc754084ed3c77fe1a527a6111f5e6fae6a77",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Dealer riffle-shuffling a deck of playing cards and bridging them",
+      "request": {
+        "duration_seconds": 2.5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Dealer riffle-shuffling a deck of playing cards and bridging them"
+      },
+      "request_id": null,
+      "seconds": 2.466,
+      "sha256": "21a897d19e029aa2bad1bea365a4a263941ae8f1d1b0fc1d4018c425be31fbf8"
+    },
+    "casino_floor_loop.ogg": {
+      "cost": "132",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/casino_floor_loop.mp3",
+      "master_sha256": "e763d3e6f265020c8c67564dad5235fee5c90b0cc8414198bb88b2e055ef6bd4",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Busy casino floor ambience: murmuring crowd, slot machine bells and chimes in the background, chips clacking",
+      "request": {
+        "duration_seconds": 12,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Busy casino floor ambience: murmuring crowd, slot machine bells and chimes in the background, chips clacking"
+      },
+      "request_id": null,
+      "seconds": 12.0,
+      "sha256": "e6d4a89f076b1da9670b3d73e42809d672cf5be34d19df72f3b9fb85b2544081"
+    },
+    "chips_bet.ogg": {
+      "cost": "11",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/chips_bet.mp3",
+      "master_sha256": "18115609d855c9be9467940c6298d401441a3dfa1592e61d3c8a410e2ddee6dc",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "A short stack of clay casino chips set down on a felt table",
+      "request": {
+        "duration_seconds": 1,
+        "loop": false,
+        "prompt_influence": 0.6,
+        "text": "A short stack of clay casino chips set down on a felt table"
+      },
+      "request_id": null,
+      "seconds": 0.639,
+      "sha256": "e8ab5722e8835fc8dc726f3896d24f348b98caf1b8b10932ebefc4590bef6447"
+    },
+    "chips_collect.ogg": {
+      "cost": "17",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/chips_collect.mp3",
+      "master_sha256": "1bcfbccb17f17a58b21a46ad9a15db75911d841a96d267e42b4507021383d4e8",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Dealer sweeping up and stacking clay casino chips",
+      "request": {
+        "duration_seconds": 1.5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Dealer sweeping up and stacking clay casino chips"
+      },
+      "request_id": null,
+      "seconds": 1.05,
+      "sha256": "7d162112f64033b462f5af8661fc6658672d46f6732e37558d03fec3e2389233"
+    },
+    "city_day_loop.ogg": {
+      "cost": "165",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/city_day_loop.mp3",
+      "master_sha256": "67b3a890182b0b46efa7fd3faf1ab74f222786e30a7ce38df0946f41e9aaa981",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Distant city daytime ambience: light traffic far away, an occasional distant horn, birds",
+      "request": {
+        "duration_seconds": 15,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Distant city daytime ambience: light traffic far away, an occasional distant horn, birds"
+      },
+      "request_id": null,
+      "seconds": 15.0,
+      "sha256": "d8354575f65abf7af986821676264dcd29d6c81e0ef3dbd3e3a26955d93fcf71"
+    },
+    "civil_siren.ogg": {
+      "cost": "77",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/civil_siren.mp3",
+      "master_sha256": "bf06f6152f4f4dbc8cd447fa55b355fbe04e54c15b674e5c221bfbe9ee540c6e",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Mechanical civil defense siren slowly rising and falling over a city",
+      "request": {
+        "duration_seconds": 7,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Mechanical civil defense siren slowly rising and falling over a city"
+      },
+      "request_id": null,
+      "seconds": 6.076,
+      "sha256": "93252fc800f3549768e9b7a35626f137f87d18966637cff0c65f226cea35b754"
+    },
+    "coins_payout.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/coins_payout.mp3",
+      "master_sha256": "dfaa20a84eec826f928a44051dd73a9484991ca67ca5b1a36d3105810a7d663e",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Coins pouring out of a slot machine into a metal tray",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Coins pouring out of a slot machine into a metal tray"
+      },
+      "request_id": null,
+      "seconds": 2.754,
+      "sha256": "48479b52d097f7f83344bbe35291e63bf2f06b18741fcf01cf137c8ef65fa3c4"
+    },
+    "construction_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/construction_loop.mp3",
+      "master_sha256": "ff934ff1649bb0737e44b43873d3c42e6b485161da67b9d9a6cccb0261108153",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Distant construction site: hammering, a power saw, workers calling out",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Distant construction site: hammering, a power saw, workers calling out"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "b616e524eec378fcaed889de02d53dd29f96c4e3b73f3aa0e794817c6999c8f9"
+    },
+    "crowd_boo.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/crowd_boo.mp3",
+      "master_sha256": "6b46e2335f52851b2ab1254bd32c7408c46de8cf94d8e4cfb188ba1df28aaffa",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Large outdoor crowd booing loudly in disapproval",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Large outdoor crowd booing loudly in disapproval"
+      },
+      "request_id": null,
+      "seconds": 3.923,
+      "sha256": "346ff4f49ad4f62f6120e02a4e4c469fd9c6a49e68a77d4212672129a2681da4"
+    },
+    "crowd_cheer.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/crowd_cheer.mp3",
+      "master_sha256": "a9cacc817f5d61b78e0334074926e2380fb48a47c5fdd4edd7b41b1b7a32c5d5",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Large outdoor crowd cheering, whistling and applauding",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Large outdoor crowd cheering, whistling and applauding"
+      },
+      "request_id": null,
+      "seconds": 4.0,
+      "sha256": "2c45294cea98be238b84aa86e35e45105f65655647bfd82602e272affd47bb3f"
+    },
+    "desert_loop.ogg": {
+      "cost": "165",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/desert_loop.mp3",
+      "master_sha256": "2e545bebe654c3167ebf772b194108c0badfe968ef0944337f4f430a83d76cf3",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Quiet open desert ambience: gentle warm wind, distant birds, insects",
+      "request": {
+        "duration_seconds": 15,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Quiet open desert ambience: gentle warm wind, distant birds, insects"
+      },
+      "request_id": null,
+      "seconds": 15.0,
+      "sha256": "4070d9a4a6a57b41f07f1ed1b0928fd0898ae37dda990c1fee2567b227f7562a"
+    },
+    "dice_cage.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/dice_cage.mp3",
+      "master_sha256": "5eba53bd766b291fecc3ecadd20e0f5c2533d0e295d6f3ea8dda76cbeae97f49",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Dice tumbling inside a spinning wire birdcage",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Dice tumbling inside a spinning wire birdcage"
+      },
+      "request_id": null,
+      "seconds": 2.518,
+      "sha256": "4c344e51290a0d680c27b74e5b25b393395b77875817fb3a13fd26a232ad5f3b"
+    },
+    "dice_roll.ogg": {
+      "cost": "17",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/dice_roll.mp3",
+      "master_sha256": "34d499bb31a1eb4ab39741a154f0817ce83108e60636da60e3cb305f762fbcb8",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Three dice thrown, rolling and settling on a felt table",
+      "request": {
+        "duration_seconds": 1.5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Three dice thrown, rolling and settling on a felt table"
+      },
+      "request_id": null,
+      "seconds": 0.993,
+      "sha256": "5374c7da92f23b7d62d9966c6074080374339845eff73553f03dc5320ae3d6e6"
+    },
+    "earthquake.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/earthquake.mp3",
+      "master_sha256": "da977c45d06325c337aef974a7fc8713374b7e3913f9b0d3ec0dd38ab7f2aca5",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Earthquake: deep ground rumble, rattling windows, creaking buildings, rumble fading out",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Earthquake: deep ground rumble, rattling windows, creaking buildings, rumble fading out"
+      },
+      "request_id": null,
+      "seconds": 5.711,
+      "sha256": "d76a3721c3e313e0b6ce7610760782d450de8e5094a470a4ab6c1e8306671195"
+    },
+    "elevator_ding.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 2.2,
+      "sha256": "e460666bd43ba1d63fd8c58952437ff513c66fb4d6adc098d4a4496a24e64a8c"
+    },
+    "elevator_loop.ogg": {
+      "cost": "55",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/elevator_loop.mp3",
+      "master_sha256": "263ed75665522080212d82d4a26f4b6f103f65a8c55f7d4567e417e008e4dfc1",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Elevator cabin moving: smooth motor hum and cable whir, steady",
+      "request": {
+        "duration_seconds": 5,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Elevator cabin moving: smooth motor hum and cable whir, steady"
+      },
+      "request_id": null,
+      "seconds": 5.0,
+      "sha256": "e6e462eea3b11055468e09889859053c0912df6c166c94fb6fc403c753921be4"
+    },
+    "explosion.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/explosion.mp3",
+      "master_sha256": "d68161658c461329049739dd790d0cc73c7ea2244e33a93abd4374c007e7f1f7",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Building explosion: deep boom, debris crashing down, long rumbling tail",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Building explosion: deep boom, debris crashing down, long rumbling tail"
+      },
+      "request_id": null,
+      "seconds": 4.0,
+      "sha256": "f0a724ea60fe98e9a92013b3d945ec745916e75e888b4daf55f32401ee868823"
+    },
+    "fire_engine.ogg": {
+      "cost": "55",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/fire_engine.mp3",
+      "master_sha256": "bdfef2903a0db598b01ec52313501c9c292b8841f88d6fd18adad44213241a71",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Vintage fire engine siren wailing with two blasts of its air horn",
+      "request": {
+        "duration_seconds": 5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Vintage fire engine siren wailing with two blasts of its air horn"
+      },
+      "request_id": null,
+      "seconds": 5.0,
+      "sha256": "664446032c57c0c6bb258c81dd25cd4184d3711738fc1de9d05bc13d2a5cc119"
+    },
+    "fire_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/fire_loop.mp3",
+      "master_sha256": "5a8dac9be6ac6706048bf0c46623ef11875e59305dc50387771f26fa24057273",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Large building fire: roaring flames, crackling timber, occasional pops, steady",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Large building fire: roaring flames, crackling timber, occasional pops, steady"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "d584d9cc1080586cda32dd536e63bd0d3976b62b970dd1274e60c1889da7dbfd"
+    },
+    "firestorm_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/firestorm_loop.mp3",
+      "master_sha256": "7ab1a76e7dcb4b0fbacdaec81797dbaecd49cc5532bf503a179e0f259b785b85",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Huge firestorm: roaring wind-driven flames and whooshing gusts of fire, steady",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Huge firestorm: roaring wind-driven flames and whooshing gusts of fire, steady"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "9960f0337a24d1e80e23b7dc89a76a67ada9d652fac868a0395a08f22990a5c0"
+    },
+    "flood_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/flood_loop.mp3",
+      "master_sha256": "565165416cfce00f5db562f01d887c646c8a6c5cf3fe20ebed4ee14182ede416",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Floodwater rushing through city streets, heavy turbulent water, steady",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Floodwater rushing through city streets, heavy turbulent water, steady"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "693b1ae6dbbd259a2dd2fa2e2687285f845ee00cf1372e41001277494c9d52c8"
+    },
+    "footsteps_pavement_loop.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/footsteps_pavement_loop.mp3",
+      "master_sha256": "a3a28d2fedd55585e2d2018d9eda21407556e1662bde40dedd5b7e47305b86c9",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Footsteps walking at a steady pace on concrete pavement, hard-soled shoes",
+      "request": {
+        "duration_seconds": 4,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Footsteps walking at a steady pace on concrete pavement, hard-soled shoes"
+      },
+      "request_id": null,
+      "seconds": 4.0,
+      "sha256": "428c1808486d8511cc67b215f23e676c7c4a674be1304f1e59ec9710b5faede0"
+    },
+    "footsteps_sand_loop.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/footsteps_sand.mp3",
+      "master_sha256": "2271e10cb666ec40e39d5244085b8030d483768f335bf53701eaa08b942d7c9a",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.7,
+        "text": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between"
+      },
+      "request_id": null,
+      "seconds": 4.24,
+      "sha256": "fd1cc89974c94a49d9517154adb928b121802f240eaf2a88d2bb03abebc40d38"
+    },
+    "footsteps_sand_step_1.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/footsteps_sand.mp3",
+      "master_sha256": "2271e10cb666ec40e39d5244085b8030d483768f335bf53701eaa08b942d7c9a",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.7,
+        "text": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between"
+      },
+      "request_id": null,
+      "seconds": 0.45,
+      "sha256": "88f736697d76f83a0d7732045f978ee0b2ce3bcfdcdbca4c9f253f2ec8bffde9"
+    },
+    "footsteps_sand_step_2.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/footsteps_sand.mp3",
+      "master_sha256": "2271e10cb666ec40e39d5244085b8030d483768f335bf53701eaa08b942d7c9a",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.7,
+        "text": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between"
+      },
+      "request_id": null,
+      "seconds": 0.45,
+      "sha256": "aca69f47f9191d69a83e18cd9bc361d16255a82b3a7b2f6673becbc1bdf8fd34"
+    },
+    "footsteps_sand_step_3.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/footsteps_sand.mp3",
+      "master_sha256": "2271e10cb666ec40e39d5244085b8030d483768f335bf53701eaa08b942d7c9a",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.7,
+        "text": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between"
+      },
+      "request_id": null,
+      "seconds": 0.435,
+      "sha256": "195528ceed5fd6d5853ad8547d9c2380314e883ec69c5fda5ca8ec9d324189fb"
+    },
+    "footsteps_sand_step_4.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/footsteps_sand.mp3",
+      "master_sha256": "2271e10cb666ec40e39d5244085b8030d483768f335bf53701eaa08b942d7c9a",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.7,
+        "text": "Six separate single footsteps on crunchy desert gravel, each step clearly apart with a short silence between"
+      },
+      "request_id": null,
+      "seconds": 0.45,
+      "sha256": "349fa077e02a0669a50483af9e67f44a60b92709369657ea9de338c00b1d2800"
+    },
+    "fountain_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/fountain_loop.mp3",
+      "master_sha256": "fabb5ce4523c64beae75b82a100ca5e890b549a41be78e9219b4d0c45528881b",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Stone fountain splashing water steadily in a large indoor hall",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Stone fountain splashing water steadily in a large indoor hall"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "768b6986890fbc2f17f469a8ffb456bdd6a75c2dfbb8c25f805b2e6a73047e01"
+    },
+    "giant_footsteps.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/giant_footsteps.mp3",
+      "master_sha256": "cb8abe7985a8532b14eb85582b91be56cbbe028abe32580c28def5719f04f017",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Three enormous slow footsteps of a giant, each a heavy ground-shaking thud",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Three enormous slow footsteps of a giant, each a heavy ground-shaking thud"
+      },
+      "request_id": null,
+      "seconds": 2.498,
+      "sha256": "c27ce495b9ed68615cbe5cd24c21d3635e0bd30719fd3c69a9df47cfe7d493a9"
+    },
+    "giant_roar.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/giant_roar.mp3",
+      "master_sha256": "046fb7ebd7987c44a20c5d8940e23e6f87bf152d200b3b5b1cfede93ac18ad04",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Enormous giant's deep bellowing roar echoing through a desert canyon, heavy footstep thuds",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Enormous giant's deep bellowing roar echoing through a desert canyon, heavy footstep thuds"
+      },
+      "request_id": null,
+      "seconds": 4.0,
+      "sha256": "23030b43f7517a24cc5306130903484c07ef5085734dd299f512abd9286a7b79"
+    },
+    "gunshot.ogg": {
+      "cost": "17",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/gunshot.mp3",
+      "master_sha256": "2d4c19d29ab16667674599a722466be7da581cec0ce0a11c78ea59bf836a4883",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Single distant pistol shot echoing between city buildings",
+      "request": {
+        "duration_seconds": 1.5,
+        "loop": false,
+        "prompt_influence": 0.6,
+        "text": "Single distant pistol shot echoing between city buildings"
+      },
+      "request_id": null,
+      "seconds": 1.479,
+      "sha256": "716f6f6c5fb6a26038bb27f37957c21bf9b388c5f28586605d52d019c15971bf"
+    },
+    "helicopter_loop.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/helicopter_loop.mp3",
+      "master_sha256": "64270ad5519202523e51034471e2073f1f9f94d310bd826d6e1b3d955883f17e",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Small helicopter hovering overhead, steady rotor thump and turbine whine",
+      "request": {
+        "duration_seconds": 6,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Small helicopter hovering overhead, steady rotor thump and turbine whine"
+      },
+      "request_id": null,
+      "seconds": 6.0,
+      "sha256": "de97b28af707648fc718ec69ded48d8961dd77b8d5d21852cb590ba5a8a98e92"
+    },
+    "jet_landing.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/jet_landing.mp3",
+      "master_sha256": "dc41513f09bc64dfa32e999bb091882ac813b54edc795729a0a48ffda6fa45ac",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Jet airliner landing: engines whine down, tires chirp on the runway, reverse thrust roar",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Jet airliner landing: engines whine down, tires chirp on the runway, reverse thrust roar"
+      },
+      "request_id": null,
+      "seconds": 5.942,
+      "sha256": "a2ae01002bf492dd6a130c926598b9e8bf48b1c690382402aeced9d90681f463"
+    },
+    "jet_takeoff.ogg": {
+      "cost": "77",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/jet_takeoff.mp3",
+      "master_sha256": "dfcc06630e724aef9dcfd64fb405dd7cf327b6b1f6837c9c74a8798c3d5d94ab",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Jet airliner taking off and climbing away, engines roaring then fading",
+      "request": {
+        "duration_seconds": 7,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Jet airliner taking off and climbing away, engines roaring then fading"
+      },
+      "request_id": null,
+      "seconds": 6.846,
+      "sha256": "e2d353ea4a0357417b577eb91283f815020fd624e48ae90b1456220e56ab14f1"
+    },
+    "lava_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/lava_loop.mp3",
+      "master_sha256": "0f03409eb45947ecf0a982be6b759e1acc758df81808ad44b84bc6a5ad6761b5",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Molten lava flowing slowly, bubbling and hissing, steady",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Molten lava flowing slowly, bubbling and hissing, steady"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "a4b1f70d3d9ab0ce1002001b958f008c580de71a964612758027a62d3863d2c9"
+    },
+    "mayday.ogg": {
+      "cost": "24",
+      "generated": "2026-10-08",
+      "kind": "voice",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/mayday.mp3",
+      "master_sha256": "8d8a6fb287209a6dee1135a5251bbe59fa2dd339c5f808f2f7afa6a211cde13c",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_v3",
+      "prompt": "[panicked, shouting] Mayday! Mayday! We're going down!",
+      "request": {
+        "text": "[panicked, shouting] Mayday! Mayday! We're going down!",
+        "voice_settings": {
+          "similarity_boost": 0.75,
+          "stability": 0.3
+        }
+      },
+      "request_id": "Ce3Ve4e2YOr4wd8yYphb",
+      "seconds": 2.8,
+      "sha256": "091cddef7ef43d181e9521bd7a1964910b452c84cbbe08c83bbccedb853e0074"
+    },
+    "meltdown_alarm.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/meltdown_alarm.mp3",
+      "master_sha256": "d7a8d795711f4ebd8470f6d5d51df260d2fb40c95cc4ffb802c1146d7fb62c99",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Nuclear power plant emergency: pulsing reactor alarm klaxon over a deep rumbling hum",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Nuclear power plant emergency: pulsing reactor alarm klaxon over a deep rumbling hum"
+      },
+      "request_id": null,
+      "seconds": 5.3,
+      "sha256": "f39a1c12983a04ed4a43abc47a9cf59f782025de4be730b0e5731e865d5e93dc"
+    },
+    "money_wheel_spin.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/money_wheel_spin.mp3",
+      "master_sha256": "62b984ff6b4b172941ac6aa8a5ad981923dde7951dffe3884708bec900b6bce0",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Large wooden carnival money wheel spinning, leather clapper clicking on pegs, slowing down and stopping",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Large wooden carnival money wheel spinning, leather clapper clicking on pegs, slowing down and stopping"
+      },
+      "request_id": null,
+      "seconds": 5.842,
+      "sha256": "9a22d53d42e62642886b096506cceaa0cb927f6ec9d14638990f48e2edc133d8"
+    },
+    "newspaper.ogg": {
+      "cost": "17",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/newspaper.mp3",
+      "master_sha256": "6353f3bc57a1368f54dc685d55123c60a7edae3fafb5bd6fc66dad617847afd6",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Newspaper unfolding with a crisp paper rustle",
+      "request": {
+        "duration_seconds": 1.5,
+        "loop": false,
+        "prompt_influence": 0.6,
+        "text": "Newspaper unfolding with a crisp paper rustle"
+      },
+      "request_id": null,
+      "seconds": 1.15,
+      "sha256": "b7ab29247cc904c602dc54c8d0941308c113f793948310d7392dad42b30f3f12"
+    },
+    "pilot_hit.ogg": {
+      "cost": "20",
+      "generated": "2026-10-08",
+      "kind": "voice",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/pilot_hit.mp3",
+      "master_sha256": "7b311d1ef386816d5033df79dd1856c330e54bd67c4369541e90c58b683c1a76",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_v3",
+      "prompt": "[shouting] I'm hit! I'm hit! Losing altitude!",
+      "request": {
+        "text": "[shouting] I'm hit! I'm hit! Losing altitude!",
+        "voice_settings": {
+          "similarity_boost": 0.75,
+          "stability": 0.3
+        }
+      },
+      "request_id": "WbauzJKA2M7Aabngqh87",
+      "seconds": 3.28,
+      "sha256": "c1f070a2f5d3b88d9e739d668b2e29831d4d170b18b9b8cbb1c54e8d6b7d50f6"
+    },
+    "plane_dive.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/plane_dive.mp3",
+      "master_sha256": "918d7e71c80a42131346a8833b56025de4efbd08c71da3a9470cc8f5778fec73",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Airliner diving out of control, engines screaming with a rising whine",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Airliner diving out of control, engines screaming with a rising whine"
+      },
+      "request_id": null,
+      "seconds": 3.944,
+      "sha256": "f9629fd8c31a036ee70f8dad7dea64cfb96b1b3160db39f7ef4112eea3372677"
+    },
+    "police_siren.ogg": {
+      "cost": "55",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/police_siren.mp3",
+      "master_sha256": "835621f67d275e4207e30cb61c3540e01cf0513b4969255477180efd1399216b",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "1960s American police car siren wailing as the car drives past",
+      "request": {
+        "duration_seconds": 5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "1960s American police car siren wailing as the car drives past"
+      },
+      "request_id": null,
+      "seconds": 4.917,
+      "sha256": "f6d88e9ae4dcdd12b23233a62f024feb01d18c9ef10151d594a10286e95f7861"
+    },
+    "prison_alarm.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/prison_alarm.mp3",
+      "master_sha256": "56c7114f8866f041b599d12c8501c57d60f7bd0ec2d07c08bf51e3e9e0d7b94e",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Prison break alarm: loud klaxon blaring with an alarm bell ringing",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Prison break alarm: loud klaxon blaring with an alarm bell ringing"
+      },
+      "request_id": null,
+      "seconds": 4.0,
+      "sha256": "20bd97d2d2cdf940192e398a4a11f134d67168b5d5311c117a5fcd8368bd6caa"
+    },
+    "rain_loop.ogg": {
+      "cost": "110",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/rain_loop.mp3",
+      "master_sha256": "2d2a6608e159cdb08ac80cf54ff38a71bf3342d6029eff7f4c8109beedd9679e",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Steady heavy rain falling on city streets and rooftops",
+      "request": {
+        "duration_seconds": 10,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Steady heavy rain falling on city streets and rooftops"
+      },
+      "request_id": null,
+      "seconds": 10.0,
+      "sha256": "72c626fef93af1050d750fa34ca8f704be654df7a7506d6832bfd953628ed8e2"
+    },
+    "resort_jackpot.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/resort_jackpot.mp3",
+      "master_sha256": "192a50af405f19f46a1dffc5f2ae4e9bcf30e7bf97cf6ad5c6d07fba2b475bed",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Glitzy Las Vegas casino jackpot: ringing bells and a cascade of coins, celebratory",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Glitzy Las Vegas casino jackpot: ringing bells and a cascade of coins, celebratory"
+      },
+      "request_id": null,
+      "seconds": 3.0,
+      "sha256": "febe68f5ef1b662ba47a5be9d1ec1e055b8721d726210151e06fcfc4a5a88b5d"
+    },
+    "riot_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/riot_loop.mp3",
+      "master_sha256": "a8dfa7c5ffbd73a5a9ed62b8b11041ca4365bb8e88174afa38fd890153e2e2f8",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Angry crowd rioting in the street: shouting, chanting, glass breaking in the distance",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Angry crowd rioting in the street: shouting, chanting, glass breaking in the distance"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "7a8093ce1e4c73817535ce69f3a6ba54b3a63827b416a1b122152e36d19ed903"
+    },
+    "rocket_burnout.ogg": {
+      "cost": "17",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/rocket_burnout.mp3",
+      "master_sha256": "84f57cfdb86b89a13b02668adfe681a207d42d7f9ec61462ddb7fd1a4ba418dd",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Small rocket engine sputtering, coughing out and popping",
+      "request": {
+        "duration_seconds": 1.5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Small rocket engine sputtering, coughing out and popping"
+      },
+      "request_id": null,
+      "seconds": 1.301,
+      "sha256": "c96f18c0021bfb13be003fa46e1ff544830cad89cf5102bb08bd48e87e1c663a"
+    },
+    "rocket_launch.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/rocket_launch.mp3",
+      "master_sha256": "bf92773d7bc3c184dc49c229e0c0d5f957d301d35b9c0a976355282f7168a236",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Small retro toy rocket launching with a fizzing whoosh",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Small retro toy rocket launching with a fizzing whoosh"
+      },
+      "request_id": null,
+      "seconds": 1.959,
+      "sha256": "cce2fd619c7c74cd92c14ff0c5056764025bfca5fdb514bbfc6096904982d25f"
+    },
+    "roulette_spin.ogg": {
+      "cost": "77",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/roulette_spin.mp3",
+      "master_sha256": "809797dc860669e086c0f9fe05990870b9938e1f898ee269f445f2ffb20e6ef0",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Roulette wheel spinning, ivory ball rolling around the rim, then bouncing and settling into a pocket",
+      "request": {
+        "duration_seconds": 7,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Roulette wheel spinning, ivory ball rolling around the rim, then bouncing and settling into a pocket"
+      },
+      "request_id": null,
+      "seconds": 6.587,
+      "sha256": "021b8d4b4470927d51c93f491d43775750a746598106a96d4caa4bdf7adaafc8"
+    },
+    "sailing_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/sailing_loop.mp3",
+      "master_sha256": "b1ac8d19f9147efb8cff98e63caa63a005084e9280157f2f4adecf61b505aee5",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Sailboat gliding on a calm lake: water lapping on the hull, rigging creaking, light wind",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Sailboat gliding on a calm lake: water lapping on the hull, rigging creaking, light wind"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "aca27159cc4dbc26b802d268e6a1ce5dcd35792f62c90d448c037af3531abc42"
+    },
+    "school_bell.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/school_bell.mp3",
+      "master_sha256": "372939ebaed77e3daef81c2a711b4dbff7b1f21f91b6d5a97b2f4e6fe8878846",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Old electric school bell ringing in a hallway",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Old electric school bell ringing in a hallway"
+      },
+      "request_id": null,
+      "seconds": 3.0,
+      "sha256": "1e9738b725ea672d72d685a18df3f43751bbf1b4187d13a30006548a58fc4fa3"
+    },
+    "ship_horn.ogg": {
+      "cost": "44",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/ship_horn.mp3",
+      "master_sha256": "9ffab55dc852291912fee9ce1cd33e59b78d76ba366293e8556c9d52036f044f",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Deep cargo ship horn blast echoing across a harbor",
+      "request": {
+        "duration_seconds": 4,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Deep cargo ship horn blast echoing across a harbor"
+      },
+      "request_id": null,
+      "seconds": 2.844,
+      "sha256": "e21d9cbc6b69f1e398596097e246aad21166d2356f89e39e6dff361f2c0384eb"
+    },
+    "slot_reel_stop.ogg": {
+      "cost": "9",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/slot_reel_stop.mp3",
+      "master_sha256": "38a453bdfe7c5e972b4275a7433915a006a8a01025cf8eacb820814b514743a1",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Single mechanical slot machine reel stopping with a heavy clunk",
+      "request": {
+        "duration_seconds": 0.8,
+        "loop": false,
+        "prompt_influence": 0.6,
+        "text": "Single mechanical slot machine reel stopping with a heavy clunk"
+      },
+      "request_id": null,
+      "seconds": 0.386,
+      "sha256": "76f609b7e697a7051be1c6fdffcb59645da129e0af567ec43c8b6ff45479f1d7"
+    },
+    "slot_spin.ogg": {
+      "cost": "28",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/slot_spin.mp3",
+      "master_sha256": "8f4c72f2aed27384aefda642ed12c4a8f71895cd00c718676f8504aa78f66243",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Mechanical slot machine: lever pulled, reels spinning with ratcheting clicks",
+      "request": {
+        "duration_seconds": 2.5,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Mechanical slot machine: lever pulled, reels spinning with ratcheting clicks"
+      },
+      "request_id": null,
+      "seconds": 2.315,
+      "sha256": "71a2d669c933dfe4b04c6dc95d9c7d9925d68ef3688a2bc22076f03fc98840bc"
+    },
+    "station_chime.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 2.4,
+      "sha256": "44c6c93c398529b74ce93fac1d56cd8c3246a3afc59970c8209a82ba7e2ba5e5"
+    },
+    "subway_arrive.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/subway_arrive.mp3",
+      "master_sha256": "852b91ddafa674e3a78cf09c73a7be71d93259df4767d7dc8b3cc5b6bc804082",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Subway train arriving at an underground station: rumbling closer, brakes squealing, stopping",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Subway train arriving at an underground station: rumbling closer, brakes squealing, stopping"
+      },
+      "request_id": null,
+      "seconds": 5.851,
+      "sha256": "a7a85e4c14bb2d0ceaf76084455002a7a28b432e4347a0f23f40cc53d951d620"
+    },
+    "thunder.ogg": {
+      "cost": "66",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/thunder.mp3",
+      "master_sha256": "406b95ae27ccb428471e20fdea6e437139ac2b1930d0fee193b5046e6118282f",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Close thunderclap followed by long rolling thunder",
+      "request": {
+        "duration_seconds": 6,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Close thunderclap followed by long rolling thunder"
+      },
+      "request_id": null,
+      "seconds": 5.504,
+      "sha256": "967b3c8386062f2e950aabaf3555655f59fdd360a66df94f177775458528cb20"
+    },
+    "tire_skid.ogg": {
+      "cost": "22",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/tire_skid.mp3",
+      "master_sha256": "7051be78365c30c0143973c4f4e3a80e4961547bca947173ff84c34128d4fc21",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Car tires skidding on asphalt",
+      "request": {
+        "duration_seconds": 2,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Car tires skidding on asphalt"
+      },
+      "request_id": null,
+      "seconds": 1.448,
+      "sha256": "722b18fb483f621773e35c30dcac274d437608d299066858092da1d3f0f7ed60"
+    },
+    "tornado_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/tornado_loop.mp3",
+      "master_sha256": "85c616a13e3126ad999e06df81501c527ac7275ea26fbf15217b45c0a267a71d",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Tornado roaring like a freight train with swirling debris, steady",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Tornado roaring like a freight train with swirling debris, steady"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "ea5d689becc7f38cf96bbf93f64aed4df11391cc1768f55007786f742d25e72e"
+    },
+    "train_doors.ogg": {
+      "cost": "33",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/train_doors.mp3",
+      "master_sha256": "752e6aeb783785cd55340506b7d8102a3e4206c199e841eff382067f578ce7de",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Passenger train sliding doors opening with a pneumatic hiss",
+      "request": {
+        "duration_seconds": 3,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Passenger train sliding doors opening with a pneumatic hiss"
+      },
+      "request_id": null,
+      "seconds": 3.0,
+      "sha256": "6590719e14be62909f286462045d20a66e47facf6e067408fc8a8ca2fd23bdaa"
+    },
+    "train_pass.ogg": {
+      "cost": "77",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/train_pass.mp3",
+      "master_sha256": "bfdc4f82ffa0d811a73e3ac2e6f3f574920e42d79fe85f9a1239f54df6dd38cf",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Diesel passenger train passing by with a horn blast and clacking wheels",
+      "request": {
+        "duration_seconds": 7,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Diesel passenger train passing by with a horn blast and clacking wheels"
+      },
+      "request_id": null,
+      "seconds": 6.881,
+      "sha256": "965115fe9e031d6b8e06def3938ce7827ad962519fcbc057c7186d16d3647da4"
+    },
+    "train_ride_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/train_ride_loop.mp3",
+      "master_sha256": "c766920359e0a8659e44da91c627fe19e7645dad7d1f8a9630d4260937882c59",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Inside a moving passenger train carriage: wheels clacking over rail joints, low rumble, steady",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Inside a moving passenger train carriage: wheels clacking over rail joints, low rumble, steady"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "9117806aa4ca377d0a1830f757bb404cc24cf78fa8a1469f11f3cdd087528d1d"
+    },
+    "volcano_eruption.ogg": {
+      "cost": "77",
+      "generated": "2026-10-08",
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/volcano_eruption.mp3",
+      "master_sha256": "3298155900261aaa6457def25915f1202f9db3b19fe13e053fb8640f8acd7b5c",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Volcano erupting: deep explosive boom, ground rumbling, rocks and ash raining down",
+      "request": {
+        "duration_seconds": 7,
+        "loop": false,
+        "prompt_influence": 0.5,
+        "text": "Volcano erupting: deep explosive boom, ground rumbling, rocks and ash raining down"
+      },
+      "request_id": null,
+      "seconds": 7.0,
+      "sha256": "56d445d58d2910776674c57fd489e09970da918fe4bd423c7f5e24268280a488"
+    },
+    "windstorm_loop.ogg": {
+      "cost": "88",
+      "generated": "2026-10-08",
+      "kind": "loop",
+      "license": "CC-BY-NC-SA-4.0",
+      "master": "assets/audio/sfx/windstorm_loop.mp3",
+      "master_sha256": "37b25f70cb7eea370c86f8e42cb26daf560722bee6915f95ba637894e4cdb19c",
+      "method": "generated with ElevenLabs, processed by tools/generate_sfx.py",
+      "model": "eleven_text_to_sound_v2",
+      "prompt": "Howling desert windstorm with strong gusts and whistling, steady",
+      "request": {
+        "duration_seconds": 8,
+        "loop": true,
+        "prompt_influence": 0.5,
+        "text": "Howling desert windstorm with strong gusts and whistling, steady"
+      },
+      "request_id": null,
+      "seconds": 8.0,
+      "sha256": "f7fe047b37c8e0a1bb1c3a4faba3fee363384edbedebd367e1bdd38733575f4d"
+    }
+  },
+  "ui": {
+    "alert.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 1.3,
+      "sha256": "2cd760e68d52981ea880bae443307d2e2d6d47597cc33e46643b7ea76aca64b4"
+    },
+    "build_network.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.28,
+      "sha256": "c51ff62b447d4553b3f54b4bab91332f95e0c5babe98e9519d65ce290c5bf240"
+    },
+    "cash.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.9,
+      "sha256": "7e003704cf0df88094469dbdca609a821c021ee44339f83d8e80ff7016a55716"
+    },
+    "casino_big_win.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 2.6,
+      "sha256": "b534344cee51dab6578faf7374f59b15143dedd74c14d57803a8135ada069c1a"
+    },
+    "casino_lose.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 1.1,
+      "sha256": "5846693a162b277ad271ee6b093093dd4a4db7578b845922a8608f804d982410"
+    },
+    "casino_win.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 1.4,
+      "sha256": "dbf2b8c29dbd7e7fbb68fc7d9db8d3461116e84aa62b0cd2b785d669f3a726ac"
+    },
+    "click.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.05,
+      "sha256": "427d2c88719d5940da6ce3f7be839287d9305004070dc3cf5bd4ab61782afcb0"
+    },
+    "error.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.42,
+      "sha256": "cedbc977b00fb48d64ea9db371c745ff98afee90e49a46fb1cc545ab637f24da"
+    },
+    "notice.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 1.9,
+      "sha256": "cf0eb33a5585fad609d9dd0f14d3a5c6f6561749132bb779315b2d435ddc29a7"
+    },
+    "place_zone.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.22,
+      "sha256": "93327211107bcf6799256156f759934e5bda5c55e691430fa8d2e1b4d1d1ae68"
+    },
+    "poker_deal.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.5,
+      "sha256": "e2713c84452d77532dd853f4c46af21d9df6792ef698b0280c3c1b0a72c38030"
+    },
+    "poker_hold.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.06,
+      "sha256": "fe4965138e4add8d23db24378003dd25ffd0e52a81431ec5d7365dbe609bfe8e"
+    },
+    "reward.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 2.6,
+      "sha256": "a951e49e617c326779644bc86808f05c2cdc44194926aae3130669dc48d4737e"
+    },
+    "toggle.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.09,
+      "sha256": "634c1eee1b2cdae43bfb75c891b62d220b56c110e35463591209350d109265e0"
+    },
+    "tool_select.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.32,
+      "sha256": "e2de1371d34917b5f625a199ce4daa21148bc900765598214b38f71443a04561"
+    },
+    "trajectory_tick.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.05,
+      "sha256": "1cbd621ef65df69d8e1bc99041a4b515711bdbd43c230f9ed3dd374f5d8311f8"
+    },
+    "window_close.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.16,
+      "sha256": "df8b10450f34af8a2697fb547f3be1ed7ac59451d826da90218627c6073f28dd"
+    },
+    "window_open.ogg": {
+      "kind": "oneshot",
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "synthesized by tools/build_ui_sounds.py",
+      "seconds": 0.16,
+      "sha256": "2cc363984a5da095532c20e7f4bf5f39f79669dde76ee6f58687409c6a87663c"
+    }
+  }
+}

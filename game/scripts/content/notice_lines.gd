@@ -79,7 +79,7 @@ const REWARDS: Dictionary = {
 	},
 }
 
-## Construction prompts: bridges, tunnels and neighbor connections.
+## Construction prompts: bridges, tunnels, neighbor connections and ramps.
 const PROMPTS: Dictionary = {
 	&"bridge": {
 		"title": "Build a Bridge",
@@ -92,6 +92,10 @@ const PROMPTS: Dictionary = {
 	&"neighbor": {
 		"title": "Connect to {neighbor}",
 		"body": "Carry this {kind} across the city limit to {neighbor}? The link costs {cost} and opens trade and travel between the two towns.",
+	},
+	&"onramp": {
+		"title": "Add an On-ramp?",
+		"body": "This road now meets the highway. Add an on-ramp so traffic can get on and off? The highlighted tile marks the spot.",
 	},
 }
 

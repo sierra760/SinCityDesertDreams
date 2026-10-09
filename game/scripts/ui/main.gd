@@ -71,6 +71,8 @@ var choice_dialog: ConstructionChoiceDialog
 var query_panel: QueryPanel
 ## The gaming-resort table, created the first time one opens.
 var casino_overlay: CasinoTableOverlay
+## Music, interface sounds and effects.
+var audio: GameAudio
 var _casino_hid_hud := false
 
 ## The selected tool, or NO_TOOL.
@@ -195,6 +197,11 @@ func _ready() -> void:
 	exploration.release_ui_focus = display_layout.release_city_focus
 	exploration.return_requested.connect(explore_switch.leave)
 	exploration.casino_table_requested.connect(_on_casino_table_requested)
+	audio = GameAudio.new()
+	audio.name = "Audio"
+	add_child(audio)
+	audio.apply_preferences(preferences)
+	audio.bind(self)
 	menu_bar.popup_opened.connect(exploration.suspend)
 	get_window().focus_exited.connect(exploration.suspend)
 	get_window().focus_exited.connect(restore_temporary_bulldoze)
@@ -922,6 +929,7 @@ func open_casino_table(resort: StringName, game: StringName, rng: CasinoRng = nu
 		casino_overlay.bind_layout(display_layout)
 		casino_overlay.closed.connect(_on_casino_closed)
 		casino_overlay.round_settled.connect(func(_resort: StringName, _game: StringName, _outcome: Dictionary) -> void: _refresh_after_casino())
+		if audio != null: audio.bind_casino(casino_overlay)
 	push_modal()
 	modal_layer.move_child(casino_overlay, modal_layer.get_child_count() - 1)
 	casino_overlay.open(sim, resort, game, rng)

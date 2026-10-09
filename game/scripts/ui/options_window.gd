@@ -29,6 +29,8 @@ var _mobile_display := MobilePlatform.is_mobile()
 var controls := ControlBindings.new()
 var keyboard_section: VBoxContainer
 var sensitivity_slider: HSlider
+var music_slider: HSlider
+var effects_slider: HSlider
 var invert_check: CheckBox
 var tabs: TabBar
 var display_page: VBoxContainer
@@ -172,6 +174,14 @@ func _build() -> void:
 	checks[&"water_animation"] = water_check
 	graphics_row.add_child(water_check)
 	body.add_child(graphics_row)
+	body.add_child(UIFactory.make_section_header("Sound"))
+	var sound_row := UIFactory.ResponsiveTileGrid.new()
+	sound_row.columns = 2
+	sound_row.add_theme_constant_override("h_separation", 12)
+	sound_row.add_theme_constant_override("v_separation", 8)
+	music_slider = _volume_row(sound_row, "Music", &"music_enabled", &"music_volume")
+	effects_slider = _volume_row(sound_row, "Sound effects", &"effects_enabled", &"effects_volume")
+	body.add_child(sound_row)
 	var hint := UIFactory.make_label("Map visibility and zoom: View menu. Automatic budgeting: Reports → Budget. Disasters: Disasters menu.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint)
@@ -200,6 +210,28 @@ func _build() -> void:
 	WindowDrag.enable(chrome["title_bar"], panel)
 
 
+## A checkbox that turns a sound group on or off, beside its volume slider.
+func _volume_row(row: Control, label: String, enabled_key: StringName, volume_key: StringName) -> HSlider:
+	var check := CheckBox.new()
+	check.text = label
+	check.custom_minimum_size.y = 44
+	check.toggled.connect(func(on: bool) -> void: _changed(enabled_key, on))
+	checks[enabled_key] = check
+	row.add_child(check)
+	var slider := HSlider.new()
+	slider.name = String(volume_key).capitalize().replace(" ", "")
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = 0.8
+	slider.custom_minimum_size = Vector2(160, 44)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.tooltip_text = label + " volume"
+	slider.value_changed.connect(func(value: float) -> void: _changed(volume_key, value))
+	row.add_child(slider)
+	return slider
+
+
 func _changed(key: StringName, value: Variant) -> void:
 	if _updating:
 		return
@@ -224,6 +256,8 @@ func set_values(values: Dictionary) -> void:
 		controls.configure(values.control_bindings)
 		_refresh_bindings()
 	if values.has("explore_sensitivity"): sensitivity_slider.value = float(values.explore_sensitivity)
+	if values.has("music_volume"): music_slider.value = float(values.music_volume)
+	if values.has("effects_volume"): effects_slider.value = float(values.effects_volume)
 	if values.has("explore_invert_y"): invert_check.button_pressed = bool(values.explore_invert_y)
 	if values.has("render_quality"):
 		quality_button.select(maxi(0, QUALITY_VALUES.find(values.render_quality)))
@@ -252,6 +286,8 @@ func values() -> Dictionary:
 	out["render_scale"] = RESOLUTION_VALUES[resolution_button.selected]
 	out["control_bindings"] = controls.values()
 	out["explore_sensitivity"] = sensitivity_slider.value
+	out["music_volume"] = music_slider.value
+	out["effects_volume"] = effects_slider.value
 	out["explore_invert_y"] = invert_check.button_pressed
 	return out
 

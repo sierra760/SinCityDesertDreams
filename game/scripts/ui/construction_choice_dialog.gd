@@ -29,6 +29,8 @@ var _funds := 0
 var _shade: ColorRect
 var _title_bar: Control
 var _group: ButtonGroup
+## A point on screen the panel keeps clear of, or (-1, -1).
+var _clear_point := Vector2(-1, -1)
 
 
 func _init() -> void:
@@ -86,12 +88,14 @@ func _build() -> void:
 
 
 ## Show the quote. `options` is a list of {key, label, cost}; the first one
-## is selected. `action` names the Build button. Options the treasury cannot
-## pay for stay listed but cannot be chosen.
-func open(title: String, body: String, options: Array, funds: int, action := "Build") -> void:
+## is selected. `action` names the Build button and `dismiss` the Cancel
+## button. Options the treasury cannot pay for stay listed but cannot be chosen.
+func open(title: String, body: String, options: Array, funds: int, action := "Build", dismiss := "Cancel") -> void:
 	title_label.text = title
 	body_label.text = body
+	_clear_point = Vector2(-1, -1)
 	build_button.text = action
+	cancel_button.text = dismiss
 	_funds = funds
 	_options.clear()
 	for b in option_buttons:
@@ -121,6 +125,26 @@ func open(title: String, body: String, options: Array, funds: int, action := "Bu
 		build_button.disabled = true
 	panel.size.y = maxf(panel.size.y,260.0)
 	UIFactory.contain_modal_focus(self,cancel_button if build_button.disabled else build_button)
+	_fit_to_content.call_deferred()
+
+
+## Once laid out, grow or shrink the panel to show its text and every option
+## without scrolling where the screen allows, centred, then step aside from
+## the point to keep clear of.
+func _fit_to_content() -> void:
+	# New option rows report their size only after a layout pass.
+	if is_inside_tree():
+		await get_tree().process_frame
+	if not visible:
+		return
+	var body := body_label.get_parent() as Control
+	var scroll := body.get_parent() as Control
+	var bounds := get_rect()
+	var needed := panel.size.y - scroll.size.y + body.get_combined_minimum_size().y
+	var height := clampf(maxf(needed, 260.0), 0.0, maxf(260.0, bounds.size.y - 16.0))
+	panel.size.y = height
+	panel.position.y = maxf(8.0, (bounds.size.y - height) / 2.0)
+	_step_aside()
 
 
 ## Select an option by key; returns false when no such option is listed.
@@ -139,6 +163,36 @@ func _select_index(i: int) -> void:
 	var affordable := cost <= _funds
 	price_label.text = "Cost: %s" % _price(cost) if affordable else "Cost: %s (the treasury holds %s)" % [_price(cost), _price(_funds)]
 	build_button.disabled = not affordable
+
+
+## Move the panel off `point` (root coordinates) and the marker floating
+## above it, so a highlighted spot on the map stays visible: above it when
+## there is more room above, else below; beside it when neither fits.
+func keep_clear_of(point: Vector2) -> void:
+	_clear_point = point
+	_step_aside()
+
+
+func _step_aside() -> void:
+	var point := _clear_point
+	if not visible or point.x < 0.0:
+		return
+	var keep := Rect2(point.x - 48.0, point.y - 120.0, 96.0, 156.0)
+	if not panel.get_global_rect().intersects(keep):
+		return
+	var bounds := get_global_rect()
+	var height := panel.size.y
+	var above := keep.position.y - bounds.position.y
+	var below := bounds.end.y - keep.end.y
+	var top := keep.position.y - 12.0 - height if above >= below else keep.end.y + 12.0
+	top = clampf(top, bounds.position.y + 8.0, maxf(bounds.position.y + 8.0, bounds.end.y - height - 8.0))
+	panel.global_position.y = top
+	if not panel.get_global_rect().intersects(keep):
+		return
+	# Too short to clear it vertically: move to the wider side instead.
+	var width := panel.size.x
+	var left := keep.position.x - 12.0 - width if keep.position.x - bounds.position.x >= bounds.end.x - keep.end.x else keep.end.x + 12.0
+	panel.global_position.x = clampf(left, bounds.position.x + 8.0, maxf(bounds.position.x + 8.0, bounds.end.x - width - 8.0))
 
 
 ## Key of the selected option, or empty.

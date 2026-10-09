@@ -47,6 +47,8 @@ const OPPOSITION_THRESHOLD_RANGE := 200
 ## Clearing more tree tiles than this in one drag draws a protest.
 const TREE_PROTEST_THRESHOLD := 5
 const FACILITY_NAME_MAX := 24
+## Most ramp sites `onramp_sites` offers at once.
+const ONRAMP_OFFER_LIMIT := 4
 
 const REASON_FUNDS := "insufficient funds"
 const REASON_BOUNDS := "outside the city"
@@ -514,6 +516,19 @@ func _plan_network(family: int, price: int, from: Vector2i, to: Vector2i, option
 		if at_limit and p != neighbor.get("tile", Vector2i(-1, -1)):
 			stop_reason = REASON_LIMIT
 			break
+		if NetworkShapes.is_highway(id):
+			# A highway is two tiles wide: the run crosses both at once.
+			var over := _highway_overpass(family, path, i)
+			if not bool(over["ok"]):
+				stop_reason = over["reason"]
+				break
+			for k in 2:
+				var t: Vector2i = path[i + k]["pos"]
+				tiles.append(t)
+				ops.append(_surface_op(t, int(over["id"]), family))
+				cost += price
+			i += 2
+			continue
 		var crossing := NetworkShapes.crossing_id(family, id)
 		if crossing != Buildings.NONE and city.is_flat(p.x, p.y) \
 				and _crosses_at_right_angle(step, axis, _straight_axis(id)):
@@ -583,6 +598,39 @@ func _landing_refusal(family: int, bank: Vector2i, axis: int) -> String:
 	if not city.is_flat(bank.x, bank.y) and not _slope_fits(_slope(bank), axis):
 		return "the slope runs across the path"
 	return ""
+
+
+## A road, rail or power run meeting a highway at path step `i`: it crosses
+## a straight, level highway at right angles, over both tiles of the same
+## block in one go. Returns {ok, id} with the crossing id for both tiles, or
+## {ok: false, reason}.
+func _highway_overpass(family: int, path: Array[Dictionary], i: int) -> Dictionary:
+	var step: Dictionary = path[i]
+	var p: Vector2i = step["pos"]
+	var id := city.building_at(p.x, p.y)
+	var what: String = {NetworkShapes.Family.ROAD: "a road", NetworkShapes.Family.RAIL: "a railway",
+		NetworkShapes.Family.POWER: "a power line"}.get(family, "it")
+	var crossing := NetworkShapes.highway_overpass_id(family, id)
+	if crossing == Buildings.NONE or not city.is_flat(p.x, p.y):
+		return {"ok": false, "reason": "%s can only cross a straight, level highway" % what}
+	var highway_axis := _AXIS_NS if id == NetworkShapes.HIGHWAY_NS else _AXIS_EW
+	if not _crosses_at_right_angle(step, int(step["axis"]), highway_axis):
+		return {"ok": false, "reason": "%s must cross the highway at right angles" % what}
+	if i + 1 >= path.size():
+		return {"ok": false, "reason": "%s must cross the whole highway" % what}
+	var next: Dictionary = path[i + 1]
+	var q: Vector2i = next["pos"]
+	var direction := q - p
+	if absi(direction.x) + absi(direction.y) != 1 or bool(next["turn"]) \
+			or NetworkShapes.block_anchor(q) != NetworkShapes.block_anchor(p):
+		return {"ok": false, "reason": "%s must cross the whole highway" % what}
+	if (highway_axis == _AXIS_NS) == (direction.x == 0):
+		return {"ok": false, "reason": "%s must cross the highway at right angles" % what}
+	if city.building_at(q.x, q.y) != id or not city.is_flat(q.x, q.y):
+		return {"ok": false, "reason": "%s can only cross a straight, level highway" % what}
+	if _protected(p) or _protected(q):
+		return {"ok": false, "reason": "protected land"}
+	return {"ok": true, "id": crossing}
 
 
 ## The neighbor connection a drag ending at `to` would ask about, or empty.
@@ -991,23 +1039,95 @@ func _plan_onramp(price: int, at: Vector2i) -> Dictionary:
 	var site := _single_site(at)
 	if not site.is_empty():
 		return _fail(site, [at])
-	var highway_side := -1
-	var road_side := -1
+	var touches_highway := false
+	var touches_road := false
 	for d in 4:
 		var n := at + _DIRS[d]
 		if not city.in_bounds(n.x, n.y):
 			continue
 		var id := city.building_at(n.x, n.y)
-		if NetworkShapes.is_highway(id) and highway_side < 0:
-			highway_side = d
-		elif NetworkShapes.in_road_family(id) and road_side < 0:
-			road_side = d
-	if highway_side < 0:
+		if NetworkShapes.is_highway(id):
+			touches_highway = true
+		elif NetworkShapes.in_road_family(id):
+			touches_road = true
+	if not touches_highway:
 		return _fail("a ramp must touch a highway", [at])
-	if road_side < 0:
+	if not touches_road:
 		return _fail("a ramp must touch a road", [at])
-	var ops: Array = [{"op": "surface", "at": at, "id": Buildings.ONRAMP_FIRST + highway_side, "keep_zone": false}]
+	var fit := _onramp_fit(at)
+	if fit.is_empty():
+		return _fail("a ramp sits where a road meets the highway, beside both", [at])
+	# The ramp piece and its axis bit name which sides carry the road and the
+	# highway (NetworkShapes.onramp_endpoints), as traffic and the view read them.
+	var ops: Array = [{"op": "surface", "at": at, "id": int(fit["id"]), "keep_zone": false,
+		"axis": _AXIS_EW if bool(fit["axis"]) else _AXIS_NS}]
 	return _ok([at], price, ops)
+
+
+## The ramp piece joining a road and a highway that meet at right angles
+## beside `at`: {id, axis, road, highway} with the neighbouring road and
+## highway tiles, or empty when no such pair touches it.
+func _onramp_fit(at: Vector2i) -> Dictionary:
+	for axis: bool in [false, true]:
+		for id in range(Buildings.ONRAMP_FIRST, Buildings.ONRAMP_LAST + 1):
+			var ends := NetworkShapes.onramp_endpoints(id, axis)
+			var road: Vector2i = at + (ends[0] as Vector2i)
+			var highway: Vector2i = at + (ends[1] as Vector2i)
+			if not city.in_bounds(road.x, road.y) or not city.in_bounds(highway.x, highway.y):
+				continue
+			var road_id := city.building_at(road.x, road.y)
+			if NetworkShapes.is_highway(city.building_at(highway.x, highway.y)) \
+					and NetworkShapes.in_road_family(road_id) and not NetworkShapes.is_highway(road_id) \
+					and not NetworkShapes.is_onramp(road_id):
+				return {"id": id, "axis": axis, "road": road, "highway": highway}
+	return {}
+
+
+## Open tiles beside the `near` tiles where an on-ramp could join a road to
+## the highway right where the two meet, nearest `toward` first. A site
+## counts only when its road tile itself touches the highway, and a road
+## tile that already has a ramp beside it is not offered another.
+func onramp_sites(near: Array, toward: Vector2i = Vector2i(-1, -1)) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if not Tools.locked_reason(Tools.Kind.ONRAMP, city, stats).is_empty():
+		return out
+	var seen := {}
+	for entry: Variant in near:
+		if not entry is Vector2i:
+			continue
+		var tile: Vector2i = entry
+		for d in 4:
+			var site: Vector2i = tile + _DIRS[d]
+			if seen.has(site) or not city.in_bounds(site.x, site.y):
+				continue
+			seen[site] = true
+			if not _single_site(site).is_empty():
+				continue
+			var fit := _onramp_fit(site)
+			if fit.is_empty():
+				continue
+			var road: Vector2i = fit["road"]
+			var highway: Vector2i = fit["highway"]
+			var beyond: Vector2i = road + (highway - site)
+			if not city.in_bounds(beyond.x, beyond.y) or not NetworkShapes.is_highway(city.building_at(beyond.x, beyond.y)):
+				continue
+			var served := false
+			for e in 4:
+				var n: Vector2i = road + _DIRS[e]
+				if city.in_bounds(n.x, n.y) and NetworkShapes.is_onramp(city.building_at(n.x, n.y)):
+					served = true
+			if not served:
+				out.append(site)
+	var target := toward if toward.x >= 0 else (out[0] if not out.is_empty() else Vector2i.ZERO)
+	out.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var da := (a - target).length_squared()
+		var db := (b - target).length_squared()
+		if da != db:
+			return da < db
+		return a.y < b.y or (a.y == b.y and a.x < b.x))
+	if out.size() > ONRAMP_OFFER_LIMIT:
+		out.resize(ONRAMP_OFFER_LIMIT)
+	return out
 
 
 func _plan_tunnel(price: int, at: Vector2i) -> Dictionary:

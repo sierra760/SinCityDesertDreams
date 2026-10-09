@@ -17,6 +17,9 @@ extends Control
 
 signal closed
 signal round_settled(resort: StringName, game: StringName, outcome: Dictionary)
+## Every animated table event as it starts, plus `bet` and `hold` actions,
+## for sound: (game kind, event dictionary with at least "kind").
+signal event_played(game: StringName, event: Dictionary)
 
 ## Every animation's length in seconds, before `animation_scale`.
 const ANIMATION := {
@@ -562,6 +565,9 @@ func perform_action(action: StringName, payload: Dictionary = {}) -> Dictionary:
 	if stake > 0 or precommitted > 0:
 		_committed += stake
 		_shown_funds = sim.city.funds
+		event_played.emit(kind, {"kind": "bet", "stake": stake})
+	elif action == &"hold":
+		event_played.emit(kind, {"kind": "hold"})
 	_message = ""
 	if opening:
 		_round_opened = false
@@ -658,6 +664,7 @@ func _on_stage_action(action: StringName, payload: Dictionary) -> void:
 # ── Animation feedback ───────────────────────────────────────────────────
 
 func _on_event_started(event: Dictionary) -> void:
+	event_played.emit(kind, event)
 	var event_kind := String(event.get("kind", ""))
 	var voice := ResortThemes.voice(resort)
 	if not _round_opened and event_kind in ["card", "spin", "wheel", "dice", "launch"]:
