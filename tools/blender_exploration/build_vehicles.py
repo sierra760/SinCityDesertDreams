@@ -14,6 +14,7 @@ SOURCE=ROOT/'assets/blender-exploration'
 EXPORT=ROOT/'game/assets/desert-dreams-exploration'
 PREVIEW=SOURCE/'previews'
 MAT={}
+SKIP_RENDER=False
 
 def material(name,color,metal=0.0,rough=.48):
     m=bpy.data.materials.new(name);m.diffuse_color=(*color,1);m.use_nodes=True
@@ -292,14 +293,30 @@ def build(name):
         'external_textures':False,
         'motion_contract':motion_contract,
     }
+    info['animation'] = {'wheel_radius_m':.24,'wheels':[{'node':n,'radius_m':.24,'axis':'X','steer':n.startswith('WheelFront')} for n in ['WheelFrontLeft','WheelFrontRight','WheelRearLeft','WheelRearRight']]} if name=='car' else {'rotors':[{'node':'MainRotor','axis':'Y','radians_per_second':24},{'node':'TailRotor','axis':'X','radians_per_second':31}]}
     (PREVIEW/(name+'.json')).write_text(json.dumps(info,indent=2)+'\n')
-    preview(root,name)
+    if not SKIP_RENDER:preview(root,name)
     # Save full editable model + preview studio. Root selects precisely exportable model.
     bpy.ops.object.select_all(action='DESELECT');root.select_set(True);bpy.context.view_layer.objects.active=root
     bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/(name+'.blend')))
     print('VEHICLE_COMPLETE',name,'triangles',triangles,'bounds',rest)
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--only',choices=['car','helicopter']);argv=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [];args=parser.parse_args(argv)
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--only',choices=['car','helicopter'])
+    parser.add_argument('--stage',type=Path)
+    parser.add_argument('--skip-render',action='store_true')
+    groups=parser.add_mutually_exclusive_group()
+    groups.add_argument('--vehicles-only',action='store_true')
+    groups.add_argument('--pedestrians-only',action='store_true')
+    groups.add_argument('--transit-only',action='store_true')
+    argv=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
+    args=parser.parse_args(argv)
+    if args.pedestrians_only or args.transit_only:parser.error('this wrapper authors only cruiser/helicopter; use build_traffic_models.py for other groups')
+    if args.stage:
+        SOURCE=args.stage/'assets/blender-exploration'
+        EXPORT=args.stage/'game/assets/desert-dreams-exploration'
+        PREVIEW=args.stage/'previews/exploration'
+    SKIP_RENDER=args.skip_render
     for p in [SOURCE,EXPORT,PREVIEW]:p.mkdir(parents=True,exist_ok=True)
     for name in ([args.only] if args.only else ['car','helicopter']):build(name)

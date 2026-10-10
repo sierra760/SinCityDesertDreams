@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+## Bounded presentation pool. Actor owners supply every clock and pose.
+class_name ExploreActorDetailManager
+extends RefCounted
+const LIMIT := 24
+const RIG_LIMIT := 16
+const ENTER := 18.0/16.0
+const EXIT := 26.0/16.0
+var _parent: Node3D
+var _selected: Dictionary = {}
+var _pool: Array[Dictionary] = []
+var _created := 0
+var _reused := 0
+var _updates := 0
+func bind(parent: Node3D) -> void:
+	clear()
+	_parent=parent
+func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
+	if not is_instance_valid(_parent):
+		clear()
+		return {}
+	var eligible: Array[Dictionary] = []
+	if is_instance_valid(_parent) and is_instance_valid(camera) and _parent.is_visible_in_tree():
+		for state in candidates:
+			var id: String=state.id
+			if state.get("excluded",false) or not state.get("visible",true): continue
+			var distance: float=camera.global_position.distance_squared_to(state.position)
+			var radius: float=EXIT if _selected.has(id) else ENTER
+			if distance>radius*radius or not camera.is_position_in_frustum(state.position): continue
+			eligible.append({"state":state,"distance":distance})
+	eligible.sort_custom(func(a: Dictionary,b: Dictionary)->bool:
+		return String(a.state.id)<String(b.state.id) if a.distance==b.distance else a.distance<b.distance)
+	var wanted: Dictionary={}
+	var rigs:=0
+	for entry in eligible:
+		var state: Dictionary=entry.state
+		if wanted.has(state.id): continue
+		if String(state.kind)=="pedestrian":
+			if rigs>=RIG_LIMIT: continue
+			rigs+=1
+		wanted[state.id]=state
+		if wanted.size()==LIMIT: break
+	var next: Dictionary={}
+	for slot in _pool:
+		slot.visual.visible=false
+		if wanted.has(slot.id) and slot.key==_key(wanted[slot.id]):
+			next[slot.id]=slot.visual
+	for id: String in wanted:
+		if next.has(id): continue
+		var key:=_key(wanted[id])
+		var available: Dictionary={}
+		for slot in _pool:
+			if not next.values().has(slot.visual) and slot.key==key:
+				available=slot
+				break
+		if available.is_empty():
+			# Inactive instances count against both limits too.
+			var rig_count:=0
+			for slot in _pool:
+				if slot.pedestrian: rig_count+=1
+			if _pool.size()>=LIMIT or (String(wanted[id].kind)=="pedestrian" and rig_count>=RIG_LIMIT):
+				for slot in _pool:
+					if next.values().has(slot.visual): continue
+					if String(wanted[id].kind)=="pedestrian" and rig_count>=RIG_LIMIT and not slot.pedestrian: continue
+					slot.visual.free()
+					_pool.erase(slot)
+					break
+			var visual:=CityTrafficCatalog.make_nearby_visual(StringName(wanted[id].kind),int(wanted[id].variant))
+			_parent.add_child(visual)
+			available={"id":id,"key":key,"visual":visual,"pedestrian":String(wanted[id].kind)=="pedestrian"}
+			_pool.append(available)
+			_created+=1
+		else:
+			available.id=id
+			_reused+=1
+		next[id]=available.visual
+	_selected=next
+	for id: String in _selected:
+		var visual: ExploreActorVisual=_selected[id]
+		visual.visible=true
+		_sample(visual,wanted[id])
+	return _selected.duplicate()
+func _key(state: Dictionary) -> String:
+	return String(state.kind)+":"+str(posmod(int(state.variant),16) if String(state.kind)=="pedestrian" else 0)
+func _sample(visual: ExploreActorVisual,state: Dictionary) -> void:
+	visual.position=state.position
+	visual.rotation.y=float(state.yaw)
+	visual.sample_owned_state(state)
+func advance(states: Array[Dictionary], delta: float) -> void:
+	if not is_instance_valid(_parent):
+		clear()
+		return
+	if not is_finite(delta) or delta<=0: return
+	for state in states:
+		if _selected.has(state.id):
+			_sample(_selected[state.id],state)
+			_updates+=1
+func clear() -> void:
+	for slot in _pool:
+		if is_instance_valid(slot.visual): slot.visual.free()
+	_pool.clear()
+	_selected.clear()
+func debug_state() -> Dictionary:
+	var rigs:=0
+	for visual: ExploreActorVisual in _selected.values():
+		if visual.has_meta("nearby_pedestrian"): rigs+=1
+	return {"detailed_count":_selected.size(),"pedestrian_rigs":rigs,"allocated":_pool.size(),"created":_created,"reused":_reused,"owner_updates":_updates,"ids":_selected.keys().duplicate()}

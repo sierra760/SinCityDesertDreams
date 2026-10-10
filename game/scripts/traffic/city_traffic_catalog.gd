@@ -111,13 +111,24 @@ static func _collect(node: Node, parent_transform: Transform3D, groups: Dictiona
 				var material := part.get_active_material(index)
 				if material is StandardMaterial3D:
 					var original := material as StandardMaterial3D
-					var material_key := "%s/%s/%s/%s" % [original.albedo_color, original.roughness, original.metallic, animate_pedestrian]
+					# Coarse exports preserve material semantics after joining parts.
+					# Only skin outside the head/neck bounds belongs to the right arm.
+					var wave_skin := animate_pedestrian and String(part.name).ends_with("crowd_skin")
+					var elbow := 0.0
+					if wave_skin:
+						var arrays := part.mesh.surface_get_arrays(index)
+						for vertex: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
+							var point: Vector3=current*vertex
+							if point.x>.009 and point.y<.095: elbow=maxf(elbow,point.y)
+					var material_key := "%s/%s/%s/%s/%s/%s" % [original.albedo_color, original.roughness, original.metallic, animate_pedestrian,wave_skin,elbow]
 					if not _materials.has(material_key):
 						_materials[material_key] = material
 						if animate_pedestrian:
 							var gait := ShaderMaterial.new()
 							gait.shader = PEDESTRIAN_SHADER
 							gait.set_shader_parameter("tint", original.albedo_color)
+							gait.set_shader_parameter("wave_skin",1.0 if wave_skin else 0.0)
+							gait.set_shader_parameter("wave_elbow",elbow)
 							_materials[material_key] = gait
 					material = _materials[material_key]
 				var key := material.get_instance_id() if material != null else 0
@@ -139,3 +150,21 @@ static func make_visual(kind: StringName, variant: int = 0) -> Node3D:
 		part.mesh = mesh
 		result.add_child(part)
 	return result
+
+## Detail assets retain their authored scene and one meters-to-tiles conversion.
+## Kinds without accepted detail art keep the current catalog appearance.
+static func make_detailed_visual(kind: StringName, variant: int = 0) -> ExploreActorVisual:
+	var path := "res://assets/desert-dreams-exploration/" + String(kind) + ".tscn"
+	if kind != &"pedestrian" and ResourceLoader.exists(path):
+		return (load(path) as PackedScene).instantiate() as ExploreActorVisual
+	var fallback := TrafficActorVisual.new()
+	fallback.name = String(kind).to_pascal_case()
+	fallback.configure(kind,variant)
+	return fallback
+
+## Nearby pool always uses the authored catalog detail (including crowd rigs).
+static func make_nearby_visual(kind: StringName, variant: int = 0) -> ExploreActorVisual:
+	var visual := TrafficActorVisual.new()
+	visual.configure_nearby(kind,variant)
+	if kind == &"pedestrian": visual.set_meta("nearby_pedestrian",true)
+	return visual

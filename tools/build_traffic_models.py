@@ -201,34 +201,6 @@ def air(kind):
                 for j in range(10):box('Cabin window',(side*.594,-3.2+j*.68,1.30),(.025,.20,.22),'glass')
         for x,y in [(-.6,-1),(.6,-1),(0,3)]:cylinder('Landing wheel',(x,y,.16),.16,.12,'rubber','X')
 
-def pedestrian(index):
-    skin='skin'+str(index%4);shirt=['teal','copper','gold','cream','blue','red','olive','purple'][index%8];trousers=['blue','cream','rubber','copper'][index//4]
-    height=[1.65,1.78,1.87,1.71][index%4];wide=[.39,.48,.45,.54][index//4];leg=.46*height;torso=.28*height
-    # Neutral mid-stride; catalog's shared vertex shader adds a bounded walking sway.
-    for side in [-1,1]:
-        box('Shoe',(side*wide*.25,.05,.065),(wide*.39,.31,.13),'rubber')
-        box('Trouser leg',(side*wide*.25,0,leg*.52),(wide*.40,.22,leg-.1),trousers)
-    loft('Shirt',[( -.145,wide*.5,wide*.53,leg-.03,leg+torso),(.145,wide*.5,wide*.53,leg-.03,leg+torso)],shirt)
-    cylinder('Neck',(0,0,leg+torso+.04),.09,.15,skin,sides=8)
-    if FAR:box('Head',(0,0,height-.16),(.29,.28,.32),skin)
-    else:
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=8,ring_count=4,radius=1,location=(0,.015,height-.17));o=bpy.context.object;o.scale=(.155,.14,.19);bpy.ops.object.transform_apply(location=False,rotation=False,scale=True);finish(o,'Head',skin)
-        box('Hair',(0,-.02,height-.025),(.28,.24,.09),'rubber' if index%3 else 'copper')
-        box('Nose',(0,.157,height-.17),(.065,.065,.07),skin)
-    for side in [-1,1]:
-        rod('Sleeve',(side*wide*.5,0,leg+torso-.05),(side*(wide*.5+.06),0,leg+torso*.56),.092,shirt)
-        rod('Forearm',(side*(wide*.5+.06),0,leg+torso*.56),(side*(wide*.5+.08),.025,leg+.04),.066,skin)
-    if index%4==0:
-        cylinder('Sunhat brim',(0,0,height+.02),.26,.055,'cream',sides=12);cylinder('Sunhat crown',(0,0,height+.09),.155,.13,'cream',sides=10)
-    elif index%4==1:
-        box('Cap',(0,0,height+.005),(.31,.29,.12),shirt);box('Cap bill',(0,.20,height-.015),(.26,.16,.035),shirt)
-    elif index%4==2:
-        box('Backpack',(0,-.23,leg+torso*.56),(wide*.79,.21,torso*.80),'gold' if index%3 else 'teal')
-    else:
-        box('Shoulder bag',(wide*.7,-.03,leg*.92),(.15,.32,.31),'copper')
-    if not FAR and index>=8:
-        box('Sunglasses',(0,.151,height-.12),(.30,.025,.065),'glass')
-
 def transit(part):
     # Metres: outer 3.84 x 10; clear inside 3.40; floor top .40.
     # Both middle apertures: y in [-1.20,1.20], z in [.40,2.88].
@@ -347,27 +319,81 @@ def contact_sheet(stems, title="contact-sheet"):
     scene.render.filepath=str(REVIEW/(title+'.png'));scene.view_settings.view_transform='Standard';bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/(title+'.blend')));bpy.ops.render.render(write_still=True)
 
 def main():
-    global REVIEW
-    parser=argparse.ArgumentParser();parser.add_argument('--skip-render',action='store_true');parser.add_argument('--transit-only',action='store_true')
-    parser.add_argument('--review-dir',type=Path,help='where preview renders and the geometry manifest are written')
+    global REVIEW, SOURCE, EXPORT
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--skip-render',action='store_true')
+    group=parser.add_mutually_exclusive_group()
+    group.add_argument('--transit-only',action='store_true')
+    group.add_argument('--vehicles-only',action='store_true')
+    group.add_argument('--pedestrians-only',action='store_true')
+    parser.add_argument('--stage',type=Path,help='private output root; source assets are not overwritten')
+    parser.add_argument('--only',choices=KINDS,help='one vehicle kind')
+    parser.add_argument('--review-dir',type=Path,help='preview renders and geometry manifest directory')
     args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
+    if args.only and (args.transit_only or args.pedestrians_only):parser.error('--only selects vehicles')
+    original=json.loads((EXPORT/'catalog.json').read_text())
+    if args.stage:
+        SOURCE=args.stage/'assets/traffic-models';EXPORT=args.stage/'game/assets/desert-dreams-traffic'
+        REVIEW=args.stage/'previews'
     if args.review_dir:REVIEW=args.review_dir
     bpy.context.preferences.filepaths.save_version=0
     for p in [SOURCE,EXPORT,REVIEW]:p.mkdir(parents=True,exist_ok=True)
-    catalog={'source_units':'metres','runtime_units':'tile = 16 metres','forward':'Godot -Z','provenance':'Original procedural geometry and flat colors; no external artwork or models','models':{}}
+    # Preserve unselected pedestrian and transit records byte-for-value.
+    catalog=original
     if args.transit_only:
-        catalog=json.loads((EXPORT/'catalog.json').read_text())
         for part in ['passenger_carriage','passenger_door','platform','stairs','tunnel']:
             catalog['models']['transit/'+part]=export_model('transit/'+part,lambda p=part:transit(p))
-        (EXPORT/'catalog.json').write_text(json.dumps(catalog,indent=2)+'\n');(REVIEW/'geometry-manifest.json').write_text(json.dumps(catalog,indent=2)+'\n')
-        if not args.skip_render:contact_sheet(['transit/'+p for p in ['passenger_carriage','passenger_door','platform','stairs','tunnel']], 'transit-kit')
-        print('TRANSIT_MODELS_COMPLETE');return
-    for kind in KINDS:
-        fn=(lambda k=kind:road(k)) if kind in KINDS[:12] else (lambda k=kind:rail(k)) if kind in ['train','subway'] else (lambda k=kind:boat(k)) if kind in ['ship','sailboat'] else (lambda k=kind:air(k))
-        for far in [False,True]:catalog['models'][kind+('_far' if far else '')]=export_model(kind,fn,far)
-    for i in range(16):
-        for far in [False,True]:catalog['models'][f'pedestrian_{i:02d}'+('_far' if far else '')]=export_model(f'pedestrian_{i:02d}',lambda i=i:pedestrian(i),far)
-    (EXPORT/'catalog.json').write_text(json.dumps(catalog,indent=2)+'\n');(REVIEW/'geometry-manifest.json').write_text(json.dumps(catalog,indent=2)+'\n')
-    if not args.skip_render:contact_sheet(KINDS+[f'pedestrian_{i:02d}' for i in range(16)])
+    else:
+        if not args.pedestrians_only:
+            sys.path.insert(0,str(ROOT/'tools'))
+            from model_art import vehicles, common
+            for kind in ([args.only] if args.only else KINDS):
+                entry=catalog['models'][kind]
+                envelope=entry.get('original_envelope',{key:entry[key] for key in ['min_godot','max_godot','size_godot']})
+                ceiling=entry.get('original_middle_triangles',entry['triangles'])
+                tiers={}
+                for detail,suffix in [('detailed','_detail'),('middle',''),('far','_far')]:
+                    contract=vehicles.build_vehicle(kind,detail,envelope)
+                    if detail=='middle' and contract['triangles']>ceiling:raise ValueError('middle complexity increased: '+kind)
+                    root=vehicles.ROOT
+                    name=kind+suffix
+                    bpy.context.scene['provenance']='Original procedural vehicle geometry; GPL source, CC BY-NC-SA 4.0 art'
+                    bpy.context.scene['units']='meters; Blender +Y forward/+Z up; Godot -Z forward/+Y up; runtime /16 once'
+                    bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/(name+'.blend')))
+                    contract['source_triangles']=contract['triangles']
+                    contract['triangles']=common.export(root,EXPORT/(name+'.glb'))
+                    tiers[detail]=contract
+                    print('VEHICLE_TIER',kind,detail,contract['triangles'],contract['materials'],contract['contact_error_m'],flush=True)
+                entry.update(triangles=tiers['middle']['triangles'],
+                    materials=tiers['middle']['material_names'],parts=tiers['middle']['mesh_parts'],
+                    original_envelope=envelope,original_middle_triangles=ceiling,tiers=tiers,
+                    detail_path='res://assets/desert-dreams-traffic/'+kind+'_detail.glb',animation=tiers['detailed']['motion'])
+                # Existing far physical keys are retained too; actual tier bounds live in tiers.
+                catalog['models'][kind+'_far'].update(triangles=tiers['far']['triangles'],materials=tiers['far']['material_names'],parts=tiers['far']['mesh_parts'])
+        if not args.vehicles_only and not args.only:
+            sys.path.insert(0,str(ROOT/'tools'))
+            from model_art import pedestrians
+            for i in range(16):
+                stem=f'pedestrian_{i:02d}'
+                entry=catalog['models'][stem]
+                envelope=entry.get('original_envelope',{key:entry[key] for key in ['min_godot','max_godot','size_godot']})
+                ceiling=entry.get('original_middle_triangles',entry['triangles'])
+                tiers={}
+                for detail,suffix in [('detailed','_detail'),('middle',''),('far','_far')]:
+                    state=pedestrians.build_character(stem,detail,envelope)
+                    contract=pedestrians.export_character(state,stem,detail,SOURCE/(stem+suffix+'.blend'),EXPORT/(stem+suffix+'.glb'))
+                    if detail=='middle' and contract['triangles']>ceiling:raise ValueError('middle complexity increased: '+stem+' '+str(contract['triangles'])+' > '+str(ceiling))
+                    tiers[detail]=contract
+                    print('CROWD_TIER',stem,detail,contract['triangles'],contract['materials'],flush=True)
+                entry.update(triangles=tiers['middle']['triangles'],materials=tiers['middle']['material_names'],parts=tiers['middle']['mesh_parts'],
+                    original_envelope=envelope,original_middle_triangles=ceiling,tiers=tiers,
+                    detail_path='res://assets/desert-dreams-traffic/'+stem+'_detail.glb',animation=tiers['detailed']['motion'])
+                catalog['models'][stem+'_far'].update(triangles=tiers['far']['triangles'],materials=tiers['far']['material_names'],parts=tiers['far']['mesh_parts'])
+    (EXPORT/'catalog.json').write_text(json.dumps(catalog,indent=2)+'\n')
+    (REVIEW/'geometry-manifest.json').write_text(json.dumps(catalog,indent=2)+'\n')
+    if not args.skip_render:
+        if args.transit_only:contact_sheet(['transit/'+p for p in ['passenger_carriage','passenger_door','platform','stairs','tunnel']], 'transit-kit')
+        elif args.pedestrians_only:contact_sheet([f'pedestrian_{i:02d}' for i in range(16)])
+        else:contact_sheet([k+'_detail' for k in ([args.only] if args.only else KINDS)])
     print('TRAFFIC_MODELS_COMPLETE',len(catalog['models']))
 if __name__=='__main__':main()

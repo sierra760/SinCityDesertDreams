@@ -169,6 +169,7 @@ func enter(city: City, origin: Vector3) -> bool:
 	camera_rig.configure_target(occupied,mode)
 	camera_rig.update_follow(0)
 	view.set_exploration_camera(camera_rig.camera)
+	view.traffic.set_detail_enabled(true)
 	if view.feedback != null: view.feedback.set_exploring(true)
 	_active = true
 	_suspended = false
@@ -469,6 +470,7 @@ func dispose() -> void:
 	_free_retained_world()
 
 func _clear_actors() -> void:
+	if is_instance_valid(view) and is_instance_valid(view.traffic): view.traffic.set_detail_enabled(false)
 	_release_traffic_claim()
 	# Station/portal cut-outs restore their visuals now; the kept physical
 	# world is brought up to date by the next entry's rebuild, before any query.

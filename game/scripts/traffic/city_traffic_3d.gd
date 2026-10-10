@@ -61,6 +61,8 @@ var _route_ramps := PackedByteArray()
 var _route_degrees := PackedInt32Array()
 var _route_neighbors: Array = []
 var _claims: Dictionary = {}
+var detail_manager: ExploreActorDetailManager
+var _detail_clocks: Dictionary = {}
 var _external: Array[Dictionary] = []
 var _external_states: Dictionary = {}
 var _targets: Dictionary = {}
@@ -71,6 +73,8 @@ static var _name_ids: Dictionary = {}
 
 func bind_city(city: City) -> void:
 	if graph.city == city: return
+	if detail_manager != null: detail_manager.clear()
+	_detail_clocks.clear()
 	_paused_render_state.clear()
 	_paused_camera_ready = false
 	_paused_camera_state.clear()
@@ -277,6 +281,11 @@ func _choose_kind(type: StringName, cell: Vector2i, id: int) -> StringName:
 	return [&"car",&"compact",&"sedan",&"pickup",&"van"][id%5]
 
 func _step(delta: float) -> void:
+	_step_motion(delta)
+	_advance_detail_clock(delta)
+	if detail_manager != null: detail_manager.advance(visual_states(),delta)
+
+func _step_motion(delta: float) -> void:
 	for i: int in range(actors.size()-1,-1,-1):
 		var waiting_actor: Dictionary = actors[i]
 		if _claims.has(waiting_actor.id): continue
@@ -625,6 +634,7 @@ func _render(camera: Camera3D) -> void:
 			if _render_state(camera) == _paused_render_state:
 				statistics["render_cache_hits"] = int(statistics.get("render_cache_hits",0))+1
 				return
+	var promoted: Dictionary = detail_manager.update(visual_states(),camera) if detail_manager != null else {}
 	var groups: Dictionary = {}
 	var visible_count := 0
 	# Camera/display ownership may change between renders. Capture only for this
@@ -689,8 +699,13 @@ func _render(camera: Camera3D) -> void:
 		if group == null:
 			group = {"name":str(a.kind)+":"+str(variant)+":"+str(low),"kind":a.kind,"variant":variant,"low":low,"poses":[],"custom":[]}
 			groups[group_key] = group
-		group.poses.append(pose)
-		group.custom.append(Color(_elapsed*float(a.speed)*16.0+float(a.id)*.173,0.0 if a.stopped else 1.0,0,0))
+		var detail_id := String(a.get("mod_handle","ambient:"+str(a.id)))
+		if promoted.has(detail_id):
+			promoted[detail_id].transform=pose
+			# Keep the same batch slot/capacity; only this promoted slot is hidden.
+			group.poses.append(Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO),pose.origin))
+		else: group.poses.append(pose)
+		group.custom.append(Color(float(a.get("mod_phase",_elapsed*float(a.speed)*16.0+float(a.id)*.173)),0.0 if a.stopped else 1.0,float(a.get("visual_gesture_time",0.0))/1.5,1.0 if a.get("visual_gesture","")=="wave" else 0.0))
 		visible_count += 1
 	for record: Dictionary in _external:
 		if _claims.has(record.presentation_id): continue
@@ -730,6 +745,15 @@ func _render(camera: Camera3D) -> void:
 		var custom: Array = group.custom
 		if batch.instance_count < poses.size(): batch.instance_count = maxi(16,ceili(float(poses.size())/16)*16)
 		batch.visible_instance_count = poses.size()
+		if detail_manager != null and not poses.is_empty():
+			# Zero-scale promoted slots collapse the renderer's automatic bounds.
+			# Supply bounds from all retained actor origins before visibility swaps,
+			# so a restored batch slot is not culled for its first rendered frame.
+			var bounds := AABB(poses[0].origin,Vector3.ZERO)
+			for pose: Transform3D in poses: bounds=bounds.expand(pose.origin)
+			var mesh_bounds := batch.mesh.get_aabb()
+			instance.custom_aabb=bounds.grow(mesh_bounds.position.length()+mesh_bounds.size.length())
+		else: instance.custom_aabb=AABB()
 		for i: int in poses.size():
 			batch.set_instance_transform(i,poses[i])
 			batch.set_instance_custom_data(i,custom[i])
@@ -952,3 +976,38 @@ func get_drive_route(kind: StringName, near_position: Vector3) -> Dictionary:
 		previous = cell
 		cell = choices[0]
 	return {"points":points,"cells":cells,"domain":domain,"revision":graph.revision}
+
+
+## Explore allocates nearby detail; traffic retains ownership of ambient time.
+func set_detail_enabled(enabled: bool) -> void:
+	_detail_clocks.clear()
+	if detail_manager != null:
+		detail_manager.clear()
+		detail_manager=null
+	if enabled:
+		detail_manager=ExploreActorDetailManager.new()
+		detail_manager.bind(self)
+	_paused_render_state.clear()
+	_paused_camera_ready=false
+
+func _advance_detail_clock(delta: float) -> void:
+	if detail_manager==null: return
+	var live: Dictionary={}
+	for actor in actors:
+		live[actor.id]=true
+		if _claims.has(actor.id): continue
+		var clock: Dictionary=_detail_clocks.get(actor.id,{"time":0.0,"distance":0.0})
+		clock.time+=delta
+		clock.distance+=0.0 if actor.stopped else float(actor.speed)*delta
+		_detail_clocks[actor.id]=clock
+	for id in _detail_clocks.keys():
+		if not live.has(id): _detail_clocks.erase(id)
+
+## Copied presentation state; visual selection never advances the owner clock.
+func visual_states() -> Array[Dictionary]:
+	var result: Array[Dictionary]=[]
+	for actor in actors:
+		if _claims.has(actor.id): continue
+		var pose:=actor_pose(actor)
+		result.append({"id":String(actor.get("mod_handle","ambient:"+str(actor.id))),"kind":String(actor.kind),"variant":int(actor.variant),"position":pose.origin,"yaw":pose.basis.get_euler().y,"speed":0.0 if actor.stopped else float(actor.speed),"steering":0.0,"airborne":actor.domain==&"air","phase":float(actor.get("mod_phase",_elapsed*float(actor.speed)*16.0+float(actor.id)*.173)),"visual_time":float(_detail_clocks.get(actor.id,{}).get("time",0.0)),"distance":float(_detail_clocks.get(actor.id,{}).get("distance",0.0)),"gesture":String(actor.get("visual_gesture","")),"gesture_time":float(actor.get("visual_gesture_time",0.0))})
+	return result
