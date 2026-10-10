@@ -69,6 +69,7 @@ var _panning := false
 var display_layout: DisplayLayout
 var overlay: CityOverlay3D
 var underground: CityUnderground3D
+var underground_legend: Label
 var _overlay_kind: StringName = &""
 var _underground := false
 var aerial_controls_enabled := true
@@ -187,6 +188,25 @@ func _ready() -> void:
 	_labels = Control.new()
 	_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_labels)
+	underground_legend = Label.new()
+	underground_legend.name = "UndergroundLegend"
+	underground_legend.theme = UITheme.control_theme()
+	underground_legend.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	underground_legend.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	underground_legend.custom_minimum_size = Vector2(340,0)
+	underground_legend.size = Vector2(340,1)
+	underground_legend.add_theme_font_size_override("font_size",UITheme.FONT_SMALL)
+	underground_legend.add_theme_color_override("font_color",Color("f5edd8"))
+	var legend_style := StyleBoxFlat.new()
+	legend_style.bg_color = Color(.06,.11,.15,.92)
+	legend_style.content_margin_left = 8
+	legend_style.content_margin_right = 8
+	legend_style.content_margin_top = 6
+	legend_style.content_margin_bottom = 6
+	underground_legend.add_theme_stylebox_override("normal",legend_style)
+	underground_legend.text = "Water: blue supplied · orange dry\nShaded lots carry water.\n◇ Pump · ○ Tower · ▥ Treatment · △ Desalination\nInspect for facility and supply details."
+	underground_legend.visible = _underground
+	add_child(underground_legend)
 	notice = Label.new()
 	notice.position = Vector2(235, 34)
 	notice.add_theme_color_override("font_color", Color(1, 0.86, 0.58))
@@ -1208,6 +1228,8 @@ func _apply_analytics_visibility() -> void:
 		overlay.visible = _overlay_kind != &""
 	if underground != null:
 		underground.visible = _underground
+	if underground_legend != null:
+		underground_legend.visible = _underground and aerial_controls_enabled
 
 ## Pause only the visual clock; resuming continues the same ripple phase.
 func set_water_animation(on: bool) -> void:

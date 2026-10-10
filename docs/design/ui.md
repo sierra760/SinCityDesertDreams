@@ -132,6 +132,19 @@ tools restore surface when appropriate; manual
 underground choice is preserved. Utilities can be inspected without surface
 building pick proxies obstructing them.
 
+The underground water view shows explicit pipes together with the implicit
+conduits in developed lots, including water facilities. Blue connections and
+blue shaded footprints are watered; orange connections and brown shaded
+footprints are dry. Adjacent conducting lots connect without additional pipes;
+roads and undeveloped zones require explicit pipe runs. Plain pipe endpoints
+visually attach to neighboring lots even in older saves whose stored mask omits
+that attachment; rendering never changes those masks. Pumps have diamond marks,
+towers rings, treatment plants barred diamonds and desalination plants triangles.
+An on-screen key explains the colors and marks; Inspect names each facility and
+shows its live power, water, output or storage data. Building, cutting, reconnecting
+and monthly supply updates refresh the visible network. Surface buildings,
+subway crossing levels and the underground-only demolition scope are preserved.
+
 Bridge/tunnel choices, neighbor links and citizen objections keep their prices,
 Build/Connect and Cancel semantics. Cancel charges nothing; declining a
 neighbor link keeps the already-built run to the border ("Built up to the city

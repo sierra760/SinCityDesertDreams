@@ -138,6 +138,13 @@ func _measure() -> void:
 	if is_instance_valid(_host.explore_hud): _host.explore_hud.set_chrome_insets(menu_bar.size.y,status_bar.size.y)
 	update_explore_camera_chrome()
 	_host.mini_map.apply_layout(bounds, menu_bar.size.y, status_bar.size.y, toolbar.size.x if toolbar.visible else 0.0)
+	if _host.city_view_3d != null and _host.city_view_3d.underground_legend != null:
+		var legend := _host.city_view_3d.underground_legend
+		var left := toolbar.custom_minimum_size.x if toolbar.visible else 0.0
+		var width := minf(340.0,maxf(44.0,bounds.size.x-left-16.0))
+		legend.custom_minimum_size = Vector2(width,0)
+		legend.size = Vector2(width,0)
+		legend.position = bounds.position + Vector2(left+8,menu_bar.size.y+8)
 	query_panel.offset_right = bounds.end.x - full.size.x - 8
 	query_panel.set_meta("display_usable_rect",bounds)
 	query_panel.offset_left = query_panel.offset_right - minf(QueryPanel.PANEL_WIDTH,maxf(44,bounds.size.x - 16))

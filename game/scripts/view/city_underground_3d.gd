@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## Exposed utility ribbons over the terrain, with inspectable crossing levels.
+## Exposed utilities and developed-lot conduits, with inspectable crossing levels.
 ## Stored codes are network connection masks, not shape-ordered import codes.
 class_name CityUnderground3D
 extends Node3D
@@ -11,6 +11,10 @@ const LOWER_OFFSET := 0.12
 const UPPER_OFFSET := 0.30
 const PIPE_WET := Color(0.22, 0.70, 1.0)
 const PIPE_DRY := Color(0.86, 0.39, 0.22)
+const LOT_WET := Color(0.10, 0.29, 0.38)
+const LOT_DRY := Color(0.38, 0.22, 0.16)
+const LOT_OFFSET := 0.025
+const FACILITY_COLOR := Color(0.96, 0.89, 0.65)
 const STATION_COLOR := Color(0.20, 0.95, 0.79)
 const DIRECTIONS := [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]
 var city: City
@@ -67,22 +71,40 @@ func refresh() -> void:
 		return
 	var water_flags := PackedByteArray()
 	for flag in city.flags.data: water_flags.append(flag & TileFlags.WATERED)
-	var fingerprint := var_to_bytes([city.underground.data, water_flags, CityOverlay3D.surface_inputs(city)])
+	var fingerprint := var_to_bytes([city.underground.data, city.building.data, water_flags, CityOverlay3D.surface_inputs(city)])
 	if fingerprint == _fingerprint: return
 	_fingerprint = fingerprint
 	var faces := PackedVector3Array()
 	var colors := PackedColorArray()
 	var cells: Array[Vector2i] = []
 	var railway := RailwayOverlay.new()
+	var conduits := UtilityParams.conducts_water_table()
 	for y in City.HEIGHT:
 		for x in City.WIDTH:
 			var decoded := decode(city.underground.at(x, y))
-			if not decoded.pipe_mask and not decoded.subway_mask: continue
 			var cell := Vector2i(x, y)
+			var id := city.building_at(x,y)
+			var lot := conduits[id] != 0
+			if not decoded.pipe_mask and not decoded.subway_mask and not lot: continue
+			var service_color := PIPE_WET if city.is_watered(x,y) else PIPE_DRY
+			if lot:
+				_lot(cell, LOT_WET if city.is_watered(x,y) else LOT_DRY, faces, colors)
+				# Developed lots conduct on every side, even without an explicit
+				# pipe. Draw those connections independently of the stored XUND.
+				var lot_mask := _water_neighbors(cell)
+				if not decoded.pipe_above: lot_mask |= int(decoded.pipe_mask)
+				_ribbons(cell, lot_mask, LOWER_OFFSET, 0.13, service_color, faces, cells, colors)
+				if UtilityParams.is_water_facility(id) and City.is_footprint_anchor(city.building.data,city.zone.data,x,y):
+					_facility(cell,id,faces,cells,colors)
 			var pipe_height := UPPER_OFFSET if decoded.pipe_above else LOWER_OFFSET
 			var subway_height := LOWER_OFFSET if decoded.pipe_above else UPPER_OFFSET
-			_ribbons(cell, decoded.pipe_mask, pipe_height, 0.13,
-				PIPE_WET if city.is_watered(x, y) else PIPE_DRY, faces, cells, colors)
+			var pipe_mask: int = decoded.pipe_mask
+			if pipe_mask and not Underground.is_crossing(city.underground.at(x,y)):
+				# Old and imported endpoints may omit a neighboring building.
+				# Attach the projection without rewriting its saved network mask.
+				pipe_mask |= _water_neighbors(cell, true)
+			if not lot or decoded.pipe_above:
+				_ribbons(cell, pipe_mask, pipe_height, 0.13, service_color, faces, cells, colors)
 			if decoded.subway_mask:
 				# Reuse the actual railway's masks, curves, sleepers, rail gauge and
 				# sloped shoulder geometry; analytical pipe layers keep their heights.
@@ -99,6 +121,45 @@ func refresh() -> void:
 	railway.free()
 	mesh_instance.mesh = CityGeometry3D.mesh_from_faces(faces, colors)
 	rebuild_count += 1
+
+
+## Water's flood fill joins cardinal conducting tiles. Empty zoning and
+## surface roads are not conduits; pipe/subway crossings still carry water.
+func _water_neighbors(cell: Vector2i, buildings_only: bool = false) -> int:
+	var mask := 0
+	var conduits := UtilityParams.conducts_water_table()
+	for i in 4:
+		var neighbor := cell + Vector2i(DIRECTIONS[i])
+		if not city.in_bounds(neighbor.x,neighbor.y): continue
+		if conduits[city.building_at(neighbor.x,neighbor.y)] != 0 or (not buildings_only and UtilityParams.conducts_water_code(city.underground.at(neighbor.x,neighbor.y))):
+			mask |= 1 << i
+	return mask
+
+
+func _lot(cell: Vector2i, color: Color, faces: PackedVector3Array, colors: PackedColorArray) -> void:
+	var corners := CityGeometry3D.surface_corners(city,cell)
+	_faceted_ribbon(cell,[Vector2(.04,.04),Vector2(.96,.04),Vector2(.96,.96),Vector2(.04,.96)],corners,LOT_OFFSET,color,faces,colors)
+
+
+## Small batched plan symbols keep sources/storage identifiable while the
+## surface models are hidden: pump diamond, tower ring, treatment bars,
+## desalination triangle. Inspect supplies the facility's name and live data.
+func _facility(cell: Vector2i, id: int, faces: PackedVector3Array,
+		_cells: Array[Vector2i], colors: PackedColorArray) -> void:
+	var corners := CityGeometry3D.surface_corners(city,cell)
+	var center := Vector2(.5,.5)
+	var sides := 4
+	if id == Buildings.WATER_TOWER: sides = 16
+	elif id == Buildings.DESALINATION: sides = 3
+	for i in sides:
+		var angle := TAU * float(i) / sides
+		var next := TAU * float(i+1) / sides
+		var a := Vector2(cos(angle),sin(angle))
+		var b := Vector2(cos(next),sin(next))
+		_faceted_ribbon(cell,[center+a*.30,center+b*.30,center+b*.22,center+a*.22],corners,0.36,FACILITY_COLOR,faces,colors)
+	if id == Buildings.WATER_TREATMENT:
+		for x: float in [-.10,0.0,.10]:
+			_faceted_ribbon(cell,[center+Vector2(x-.02,-.16),center+Vector2(x+.02,-.16),center+Vector2(x+.02,.16),center+Vector2(x-.02,.16)],corners,0.36,FACILITY_COLOR,faces,colors)
 
 
 func _ribbons(cell: Vector2i, mask: int, height: float, width: float,
