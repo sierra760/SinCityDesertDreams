@@ -69,8 +69,83 @@ func _collect_poles(node: Node, poles: Array[MeshInstance3D]) -> void:
 		_collect_poles(child, poles)
 
 
-func test_standalone_lines_keep_their_center_support() -> void:
-	for code: int in [14, 15, 20, 28, 92]:
+func test_bend_posts_touch_the_wire_on_flat_and_sloped_ground() -> void:
+	# Canonical NE, SE, SW and NW power bends. A tile-center post misses
+	# their quarter-circle wires by about 0.207 tiles (3.3 metres).
+	for code: int in [20, 21, 22, 23]:
+		for terrain: int in [Terrain.FLAT, Terrain.SLOPE_W, Terrain.SLOPE_N, Terrain.SLOPE_E, Terrain.SLOPE_S]:
+			var city := flat_city()
+			var cell := Vector2i(15, 15)
+			city.building.putv(cell, code)
+			city.terrain.putv(cell, terrain)
+			var layer := CityNetworks3D.new()
+			layer.rebuild(city)
+			_assert_posts_attached(layer, city, cell)
+			layer.update_regions(city, [Rect2i(0, 0, 16, 16)])
+			_assert_posts_attached(layer, city, cell)
+			layer.free()
+
+
+func test_posts_follow_bend_changes_during_regional_redraw() -> void:
+	var city := flat_city()
+	var cell := Vector2i(16, 16)
+	var layer := CityNetworks3D.new()
+	city.building.putv(cell, 14)
+	layer.rebuild(city)
+	for code: int in [20, 21, 22, 23, 15, 28]:
+		city.building.putv(cell, code)
+		layer.update_regions(city, [Rect2i(cell, Vector2i.ONE)])
+		_assert_posts_attached(layer, city, cell)
+	layer.free()
+
+
+func _assert_posts_attached(layer: CityNetworks3D, city: City, cell: Vector2i) -> void:
+	var poles: Array[MeshInstance3D] = []
+	_collect_poles(layer, poles)
+	check_eq(poles.size(), 1, "standalone segment retains one support")
+	for pole: MeshInstance3D in poles:
+		var position := Vector2(pole.position.x, pole.position.z)
+		var top: float = pole.position.y + pole.mesh.size.y / 2.0
+		var bottom: float = pole.position.y - pole.mesh.size.y / 2.0
+		var wire_y := _wire_height(layer, position)
+		check(not is_nan(wire_y), "segment %d post touches the actual wire mesh" % city.building.atv(cell))
+		if not is_nan(wire_y):
+			check(absf(top - wire_y) < .00001, "post top meets wire height")
+		var ground := CityGeometry3D.point_on_ground(city, cell, position - Vector2(cell))
+		check(absf(bottom - ground.y) < .00001, "post base rests on terrain")
+		var physical := layer.physical_data()
+		var matched := false
+		for box: Dictionary in physical.physical_boxes:
+			if box.transform.origin.is_equal_approx(pole.position) and box.size.is_equal_approx(pole.mesh.size):
+				matched = true
+		check(matched, "collision post follows the visible support")
+
+
+func _wire_height(layer: CityNetworks3D, point: Vector2) -> float:
+	if layer._region_initialized:
+		for region: CityNetworks3D in layer._regions.values():
+			var height := _wire_height(region, point)
+			if not is_nan(height): return height
+		return NAN
+	for i: int in range(0, layer._faces.size(), 3):
+		if not layer._colors[i].is_equal_approx(Color(0.23, 0.22, 0.21)): continue
+		var a: Vector3 = layer._faces[i]
+		var b: Vector3 = layer._faces[i + 1]
+		var c: Vector3 = layer._faces[i + 2]
+		var ab := Vector2(b.x - a.x, b.z - a.z)
+		var ac := Vector2(c.x - a.x, c.z - a.z)
+		var ap := point - Vector2(a.x, a.z)
+		var area := ab.cross(ac)
+		if absf(area) < .000001: continue
+		var v := ap.cross(ac) / area
+		var w := ab.cross(ap) / area
+		if v >= -.0001 and w >= -.0001 and v + w <= 1.0001:
+			return a.y + (b.y - a.y) * v + (c.y - a.y) * w
+	return NAN
+
+
+func test_straight_junction_and_bridge_lines_keep_their_center_support() -> void:
+	for code: int in [14, 15, 24, 25, 26, 27, 28, 92]:
 		var city := flat_city()
 		city.building.put(10, 10, code)
 		var layer := CityNetworks3D.new()

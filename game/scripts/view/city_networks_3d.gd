@@ -602,6 +602,11 @@ func _draw_network(city: City, cell: Vector2i, family: int, mask: int, elevation
 	if power:
 		var code := city.building.atv(cell)
 		var supports: Array[Vector2] = [Vector2(0.5, 0.5)]
+		if mask in [3, 6, 9, 12]:
+			# Bend wires follow a quarter circle, so its midpoint carries the
+			# post instead of the tile center, which lies outside the wire.
+			var angle: float = ANGLES[mask] - PI / 4.0
+			supports[0] = PIVOTS[mask] + Vector2(cos(angle), sin(angle)) * 0.5
 		var wire := elevation + POWER_WIRE_HEIGHT
 		if NetworkShapes.in_family(code, NetworkShapes.Family.HIGHWAY) and not _deck_profiles.has(cell):
 			wire = HIGHWAY_ELEVATION + POWER_WIRE_HEIGHT
