@@ -78,6 +78,26 @@ records. Editable masters are retained locally outside the public package.
 The original 144 building models retain their identities. Walkable themed
 halls are separate Explore assets; see [Resort interiors](resort-interiors.md).
 
+## Texture wrapping
+
+Godot's standard material has no mirrored texture wrap, so a glTF sampler set to
+MIRRORED_REPEAT imports clamped and metre-scale UVs smear the swatch's edge
+pixels across the surface. The original building models were authored with
+mirrored wrapping. `tools/fix_mirrored_textures.py` repairs them: each shared
+swatch gets a baked 2 × 2 mirrored copy in `surfaces/` that repeats seamlessly,
+and each model points at that copy with plain repeat and halves the UV set its
+textures use. Geometry, materials, colors and collision nodes are unchanged.
+New models should export plain repeat with seamless textures.
+
+    python3 tools/fix_mirrored_textures.py status
+    python3 tools/fix_mirrored_textures.py apply all | CODE ...
+    python3 tools/fix_mirrored_textures.py revert all | CODE ...
+
+`apply` keeps the exact original GLB in `assets/texture-wrap-originals/`, a local
+folder that is not packaged; `revert` restores those bytes. Both keep the
+catalog, landscaping and material-provenance hashes in step, and
+[texture-wrap-fix.json](texture-wrap-fix.json) records each model's state.
+
 ## Ground materials
 
 Three color textures were made for this project. They are saved under
@@ -142,7 +162,7 @@ with your own identity or to build unsigned.
 ## What is in this repository
 
 This repository contains the 150 GLBs, import sidecars, catalog and landscaping
-JSON, fourteen shared surface images, three ground textures, the connected-material
+JSON, twenty shared surface images, three ground textures, the connected-material
 grain sheet, and prompt/material provenance. Editable building masters are retained locally outside this repository.
 
 These models and textures are licensed under CC BY-NC-SA 4.0, not the GPL;
