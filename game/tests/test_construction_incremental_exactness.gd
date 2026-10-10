@@ -150,9 +150,13 @@ func _growth_then_construction(name: String) -> void:
 	check(not topology.rebuild(city), name + ": growth alone leaves the topology unchanged")
 	var builder := Builder.new(city, CityStats.new())
 	var applied := 0
-	for step: int in 40:
+	# This case exercises construction with unchanged terrain. A random
+	# bulldoze drag may now drain bare water, correctly requiring a full graph.
+	# Demolish occupied network cells individually to keep that premise exact.
+	for cell: Vector2i in Edits.network_cells(city):
 		if applied >= 3: break
-		if Edits.apply(city, builder, rng) in ["road", "rail", "bulldoze"]:
+		if not NetworkShapes.is_plain_road(city.building.atv(cell)): continue
+		if builder.apply(Tools.Kind.BULLDOZE, cell)["ok"]:
 			applied += 1
 			topology.rebuild(city)
 			check(topology._graph.last_change == CityTrafficGraph.CHANGE_INCREMENTAL, name + " growth edit %d: incremental" % applied)
@@ -166,11 +170,14 @@ func _lazy_adoption(name: String) -> void:
 	var graph := CityTrafficGraph.new()
 	graph.bind_city(city)
 	var builder := Builder.new(city, CityStats.new())
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
 	var done := 0
-	while done < 4:
-		if Edits.apply(city, builder, rng) in ["road", "rail", "bulldoze"]: done += 1
+	# Keep terrain unchanged so this tests adopting an incremental projection,
+	# rather than the full refresh required after draining water.
+	for cell: Vector2i in Edits.network_cells(city):
+		if done >= 4: break
+		if not NetworkShapes.is_plain_road(city.building.atv(cell)): continue
+		if builder.apply(Tools.Kind.BULLDOZE, cell)["ok"]: done += 1
+	check_eq(done, 4, name + ": four network demolitions applied")
 	graph.refresh()
 	check(graph.last_change == CityTrafficGraph.CHANGE_INCREMENTAL, name + ": construction refreshes incrementally")
 	var before := CityTrafficGraph.completed_adoptions

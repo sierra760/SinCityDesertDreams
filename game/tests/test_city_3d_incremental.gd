@@ -4,6 +4,32 @@
 
 ## Incremental projections must preserve distant identities and full-build geometry.
 extends "res://tests/exploration/async_test_case.gd"
+
+func test_water_patch_rebuilds_distant_chunks_when_its_bank_changes() -> void:
+	var city := flat_city(20000, 6)
+	var surface := TerrainSurface.new(6)
+	for y: int in range(20, 24):
+		for x: int in range(10, 58):
+			surface.set_tile_height(x, y, 5)
+			surface.set_water(x, y, 6)
+	surface.project(city)
+	var view := CityView3D.new()
+	root.add_child(view)
+	view.bind_city(city)
+	view.set_active(true)
+	# A low bank at the west end sets the water plane beyond three chunk borders.
+	surface.set_vertex(10, 21, 4)
+	surface.project(city)
+	view.refresh()
+	_compare_full(view, "distant low water bank")
+	# Restore the bank; retained geometry must rise with the complete patch.
+	surface.set_vertex(10, 21, 5)
+	surface.project(city)
+	view.refresh()
+	_compare_full(view, "restored water bank")
+	view.free()
+	await process_frame
+
 func _lot(view: CityView3D, cell: Vector2i) -> Node:
 	for child: Node in view.buildings.get_children():
 		if child.get_meta("cell", Vector2i(-1,-1)) == cell: return child

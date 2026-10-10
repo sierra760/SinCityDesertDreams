@@ -74,9 +74,11 @@ down its sloped tile. Every one-tile stream tile, whether straight, a bend, a
 junction or a waterfall, draws the same 0.32-tile-wide channel from its center
 toward each neighboring water tile. A stream tile beside lake, sea or estuary
 water fuses with that body as full water, and shoreline sand shelves appear
-only at corners that touch land. Other water on a lattice keeps its stored level, except
-at corners shared with a dry bank or a stream bed: there it meets that ground
-rather than hanging above it. Where neighboring water stands at different
+only at corners that touch land. Each connected standing-water patch at the
+same stored level draws one flat plane, capped by its lowest dry bank or stream
+bed. This cap applies to the whole patch, including its interior, so shallow
+water cannot bulge into an elevated hill. Diagonal tiles sharing a corner join
+the same patch. Where neighboring water stands at different
 heights, the higher water pours over their shared edge. Generated lakes and
 seas are level because their banks never lie below the water. Imported
 per-tile cities and temporary floods keep their own presentation.
@@ -197,6 +199,14 @@ there and re-project the ring of tiles that share those corners plus every
 tile the ripple touched. They refuse when the target tile, or any tile that
 would change shape, holds anything but trees; trees on the target tile are
 cleared as part of the work. A refused edit leaves the lattice untouched.
+
+After founding, the Water tool also drains an empty water tile at its usual
+price. Surface Bulldoze drains bare water at its demolition price; when a
+structure stands over water, the first demolition removes that structure and
+leaves the water beneath it. Deletion preserves the ground height and buried
+utilities, clears the water and salt flag, and persists through save/load.
+Protected land and funds checks apply. Temporary disaster floodwater is not
+drained by these tools.
 
 After ground moves, water settles: a tile whose water is no longer above its
 ground drains; a dry tile that dropped below neighboring standing water

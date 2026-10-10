@@ -123,8 +123,10 @@ construction owner. Captions read as sentences: a drag that builds only part
 of its length adds "· stops: <reason>" (also kept after "Spent $X"), short
 funds read "Costs $1,250 — treasury $830" (a negative treasury keeps its
 sign). Bulldoze and the inspector's Demolish act on the layer on show: on the
-surface they leave pipes and subway alone; in the underground view they dig up
-only pipes and subway. A drag keeps the tool it started with;
+surface they remove structures or drain bare water and leave pipes and subway
+alone; in the underground view they dig up only pipes and subway. Removing a
+structure over water leaves that water for a subsequent demolition. The Water
+tool also drains an empty water tile, before or after founding. A drag keeps the tool it started with;
 holding B during a drag makes it a Bulldoze drag, and releasing B before the
 mouse button keeps it one. Right-click inspects a site. Selecting pipes or subway tools
 opens underground automatically; Bulldoze and Inspect keep that view, and other

@@ -662,7 +662,79 @@ func test_terrain_tools() -> void:
 	check_eq(water["cost"], 100)
 	check(c.is_water(50, 50))
 	check_eq(c.water_height(50, 50), 4)
-	check(not b.preview(Tools.Kind.PLACE_WATER, Vector2i(50, 50))["ok"])
+	check(b.preview(Tools.Kind.PLACE_WATER, Vector2i(50, 50))["ok"], "water tool offers to drain existing water")
+
+
+func test_surface_water_can_be_deleted_after_founding_without_moving_ground() -> void:
+	for lattice: bool in [false, true]:
+		for tool: int in [Tools.Kind.PLACE_WATER, Tools.Kind.BULLDOZE]:
+			var b := _lattice_builder() if lattice else _builder()
+			var c := b.city
+			var cell := Vector2i(50, 50)
+			if lattice:
+				(c.terrain_surface as TerrainSurface).set_water(50, 50, 5, true)
+				(c.terrain_surface as TerrainSurface).project(c)
+			else:
+				_water_row(c, 50, 50, 50)
+				c.set_flag(50, 50, TileFlags.SALT_WATER, true)
+			c.underground.put(50, 50, NS.EAST | NS.WEST)
+			var ground := c.ground_height(50, 50)
+			var funds := c.funds
+			var quote := b.preview(tool, cell)
+			check(quote["ok"], "water deletion previews on native and imported terrain")
+			check(c.is_water(50, 50), "preview leaves water intact")
+			var result := b.apply(tool, cell)
+			check(result["ok"] and result["applied"], "water deletion applies after founding")
+			check_eq(result["cost"], Tools.cost(tool))
+			check_eq(c.funds, funds - Tools.cost(tool))
+			check(not c.is_water(50, 50), "water is removed")
+			check_eq(c.water_height(50, 50), 0)
+			check(not c.is_salt_water(50, 50), "salt flag clears")
+			check_eq(c.ground_height(50, 50), ground, "deleting water never raises its bed")
+			check_eq(c.underground.at(50, 50), NS.EAST | NS.WEST, "buried utilities remain")
+			if lattice:
+				check(not (c.terrain_surface as TerrainSurface).has_water(50, 50))
+			var restored: City = SaveFormat.decode_city(SaveFormat.encode_city(c)).city
+			check(not restored.is_water(50, 50), "removed water stays removed after save and load")
+
+
+func test_water_deletion_respects_structures_protection_and_funds() -> void:
+	var b := _lattice_builder()
+	var c := b.city
+	var s: TerrainSurface = c.terrain_surface
+	for x: int in range(50, 54): s.set_water(x, 50, 5)
+	s.project(c)
+	c.building.put(50, 50, Buildings.id_of(&"bridge_causeway_pylon"))
+	check(not b.apply(Tools.Kind.PLACE_WATER, Vector2i(50, 50))["ok"], "water tool cannot drain under a structure")
+	check(b.apply(Tools.Kind.BULLDOZE, Vector2i(50, 50))["ok"])
+	check(c.is_water(50, 50), "first bulldoze removes the structure and keeps water beneath it")
+	c.set_flag(51, 50, TileFlags.LANDMARK, true)
+	var drained := b.apply(Tools.Kind.BULLDOZE, Vector2i(50, 50), Vector2i(53, 50))
+	check(drained["ok"])
+	check_eq(drained["cost"], 3, "only three unprotected water tiles are charged")
+	check(c.is_water(51, 50), "protected water stays")
+	for x: int in [50, 52, 53]: check(not c.is_water(x, 50), "drag drains unprotected water")
+	c.set_flag(51, 50, TileFlags.LANDMARK, false)
+	c.funds = 0
+	check(not b.apply(Tools.Kind.BULLDOZE, Vector2i(51, 50))["ok"], "no unpaid demolition")
+	check(c.is_water(51, 50), "insufficient funds preserve water")
+	c.flood_overlay[Vector2i(60, 60)] = 1
+	c.funds = 1000
+	check(not b.apply(Tools.Kind.PLACE_WATER, Vector2i(60, 60))["ok"], "a temporary flood is handled by the disaster system")
+	check(c.flood_overlay.has(Vector2i(60, 60)))
+
+
+func test_draining_imported_streams_and_waterfalls_does_not_invent_land_slopes() -> void:
+	for code: int in [0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x2e, 0x3e]:
+		var b := _builder()
+		var c := b.city
+		c.terrain.put(50, 50, code)
+		c.set_heights(50, 50, 4, 5)
+		var r := b.apply(Tools.Kind.PLACE_WATER, Vector2i(50, 50))
+		check(r["ok"], r["reason"])
+		check_eq(c.terrain.at(50, 50), Terrain.FLAT, "flow direction codes are not dry ground slopes")
+		check_eq(c.ground_height(50, 50), 4)
+		check_eq(c.water_height(50, 50), 0)
 
 
 func test_sea_tools_refuse_after_founding() -> void:

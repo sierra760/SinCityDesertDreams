@@ -1360,6 +1360,11 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i, underground: bool 
 		if Buildings.is_tree(id):
 			trees += 1
 		if id == Buildings.NONE:
+			if Terrain.is_water(city.terrain.atv(p)):
+				tiles.append(p)
+				seen[p] = true
+				ops.append({"op": "lattice_drain" if _lattice() != null else "drain_water", "at": p})
+				cost += price
 			continue
 		var footprint: Array[Vector2i] = []
 		var rubble := Buildings.is_developed(id)
@@ -1655,10 +1660,12 @@ static func _editor_reason(text: String) -> String:
 
 
 func _plan_water(price: int, at: Vector2i) -> Dictionary:
-	if not _dry(at):
-		return _fail("already water", [at])
 	if city.building_at(at.x, at.y) != Buildings.NONE or _protected(at):
 		return _fail("clear the land first", [at])
+	if Terrain.is_water(city.terrain.atv(at)):
+		return _ok([at], price, [{"op": "lattice_drain" if _lattice() != null else "drain_water", "at": at}])
+	if not _dry(at):
+		return _fail("cannot drain temporary flood water", [at])
 	if not city.is_flat(at.x, at.y):
 		return _fail("the ground is not level", [at])
 	var lattice := _lattice()
@@ -1787,7 +1794,19 @@ func _commit(ops: Array) -> Array[Vector2i]:
 				city.set_heights(p.x, p.y, city.ground_height(p.x, p.y), city.ground_height(p.x, p.y))
 				city.zone.put(p.x, p.y, 0)
 				touched.append(p)
-			"lattice_land", "lattice_water":
+			"drain_water":
+				var p: Vector2i = op["at"]
+				var code := city.terrain.atv(p)
+				# Imported stream bits describe flow direction over flat ground;
+				# waterfall suffix 14 is not a representable dry slope either.
+				var shape := Terrain.slope(code)
+				if Terrain.water_kind(code) == Terrain.STREAM or shape > Terrain.PLATEAU:
+					shape = Terrain.FLAT
+				city.terrain.putv(p, Terrain.make(shape, Terrain.DRY))
+				city.set_heights(p.x, p.y, city.ground_height(p.x, p.y), 0)
+				city.set_flag(p.x, p.y, TileFlags.SALT_WATER, false)
+				touched.append(p)
+			"lattice_land", "lattice_water", "lattice_drain":
 				for t in _commit_lattice(op):
 					touched.append(t)
 			"reward":
@@ -1814,6 +1833,9 @@ func _commit_lattice(op: Dictionary) -> Array[Vector2i]:
 	match String(op["op"]):
 		"lattice_land":
 			r = _lattice_land_step(editor, int(op["kind"]), op["at"], int(op["height"]))
+		"lattice_drain":
+			var at: Vector2i = op["at"]
+			r = editor.remove_water(at.x, at.y)
 		_:
 			var at: Vector2i = op["at"]
 			r = editor.place_water(at.x, at.y, false)

@@ -91,6 +91,7 @@ var _changed_lot_cells: Dictionary = {}
 var _lot_regions: Array[Rect2i] = []
 var _terrain_unchanged_growth := false
 var _terrain_dirty_chunks: Dictionary = {}
+var _water_plane_state := PackedFloat64Array()
 var _terrain_rebuild_regions: Array[Rect2i] = []
 ## Chunk origin -> changed cells whose ground only needs its tint refreshed.
 var _terrain_recolor_cells: Dictionary = {}
@@ -461,6 +462,16 @@ func _changed_regions(full: bool) -> Array[Rect2i]:
 					if state[7][i] == _geometry_state[7][i]: continue
 					if NetworkShapes.underground_mask(state[7][i],NetworkShapes.Family.SUBWAY) != NetworkShapes.underground_mask(_geometry_state[7][i],NetworkShapes.Family.SUBWAY):
 						_mark_dirty(dirty,Vector2i(i % City.WIDTH,i / City.WIDTH))
+	# Standing-water height depends on the complete patch's lowest bank.
+	# Compare planes only when terrain/water changes; growth and service flags
+	# keep their existing local refresh path.
+	if full or state[0] != _geometry_state[0] or state[1] != _geometry_state[1] \
+			or state[5] != _geometry_state[5] or state[6] != _geometry_state[6]:
+		var planes := CityGeometry3D.standing_water_planes(city)
+		if not full and planes.size() == _water_plane_state.size():
+			for i: int in _changed_indices(_water_plane_state, planes, City.WIDTH):
+				_mark_dirty(dirty, Vector2i(i % City.WIDTH, i / City.WIDTH))
+		_water_plane_state = planes
 	if (full or state[0]!=_geometry_state[0] or state[1]!=_geometry_state[1] or state[2]!=_geometry_state[2] or state[5]!=_geometry_state[5]) \
 			and (full or not _road_tunnel_inputs_match(state)):
 		var tunnels := CityGeometry3D.road_tunnel_profiles(city)

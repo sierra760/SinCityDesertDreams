@@ -73,6 +73,12 @@ static var _water_flow_table := PackedByteArray()
 static var _water_corner_table := PackedFloat32Array()
 static var _water_height_table := PackedFloat64Array()
 static var _water_vertex_table := PackedByteArray()
+static var _water_plane_table := PackedFloat64Array()
+## One completed plane snapshot also serves isolated cursor/boat queries.
+## Copy-on-write inputs detect edits, including direct packed-array writes.
+static var _water_plane_cache_city: WeakRef
+static var _water_plane_cache_inputs: Array = []
+static var _water_plane_cache := PackedFloat64Array()
 
 
 static func _water_tables_ready() -> void:
@@ -83,6 +89,11 @@ static func _water_tables_ready() -> void:
 	_water_height_table.resize(City.WIDTH * City.HEIGHT)
 	_water_height_table.fill(NAN)
 	_water_vertex_table.resize((City.WIDTH + 1) * (City.HEIGHT + 1))
+	if _standing_plane_cache_matches(_ground_sampling_city):
+		_water_plane_table = _water_plane_cache.duplicate()
+	else:
+		_water_plane_table.resize(City.WIDTH * City.HEIGHT)
+		_water_plane_table.fill(NAN)
 
 
 static func road_tunnel_profiles(city: City) -> Dictionary:
@@ -100,7 +111,7 @@ static func is_sampling_ground(city: City) -> bool:
 static func begin_ground_sampling(city: City) -> Dictionary:
 	var previous := {"city": _ground_sampling_city, "vertices": _ground_vertex_cache, "corners": _ground_corner_cache, "tunnels": _road_tunnel_cache,
 		"water_flow": _water_flow_table, "water_corners": _water_corner_table, "water_heights": _water_height_table,
-		"water_vertices": _water_vertex_table}
+		"water_vertices": _water_vertex_table, "water_planes": _water_plane_table}
 	_road_tunnel_cache = {}
 	_ground_sampling_city = city
 	_ground_vertex_cache = {}
@@ -109,10 +120,15 @@ static func begin_ground_sampling(city: City) -> Dictionary:
 	_water_corner_table = PackedFloat32Array()
 	_water_height_table = PackedFloat64Array()
 	_water_vertex_table = PackedByteArray()
+	_water_plane_table = PackedFloat64Array()
 	return previous
 
 
 static func end_ground_sampling(previous: Dictionary) -> void:
+	if not _water_plane_table.is_empty():
+		_water_plane_cache_city = weakref(_ground_sampling_city)
+		_water_plane_cache_inputs = _standing_plane_inputs(_ground_sampling_city)
+		_water_plane_cache = _water_plane_table.duplicate()
 	_road_tunnel_cache = previous.tunnels
 	_ground_sampling_city = previous.city
 	_ground_vertex_cache = previous.vertices
@@ -121,6 +137,22 @@ static func end_ground_sampling(previous: Dictionary) -> void:
 	_water_corner_table = previous.water_corners
 	_water_height_table = previous.water_heights
 	_water_vertex_table = previous.water_vertices
+	_water_plane_table = previous.water_planes
+
+
+static func _standing_plane_inputs(city: City) -> Array:
+	var surface: TerrainSurface = city.terrain_surface as TerrainSurface
+	return [city.terrain.data.duplicate(), city.altitude.data.duplicate(), surface.vertices.duplicate() if surface != null else PackedByteArray(),
+		surface.feature.duplicate() if surface != null else PackedByteArray(), city.flood_overlay.duplicate()]
+
+
+static func _standing_plane_cache_matches(city: City) -> bool:
+	if _water_plane_cache_city == null or _water_plane_cache_city.get_ref() != city: return false
+	var surface: TerrainSurface = city.terrain_surface as TerrainSurface
+	return city.terrain.data == _water_plane_cache_inputs[0] and city.altitude.data == _water_plane_cache_inputs[1] \
+		and (surface.vertices if surface != null else PackedByteArray()) == _water_plane_cache_inputs[2] \
+		and (surface.feature if surface != null else PackedByteArray()) == _water_plane_cache_inputs[3] \
+		and city.flood_overlay == _water_plane_cache_inputs[4]
 
 
 static func _shared_dry_vertex(city: City, vx: int, vy: int) -> float:
@@ -317,10 +349,9 @@ static func is_bed_water(city: City, cell: Vector2i) -> bool:
 
 
 ## Visible water surface corners in NW, NE, SW, SE order. Bed water follows its
-## bed, so a native waterfall is a sloped cascade. Native standing water keeps
-## its stored level except at corners it shares with a dry bank or a stream
-## bed, where it meets that ground instead of hanging above it; when every bank
-## stands at or above the water, as around generated lakes and seas, it is level.
+## bed, so a native waterfall is a sloped cascade. Each connected native
+## standing-water patch at the same stored level uses one plane, capped by its
+## lowest dry bank or stream bed. Its interior cannot bulge above its shoreline.
 static func water_corners(city: City, cell: Vector2i) -> PackedVector3Array:
 	return _water_corners(city, cell).duplicate()
 
@@ -369,15 +400,73 @@ static func _compute_water_corners(city: City, cell: Vector2i) -> PackedVector3A
 			for i: int in 4:
 				points[i].y += BED_FILM
 		else:
-			# Native standing water is neither a flood nor an imported block.
-			var level := _stored_water_surface(city, cell) \
-				if Terrain.water_kind(city.terrain.atv(cell)) == Terrain.STREAM \
-				else city.water_height(cell.x, cell.y) * HEIGHT + 0.025
+			var level := _standing_water_plane(city, cell)
 			for i: int in 4:
-				# Only a corner whose ground lies below the water can be lowered.
-				var bank := points[i].y + BED_FILM
-				points[i].y = bank if bank < level and _meets_bank(city, int(points[i].x), int(points[i].z)) else level
+				points[i].y = level
 	return points
+
+
+## Resolve the whole patch even when only one chunk or cursor cell is sampled.
+## Diagonal neighbors share a lattice corner and therefore share the plane too.
+## Different stored levels retain their separate reaches and waterfalls.
+static func _standing_water_plane(city: City, cell: Vector2i) -> float:
+	if _ground_sampling_city != city:
+		var index := cell.y * City.WIDTH + cell.x
+		if _standing_plane_cache_matches(city) \
+				and not is_nan(_water_plane_cache[index]):
+			return _water_plane_cache[index]
+		var previous := begin_ground_sampling(city)
+		var height := _standing_water_plane(city, cell)
+		end_ground_sampling(previous)
+		return height
+	_water_tables_ready()
+	var origin := cell.y * City.WIDTH + cell.x
+	if not is_nan(_water_plane_table[origin]): return _water_plane_table[origin]
+	var stored := city.water_height(cell.x, cell.y)
+	var level := stored * HEIGHT + 0.025
+	var surface: TerrainSurface = city.terrain_surface
+	var seen := PackedByteArray()
+	seen.resize(City.WIDTH * City.HEIGHT)
+	seen[origin] = 1
+	var queue: Array[Vector2i] = [cell]
+	var head := 0
+	while head < queue.size():
+		var p := queue[head]
+		head += 1
+		for vertex: Vector2i in TerrainSurface.tile_vertices(p.x, p.y):
+			var bank := surface.vertex(vertex.x, vertex.y) * HEIGHT + BED_FILM
+			if bank < level and _meets_bank(city, vertex.x, vertex.y): level = bank
+		for dy: int in range(-1, 2):
+			for dx: int in range(-1, 2):
+				var n := p + Vector2i(dx, dy)
+				if not city.in_bounds(n.x, n.y): continue
+				var index := n.y * City.WIDTH + n.x
+				if seen[index]: continue
+				seen[index] = 1
+				if city.water_height(n.x, n.y) != stored: continue
+				var flags := _flow(city, n)
+				if flags & _NATIVE and not flags & _BED: queue.append(n)
+	for p: Vector2i in queue: _water_plane_table[p.y * City.WIDTH + p.x] = level
+	return level
+
+
+## Snapshot for incremental geometry: a bank edit can change water far beyond
+## its local terrain ring. Dry, flowing, imported and flood tiles use -1 here.
+static func standing_water_planes(city: City) -> PackedFloat64Array:
+	var previous := {}
+	if _ground_sampling_city != city: previous = begin_ground_sampling(city)
+	var planes := PackedFloat64Array()
+	planes.resize(City.WIDTH * City.HEIGHT)
+	planes.fill(-1.0)
+	if city.terrain_surface is TerrainSurface:
+		for y: int in City.HEIGHT:
+			for x: int in City.WIDTH:
+				var cell := Vector2i(x, y)
+				var flags := _flow(city, cell)
+				if flags & _NATIVE and not flags & _BED:
+					planes[y * City.WIDTH + x] = _standing_water_plane(city, cell)
+	if not previous.is_empty(): end_ground_sampling(previous)
+	return planes
 
 
 ## Whether a lattice vertex touches a dry tile or a stream bed.

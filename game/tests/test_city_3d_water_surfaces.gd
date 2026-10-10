@@ -7,6 +7,50 @@ extends "res://tests/test_case.gd"
 func visible(city: City, cell: Vector2i) -> Array:
 	return CityGeometry3D.build_chunk(city,Rect2i(cell,Vector2i.ONE)).mesh.surface_get_arrays(0)
 
+
+func test_shallow_standing_water_patch_cannot_form_an_elevated_hill() -> void:
+	var city := flat_city(20000, 4)
+	var surface := TerrainSurface.new(4)
+	for y: int in range(10, 15):
+		for x: int in range(10, 15):
+			surface.set_water(x, y, 6)
+	surface.project(city)
+	var before := SaveFormat.encode_city(city)
+	var bank_level := 4 * CityGeometry3D.HEIGHT + CityGeometry3D.BED_FILM
+	# Interior, shore and neighboring chunks must all share the same plane.
+	var data := CityGeometry3D.build_chunk(city, Rect2i(9, 9, 7, 7))
+	var sampled := 0
+	for i: int in data.faces.size():
+		if not data.colors[i].is_equal_approx(CityGeometry3D.WATER_COLOR): continue
+		sampled += 1
+		check(is_equal_approx(data.faces[i].y, bank_level), "standing water stays level with its low bank, including interior triangles")
+	check_gt(sampled, 100)
+	for cell: Vector2i in [Vector2i(10, 10), Vector2i(12, 12), Vector2i(14, 14)]:
+		check(is_equal_approx(CityGeometry3D.water_surface_height(city, cell), bank_level), "water queries use the same flat plane")
+		var arrays := visible(city, cell)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		for i: int in points.size():
+			if colors[i].is_equal_approx(CityGeometry3D.WATER_COLOR):
+				check(is_equal_approx(points[i].y, bank_level), "a separate chunk finds the whole patch's bank")
+	check_eq(SaveFormat.encode_city(city), before, "display correction preserves saved water and terrain")
+
+
+func test_water_queries_recompute_after_raw_bank_edits() -> void:
+	var city := flat_city(20000, 4)
+	var surface := TerrainSurface.new(4)
+	for y: int in range(10, 15):
+		for x: int in range(10, 15): surface.set_water(x, y, 6)
+	surface.project(city)
+	var center := Vector2i(12, 12)
+	check(is_equal_approx(CityGeometry3D.water_surface_height(city, center), 4 * CityGeometry3D.HEIGHT + CityGeometry3D.BED_FILM))
+	surface.vertices[10 * TerrainSurface.VERTS_X + 10] = 3
+	check(is_equal_approx(CityGeometry3D.water_surface_height(city, center), 3 * CityGeometry3D.HEIGHT + CityGeometry3D.BED_FILM),
+		"a direct vertex write invalidates the cached whole-patch height")
+	surface.vertices[10 * TerrainSurface.VERTS_X + 10] = 4
+	check(is_equal_approx(CityGeometry3D.water_surface_height(city, center), 4 * CityGeometry3D.HEIGHT + CityGeometry3D.BED_FILM),
+		"restoring the bank restores the water plane")
+
 func test_streams_retain_dry_banks_and_direction() -> void:
 	var city:=flat_city()
 	for variant in 6:
