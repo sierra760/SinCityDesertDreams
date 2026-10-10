@@ -33,7 +33,11 @@ func test_live_picking_and_camera_controls() -> void:
 	await physics_frame
 	await process_frame
 	check(view.active and view.layer == -1, "3D view appears behind the existing interface")
-	check(view.catalog.entries.size() == 144 and view.buildings.missing.is_empty(), "the complete authored catalog is available")
+	# Every building code from the first 1x1 lot through the last resort has a model.
+	var covered := view.catalog.entries.size() == Buildings.COUNT - Buildings.RES_1X1_FIRST
+	for code: int in range(Buildings.RES_1X1_FIRST, Buildings.COUNT):
+		covered = covered and view.catalog.entries.has(code)
+	check(covered and view.buildings.missing.is_empty(), "the complete authored catalog is available")
 	check(not view.notice.visible, "complete models do not display a placeholder warning")
 	check(view.viewport.size.x > 0 and view.viewport.size.y > 0, "viewport has usable dimensions")
 	var layout := DisplayLayout.new()

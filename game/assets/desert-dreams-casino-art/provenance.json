@@ -1,5 +1,5 @@
 {
-  "subject": "Four fictional Nevada-history resort illustration sets plus Despicable's: 100 runtime PNGs and four shared suit SVGs",
+  "subject": "Ten fictional Nevada resort illustration sets plus Despicable\u2019s: 220 runtime PNGs and four shared suit SVGs",
   "tool": "OpenAI built-in image_gen",
   "method": "Original image_gen illustration sheets, transparent payout cutouts and four new centered heritage paintings; lossless sprite packaging with measured visible-content bounds. Four cabinet faces are baked from the actual SlotStage renderer. No historical photographs, scanned playing cards or existing casino artwork were copied.",
   "masters": "assets/casino-art/",
@@ -13,6 +13,19 @@
   "cabinet_bake": "tools/qa/bake_slot_cabinets.gd",
   "shared_suits": "Original continuous symmetric SVG silhouettes, drawn as one texture per suit",
   "portrait_edits": "Twelve individually edited transparent cutouts preserve the fictional court figures while removing paper backgrounds and neighboring-cell fragments",
+  "expansion": {
+    "sets": [
+      "fix",
+      "alibi",
+      "velvet",
+      "afterglow",
+      "last",
+      "dust"
+    ],
+    "images": 120,
+    "generator": "tools/build_six_resort_art.py",
+    "method": "Original fictional resort illustrations and cabinet faces. No photographs or existing casino artwork were copied."
+  },
   "despicables": {
     "images": 20,
     "generator": "tools/build_despicables_art.py",

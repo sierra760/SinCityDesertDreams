@@ -368,8 +368,9 @@ func arcology_available(arcology_key: StringName) -> bool:
 		return false
 	var design: Dictionary = RewardParams.ARCOLOGIES[arcology_key]
 	var year := int(design.year)
-	if _ctx.stats.inventions.has(arcology_key):
-		year = int(_ctx.stats.inventions[arcology_key])
+	var technology: StringName = design.get("technology", arcology_key)
+	if _ctx.stats.inventions.has(technology):
+		year = int(_ctx.stats.inventions[technology])
 	return _ctx.year() >= year
 
 
@@ -416,7 +417,8 @@ static func _arcology_anchors(city: City) -> Array[Vector2i]:
 	var data := city.building.data
 	var zones := city.zone.data
 	var found := PackedInt32Array()
-	for id in range(Buildings.ARCOLOGY_COMSTOCK, Buildings.ARCOLOGY_ORBIT + 1):
+	for key in RewardParams.ARCOLOGIES:
+		var id := Buildings.id_of(key)
 		var i := data.find(id)
 		while i >= 0:
 			if zones[i] & Zones.CORNER_NW:

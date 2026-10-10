@@ -435,8 +435,14 @@ func test_arcology_availability_by_year() -> void:
 	check(not rewards.arcology_available(&"arcology_junction"))
 	ctx.stats.inventions[&"arcology_junction"] = 1995
 	check(rewards.arcology_available(&"arcology_junction"), "the economy's invention year wins")
-	check_eq(rewards.available_arcologies(), [&"arcology_comstock", &"arcology_junction"])
+	check_eq(rewards.available_arcologies(), [&"arcology_comstock", &"arcology_junction", &"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"])
 	check(not rewards.arcology_available(&"city_hall"), "only arcology keys")
+	ctx.stats.inventions[&"arcology_comstock"] = 2010
+	for key in [&"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"]:
+		check(not rewards.arcology_available(key), "new resort follows the stored Comstock year")
+	ctx.clock.day = 20 * GameClock.DAYS_PER_YEAR
+	for key in [&"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"]:
+		check(rewards.arcology_available(key), "new resort unlocks with Comstock")
 
 
 func test_powered_arcology_fills() -> void:
@@ -617,3 +623,22 @@ func test_save_load_round_trip() -> void:
 	check_gt(ctx2.stats.arcology_population, 0)
 	_run_days(ctx2, [restored], 6 * GameClock.DAYS_PER_MONTH)
 	check_eq(_offers(&"military_base"), 1, "restored state does not repeat the offer")
+
+
+func test_all_six_new_resorts_join_population_reports() -> void:
+	var city := flat_city()
+	var ctx := _context(city)
+	var rewards := RewardSystem.new()
+	_register(ctx, [rewards])
+	var capacities := [35000, 30000, 30000, 45000, 35000, 40000]
+	for i in 6:
+		city.stamp_building(12 + i * 4, 12, 256 + i)
+		_serve(city, 12 + i * 4, 12)
+	ctx.stats.population = 200000
+	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
+	var reports := rewards.arcology_report()
+	check_eq(reports.size(), 6)
+	for i in mini(6, reports.size()):
+		check_eq(reports[i].capacity, capacities[i])
+		check_gt(reports[i].residents, 0, "served new resorts admit residents")
+	check_gt(ctx.stats.arcology_population, 0)

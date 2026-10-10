@@ -12,12 +12,20 @@ extends RefCounted
 ## Table minimum and table maximum per resort. The minimum keeps a small city
 ## out of the high-stakes rooms; the maximum caps one round's exposure (the
 ## treasury caps it further).
+## Resort maxima are 100 times their minimum. Expansion stakes follow the
+## original four cost tiers; upper tiers extend Orbit's cost/limit slope.
 const TABLE_LIMITS := {
 	&"com_corner_store": {"minimum": 1, "maximum": 1000},
 	&"arcology_comstock": {"minimum": 100, "maximum": 10000},
 	&"arcology_junction": {"minimum": 250, "maximum": 25000},
 	&"arcology_boulder": {"minimum": 500, "maximum": 50000},
 	&"arcology_orbit": {"minimum": 1000, "maximum": 100000},
+	&"arcology_fix": {"minimum": 2200, "maximum": 220000},
+	&"arcology_alibi": {"minimum": 400, "maximum": 40000},
+	&"arcology_velvet": {"minimum": 1200, "maximum": 120000},
+	&"arcology_afterglow": {"minimum": 4000, "maximum": 400000},
+	&"arcology_last": {"minimum": 50, "maximum": 5000},
+	&"arcology_dust": {"minimum": 100, "maximum": 10000},
 }
 
 ## A month's net, won or lost at one resort, that makes the Dispatch.

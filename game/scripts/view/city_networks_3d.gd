@@ -1357,8 +1357,8 @@ static func _profile_source(code: int) -> bool:
 static func _tunnels_affected(old: Array, now: Array) -> bool:
 	var changed := _profile_differences(old, now)
 	if not changed.is_empty() and changed[0] < 0: return true
-	var codes: PackedByteArray = old[3]
-	var current: PackedByteArray = now[3]
+	var codes: PackedInt32Array = old[3]
+	var current: PackedInt32Array = now[3]
 	for entry: int in changed:
 		if entry & 2 or NetworkShapes.is_tunnel(codes[entry >> 2]) or NetworkShapes.is_tunnel(current[entry >> 2]): return true
 	return false
@@ -1376,8 +1376,8 @@ static func _profiles_reusable(old: Array, now: Array, decks: Dictionary) -> boo
 	var changed := _profile_differences(old, now)
 	if changed.is_empty(): return true
 	if changed[0] < 0 or changed.size() > PROFILE_REUSE_LIMIT: return false
-	var codes: PackedByteArray = old[3]
-	var current: PackedByteArray = now[3]
+	var codes: PackedInt32Array = old[3]
+	var current: PackedInt32Array = now[3]
 	for entry: int in changed:
 		var index := entry >> 2
 		# Codes, axes and corners of non-network cells are never read.

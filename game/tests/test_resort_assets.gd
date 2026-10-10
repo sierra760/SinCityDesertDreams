@@ -8,7 +8,7 @@
 extends "res://tests/exploration/async_test_case.gd"
 
 const ROOT := "res://assets/desert-dreams-resorts/"
-const CODES := [251,252,253,254]
+const CODES := [251,252,253,254,256,257,258,259,260,261]
 const STEP := .1
 const OPEN := ["bar_stool","slot_stool","standard_sign","chandelier_gaslamp","chandelier_lantern",
 	"chandelier_turbine","chandelier_starburst"]
@@ -41,7 +41,8 @@ func test_catalog_hashes_budgets_and_shells() -> void:
 		check_eq(hall.get("resort",""),String(ResortInteriorLayouts.key_for_building(code)),"hall %d resort" % code)
 	for prop: String in ["slot_cabinet","slot_stool","blackjack_table","roulette_table","money_wheel","video_poker_terminal",
 		"faro_table","chuck_a_luck_cage","baccarat_table","trajectory_console","chandelier_gaslamp","chandelier_lantern",
-		"chandelier_turbine","chandelier_starburst","banquette","bar_stool","standard_sign"]:
+		"chandelier_turbine","chandelier_starburst","banquette","bar_stool","standard_sign",
+		"vault_table","route_table","encore_table","forecast_console","contract_table","common_pot_table"]:
 		check(models.has(prop),prop+" in the kit")
 
 func _support(space: PhysicsDirectSpaceState3D, world: Node3D, local: Vector2) -> float:

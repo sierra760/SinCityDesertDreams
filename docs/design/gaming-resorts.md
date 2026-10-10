@@ -1,10 +1,33 @@
 # Gaming resorts
 
-Each of the four Gaming Resorts has a casino floor you can walk into from
+Each of the ten Gaming Resorts has a casino floor you can walk into from
 Explore. The mayor plays at its tables with the city treasury: a bet leaves
 the treasury, a win comes back to it, and the Desert Dispatch keeps an eye on
 the mayor's nights out. Play reaches the rest of the city only through the
 treasury and the newspaper.
+
+## Building the six additional resorts
+
+The six additional designs occupy 4 × 4 lots and append native building IDs
+256–261. All six unlock with the existing Comstock technology, including its
+invention year stored in an older city; they add no random invention draws.
+The original four keep their identities and Desert Orbit keeps its launch
+behavior. Their themes, named games and palettes are recorded in
+`tools/resort_expansion.json`; construction costs and resident capacities are
+provided by the building/tools and reward parameter tables.
+
+| ID | Resort | Saved key | Cost | Resident capacity |
+|---|---|---|---:|---:|
+| 256 | The Fix | `arcology_fix` | $320,000 | 35,000 |
+| 257 | Six-Week Alibi | `arcology_alibi` | $140,000 | 30,000 |
+| 258 | Velvet Wardrobe | `arcology_velvet` | $220,000 | 30,000 |
+| 259 | The Afterglow | `arcology_afterglow` | $500,000 | 45,000 |
+| 260 | Last Resort | `arcology_last` | $60,000 | 35,000 |
+| 261 | Dust Republic | `arcology_dust` | $95,000 | 40,000 |
+
+New native saves use version 2 and store building IDs in 16 bits. Existing
+version 1 cities remain readable, and classic imports keep their original
+IDs. See [File formats](file-formats.md).
 
 ## Entering a resort
 
@@ -29,6 +52,12 @@ replaced while you are inside, you are put back outside with a message.
 | Silver Junction | The Roundhouse | Railroad terminal: green-glass train shed, brass trusses, station clock | the conductor |
 | Boulder Crown | The Powerhouse | 1930s dam-construction Deco: sandstone pylons, turquoise terrazzo, turbine ring | the foreman |
 | Desert Orbit | Mission Control | Atomic-age rocket base: planetarium ceiling, starburst chandeliers, countdown clock | the flight director |
+| The Fix | The Back Room | Obsidian, brass and emerald | the foreman |
+| Six-Week Alibi | The Fresh Start | Blush pink, mint and warm brass | the conductor |
+| Velvet Wardrobe | The Scarlet Salon | Oxblood, black wood and amber | the assayer |
+| The Afterglow | The Observation Lounge | Ivory, copper, acid mint and orange | the flight director |
+| Last Resort | The Last Bank | Weathered sandstone, bottle glass and turquoise | the assayer |
+| Dust Republic | The Common Ground | Rust, bone and ultraviolet | the conductor |
 
 ## Playing a table
 
@@ -83,6 +112,17 @@ game. Returns include the stake.
 | Video poker | Bonanza Draw | Sleeper Car Draw | High Scaler Draw | Mission Draw |
 | Signature | Faro at the Assay Office | Birdcage (chuck-a-luck) | Spillway Baccarat | Static Fire (trajectory) |
 
+The six additional resorts offer the shared games and six original signature games:
+
+| Resort | Blackjack | Roulette | Slots | Money wheel | Video poker | Signature |
+|---|---|---|---|---|---|---|
+| The Fix | House Twenty-One | Inside Track Roulette | The Skim | Silent Partner Wheel | Clean Slate Draw | Vault Circuit |
+| Six-Week Alibi | Second Chance Twenty-One | Separate Ways Roulette | Six-Week Streak | Turning Point Wheel | Fresh Start Draw | Separate Ways |
+| Velvet Wardrobe | Encore Twenty-One | Scarlet Roulette | After Hours | Curtain Call Wheel | Backstage Draw | Encore |
+| The Afterglow | Daybreak Twenty-One | Fallout Roulette | Radiant Fortune | Sunset Wheel | Bright Side Draw | Afterglow Forecast |
+| Last Resort | Still Standing Twenty-One | Boomtown Roulette | House Remains | Prosperity Wheel | Ghost Town Draw | Last Bank Contracts |
+| Dust Republic | Open Road Twenty-One | Playa Roulette | Dust Dividend | Free State Wheel | Common Ground Draw | Common Pot |
+
 - **Blackjack:** six decks; the dealer stands on all 17s; a two-card 21 pays
   3 to 2; double on any first two cards; split once (split aces get one card
   each); no insurance or surrender.
@@ -105,6 +145,22 @@ game. Returns include the stake.
 - **Trajectory:** launch, watch the multiplier climb, and cash out before the
   engine burns out. Cashing out returns the bet times the multiplier; burning
   out loses it. You may set an automatic cash-out target before launch.
+
+## The six original signature games
+
+- **Vault Circuit:** open up to three locks. Quiet offers80% success and ×1.20 gross; Force55% and ×1.70. Each failure loses the accumulated bank. Collect after a success or risk another lock.
+- **Separate Ways:** choose Direct (96%, ×1 gross), Night (48%, ×2) or Express (24%, ×4), then travel bare or covered. Coverage reduces a successful return to80% and returns25% of the stake on failure; no extra debit.
+- **Encore:** a theatrical rose/fan/spotlight duel with visible crowd weights. Rose beats fan, fan beats spotlight, spotlight beats rose. Ties hold the purse, wins multiply it by1.30, losses end the show. Bow out or continue for up to three encores. The opening purse is96% of the stake.
+- **Afterglow Forecast:** allocate bets to Steady, Pulse and Surge using the visible forecast probabilities. One common observation resolves all three, so a surge also produces pulse and steady. Exact gross multipliers appear before betting.
+- **Last Bank Contracts:** draft one of three face-up offers and choose Rise, Fall or Match against the remaining49-card bank. Aces are low; exact card counts and gross returns appear before choosing.
+- **Common Pot:** inspect three fictional crew pledges, then claim one, two or three virtual shares of a house-sponsored pot. A larger claim offers a larger payout with a lower chance of agreement. The game shows the fraction, probability and gross return.
+
+Every game rounds returns down to whole dollars and commits the stake once.
+The action buttons support mouse, touch and keyboard focus. If backgrounded,
+Vault attempts its first lock quietly then banks; Separate Ways takes Direct
+without cover; Encore bows; Last Bank drafts the first offer and takes the
+more likely Rise/Fall contract; Common Pot claims one share. Afterglow resolves
+its observation immediately. These choices settle the committed risk.
 
 ## Despicable's: groceries and low-stakes games
 
@@ -130,6 +186,17 @@ as the resorts; all stores in a city share the Despicable's play history.
 | Silver Junction | $250 | $25,000 |
 | Boulder Crown | $500 | $50,000 |
 | Desert Orbit | $1,000 | $100,000 |
+| The Fix | $2,200 | $220,000 |
+| Six-Week Alibi | $400 | $40,000 |
+| Velvet Wardrobe | $1,200 | $120,000 |
+| The Afterglow | $4,000 | $400,000 |
+| Last Resort | $50 | $5,000 |
+| Dust Republic | $100 | $10,000 |
+
+The six additions follow the original four's cost progression and 100×
+maximum-to-minimum spread. Above Desert Orbit, each additional $1,000 of
+construction cost adds $10 to the minimum; Alibi fits between Junction and
+Boulder, and the two lower-cost resorts use accessible rounded stakes.
 
 Every bet comes from the city treasury, and the table's maximum is never more
 than the treasury holds, including blackjack doubles and splits. The treasury
@@ -157,7 +224,8 @@ table says so.
 
 ## Ledger, Inspect and the news
 
-The city keeps a ledger for each resort: rounds played, totals staked and
+All ten resort designs have separate persisted play histories. The city keeps
+a ledger for each resort: rounds played, totals staked and
 returned, the best win and worst loss, and the net for the month and the
 year. It is saved with the city. **Inspect** on a resort lot shows its
 **Casino floor** and the **Mayor's play this year** (for example "+$1,200" or

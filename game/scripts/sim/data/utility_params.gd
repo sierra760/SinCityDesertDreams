@@ -334,7 +334,7 @@ static func conducts_water_code_table() -> PackedByteArray:
 ## at another rotation carry CORNER_NW away from the top-left tile, so the flag
 ## alone does not mark the anchor. Single-tile buildings are always their own
 ## anchor.
-static func is_anchor_tile(bld: PackedByteArray, zn: PackedByteArray, i: int) -> bool:
+static func is_anchor_tile(bld: PackedInt32Array, zn: PackedByteArray, i: int) -> bool:
 	var x := i % City.WIDTH
 	@warning_ignore("integer_division")
 	var y := i / City.WIDTH

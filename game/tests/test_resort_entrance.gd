@@ -9,8 +9,8 @@ extends "res://tests/exploration/async_test_case.gd"
 
 const Access := preload("res://scripts/exploration/resorts/resort_entrance_access.gd")
 const ANCHOR := Vector2i(20,18)
-const CODES := [Buildings.ARCOLOGY_COMSTOCK,Buildings.ARCOLOGY_JUNCTION,Buildings.ARCOLOGY_BOULDER,Buildings.ARCOLOGY_ORBIT]
-const NAMES := ["Comstock Grand","Silver Junction","Boulder Crown","Desert Orbit"]
+const CODES := [Buildings.ARCOLOGY_COMSTOCK,Buildings.ARCOLOGY_JUNCTION,Buildings.ARCOLOGY_BOULDER,Buildings.ARCOLOGY_ORBIT,256,257,258,259,260,261]
+const NAMES := ["Comstock Grand","Silver Junction","Boulder Crown","Desert Orbit","The Fix","Six-Week Alibi","Velvet Wardrobe","The Afterglow","Last Resort","Dust Republic"]
 
 func _city(code: int, sloped: bool) -> City:
 	var city := flat_city()

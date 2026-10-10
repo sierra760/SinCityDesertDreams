@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## A square grid of 16-bit values, used for the altitude layer.
+## A square grid of 16-bit values, used for altitude and building layers.
 class_name Grid16
 extends RefCounted
 
@@ -65,3 +65,15 @@ func from_bytes(bytes: PackedByteArray) -> void:
 	var n := mini(bytes.size() / 2, data.size())
 	for i in n:
 		data[i] = bytes[i * 2] | (bytes[i * 2 + 1] << 8)
+
+
+func index(x: int, y: int) -> int:
+	return y * width + x
+
+
+func fill(value: int) -> void:
+	data.fill(value & 0xFFFF)
+
+
+func count(value: int) -> int:
+	return data.count(value)

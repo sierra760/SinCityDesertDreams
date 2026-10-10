@@ -242,6 +242,95 @@
       ],
       "sha256": "f5fb0986bc900ffc68cb1e35d05f90600b8b7c88a80143480beb08573e97bd17"
     },
+    "common_pot_table": {
+      "triangles": 1864,
+      "parts": 7,
+      "materials": [
+        "resort_felt",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_wood"
+      ],
+      "colliders": 1,
+      "min_godot": [
+        -1.4700000286102295,
+        0.0,
+        -0.7599999904632568
+      ],
+      "max_godot": [
+        1.4700000286102295,
+        1.156000018119812,
+        0.7599999904632568
+      ],
+      "size_godot": [
+        2.940000057220459,
+        1.156000018119812,
+        1.5199999809265137
+      ],
+      "sha256": "3c3fa34fe63381f7d18057a2f4d639a73e52638d4865f7873e4f4ff6140dd4bc"
+    },
+    "contract_table": {
+      "triangles": 908,
+      "parts": 7,
+      "materials": [
+        "resort_felt",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_wood"
+      ],
+      "colliders": 1,
+      "min_godot": [
+        -1.4900000095367432,
+        0.0,
+        -0.7799999713897705
+      ],
+      "max_godot": [
+        1.4900000095367432,
+        1.440000057220459,
+        0.7799999713897705
+      ],
+      "size_godot": [
+        2.9800000190734863,
+        1.440000057220459,
+        1.559999942779541
+      ],
+      "sha256": "60b5ec309ca38aa738fc32f94025fc69395dd99e3b3de08af6e9e88b647da622"
+    },
+    "encore_table": {
+      "triangles": 2460,
+      "parts": 6,
+      "materials": [
+        "resort_carpet",
+        "resort_felt",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_wood"
+      ],
+      "colliders": 1,
+      "min_godot": [
+        -1.4700000286102295,
+        0.0,
+        -0.8259999752044678
+      ],
+      "max_godot": [
+        1.4700000286102295,
+        1.5699999332427979,
+        0.7599999904632568
+      ],
+      "size_godot": [
+        2.940000057220459,
+        1.5699999332427979,
+        1.5859999656677246
+      ],
+      "sha256": "c06a19bfa6a328b99fa4fe894efcca5b9e32e5352a53bb39c9d350a0edb9f35e"
+    },
     "faro_table": {
       "triangles": 780,
       "parts": 6,
@@ -270,6 +359,35 @@
         1.399999976158142
       ],
       "sha256": "c0447c63cb666411914adee704c399d5f5a7efd7d377d9cc9502dc5ec7b3c97c"
+    },
+    "forecast_console": {
+      "triangles": 944,
+      "parts": 6,
+      "materials": [
+        "resort_felt",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_screen",
+        "resort_wood"
+      ],
+      "colliders": 1,
+      "min_godot": [
+        -1.4900000095367432,
+        0.0,
+        -0.7799999713897705
+      ],
+      "max_godot": [
+        1.4900000095367432,
+        1.6200000047683716,
+        0.7799999713897705
+      ],
+      "size_godot": [
+        2.9800000190734863,
+        1.6200000047683716,
+        1.559999942779541
+      ],
+      "sha256": "3b2a0eafed50cee030af7b29b956ed63b40f2df6bb2a616a2f70cc5c1f598959"
     },
     "hall_126": {
       "triangles": 12840,
@@ -452,6 +570,222 @@
       ],
       "sha256": "062cb3728cb00eef84c62b345be5df09b1f3c2bece31c7fde92e24861935be30"
     },
+    "hall_256": {
+      "triangles": 20948,
+      "parts": 13,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_cove",
+        "resort_floor",
+        "resort_foliage",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 36,
+      "min_godot": [
+        -22.600000381469727,
+        -0.6000000238418579,
+        -22.600000381469727
+      ],
+      "max_godot": [
+        22.600000381469727,
+        11.600000381469727,
+        30.600000381469727
+      ],
+      "size_godot": [
+        45.20000076293945,
+        12.200000405311584,
+        53.20000076293945
+      ],
+      "sha256": "1b03a9ce772c3f02b0423b17227e0fc2cb96806f7d7c711297a4393df48cd1fc"
+    },
+    "hall_257": {
+      "triangles": 23500,
+      "parts": 13,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_cove",
+        "resort_floor",
+        "resort_foliage",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 36,
+      "min_godot": [
+        -22.600000381469727,
+        -0.6000000238418579,
+        -22.600000381469727
+      ],
+      "max_godot": [
+        22.600000381469727,
+        11.600000381469727,
+        30.600000381469727
+      ],
+      "size_godot": [
+        45.20000076293945,
+        12.200000405311584,
+        53.20000076293945
+      ],
+      "sha256": "a6b17616da22ab80182e5188ca60116d81f52204458a7a536c299c19247d7feb"
+    },
+    "hall_258": {
+      "triangles": 21868,
+      "parts": 13,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_cove",
+        "resort_floor",
+        "resort_foliage",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 36,
+      "min_godot": [
+        -22.600000381469727,
+        -0.6000000238418579,
+        -22.600000381469727
+      ],
+      "max_godot": [
+        22.600000381469727,
+        11.600000381469727,
+        30.600000381469727
+      ],
+      "size_godot": [
+        45.20000076293945,
+        12.200000405311584,
+        53.20000076293945
+      ],
+      "sha256": "1670a847e8ade16c664d0bb4270388810685aee145127e222701ba2f1bec40e7"
+    },
+    "hall_259": {
+      "triangles": 24076,
+      "parts": 13,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_cove",
+        "resort_floor",
+        "resort_foliage",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 36,
+      "min_godot": [
+        -22.600000381469727,
+        -0.6000000238418579,
+        -22.600000381469727
+      ],
+      "max_godot": [
+        22.600000381469727,
+        11.779999732971191,
+        30.600000381469727
+      ],
+      "size_godot": [
+        45.20000076293945,
+        12.37999975681305,
+        53.20000076293945
+      ],
+      "sha256": "4d40c5be8761ba4532d946bfcfbef979184b128c4126637d217bae24bffaa01d"
+    },
+    "hall_260": {
+      "triangles": 32204,
+      "parts": 13,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_cove",
+        "resort_floor",
+        "resort_foliage",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 36,
+      "min_godot": [
+        -22.600000381469727,
+        -0.6000000238418579,
+        -22.600000381469727
+      ],
+      "max_godot": [
+        22.600000381469727,
+        11.600000381469727,
+        30.600000381469727
+      ],
+      "size_godot": [
+        45.20000076293945,
+        12.200000405311584,
+        53.20000076293945
+      ],
+      "sha256": "f1c9b0f6b4d08061eb4bf17a5cd399249335c45668720e6b619d8561f3c810fb"
+    },
+    "hall_261": {
+      "triangles": 17392,
+      "parts": 13,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_cove",
+        "resort_floor",
+        "resort_foliage",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 36,
+      "min_godot": [
+        -22.600000381469727,
+        -0.6000000238418579,
+        -22.600000381469727
+      ],
+      "max_godot": [
+        22.600000381469727,
+        11.600000381469727,
+        30.600000381469727
+      ],
+      "size_godot": [
+        45.20000076293945,
+        12.200000405311584,
+        53.20000076293945
+      ],
+      "sha256": "a2deb0738fe9049e237bd20833868a94474c47b28b20c5c5846f5cc1d443c05e"
+    },
     "money_wheel": {
       "triangles": 2756,
       "parts": 7,
@@ -511,6 +845,36 @@
         1.5
       ],
       "sha256": "e04a30df859d70243863eb55b697bd58af4c43c4e708a0aad919f72ce46a3b50"
+    },
+    "route_table": {
+      "triangles": 784,
+      "parts": 7,
+      "materials": [
+        "resort_felt",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_sign",
+        "resort_wood"
+      ],
+      "colliders": 1,
+      "min_godot": [
+        -1.4700000286102295,
+        0.0,
+        -0.7599999904632568
+      ],
+      "max_godot": [
+        1.4700000286102295,
+        1.2105000019073486,
+        0.7599999904632568
+      ],
+      "size_godot": [
+        2.940000057220459,
+        1.2105000019073486,
+        1.5199999809265137
+      ],
+      "sha256": "8c396d19511991c2026e0290e1e99ee44999cc062c48d216f2817e25c944c634"
     },
     "slot_cabinet": {
       "triangles": 572,
@@ -621,6 +985,34 @@
       ],
       "sha256": "47d64f8e0805f3a208a458190b768d88986b70976e79e592b6a5aaf22a1c603b"
     },
+    "vault_table": {
+      "triangles": 2076,
+      "parts": 5,
+      "materials": [
+        "resort_felt",
+        "resort_lamp",
+        "resort_metal",
+        "resort_rubber",
+        "resort_wood"
+      ],
+      "colliders": 1,
+      "min_godot": [
+        -1.4900000095367432,
+        0.0,
+        -0.7799999713897705
+      ],
+      "max_godot": [
+        1.4900000095367432,
+        1.3849999904632568,
+        0.7799999713897705
+      ],
+      "size_godot": [
+        2.9800000190734863,
+        1.3849999904632568,
+        1.559999942779541
+      ],
+      "sha256": "71dcba7b932f74f3f02074fb5b8dfa07bbffbcd550d2fe52a70024f3b197ee77"
+    },
     "video_poker_terminal": {
       "triangles": 240,
       "parts": 8,
@@ -681,6 +1073,48 @@
       "floor": "Mission Control",
       "chandelier": "chandelier_starburst",
       "signature": "trajectory_console"
+    },
+    "256": {
+      "model": "hall_256",
+      "resort": "arcology_fix",
+      "floor": "The Back Room",
+      "chandelier": "chandelier_turbine",
+      "signature": "vault_table"
+    },
+    "257": {
+      "model": "hall_257",
+      "resort": "arcology_alibi",
+      "floor": "The Fresh Start",
+      "chandelier": "chandelier_gaslamp",
+      "signature": "route_table"
+    },
+    "258": {
+      "model": "hall_258",
+      "resort": "arcology_velvet",
+      "floor": "The Scarlet Salon",
+      "chandelier": "chandelier_gaslamp",
+      "signature": "encore_table"
+    },
+    "259": {
+      "model": "hall_259",
+      "resort": "arcology_afterglow",
+      "floor": "The Observation Lounge",
+      "chandelier": "chandelier_starburst",
+      "signature": "forecast_console"
+    },
+    "260": {
+      "model": "hall_260",
+      "resort": "arcology_last",
+      "floor": "The Last Bank",
+      "chandelier": "chandelier_lantern",
+      "signature": "contract_table"
+    },
+    "261": {
+      "model": "hall_261",
+      "resort": "arcology_dust",
+      "floor": "The Common Ground",
+      "chandelier": "chandelier_starburst",
+      "signature": "common_pot_table"
     }
   },
   "stores": {

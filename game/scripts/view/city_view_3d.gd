@@ -511,8 +511,8 @@ func _road_tunnel_inputs_match(state: Array) -> bool:
 	if state[0] != _road_tunnel_inputs[0] or state[1] != _road_tunnel_inputs[1] \
 			or state[5] != _road_tunnel_inputs[3] or state[6] != _road_tunnel_inputs[4]:
 		return false
-	var before: PackedByteArray = _road_tunnel_inputs[2]
-	var after: PackedByteArray = state[2]
+	var before: PackedInt32Array = _road_tunnel_inputs[2]
+	var after: PackedInt32Array = state[2]
 	if before.size() != after.size(): return false
 	for i: int in _changed_indices(before, after, City.WIDTH):
 		if NetworkShapes.is_tunnel(before[i]) or NetworkShapes.is_tunnel(after[i]): return false

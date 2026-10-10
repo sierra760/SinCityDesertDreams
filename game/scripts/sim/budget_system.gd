@@ -35,7 +35,7 @@ var _service_keys: Array[StringName] = []
 ## The last map survey and the exact layers it read. The budget window asks
 ## for several estimates per slider tick; an unchanged map reuses one survey.
 var _survey_city: City
-var _survey_buildings := PackedByteArray()
+var _survey_buildings := PackedInt32Array()
 var _survey_zones := PackedByteArray()
 var _survey_result: Dictionary = {}
 

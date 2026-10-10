@@ -3,7 +3,7 @@
 # See LICENSE and LICENSING.md in the repository root.
 extends "res://tests/test_case.gd"
 
-class CountedGrid extends Grid8:
+class CountedGrid extends Grid16:
 	var reads := 0
 	func at(x: int, y: int) -> int:
 		reads += 1

@@ -13,7 +13,7 @@ static var _highway_codes := PackedByteArray()
 
 ## Raw indices holding any code marked in `table`, in row-major order: the
 ## cells a full scan testing the same per-code predicate would visit.
-static func cells_with(codes: PackedByteArray, table: PackedByteArray) -> PackedInt32Array:
+static func cells_with(codes: PackedInt32Array, table: PackedByteArray) -> PackedInt32Array:
 	var found := PackedInt32Array()
 	for value: int in table.size():
 		if table[value] == 0: continue

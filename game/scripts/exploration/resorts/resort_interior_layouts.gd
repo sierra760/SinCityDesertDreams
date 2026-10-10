@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## Floor plans of the four gaming resort casino floors.
+## Floor plans of the ten gaming resort casino floors.
 ##
 ## Every hall shares one program (a 44 m square floor, an 11 m ceiling, a
 ## vestibule at the front, the cage on the back wall, the bar on the east wall
@@ -33,9 +33,10 @@ const POCKET_BOUNDS := AABB(Vector3(-HALF,-.02,-HALF),Vector3(HALF*2.0,CEILING+.
 const DOOR_REACH := .16
 const SEAT_REACH := .14
 
-const BUILDINGS := {126: &"com_corner_store", 251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit"}
+const BUILDINGS := {126: &"com_corner_store", 251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit", 256: &"arcology_fix", 257: &"arcology_alibi", 258: &"arcology_velvet", 259: &"arcology_afterglow", 260: &"arcology_last", 261: &"arcology_dust"}
 const SIGNATURE_PROPS := {&"faro": "faro_table", &"chuck_a_luck": "chuck_a_luck_cage",
-	&"baccarat": "baccarat_table", &"trajectory": "trajectory_console"}
+	&"baccarat": "baccarat_table", &"trajectory": "trajectory_console",
+	&"vault_circuit": "vault_table", &"alibi_route": "route_table", &"velvet_encore": "encore_table", &"afterglow_forecast": "forecast_console", &"last_bank": "contract_table", &"dust_pool": "common_pot_table"}
 const GAME_PROPS := {&"blackjack": "blackjack_table", &"roulette": "roulette_table",
 	&"slots": "slot_cabinet", &"money_wheel": "money_wheel", &"video_poker": "video_poker_terminal"}
 ## Font files for each theme font key; every sign character is in its font.
@@ -45,7 +46,7 @@ const FONTS := {"fontdiner": "res://assets/fonts/fontdiner-swanky/FontdinerSwank
 	"atomic_age": "res://assets/fonts/atomic-age/AtomicAge-Regular.ttf"}
 
 const CHANDELIERS := {&"arcology_comstock": "chandelier_gaslamp", &"arcology_junction": "chandelier_lantern",
-	&"arcology_boulder": "chandelier_turbine", &"arcology_orbit": "chandelier_starburst"}
+	&"arcology_boulder": "chandelier_turbine", &"arcology_orbit": "chandelier_starburst", &"arcology_fix": "chandelier_turbine", &"arcology_alibi": "chandelier_gaslamp", &"arcology_velvet": "chandelier_gaslamp", &"arcology_afterglow": "chandelier_starburst", &"arcology_last": "chandelier_lantern", &"arcology_dust": "chandelier_starburst"}
 
 ## Pit and bank placements in hall metres: game, table centre, yaw (the
 ## direction the seated player faces is the prop's -Z turned by yaw), seat
@@ -124,7 +125,7 @@ static var _cache: Dictionary = {}
 ## Resort keys in building order.
 static func keys() -> Array[StringName]:
 	var result: Array[StringName] = []
-	for code: int in [251,252,253,254]: result.append(BUILDINGS[code])
+	for key: StringName in ResortThemes.keys(): result.append(key)
 	return result
 
 static func key_for_building(code: int) -> StringName:
@@ -245,6 +246,8 @@ static func layout(key: StringName) -> Dictionary:
 		"decor": decor, "chandeliers": lamps, "lights": lights, "signs": signs, "standards": standards,
 		"dais": {"center": Vector2(DAIS.at.x,DAIS.at.z)/METRES_PER_TILE, "half": Vector2(DAIS.half)/METRES_PER_TILE,
 			"height": DAIS_HEIGHT}}
+	if ResortThemes.building(key)>=256:
+		plan["slot_badge"] = {"position":Vector3(0,1.715,.204),"size":Vector2(.12,.12)}
 	_cache[key] = plan
 	return plan
 

@@ -17,7 +17,7 @@ const FINISHES := {"resort_floor": 0, "resort_carpet": 1, "resort_wall": 2, "res
 	"resort_stone": 4, "resort_wood": 5, "resort_metal": 6, "resort_glass": 7, "resort_felt": 8,
 	"resort_lamp": 9, "resort_sign": 10, "resort_screen": 11, "resort_rubber": 12, "resort_cove": 13,
 	"resort_foliage": 14}
-const VARIANTS := {&"arcology_comstock": 0, &"arcology_junction": 1, &"arcology_boulder": 2, &"arcology_orbit": 3}
+const VARIANTS := {&"arcology_comstock": 0, &"arcology_junction": 1, &"arcology_boulder": 2, &"arcology_orbit": 3, &"arcology_fix": 0, &"arcology_alibi": 1, &"arcology_velvet": 0, &"arcology_afterglow": 3, &"arcology_last": 1, &"arcology_dust": 3}
 const METRES := 16.0
 const SHADER := preload("res://scripts/exploration/resorts/resort_finish.gdshader")
 ## Authored props that are visual only, never blocking.
@@ -176,7 +176,9 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 		var at := _metres(row.pose)
 		if standard.is_empty(): _place(_box_parts(Vector3(0,STANDARD_FACE.y,0),Vector3(STANDARD_ROOM.x+.08,STANDARD_ROOM.y+.08,.06),"resort_sign"),at,batches,collision,false)
 		else: triangles += _place(standard,at,batches,collision,false)
-		var text := "%s\n$%s %s" % [String(row.text),_grouped(int(row.minimum)),String(row.minimum_word)]
+		var title := String(row.text)
+		if row.game == &"last_bank": title = title.replace("Bank Contracts", "Bank\nContracts")
+		var text := "%s\n$%s %s" % [title,_grouped(int(row.minimum)),String(row.minimum_word)]
 		_letter(batches,font,text,at*Transform3D(Basis.IDENTITY,STANDARD_FACE+Vector3(0,0,.004)),STANDARD_ROOM)
 		signs += 1
 	var mesh := ArrayMesh.new()

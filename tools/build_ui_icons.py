@@ -9,6 +9,7 @@
 SVG sources are shipped at 128px so 32px icons stay sharp at doubled UI scale.
 Run from any directory. Only the SVG files in game/assets/ui/tool-icons are written.
 """
+import math
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parents[1] / 'game/assets/ui/tool-icons'
@@ -132,6 +133,40 @@ def build():
     icons['arcology_junction'] = resort_roof() + path('M9 51 V30 H20 V19 L32 9 44 19 V30 H55 V51Z', GOLD) + circle(32, 24, 6) + path('M32 20 V24 H35', width=2) + path('M22 53 L26 37 H38 L42 53 M25 42 H39 M24 48 H40', stroke=TEAL, width=3)
     icons['arcology_boulder'] = resort_roof() + path('M17 51 L22 25 H42 L47 51Z', GOLD) + path('M21 25 L18 11 28 17 32 7 37 17 46 11 43 25Z', TEAL) + path('M28 33 L26 49 M36 33 L38 49', stroke=PAPER, width=3)
     icons['arcology_orbit'] = resort_roof() + path('M25 38 L17 48 V32 L24 26 M39 38 L47 48 V32 L40 26', GOLD) + path('M24 40 V26 Q24 15 32 7 40 15 40 26 V40Z', TEAL) + circle(32, 25, 5) + path('M28 45 L32 54 36 45', stroke=RED, width=4)
+    # Six added resorts: each pictogram follows its building's silhouette and emblem.
+    emerald, blush, oxblood, ivory, rust, violet = '#2f7a5e', '#e2ab9e', '#7a2e3a', '#efe3c4', '#b8653f', '#7d6aa0'
+    spokes = ''.join(f'M32 22 L{32+5*math.sin(i*math.pi/4):.1f} {22+5*math.cos(i*math.pi/4):.1f} ' for i in range(8))
+    icons['arcology_fix'] = (resort_roof() + path('M21 52 V9 H43 V52Z', emerald)
+        + path('M26 32 V38 M32 32 V38 M38 32 V38', stroke=PAPER, width=2)
+        + path('M10 52 V40 H54 V52Z', '#41524a') + path('M16 43 V50 M23 43 V50 M41 43 V50 M48 43 V50', stroke=GOLD, width=2.5)
+        + rect(28, 43, 8, 9, emerald, 1) + circle(32, 22, 7.5, GOLD) + path(spokes, stroke=INK, width=1.6)
+        + circle(32, 22, 2, INK, INK, 1))
+    icons['arcology_alibi'] = (resort_roof() + path('M10 52 V17 H24 V52Z', blush) + path('M40 52 V11 H54 V52Z', blush)
+        + path('M13 24 H21 M13 31 H21 M13 38 H21 M43 18 H51 M43 25 H51 M43 32 H51 M43 39 H51', stroke=TEAL, width=3)
+        + path('M24 52 V38 H40 V52Z', PAPER) + path('M22 38 L32 31 42 38Z', PAPER)
+        + path('M28 41 V52 M32 41 V52 M36 41 V52', width=2)
+        + '<circle cx="28" cy="14" r="5" fill="none" stroke="'+GOLD+'" stroke-width="3"/>'
+        + '<circle cx="36" cy="14" r="5" fill="none" stroke="'+GOLD+'" stroke-width="3"/>')
+    icons['arcology_velvet'] = (resort_roof() + path('M8 52 V28 H20 V52Z', oxblood) + path('M44 52 V32 H56 V52Z', oxblood)
+        + path('M21 52 V19 A11 11 0 0 1 43 19 V52Z', oxblood)
+        + path('M32 13 a4 4 0 1 1 -0.1 0Z M30 20 H34 L36 32 H28Z', GOLD, INK, 1.5)
+        + path('M11 34 H17 M11 41 H17 M47 38 H53 M47 45 H53', stroke=GOLD, width=3)
+        + path('M24 44 Q32 37 40 44 V52 H24Z', GOLD, INK, 2))
+    icons['arcology_afterglow'] = (resort_roof() + path('M8 52 V25 H56 V52Z', ivory)
+        + path('M12 31 H52 M12 37 H52 M12 43 H52', stroke=TEAL, width=3)
+        + path('M18 25 A14 14 0 0 1 46 25Z', RED)
+        + path('M32 4 V8 M19 9 L21 12 M45 9 L43 12 M12 18 L15 19 M52 18 L49 19', stroke=GOLD, width=3)
+        + path('M24 52 V46 H40 V52', TEAL, INK, 2))
+    icons['arcology_last'] = (resort_roof() + path('M30 52 V17 L35 12 H49 L54 17 V52Z', TEAL)
+        + path('M37 13 V52 M44 12 V52 M30 26 H54 M30 36 H54', stroke=PAPER, width=1.6)
+        + path('M8 52 V30 H34 V52Z', GOLD) + path('M7 30 H35', width=4)
+        + path('M12 52 V43 A3 3 0 0 1 18 43 V52 M21 52 V43 A3 3 0 0 1 27 43 V52', PAPER, INK, 2)
+        + path('M42 2 L47 7 42 12 37 7Z', GOLD, INK, 2))
+    icons['arcology_dust'] = (resort_roof() + path('M8 52 V22 H20 V52Z', rust) + path('M10 22 V14 H19 V22', rust)
+        + path('M44 52 V18 H56 V52Z', rust) + path('M46 18 V10 H54 V18', rust)
+        + path('M20 20 Q32 30 44 16 L44 30 Q32 40 20 34Z', '#d8c9a6', INK, 2.5)
+        + path('M32 36 L27 46 32 52 37 46Z M27 46 H37', violet, INK, 2)
+        + path('M11 28 H17 M11 35 H17 M11 42 H17 M47 24 H53 M47 31 H53 M47 38 H53', stroke=violet, width=3))
     icons['reward_mayors_residence'] = house() + path('M39 9 V20 M39 9 H53 L49 15 H39', GOLD, INK, 2)
     icons['reward_city_hall'] = path('M8 54 H56 M13 54 V25 H51 V54', GOLD) + path('M10 25 L32 13 54 25Z', TEAL) + path('M21 34 V46 M32 34 V46 M43 34 V46 M32 13 V5 H46', width=3)
     icons['reward_monument'] = path('M12 54 H52 L47 43 H17Z', GOLD) + path('M26 42 L28 24 H36 L39 42Z', TEAL) + circle(32, 16, 7, GOLD) + path('M28 26 L19 33 M36 26 L45 17', stroke=TEAL, width=5)

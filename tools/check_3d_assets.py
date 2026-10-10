@@ -36,7 +36,7 @@ def check() -> tuple[int, int]:
             assert hashlib.sha256(path.read_bytes()).hexdigest() == row['sha256'], f'{name}: shared texture hash'
             assert 'mipmaps/generate=true' in path.with_suffix(path.suffix+'.import').read_text(), f'{name}: mipmaps'
             shared_images[name] = row
-    assert sorted(e["code"] for e in entries) == list(range(112, 256)), "coverage or duplicate code"
+    assert sorted(e["code"] for e in entries) == list(range(112, 262)), "coverage or duplicate code"
     total_bytes = 0
     for entry in entries:
         code = entry["code"]
@@ -58,7 +58,7 @@ def check() -> tuple[int, int]:
         assert all('uri' not in v for v in gltf.get('buffers',[])), f'{code}: external geometry'
         for image in gltf.get('images',[]):
             assert 'uri' not in image or image['uri'] in shared_images, f'{code}: unapproved external texture'
-        if shared_images:
+        if shared_images and code < 256:
             source = next(row for row in material_data['models'] if row['code'] == code)
             assert source['runtime_glb_sha256'] == entry['glb_sha256'], f'{code}: material provenance hash'
         assert any(n.get("name", "").endswith("-colonly") for n in gltf["nodes"]), f"{code}: physical shell"

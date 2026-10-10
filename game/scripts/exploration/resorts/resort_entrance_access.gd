@@ -16,7 +16,7 @@ const HEIGHT_REACH := 1.2
 ## Distance of the threshold from the lot's back edge, toward the front. Desert
 ## Orbit's entrance pods reach further toward the street than the others.
 const FRONT := 3.75
-const FRONT_BY_CODE := {254: 3.87}
+const FRONT_BY_CODE := {254: 3.87, 256: 3.82, 257: 3.82, 258: 3.82, 259: 3.82, 260: 3.82, 261: 3.82}
 
 ## True when `anchor` is the anchor of a standing resort of a known code.
 static func exists(city: City, anchor: Vector2i, code: int) -> bool:

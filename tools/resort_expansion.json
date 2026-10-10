@@ -1,0 +1,256 @@
+{
+  "resorts": [
+    {
+      "code": 256,
+      "slug": "fix",
+      "key": "arcology_fix",
+      "name": "The Fix",
+      "floor": "The Back Room",
+      "signature": "vault_circuit",
+      "font": "biorhyme",
+      "voice": "foreman",
+      "chandelier": "chandelier_turbine",
+      "palette": {
+        "stone": "323833",
+        "metal": "c29b53",
+        "wood": "241c19",
+        "glass": "247a5b",
+        "lamp": "ffe3a6",
+        "carpet": "153b2d",
+        "felt": "23704e",
+        "accent": "c29b53",
+        "ink": "101c15",
+        "paper": "f3e6c9"
+      },
+      "reels": [
+        "Brass Key",
+        "Martini",
+        "Fedora",
+        "Emerald",
+        "Ledger",
+        "VAULT"
+      ],
+      "games": {
+        "blackjack": "House Twenty-One",
+        "roulette": "Inside Track Roulette",
+        "slots": "The Skim",
+        "money_wheel": "Silent Partner Wheel",
+        "video_poker": "Clean Slate Draw",
+        "vault_circuit": "Vault Circuit"
+      },
+      "minimum": 2200,
+      "cost": 320000,
+      "maximum": 220000
+    },
+    {
+      "code": 257,
+      "slug": "alibi",
+      "key": "arcology_alibi",
+      "name": "Six-Week Alibi",
+      "floor": "The Fresh Start",
+      "signature": "alibi_route",
+      "font": "fontdiner",
+      "voice": "conductor",
+      "chandelier": "chandelier_gaslamp",
+      "palette": {
+        "stone": "e4b4a6",
+        "metal": "d2ad6b",
+        "wood": "634238",
+        "glass": "70b59a",
+        "lamp": "ffe3c2",
+        "carpet": "6d3249",
+        "felt": "4c9482",
+        "accent": "d88798",
+        "ink": "402634",
+        "paper": "f8ecdc"
+      },
+      "reels": [
+        "Wedding Ring",
+        "Suitcase",
+        "Cocktail",
+        "Rose",
+        "Courthouse",
+        "ALIBI"
+      ],
+      "games": {
+        "blackjack": "Second Chance Twenty-One",
+        "roulette": "Separate Ways Roulette",
+        "slots": "Six-Week Streak",
+        "money_wheel": "Turning Point Wheel",
+        "video_poker": "Fresh Start Draw",
+        "alibi_route": "Separate Ways"
+      },
+      "minimum": 400,
+      "cost": 140000,
+      "maximum": 40000
+    },
+    {
+      "code": 258,
+      "slug": "velvet",
+      "key": "arcology_velvet",
+      "name": "Velvet Wardrobe",
+      "floor": "The Scarlet Salon",
+      "signature": "velvet_encore",
+      "font": "fontdiner",
+      "voice": "assayer",
+      "chandelier": "chandelier_gaslamp",
+      "palette": {
+        "stone": "a34a42",
+        "metal": "ba8a4e",
+        "wood": "271b21",
+        "glass": "39766d",
+        "lamp": "ffd899",
+        "carpet": "521728",
+        "felt": "6c2943",
+        "accent": "9c2546",
+        "ink": "24131e",
+        "paper": "f5e5c9"
+      },
+      "reels": [
+        "Keyhole",
+        "Fan",
+        "Spotlight",
+        "Rose",
+        "Velvet Curtain",
+        "VELVET"
+      ],
+      "games": {
+        "blackjack": "Encore Twenty-One",
+        "roulette": "Scarlet Roulette",
+        "slots": "After Hours",
+        "money_wheel": "Curtain Call Wheel",
+        "video_poker": "Backstage Draw",
+        "velvet_encore": "Encore"
+      },
+      "minimum": 1200,
+      "cost": 220000,
+      "maximum": 120000
+    },
+    {
+      "code": 259,
+      "slug": "afterglow",
+      "key": "arcology_afterglow",
+      "name": "The Afterglow",
+      "floor": "The Observation Lounge",
+      "signature": "afterglow_forecast",
+      "font": "atomic_age",
+      "voice": "flight_director",
+      "chandelier": "chandelier_starburst",
+      "palette": {
+        "stone": "e9debd",
+        "metal": "cc8746",
+        "wood": "463831",
+        "glass": "80c2a5",
+        "lamp": "fff0b0",
+        "carpet": "374d43",
+        "felt": "61a28c",
+        "accent": "dc874b",
+        "ink": "233630",
+        "paper": "f7edd7"
+      },
+      "reels": [
+        "Sunburst",
+        "Cocktail",
+        "Atom",
+        "Sunglasses",
+        "Geiger Meter",
+        "GLOW"
+      ],
+      "games": {
+        "blackjack": "Daybreak Twenty-One",
+        "roulette": "Fallout Roulette",
+        "slots": "Radiant Fortune",
+        "money_wheel": "Sunset Wheel",
+        "video_poker": "Bright Side Draw",
+        "afterglow_forecast": "Afterglow Forecast"
+      },
+      "minimum": 4000,
+      "cost": 500000,
+      "maximum": 400000
+    },
+    {
+      "code": 260,
+      "slug": "last",
+      "key": "arcology_last",
+      "name": "Last Resort",
+      "floor": "The Last Bank",
+      "signature": "last_bank",
+      "font": "biorhyme_expanded",
+      "voice": "assayer",
+      "chandelier": "chandelier_lantern",
+      "palette": {
+        "stone": "c5a37b",
+        "metal": "b79550",
+        "wood": "5d3c28",
+        "glass": "36aaa6",
+        "lamp": "ffe2ac",
+        "carpet": "55442d",
+        "felt": "387e6a",
+        "accent": "4fa4a0",
+        "ink": "342b20",
+        "paper": "f3e5cb"
+      },
+      "reels": [
+        "Bottle",
+        "Bank Key",
+        "Desert Owl",
+        "Gold Coin",
+        "Diamond",
+        "LAST"
+      ],
+      "games": {
+        "blackjack": "Still Standing Twenty-One",
+        "roulette": "Boomtown Roulette",
+        "slots": "House Remains",
+        "money_wheel": "Prosperity Wheel",
+        "video_poker": "Ghost Town Draw",
+        "last_bank": "Last Bank Contracts"
+      },
+      "minimum": 50,
+      "cost": 60000,
+      "maximum": 5000
+    },
+    {
+      "code": 261,
+      "slug": "dust",
+      "key": "arcology_dust",
+      "name": "Dust Republic",
+      "floor": "The Common Ground",
+      "signature": "dust_pool",
+      "font": "biorhyme",
+      "voice": "conductor",
+      "chandelier": "chandelier_starburst",
+      "palette": {
+        "stone": "c78c64",
+        "metal": "aa643d",
+        "wood": "4a3029",
+        "glass": "79629a",
+        "lamp": "ffe5b1",
+        "carpet": "45325d",
+        "felt": "886a9c",
+        "accent": "9c6eca",
+        "ink": "291d35",
+        "paper": "f2e5cb"
+      },
+      "reels": [
+        "Shade Sail",
+        "Art Car",
+        "Compass",
+        "Light Prism",
+        "Dust Goggles",
+        "DUST"
+      ],
+      "games": {
+        "blackjack": "Open Road Twenty-One",
+        "roulette": "Playa Roulette",
+        "slots": "Dust Dividend",
+        "money_wheel": "Free State Wheel",
+        "video_poker": "Common Ground Draw",
+        "dust_pool": "Common Pot"
+      },
+      "minimum": 100,
+      "cost": 95000,
+      "maximum": 10000
+    }
+  ]
+}

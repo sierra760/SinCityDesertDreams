@@ -1,9 +1,10 @@
 # Resort illustrations
 
-Four original illustration sets: Comstock Grand (silver mining), Silver Junction
+Ten original resort illustration sets. The original four are: Comstock Grand (silver mining), Silver Junction
 (railroads), Boulder Crown (dam construction and Art Deco), and Desert Orbit
 (Nevada rocket-engine research). Each set has six reel symbols, three fictional
-court portraits, a card back, three paintings and six transparent payout cutouts. Ranks and suits are rendered by
+court portraits, a card back, three paintings and six transparent payout cutouts, plus an actual three-reel cabinet bake
+(20 runtime PNGs per venue). Ranks and suits are rendered by
 the game; the pictures do not encode card identities or alter casino outcomes.
 
 Created with the built-in image_gen tool. Complete generation prompts and
@@ -23,7 +24,14 @@ renderer by `tools/qa/bake_slot_cabinets.gd`, showing multiple symbol rows.
 Measured visible-content bounds center portraits, card backs and paintings;
 transparent payout illustrations retain the alpha created by image_gen.
 The local source records retain the additional prompts.
-There are 100 runtime images across the four resorts and Despicable's, plus four shared suit SVGs.
+The six additional sets are The Fix (`fix/`, obsidian/brass/emerald),
+Six-Week Alibi (`alibi/`, blush/mint), Velvet Wardrobe (`velvet/`, oxblood/amber),
+The Afterglow (`afterglow/`, ivory/mint/orange), Last Resort (`last/`, weathered
+sandstone/bottle-glass/turquoise) and Dust Republic (`dust/`, rust/bone/ultraviolet).
+`tools/build_six_resort_art.py` packages their inspected image sources; the
+cabinet images use the actual animated three-reel renderer. These add 120 PNGs
+while preserving the original resort and store images. There are 200 PNGs for
+the ten resorts, or 220 including Despicable's, plus four shared suit SVGs.
 The suits are original continuous silhouettes with clean joins; ranks and suit
 marks remain separate from the generated portraits. Face cards leave paper
 between the portrait and both suit marks. Whole-card flip transforms keep all

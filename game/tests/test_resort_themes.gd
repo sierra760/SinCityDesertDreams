@@ -9,9 +9,9 @@ const PALETTE_ENTRIES: Array[String] = ["felt", "accent", "wood", "metal", "ston
 const VOICES: Array[StringName] = [&"assayer", &"conductor", &"foreman", &"flight_director"]
 
 
-func test_four_resorts_map_to_their_buildings() -> void:
-	check_eq(ResortThemes.keys().size(), 4)
-	var codes := {251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit"}
+func test_ten_resorts_map_to_their_buildings() -> void:
+	check_eq(ResortThemes.keys().size(), 10)
+	var codes := {251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit", 256: &"arcology_fix", 257: &"arcology_alibi", 258: &"arcology_velvet", 259: &"arcology_afterglow", 260: &"arcology_last", 261: &"arcology_dust"}
 	for code in codes:
 		check_eq(ResortThemes.key_for_building(code), codes[code])
 		check_eq(ResortThemes.building(codes[code]), code)
@@ -41,7 +41,7 @@ func test_every_resort_has_five_shared_games_and_one_signature() -> void:
 		for other in ResortThemes.SIGNATURE_GAMES:
 			if other != signature:
 				check(not ResortThemes.offers(key, other), "%s does not offer %s" % [key, other])
-	check_eq(signatures.size(), 4, "each signature game belongs to one resort")
+	check_eq(signatures.size(), 10, "all ten signature game kinds are represented")
 	check_eq(ResortThemes.signature(&"arcology_comstock"), &"faro")
 	check_eq(ResortThemes.signature(&"arcology_junction"), &"chuck_a_luck")
 	check_eq(ResortThemes.signature(&"arcology_boulder"), &"baccarat")

@@ -102,6 +102,12 @@ const CAPTIONS := {
 	Tools.Kind.MICROWAVE_PLANT: "Microwave",
 	Tools.Kind.FUSION_PLANT: "Fusion",
 	Tools.Kind.ARCOLOGY_COMSTOCK: "Comstock\nGrand",
+	Tools.Kind.ARCOLOGY_FIX: "The Fix",
+	Tools.Kind.ARCOLOGY_ALIBI: "Six-Week\nAlibi",
+	Tools.Kind.ARCOLOGY_VELVET: "Velvet\nWardrobe",
+	Tools.Kind.ARCOLOGY_AFTERGLOW: "The\nAfterglow",
+	Tools.Kind.ARCOLOGY_LAST: "Last\nResort",
+	Tools.Kind.ARCOLOGY_DUST: "Dust\nRepublic",
 	Tools.Kind.ARCOLOGY_JUNCTION: "Silver\nJunction",
 	Tools.Kind.ARCOLOGY_BOULDER: "Boulder\nCrown",
 	Tools.Kind.ARCOLOGY_ORBIT: "Desert\nOrbit",
@@ -226,6 +232,8 @@ func _build() -> void:
 		if not tools_by_group.has(g):
 			tools_by_group[g] = []
 		(tools_by_group[g] as Array).append(tool)
+	if tools_by_group.has(Tools.Group.ARCOLOGY):
+		(tools_by_group[Tools.Group.ARCOLOGY] as Array).sort_custom(_cheaper_first)
 	for g in GROUP_ORDER:
 		if not tools_by_group.has(g):
 			continue
@@ -244,6 +252,13 @@ func _build() -> void:
 				grid.add_child(_make_button(tool))
 		if not immediate.is_empty():
 			column.add_child(_make_action_block(g, immediate))
+
+
+## Gaming resorts are listed from the least to the most expensive.
+static func _cheaper_first(a: int, b: int) -> bool:
+	var cost_a := Tools.cost(a)
+	var cost_b := Tools.cost(b)
+	return cost_a < cost_b or (cost_a == cost_b and a < b)
 
 
 func _make_grid() -> GridContainer:

@@ -108,6 +108,10 @@ func _finish_round(game: CasinoGame) -> void:
 				game.act(VideoPokerGame.DRAW, {"held": [true, true, true, true, true]})
 			&"trajectory":
 				game.act(TrajectoryGame.CASH_OUT, {"multiplier": 1.0})
+			_:
+				var closing := game.background_action()
+				if closing != &"":
+					game.act(closing)
 
 
 func test_settle_event_is_last_and_matches_outcome() -> void:

@@ -51,7 +51,7 @@ static var _access_tbl := PackedByteArray()
 var _census := PackedInt32Array()
 
 ## Layers of the city being scanned, bound for the duration of a pass.
-var _bld := PackedByteArray()
+var _bld := PackedInt32Array()
 var _zn := PackedByteArray()
 var _flags := PackedByteArray()
 var _alt := PackedInt32Array()
@@ -176,7 +176,7 @@ static func _build_access_table() -> void:
 
 
 ## A road (or station) lies within ACCESS_RADIUS tiles of `rect`.
-static func _access_near(bld: PackedByteArray, rect: Rect2i) -> bool:
+static func _access_near(bld: PackedInt32Array, rect: Rect2i) -> bool:
 	var r := Params.ACCESS_RADIUS
 	var x0 := maxi(rect.position.x - r, 0)
 	var x1 := mini(rect.end.x + r, W)
@@ -200,7 +200,7 @@ func _bind(city: City) -> void:
 
 
 func _unbind() -> void:
-	_bld = PackedByteArray()
+	_bld = PackedInt32Array()
 	_zn = PackedByteArray()
 	_flags = PackedByteArray()
 	_alt = PackedInt32Array()

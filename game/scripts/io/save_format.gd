@@ -7,7 +7,7 @@
 ## A save is one JSON document:
 ##
 ##   {
-##     "format": "sc2d", "version": 1,
+##     "format": "sc2d", "version": 2,
 ##     "stage": "play" | "editing",   # "editing": an unfounded map
 ##     "generator": {...},            # editing only: the settings that made the map
 ##     "header": {name, mayor, year, day, population, funds, saved_at, stage},
@@ -27,7 +27,7 @@ class_name SaveFormat
 extends RefCounted
 
 const FORMAT := "sc2d"
-const VERSION := 1
+const VERSION := 2
 const EXTENSION := "sc2d"
 ## A save of a founded, running city.
 const STAGE_PLAY := "play"
@@ -40,7 +40,7 @@ const TERRAIN_PER_TILE := "per_tile"
 const LAYER_SIZES := {
 	"terrain": City.WIDTH * City.HEIGHT,
 	"altitude": City.WIDTH * City.HEIGHT * 2,
-	"building": City.WIDTH * City.HEIGHT,
+	"building": City.WIDTH * City.HEIGHT * 2,
 	"zone": City.WIDTH * City.HEIGHT,
 	"flags": City.WIDTH * City.HEIGHT,
 	"underground": City.WIDTH * City.HEIGHT,
@@ -257,7 +257,7 @@ static func load(path: String) -> Dictionary:
 		result["error"] = MESSAGE_DAMAGED
 		result["detail"] = "Save has no city."
 		return result
-	var decoded := decode_city(city_doc)
+	var decoded := decode_city(city_doc, version)
 	if decoded["city"] == null:
 		# Keep the technical reason for diagnostics, out of the player's view.
 		result["error"] = MESSAGE_DAMAGED
@@ -494,7 +494,7 @@ static func encode_city(city: City) -> Dictionary:
 	var layers := {
 		"terrain": encode_bytes(city.terrain.data),
 		"altitude": encode_bytes(city.altitude.to_bytes()),
-		"building": encode_bytes(city.building.data),
+		"building": encode_bytes(city.building.to_bytes()),
 		"zone": encode_bytes(city.zone.data),
 		"flags": encode_bytes(city.flags.data),
 		"underground": encode_bytes(city.underground.data),
@@ -547,7 +547,7 @@ static func encode_city(city: City) -> Dictionary:
 
 ## Rebuild a City from its document. Returns {city, error, topology}; `city`
 ## is null when the document is incomplete or damaged.
-static func decode_city(doc: Dictionary) -> Dictionary:
+static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 	if not doc.has("street_naming"):
 		return {"city": null, "error": "Save has no street naming metadata."}
 	var decoded_naming := _decode_street_naming(doc.street_naming)
@@ -586,10 +586,21 @@ static func decode_city(doc: Dictionary) -> Dictionary:
 	for layer_name in LAYER_SIZES:
 		if not layers.has(layer_name):
 			continue
-		var bytes := decode_bytes(String(layers[layer_name]), int(LAYER_SIZES[layer_name]))
-		if bytes.size() != int(LAYER_SIZES[layer_name]):
+		var expected_size := int(LAYER_SIZES[layer_name])
+		if layer_name == "building" and version == 1:
+			expected_size /= 2
+		var bytes := decode_bytes(String(layers[layer_name]), expected_size)
+		if bytes.size() != expected_size:
 			return {"city": null, "error": "Layer '%s' is damaged." % layer_name}
-		if layer_name == "altitude":
+		if layer_name == "building":
+			if version == 1:
+				city.building.data = PackedInt32Array(Array(bytes))
+			else:
+				city.building.from_bytes(bytes)
+			for code in city.building.data:
+				if code >= Buildings.COUNT:
+					return {"city": null, "error": "Building layer contains an unknown building."}
+		elif layer_name == "altitude":
 			city.altitude.from_bytes(bytes)
 		else:
 			var grid: Grid8 = grids[layer_name]
@@ -605,8 +616,10 @@ static func decode_city(doc: Dictionary) -> Dictionary:
 		var index := int(key)
 		if index < 0 or index >= City.WIDTH * City.HEIGHT:
 			return {"city": null, "error": "Save has invalid imported power link position."}
-		for component: Variant in value:
-			if typeof(component) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(component)) or float(component) != floorf(float(component)) or component < 0 or component > 255:
+		for component_index in 2:
+			var component: Variant = value[component_index]
+			var maximum := Buildings.COUNT - 1 if component_index == 0 else 255
+			if typeof(component) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(component)) or float(component) != floorf(float(component)) or component < 0 or component > maximum:
 				return {"city": null, "error": "Save has invalid imported power link signature."}
 		var signature := Vector2i(int(value[0]), int(value[1]))
 		if signature == Vector2i(city.building.data[index], city.zone.data[index] & Zones.KIND_MASK):

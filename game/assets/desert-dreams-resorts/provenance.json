@@ -1,5 +1,5 @@
 {
-  "subject": "Four gaming resort casino halls, Despicable's store and a shared prop kit for Explore",
+  "subject": "Ten gaming resort casino halls, Despicable\u2019s store and a shared prop kit for Explore",
   "generator": "tools/blender_exploration/build_resort_interiors.py",
   "tool": "Blender 5.2 (procedural Python authoring)",
   "sources": "assets/resort-interiors/ (editable .blend files written by the generator)",
@@ -8,6 +8,7 @@
   "license": "CC BY-NC-SA 4.0 (project-owned art); see LICENSING.md",
   "generators": [
     "tools/blender_exploration/build_resort_interiors.py",
+    "tools/blender_exploration/build_six_resort_halls.py",
     "tools/blender_exploration/build_despicables_interior.py"
   ]
 }

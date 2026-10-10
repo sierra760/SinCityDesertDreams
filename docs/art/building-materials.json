@@ -1336,6 +1336,54 @@
       "sha256": "1497bcaffb7bd8c0af6e0b7f16e246fda7132e09fc1e668488110aa47f16dc84",
       "bytes": 484910,
       "source_name": "desert-rock"
+    },
+    {
+      "path": "surfaces/ac6c102e99f7919f31caac8978878bbe7eccb26b6018da5e2820accd509e651a.jpg",
+      "sha256": "ac6c102e99f7919f31caac8978878bbe7eccb26b6018da5e2820accd509e651a",
+      "bytes": 864299,
+      "source_name": "terrazzo-paving"
+    },
+    {
+      "path": "surfaces/bfb776a156c12c292d467f685f9bd6df1066ed9cd1871ae858992fdb98437be6.jpg",
+      "sha256": "bfb776a156c12c292d467f685f9bd6df1066ed9cd1871ae858992fdb98437be6",
+      "bytes": 1559978,
+      "source_name": "gravel-roof"
+    },
+    {
+      "path": "surfaces/5e50166f253b9186a0022f59aa08dad611e426623af35fa81c21e296935d43a0.jpg",
+      "sha256": "5e50166f253b9186a0022f59aa08dad611e426623af35fa81c21e296935d43a0",
+      "bytes": 1368832,
+      "source_name": "granite"
+    },
+    {
+      "path": "surfaces/885c74f731cec2466d511a9d71017d3cd6fd90bf245c58f2ad19119657b34b80.jpg",
+      "sha256": "885c74f731cec2466d511a9d71017d3cd6fd90bf245c58f2ad19119657b34b80",
+      "bytes": 503419,
+      "source_name": "scored-stucco"
+    },
+    {
+      "path": "surfaces/dc407a7304e7d31a6ade9e8aaf1ed72e441ec6e13633dbd07b63174a4a583ff0.jpg",
+      "sha256": "dc407a7304e7d31a6ade9e8aaf1ed72e441ec6e13633dbd07b63174a4a583ff0",
+      "bytes": 540930,
+      "source_name": "brick"
+    },
+    {
+      "path": "surfaces/57368444d1631acd81e1a6ea43ee95561dc2d33e6c94e6980aef24b884e3d5f9.jpg",
+      "sha256": "57368444d1631acd81e1a6ea43ee95561dc2d33e6c94e6980aef24b884e3d5f9",
+      "bytes": 666379,
+      "source_name": "board-formed-concrete"
+    },
+    {
+      "path": "surfaces/1d4159beea66b7b573721718f3359430bfc667915cf55ed6c2efd37950c0fab4.jpg",
+      "sha256": "1d4159beea66b7b573721718f3359430bfc667915cf55ed6c2efd37950c0fab4",
+      "bytes": 442018,
+      "source_name": "rusticated-sandstone"
+    },
+    {
+      "path": "surfaces/61cdf7c795607d5964ca01ae10b308b347d6cd4ed69fed07635ab079be5ef7ed.jpg",
+      "sha256": "61cdf7c795607d5964ca01ae10b308b347d6cd4ed69fed07635ab079be5ef7ed",
+      "bytes": 478391,
+      "source_name": "corrugated-steel"
     }
   ]
 }

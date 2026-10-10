@@ -320,6 +320,17 @@ func _edit(cities: Array, kind: int, rng: RandomNumberGenerator, cache: Dictiona
 			for c: City in cities: c.flood_overlay.clear()
 
 
+## These geometry goldens were recorded with version 1 byte building layers.
+## Canonicalize that intentional save-format change for classic low-ID fixtures;
+## actual version 2 persistence is covered by test_six_resort_identity.
+static func _legacy_city_document(city: City) -> Dictionary:
+	var document := SaveFormat.encode_city(city)
+	for code in city.building.data:
+		assert(code <= 255, "Legacy geometry fixture contains a wide building ID")
+	document.layers.building = SaveFormat.encode_bytes(PackedByteArray(Array(city.building.data)))
+	return document
+
+
 func _paired_views(name: String) -> void:
 	var city: City = Sc2Import.load("res://assets/cities/%s.sc2" % name).city
 	var cities: Array = [city]
@@ -344,7 +355,7 @@ func _paired_views(name: String) -> void:
 	for kind: int in plan:
 		_edit(cities, kind, rng, cache)
 		view.refresh()
-		_record(key, [Hashes.sha(SaveFormat.encode_city(city)), _snapshot(view, step % 5 == 4)])
+		_record(key, [Hashes.sha(_legacy_city_document(city)), _snapshot(view, step % 5 == 4)])
 		step += 1
 	# The incremental batches also equal a fresh full rebuild of the same view.
 	var incremental := _batches(view)

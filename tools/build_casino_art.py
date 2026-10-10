@@ -133,6 +133,9 @@ def build():
     if (SOURCE/'despicables'/'cutouts.png').exists():
         from build_despicables_art import build as build_store
         build_store()
+    if any((SOURCE/name/'atlas.png').exists() for name in ['fix','alibi','velvet','afterglow','last','dust']):
+        from build_six_resort_art import build as build_six
+        build_six()
     print('Casino artwork:',sum(len(s['assets']) for s in catalog['sets'].values()),'lossless sprites packaged')
 
 if __name__ == '__main__':

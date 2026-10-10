@@ -410,8 +410,8 @@ func _connect_portals() -> void:
 static func topology_signature(value: City) -> Array:
 	if value == null: return []
 	if _relevant_codes.is_empty():
-		_relevant_codes.resize(256)
-		for code in 256:
+		_relevant_codes.resize(Buildings.COUNT)
+		for code in Buildings.COUNT:
 			_relevant_codes[code] = int(NetworkShapes.in_family(code,NetworkShapes.Family.RAIL) or NetworkShapes.is_subway_portal(code) or code in [Buildings.RAIL_STATION,Buildings.SUBWAY_STATION])
 	var codes := value.building.data
 	var flags := value.flags.data

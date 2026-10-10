@@ -642,7 +642,7 @@ func on_construction(result: Dictionary, tool: int) -> void:
 		Tools.Kind.SCHOOL, Tools.Kind.COLLEGE:
 			play(&"place_zone")
 			play(&"school_bell", -8.0)
-		Tools.Kind.ARCOLOGY_COMSTOCK, Tools.Kind.ARCOLOGY_JUNCTION, Tools.Kind.ARCOLOGY_BOULDER, Tools.Kind.ARCOLOGY_ORBIT:
+		Tools.Kind.ARCOLOGY_COMSTOCK, Tools.Kind.ARCOLOGY_JUNCTION, Tools.Kind.ARCOLOGY_BOULDER, Tools.Kind.ARCOLOGY_ORBIT, Tools.Kind.ARCOLOGY_FIX, Tools.Kind.ARCOLOGY_ALIBI, Tools.Kind.ARCOLOGY_VELVET, Tools.Kind.ARCOLOGY_AFTERGLOW, Tools.Kind.ARCOLOGY_LAST, Tools.Kind.ARCOLOGY_DUST:
 			play(&"resort_jackpot")
 		Tools.Kind.ROAD, Tools.Kind.HIGHWAY, Tools.Kind.ONRAMP, Tools.Kind.TUNNEL, Tools.Kind.RAIL, \
 				Tools.Kind.SUBWAY, Tools.Kind.SUBWAY_PORTAL, Tools.Kind.POWER_LINE, Tools.Kind.WATER_PIPE:

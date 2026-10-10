@@ -71,6 +71,11 @@ func commit_action() -> StringName:
 	return &""
 
 
+## Deterministic closing choice when a signature game backgrounds.
+func background_action() -> StringName:
+	return &""
+
+
 func commit_label() -> String:
 	return "Play"
 

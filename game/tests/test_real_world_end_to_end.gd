@@ -92,7 +92,7 @@ func terrain_bytes(city: City) -> PackedByteArray:
  out.append_array(city.altitude.data.to_byte_array())
  out.append_array(city.terrain.data)
  out.append_array(city.flags.data)
- out.append_array(city.building.data)
+ out.append_array(city.building.to_bytes())
  return out
 
 func stable_snapshot() -> Dictionary:

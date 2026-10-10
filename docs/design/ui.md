@@ -223,7 +223,7 @@ default save directory; an empty list disables Load and explains the next step.
 
 ## Tool identity
 
-All 71 tools use distinct SVG pictograms in
+All 77 tools use distinct SVG pictograms in
 `game/assets/ui/tool-icons`, authored by `tools/build_ui_icons.py`. A 64-unit
 stroke grid and light badge preserve shape contrast when selected or disabled;
 128px source dimensions support the 32px icon at doubled display scale.
@@ -232,10 +232,15 @@ shortcuts and lock reasons remain in tooltips and the selected-tool identity.
 Roads, ramps, tunnels, railway/subway tools, all six zone densities, power sources
 and emergency dispatch each have separate symbols. Color supplements shape.
 
-The four large resort developments are called **Gaming Resorts** in the toolbar,
+The large resort developments are called **Gaming Resorts** in the toolbar,
 population window, technology announcements, notices and Controls. Internal
 simulation and save identifiers still say "arcology". Each resort keeps its individual
-name and a mining, railway, dam/crown or rocket silhouette.
+name and its own pictogram: the mining, railway, dam/crown and rocket silhouettes of
+the first four, then a vault-wheel tower (The Fix), twin blush wings with linked
+rings (Six-Week Alibi), a keyhole barrel tower (Velvet Wardrobe), a sunburst slab
+(The Afterglow), a bank beside a chamfered glass tower with its diamond (Last
+Resort) and rust stacks under a sail (Dust Republic). The Gaming Resorts section
+lists them from least to most expensive.
 
 ## Gaming-resort tables
 

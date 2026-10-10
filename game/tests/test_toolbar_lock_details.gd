@@ -91,7 +91,7 @@ func test_locked_category_can_explain_from_keyboard_without_selecting() -> void:
 	toolbar.section_picker.select(index)
 	toolbar.section_picker.item_selected.emit(index)
 	await _settle()
-	var info := toolbar.button_for(Tools.Kind.ARCOLOGY_COMSTOCK).get_node("LockInfo") as Button
+	var info := toolbar.button_for(Tools.Kind.ARCOLOGY_LAST).get_node("LockInfo") as Button
 	check(info.has_focus(),"an entirely locked category offers keyboard access to its first explanation")
 	for pressed: bool in [true,false]:
 		var key := InputEventKey.new()

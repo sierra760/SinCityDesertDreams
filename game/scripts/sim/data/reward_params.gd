@@ -41,6 +41,12 @@ const ARCOLOGIES: Dictionary = {
 	&"arcology_junction": {"year": 2050, "capacity": 30000},
 	&"arcology_boulder": {"year": 2100, "capacity": 45000},
 	&"arcology_orbit": {"year": 2150, "capacity": 65000},
+	&"arcology_fix": {"technology": &"arcology_comstock", "year": 2000, "capacity": 35000},
+	&"arcology_alibi": {"technology": &"arcology_comstock", "year": 2000, "capacity": 30000},
+	&"arcology_velvet": {"technology": &"arcology_comstock", "year": 2000, "capacity": 30000},
+	&"arcology_afterglow": {"technology": &"arcology_comstock", "year": 2000, "capacity": 45000},
+	&"arcology_last": {"technology": &"arcology_comstock", "year": 2000, "capacity": 35000},
+	&"arcology_dust": {"technology": &"arcology_comstock", "year": 2000, "capacity": 40000},
 }
 
 ## Condition (desirability) scale: base value and how many map points move it

@@ -15,7 +15,7 @@ var facilities: Dictionary = {}
 var _signature: Variant = null
 var _traffic_signature: Variant = null
 var _building_signature: Variant = null
-var _building_snapshot := PackedByteArray()
+var _building_snapshot := PackedInt32Array()
 var _axis_cells: Array[Vector2i] = []
 var _axis_signature := 0
 var _nodes: Dictionary = {}
@@ -617,9 +617,9 @@ func _note_state(index: int, value: Variant) -> void:
 
 ## Indices where two equally sized byte layers differ, comparing whole rows
 ## natively before looking at single bytes.
-static func _changed_indices(before: PackedByteArray, after: PackedByteArray) -> PackedInt32Array:
+static func _changed_indices(before: Variant, after: Variant) -> PackedInt32Array:
 	var found := PackedInt32Array()
-	var size := after.size()
+	var size: int = after.size()
 	if before.size() != size:
 		for i: int in size: found.append(i)
 		return found
@@ -634,7 +634,7 @@ static func _changed_indices(before: PackedByteArray, after: PackedByteArray) ->
 
 
 ## Indices whose building code or orientation (axis) flag differs.
-static func changed_cells(before_codes: PackedByteArray, after_codes: PackedByteArray, before_flags: PackedByteArray, after_flags: PackedByteArray) -> PackedInt32Array:
+static func changed_cells(before_codes: PackedInt32Array, after_codes: PackedInt32Array, before_flags: PackedByteArray, after_flags: PackedByteArray) -> PackedInt32Array:
 	var found := PackedInt32Array()
 	var size := after_codes.size()
 	var start := 0
@@ -657,12 +657,12 @@ static func diff_keys(before: Dictionary, after: Dictionary, seeds: Dictionary) 
 
 
 ## Facility counts keyed in the order a row-major scan first meets each code.
-func _order_facilities(codes: PackedByteArray) -> void:
+func _order_facilities(codes: PackedInt32Array) -> void:
 	var order := PackedInt64Array()
-	for code: int in facilities: order.append(codes.find(code) * 256 + code)
+	for code: int in facilities: order.append(codes.find(code) * Buildings.COUNT + code)
 	order.sort()
 	var ordered: Dictionary = {}
-	for value: int in order: ordered[value & 255] = facilities[value & 255]
+	for value: int in order: ordered[value % Buildings.COUNT] = facilities[value % Buildings.COUNT]
 	facilities = ordered
 
 
@@ -704,8 +704,8 @@ func _refresh_structure(raw: Array) -> bool:
 	if _state_city_id != city.get_instance_id() or _state_inputs.size() != raw.size() or _nodes.size() != 4: return false
 	for i: int in [0, 1, 6, 7, 8]:
 		if _state_inputs[i] != raw[i]: return false
-	var old_codes: PackedByteArray = _state_inputs[2]
-	var codes: PackedByteArray = raw[2]
+	var old_codes: PackedInt32Array = _state_inputs[2]
+	var codes: PackedInt32Array = raw[2]
 	var old_flags: PackedByteArray = _state_inputs[3]
 	var flags: PackedByteArray = raw[3]
 	var old_traffic: PackedByteArray = _state_inputs[5]

@@ -9,7 +9,7 @@ extends RefCounted
 
 const ROOT := "res://assets/desert-dreams-casino-art/"
 const SETS := {&"com_corner_store": "despicables", &"arcology_comstock": "comstock", &"arcology_junction": "junction",
-	&"arcology_boulder": "boulder", &"arcology_orbit": "orbit"}
+	&"arcology_boulder": "boulder", &"arcology_orbit": "orbit", &"arcology_fix": "fix", &"arcology_alibi": "alibi", &"arcology_velvet": "velvet", &"arcology_afterglow": "afterglow", &"arcology_last": "last", &"arcology_dust": "dust"}
 const ASSETS := ["symbol-s1", "symbol-s2", "symbol-s3", "symbol-s4", "symbol-s5", "symbol-B",
 	"court-jack", "court-queen", "court-king", "card-back", "mural-history", "mural-industry",
 	"mural-heritage", "cabinet-reels", "payout-s1", "payout-s2", "payout-s3", "payout-s4", "payout-s5", "payout-B"]

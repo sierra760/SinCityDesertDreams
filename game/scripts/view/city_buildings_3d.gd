@@ -32,7 +32,7 @@ var _missing_lots := 0
 static func collect(city: City) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	var seen: Dictionary = {}
-	var bld: PackedByteArray = city.building.data
+	var bld: PackedInt32Array = city.building.data
 	var zn: PackedByteArray = city.zone.data
 	var sizes: PackedInt32Array = City._sizes
 	for y: int in City.HEIGHT:
@@ -83,7 +83,7 @@ static func collect_regions(city: City, regions: Array[Rect2i], region_index: Re
 			spans[y].append(Vector2i(scan.position.x,scan.end.x))
 	var rows: Array = spans.keys()
 	rows.sort()
-	var bld: PackedByteArray = city.building.data
+	var bld: PackedInt32Array = city.building.data
 	var zn: PackedByteArray = city.zone.data
 	var sizes: PackedInt32Array = City._sizes
 	var records: Array[Dictionary] = []

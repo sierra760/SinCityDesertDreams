@@ -133,7 +133,13 @@ const ARCOLOGY_JUNCTION := 252
 const ARCOLOGY_BOULDER := 253
 const ARCOLOGY_ORBIT := 254
 const NEON_DOME := 255
-const COUNT := 256
+const ARCOLOGY_FIX := 256
+const ARCOLOGY_ALIBI := 257
+const ARCOLOGY_VELVET := 258
+const ARCOLOGY_AFTERGLOW := 259
+const ARCOLOGY_LAST := 260
+const ARCOLOGY_DUST := 261
+const COUNT := 262
 
 ## [key, name, width, height, category, cost]
 const _ROSTER := [
@@ -393,6 +399,13 @@ const _ROSTER := [
 	[&"arcology_boulder", "Boulder Crown", 4, 4, Category.ARCOLOGY, 150000],
 	[&"arcology_orbit", "Desert Orbit", 4, 4, Category.ARCOLOGY, 200000],
 	[&"neon_dome", "Neon Dome", 4, 4, Category.REWARD, 0],
+	[&"arcology_fix", "The Fix", 4, 4, Category.ARCOLOGY, 320000],
+	[&"arcology_alibi", "Six-Week Alibi", 4, 4, Category.ARCOLOGY, 140000],
+	[&"arcology_velvet", "Velvet Wardrobe", 4, 4, Category.ARCOLOGY, 220000],
+	[&"arcology_afterglow", "The Afterglow", 4, 4, Category.ARCOLOGY, 500000],
+	[&"arcology_last", "Last Resort", 4, 4, Category.ARCOLOGY, 60000],
+	[&"arcology_dust", "Dust Republic", 4, 4, Category.ARCOLOGY, 95000],
+
 ]
 
 static var _by_key: Dictionary = {}

@@ -153,8 +153,8 @@ func generate_image() -> void:
 			_texture_rect.texture = ImageTexture.create_from_image(_image)
 
 
-## Indices whose bytes differ, comparing whole rows before individual tiles.
-static func _changed_indices(before: PackedByteArray, after: PackedByteArray, changed: Dictionary) -> void:
+## Indices whose values differ, comparing whole rows before individual tiles.
+static func _changed_indices(before: Variant, after: Variant, changed: Dictionary) -> void:
 	if before == after: return
 	if before.size() != after.size():
 		for index: int in after.size(): changed[index] = true

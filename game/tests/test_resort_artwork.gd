@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 extends "res://tests/test_case.gd"
 
-func test_all_four_sets_have_complete_distinct_illustrations() -> void:
+func test_all_ten_sets_have_complete_distinct_illustrations() -> void:
 	var seen := {}
 	for key: StringName in ResortThemes.keys():
 		for asset: String in ResortArtwork.ASSETS:
@@ -89,3 +89,16 @@ func test_court_portraits_have_transparent_outer_edges() -> void:
 			for corner: Vector2i in [Vector2i.ZERO,Vector2i(image.get_width()-1,0),Vector2i(0,image.get_height()-1),Vector2i(image.get_width()-1,image.get_height()-1)]:
 				# Generated alpha may carry one 8-bit quantization unit of noise.
 				check(image.get_pixelv(corner).a <= 1.0/255.0+0.00001,"portrait has no paper rectangle or neighboring cell edge")
+
+func test_velvet_ornament_clears_the_complete_framed_painting() -> void:
+	var room := AABB(Vector3(-21.30,4.20,-14.30),Vector3(.36,4.72,4.60))
+	var intrusions := 0
+	for row: Dictionary in ResortPropDresser.parts("hall_258").surfaces:
+		if row.material not in ["resort_carpet","resort_lamp"]: continue
+		var faces: PackedVector3Array = (row.mesh as Mesh).get_faces()
+		for index: int in range(0,faces.size(),3):
+			var at: Transform3D = row.transform
+			var bounds := AABB(at*faces[index],Vector3.ZERO)
+			bounds = bounds.expand(at*faces[index+1]).expand(at*faces[index+2])
+			if bounds.intersects(room): intrusions += 1
+	check_eq(intrusions,0,"scallops and valance lamps leave the framed painting visible")

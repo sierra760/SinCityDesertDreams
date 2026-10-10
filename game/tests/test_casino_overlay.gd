@@ -145,7 +145,7 @@ func test_every_table_fits_each_display_size() -> void:
 				_check_text_whole("%s %s %s patter" % [spec[4], resort, game])
 				check(overlay.stage.size.x > 100.0 and overlay.stage.size.y > 100.0, "%s %s: the table has room" % [spec[4], game])
 				overlay.close()
-	check_eq(closed_count, 4 * 6 * 5)
+	check_eq(closed_count, 10 * 6 * sizes.size())
 
 
 func test_full_blackjack_hand_by_keyboard() -> void:

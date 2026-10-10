@@ -230,7 +230,7 @@ static var _military_cached := false
 
 static func _military_ids() -> PackedInt32Array:
 	if not _military_cached:
-		for id in 256:
+		for id in Buildings.COUNT:
 			if Buildings.category(id) == Buildings.Category.MILITARY:
 				_military_cache.append(id)
 		_military_cached = true

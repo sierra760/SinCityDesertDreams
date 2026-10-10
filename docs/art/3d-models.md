@@ -1,7 +1,7 @@
 # Model-first 3D art
 
-The 3D city view uses 144 low-poly building models, covering every building
-identity from 112 through 255. Each was modeled in Blender for this project.
+The 3D city view uses 150 low-poly building models, covering every building
+identity from 112 through 261. Each was modeled in Blender for this project.
 Warm sandstone, teal and copper are the base palette; selective mid-century
 signs add coral, amber and emissive tubing.
 
@@ -29,7 +29,8 @@ Glass, metals, foliage, painted markings and sign lettering keep their authored
 materials. Roughness and metalness remain material properties; lighting is not
 baked into the images. Asphalt detail repeats every 3.3 meters on model lots.
 
-Fifteen commercial/casino identities have their own signs. The
+Fifteen original commercial/casino identities and the six additional resorts
+have their own signs. The
 subway entrance, both fuel stations, civilian and military parking compounds,
 City Hall, Museum, Library and desalination plant have their own functional or
 architectural details. Station 233 has a solid plaza and a small, open
@@ -45,6 +46,37 @@ wayfinding plaques; see [typography and notices](station-typography.md).
 standalone GLB, runtime GLB and shared image hash. The three architectural
 maps were made for this project; their
 [prompts](building-texture-prompts.json) are recorded.
+
+## Six additional resort exteriors
+
+Buildings 256–261 add The Fix, Six-Week Alibi, Velvet Wardrobe, The Afterglow,
+Last Resort and Dust Republic on 4 × 4 lots. Their original Blender geometry
+preserves the concept silhouettes: an obsidian/brass vault hotel, split
+blush/mint wings with wedding rings, an oxblood cabaret/keyhole, an ivory
+observation hotel and sunburst, a weathered bank/bottle-glass base with a clean
+turquoise tower, and rust stacks with tensile sails and an original light
+sculpture. Each has a street-facing entrance, grounded plaza and conservative
+collision shells.
+
+Every visible part is supported: columns, piers and fins reach a footing or the
+structure above, penthouses and lounges stand on their roofs, and ornaments are
+seated on a wall or pylon. Windows are placed after the massing, and any pane that
+a lobby, wing, belt course, parapet or sail would cross is omitted rather than
+drawn behind it.
+
+Each resort has its own facade swatch, applied with metre-scale box-projected
+UVs and multiplied by its authored palette: polished granite panels (The Fix),
+scored sand-float stucco (Six-Week Alibi), face brick (Velvet Wardrobe),
+board-formed concrete (The Afterglow), rusticated sandstone (Last Resort) and
+corrugated weathering steel (Dust Republic). All six share terrazzo plaza paving
+and gravel-ballast roof membranes. The runtime swatches are content-addressed JPEGs in `surfaces/`, listed in
+[building-materials.json](building-materials.json).
+
+`tools/blender_exploration/build_six_resort_exteriors.py` writes only the six
+new `256-blender.glb` … `261-blender.glb` models and appends their catalog
+records. Editable masters are retained locally outside the public package.
+The original 144 building models retain their identities. Walkable themed
+halls are separate Explore assets; see [Resort interiors](resort-interiors.md).
 
 ## Ground materials
 
@@ -109,10 +141,9 @@ with your own identity or to build unsigned.
 
 ## What is in this repository
 
-This repository contains the 144 GLBs, import sidecars, catalog and landscaping
-JSON, six shared surface images, three ground textures, the connected-material
-grain sheet, and prompt/material provenance. The editable Blender masters for
-the building models are kept outside this repository.
+This repository contains the 150 GLBs, import sidecars, catalog and landscaping
+JSON, fourteen shared surface images, three ground textures, the connected-material
+grain sheet, and prompt/material provenance. Editable building masters are retained locally outside this repository.
 
 These models and textures are licensed under CC BY-NC-SA 4.0, not the GPL;
 see the [licensing scope](../../LICENSING.md).

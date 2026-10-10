@@ -42,7 +42,7 @@ var terrain_origin: Dictionary = {}:
 ## Full-resolution layers.
 var terrain := Grid8.new()
 var altitude := Grid16.new()
-var building := Grid8.new()
+var building := Grid16.new()
 var zone := Grid8.new()
 var flags := Grid8.new()
 var underground := Grid8.new()
@@ -161,7 +161,7 @@ func anchor_of(x: int, y: int) -> Vector2i:
 
 ## `anchor_of` on bare row-major building and zone layers, so packed scans
 ## (UtilityParams.is_anchor_tile) resolve footprints exactly like the city.
-static func footprint_anchor(bld: PackedByteArray, zn: PackedByteArray, x: int, y: int) -> Vector2i:
+static func footprint_anchor(bld: PackedInt32Array, zn: PackedByteArray, x: int, y: int) -> Vector2i:
 	if x < 0 or y < 0 or x >= WIDTH or y >= HEIGHT:
 		return Vector2i(x, y)
 	var id := bld[y * WIDTH + x]
@@ -232,7 +232,7 @@ static func footprint_anchor(bld: PackedByteArray, zn: PackedByteArray, x: int, 
 ## Whether (x, y) is its own `footprint_anchor`, answered without the box
 ## search for most cells: a cell is an anchor only when the box it would
 ## start is a valid footprint or the fallback walk would not leave it.
-static func is_footprint_anchor(bld: PackedByteArray, zn: PackedByteArray, x: int, y: int) -> bool:
+static func is_footprint_anchor(bld: PackedInt32Array, zn: PackedByteArray, x: int, y: int) -> bool:
 	if x < 0 or y < 0 or x >= WIDTH or y >= HEIGHT:
 		return true
 	var i := y * WIDTH + x
@@ -272,7 +272,7 @@ static func _build_footprint_sizes() -> PackedInt32Array:
 ## True when the box at (ax, ay) of size `s` holds only `id` and its corner
 ## cells carry a clockwise ring of single corner flags. The cheap ring test
 ## runs first: nearly every candidate box fails it.
-static func _is_footprint(bld: PackedByteArray, zn: PackedByteArray, ax: int, ay: int, id: int, s: Vector2i) -> bool:
+static func _is_footprint(bld: PackedInt32Array, zn: PackedByteArray, ax: int, ay: int, id: int, s: Vector2i) -> bool:
 	var ex := ax + s.x - 1
 	var ey := ay + s.y - 1
 	if ax < 0 or ay < 0 or ex >= WIDTH or ey >= HEIGHT:

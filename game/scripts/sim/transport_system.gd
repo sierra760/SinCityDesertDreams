@@ -47,7 +47,7 @@ var _budget := TransportParams.TRIP_BUDGET
 var _expanded := 0
 
 ## Map layers of the trip being searched.
-var _buildings := PackedByteArray()
+var _buildings := PackedInt32Array()
 var _underground := PackedByteArray()
 var _altitude := PackedInt32Array()
 ## Tile of the destination reached by the last search, -1 for a map edge.
@@ -234,7 +234,7 @@ func _bind(city: City) -> void:
 
 
 func _unbind() -> void:
-	_buildings = PackedByteArray()
+	_buildings = PackedInt32Array()
 	_underground = PackedByteArray()
 	_altitude = PackedInt32Array()
 

@@ -404,7 +404,7 @@ func _flood(seed: int, flags: PackedByteArray, tail: int) -> int:
 
 
 ## Consumer buildings with no powered tile in their footprint.
-func _count_unserved(bld: PackedByteArray, flags: PackedByteArray) -> int:
+func _count_unserved(bld: PackedInt32Array, flags: PackedByteArray) -> int:
 	var widths := Params.footprint_width_table()
 	var heights := Params.footprint_height_table()
 	var unserved := 0

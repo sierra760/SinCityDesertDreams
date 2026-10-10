@@ -2,13 +2,13 @@
 
 System key: `casino` (`game/scripts/sim/casino_system.gd`).
 Parameters: `game/scripts/sim/data/casino_params.gd` (`CasinoParams`).
-Game logic: `game/scripts/casino/` (`CasinoGame` and the nine games).
+Game logic: `game/scripts/casino/` (`CasinoGame` and fifteen game kinds).
 Resort themes: `game/scripts/casino/resort_themes.gd` (`ResortThemes`).
 Dealer patter and prompts: `game/scripts/content/casino_lines.gd` (`CasinoLines`).
 
 ## Purpose
 
-Each of the four gaming resorts has a casino floor the mayor can walk into from
+Each of the ten gaming resorts has a casino floor the mayor can walk into from
 Explore and play at. The mayor plays with the city treasury: a committed stake
 leaves `city.funds`, and whatever the round returns comes back into it. The
 casino system is the only code that moves that money. It keeps a ledger per
@@ -24,7 +24,7 @@ Despicable's uses the existing building key `com_corner_store` (126) as an
 additional playable venue. It offers only `slots` and `video_poker`, with limits
 of $1–$1,000, capped further by funds. `commit_round` also refuses a store stake
 over $1,000. These two games commit once per round and have no supplemental
-bets. `ResortThemes.keys()` continues to describe the four resorts;
+bets. `ResortThemes.keys()` continues to describe the ten resorts;
 `ResortThemes.venues()` includes the store and owns ledger initialization,
 restoration and monthly reporting. Old saves missing the store ledger restore
 it as an empty history; all Despicable's locations share that history.
@@ -201,3 +201,13 @@ total_ledger() -> Dictionary
 
 `Simulation` wraps the three transactions as `casino_commit`, `casino_settle`
 and `casino_refund`, and `casino()` returns the system.
+
+## Original six-resort signatures
+
+The six additions use `vault_circuit`, `alibi_route`, `velvet_encore`,
+`afterglow_forecast`, `last_bank` and `dust_pool`. Each follows the existing
+CasinoGame single-commit/single-settlement contract. Stateful games implement
+`background_action()` to complete committed risk; the overlay advances legal
+fallbacks within its existing bounded loop. Probabilities and integer payout
+formulas are documented in [Gaming resorts](../design/gaming-resorts.md).
+The exact rule text and live quotes come from the same engine used by play.

@@ -253,7 +253,7 @@ static func import_chunks(chunks: Dictionary, fallback_name: String) -> Dictiona
 			var tunnel := word >> FILE_TUNNEL_SHIFT
 			city.altitude.data[y * City.WIDTH + x] = ground | (water << City.WATER_SHIFT) | (tunnel << City.TUNNEL_SHIFT)
 	city.terrain.data = _transposed(chunks["XTER"], City.WIDTH)
-	city.building.data = _transposed(chunks["XBLD"], City.WIDTH)
+	city.building.data = PackedInt32Array(Array(_transposed(chunks["XBLD"], City.WIDTH)))
 	if chunks.has("XZON"):
 		city.zone.data = _transposed(chunks["XZON"], City.WIDTH)
 	if chunks.has("XBIT"):

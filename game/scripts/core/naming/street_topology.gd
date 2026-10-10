@@ -50,11 +50,11 @@ static func _projection_inputs(city: City) -> Array:
 static var _projected_raw: Array = []
 static var _projected: Array = []
 
-static func _project_layers(buildings_raw: PackedByteArray, zones_raw: PackedByteArray, flags_raw: PackedByteArray) -> Array:
+static func _project_layers(buildings_raw: PackedInt32Array, zones_raw: PackedByteArray, flags_raw: PackedByteArray) -> Array:
 	var raw: Array = [buildings_raw,zones_raw,flags_raw]
 	if raw == _projected_raw: return [_projected[0].duplicate(),_projected[1].duplicate(),_projected[2].duplicate()]
 	var kinds := CityTrafficGraph.network_kinds()
-	var buildings: PackedByteArray
+	var buildings: PackedInt32Array
 	var zones: PackedByteArray
 	var flags: PackedByteArray
 	var rows: Array = []
@@ -522,8 +522,8 @@ func _rebuild_incremental(city: City, structural: City, previous: Array, state: 
 	if not _owns_projection: _detach_projection()
 	_graph.refresh()
 	if _graph.last_change == CityTrafficGraph.CHANGE_FULL: return -2
-	var before_codes: PackedByteArray = previous[2]
-	var codes: PackedByteArray = state[2]
+	var before_codes: PackedInt32Array = previous[2]
+	var codes: PackedInt32Array = state[2]
 	var changed := CityTrafficGraph.changed_cells(before_codes, codes, previous[4], state[4])
 	if _graph.last_change == CityTrafficGraph.CHANGE_NONE and not changed.is_empty(): return -1
 	var dirty: Dictionary = {}

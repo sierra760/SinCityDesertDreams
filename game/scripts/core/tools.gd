@@ -26,6 +26,7 @@ enum Kind {
 	DISPATCH_FIRE, DISPATCH_POLICE, DISPATCH_MILITARY,
 	RAISE_LAND, LOWER_LAND, LEVEL_LAND, PLACE_WATER, FOREST, RAISE_SEA, LOWER_SEA,
 	PLANT_TREE,
+	ARCOLOGY_FIX, ARCOLOGY_ALIBI, ARCOLOGY_VELVET, ARCOLOGY_AFTERGLOW, ARCOLOGY_LAST, ARCOLOGY_DUST,
 }
 
 ## How the pointer drives a tool. RECT tools cover the dragged area; GLOBAL
@@ -98,6 +99,12 @@ const _TABLE := {
 	Kind.ARCOLOGY_COMSTOCK: ["Comstock Grand", 100000, Buildings.ARCOLOGY_COMSTOCK, -1, Vector2i(4, 4), &"arcology_comstock", Mode.POINT, Group.ARCOLOGY],
 	Kind.ARCOLOGY_JUNCTION: ["Silver Junction", 120000, Buildings.ARCOLOGY_JUNCTION, -1, Vector2i(4, 4), &"arcology_junction", Mode.POINT, Group.ARCOLOGY],
 	Kind.ARCOLOGY_BOULDER: ["Boulder Crown", 150000, Buildings.ARCOLOGY_BOULDER, -1, Vector2i(4, 4), &"arcology_boulder", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_FIX: ["The Fix", 320000, Buildings.ARCOLOGY_FIX, -1, Vector2i(4, 4), &"arcology_fix", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_ALIBI: ["Six-Week Alibi", 140000, Buildings.ARCOLOGY_ALIBI, -1, Vector2i(4, 4), &"arcology_alibi", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_VELVET: ["Velvet Wardrobe", 220000, Buildings.ARCOLOGY_VELVET, -1, Vector2i(4, 4), &"arcology_velvet", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_AFTERGLOW: ["The Afterglow", 500000, Buildings.ARCOLOGY_AFTERGLOW, -1, Vector2i(4, 4), &"arcology_afterglow", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_LAST: ["Last Resort", 60000, Buildings.ARCOLOGY_LAST, -1, Vector2i(4, 4), &"arcology_last", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_DUST: ["Dust Republic", 95000, Buildings.ARCOLOGY_DUST, -1, Vector2i(4, 4), &"arcology_dust", Mode.POINT, Group.ARCOLOGY],
 	Kind.ARCOLOGY_ORBIT: ["Desert Orbit", 200000, Buildings.ARCOLOGY_ORBIT, -1, Vector2i(4, 4), &"arcology_orbit", Mode.POINT, Group.ARCOLOGY],
 	Kind.REWARD_MAYORS_RESIDENCE: ["Mayor's Residence", 0, Buildings.MAYORS_RESIDENCE, -1, Vector2i(2, 2), &"reward_mayors_residence", Mode.POINT, Group.REWARD],
 	Kind.REWARD_CITY_HALL: ["City Hall", 0, Buildings.CITY_HALL, -1, Vector2i(3, 3), &"reward_city_hall", Mode.POINT, Group.REWARD],
@@ -135,6 +142,13 @@ const _INVENTIONS := {
 	Kind.WIND_PLANT: &"wind_plant",
 	Kind.SOLAR_PLANT: &"solar_plant",
 	Kind.ARCOLOGY_COMSTOCK: &"arcology_comstock",
+	Kind.ARCOLOGY_FIX: &"arcology_comstock",
+	Kind.ARCOLOGY_ALIBI: &"arcology_comstock",
+	Kind.ARCOLOGY_VELVET: &"arcology_comstock",
+	Kind.ARCOLOGY_AFTERGLOW: &"arcology_comstock",
+	Kind.ARCOLOGY_LAST: &"arcology_comstock",
+	Kind.ARCOLOGY_DUST: &"arcology_comstock",
+
 	Kind.MICROWAVE_PLANT: &"microwave_plant",
 	Kind.FUSION_PLANT: &"fusion_plant",
 	Kind.ARCOLOGY_JUNCTION: &"arcology_junction",

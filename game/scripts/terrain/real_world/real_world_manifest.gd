@@ -184,7 +184,7 @@ static func encode_baseline(city: City, tree_seed: int) -> PackedByteArray:
 	out.append_array(surface.feature)
 	for id in city.building.data:
 		if id!=Buildings.NONE and not Buildings.is_tree(id): return PackedByteArray()
-	out.append_array(city.building.data)
+	out.append_array(PackedByteArray(Array(city.building.data)))
 	out.append_array(sha256(out))
 	return out
 
@@ -221,7 +221,7 @@ static func restore_baseline(body: PackedByteArray, metadata: Dictionary, origin
 	var city:=new_city(metadata)
 	city.sea_level=-1 if sea==255 else sea
 	surface.project(city)
-	city.building.data=trees
+	city.building.data=PackedInt32Array(Array(trees))
 	return {"ok":true,"error":"","city":city,"origin":sanitize_origin(origin),"tree_seed":body.decode_s64(4)}
 
 static func editing_settings(candidate: Dictionary) -> Dictionary:

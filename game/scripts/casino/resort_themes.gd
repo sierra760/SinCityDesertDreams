@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## The four gaming resorts: names, casino floors, dealer voices, palettes,
+## The ten gaming resorts: names, casino floors, dealer voices, palettes,
 ## fonts, reel symbols, money-wheel emblems and the names of their games.
 ##
 ## Keys are the building keys of the resorts. Every resort offers the five
@@ -14,11 +14,11 @@ extends RefCounted
 
 ## Games every resort offers, in display order.
 const SHARED_GAMES: Array[StringName] = [&"blackjack", &"roulette", &"slots", &"money_wheel", &"video_poker"]
-## Games that belong to one resort only.
-const SIGNATURE_GAMES: Array[StringName] = [&"faro", &"chuck_a_luck", &"baccarat", &"trajectory"]
+## The signature game kinds; multiple themed resorts may offer a kind.
+const SIGNATURE_GAMES: Array[StringName] = [&"faro", &"chuck_a_luck", &"baccarat", &"trajectory", &"vault_circuit", &"alibi_route", &"velvet_encore", &"afterglow_forecast", &"last_bank", &"dust_pool"]
 ## Every game kind.
 const KINDS: Array[StringName] = [&"blackjack", &"roulette", &"slots", &"money_wheel", &"video_poker",
-	&"faro", &"chuck_a_luck", &"baccarat", &"trajectory"]
+	&"faro", &"chuck_a_luck", &"baccarat", &"trajectory", &"vault_circuit", &"alibi_route", &"velvet_encore", &"afterglow_forecast", &"last_bank", &"dust_pool"]
 
 ## Font keys to bundled font files.
 const FONTS := {
@@ -28,7 +28,7 @@ const FONTS := {
 	"atomic_age": "res://assets/fonts/atomic-age/AtomicAge-Regular.ttf",
 }
 
-const RESORTS: Dictionary = {
+const CLASSIC_RESORTS: Dictionary = {
 	&"arcology_comstock": {
 		"building": 251, "name": "Comstock Grand", "floor": "The Assay Office",
 		"voice": &"assayer", "signature": &"faro", "font": "fontdiner", "body_font": "biorhyme",
@@ -99,6 +99,8 @@ const RESORTS: Dictionary = {
 	},
 }
 
+
+static var RESORTS: Dictionary = CLASSIC_RESORTS.merged(preload("res://scripts/casino/resort_expansion_themes.gd").RESORTS)
 
 ## The early-game convenience-store venue; the four resort keys stay separate.
 const STORE_KEY := &"com_corner_store"
@@ -253,4 +255,16 @@ static func make_game(game: StringName) -> CasinoGame:
 			return BaccaratGame.new()
 		&"trajectory":
 			return TrajectoryGame.new()
+		&"vault_circuit":
+			return preload("res://scripts/casino/games/vault_circuit_game.gd").new()
+		&"alibi_route":
+			return preload("res://scripts/casino/games/alibi_route_game.gd").new()
+		&"velvet_encore":
+			return preload("res://scripts/casino/games/velvet_encore_game.gd").new()
+		&"afterglow_forecast":
+			return preload("res://scripts/casino/games/afterglow_forecast_game.gd").new()
+		&"last_bank":
+			return preload("res://scripts/casino/games/last_bank_game.gd").new()
+		&"dust_pool":
+			return preload("res://scripts/casino/games/dust_pool_game.gd").new()
 	return null

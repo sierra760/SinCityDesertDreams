@@ -13,7 +13,7 @@ tool can open, while the map itself stays small.
 ```
 {
   "format": "sc2d",
-  "version": 1,
+  "version": 2,
   "stage": "play",
   "header": {
     "name": "Saltwash", "mayor": "...", "year": 1904, "day": 1234,
@@ -43,10 +43,12 @@ tool can open, while the map itself stays small.
 - `header` repeats what the load dialog shows. `population` is ordinary plus
   arcology population taken from `snapshot.stats`; `mayor` is the city's mayor
   credit; `stage` repeats the document's stage; `saved_at` is Unix time.
-- `layers`: every byte grid at its natural size (`128²`, `64²` or `32²`
-  bytes); `altitude` is two bytes per tile, little-endian, as `Grid16`
-  packs it. A missing layer loads as zeros; a layer of the wrong size fails
-  the load.
+- `layers`: byte grids use their natural size (`128²`, `64²` or `32²`
+  bytes). In version 2, `altitude` and `building` each use two bytes per tile,
+  little-endian, as `Grid16` packs them. Building IDs 0–255 retain their
+  identities; new IDs append above 255. Version 1 saves remain readable: their
+  one-byte building layer widens on load. A missing layer loads as zeros; a
+  layer of the wrong size or an unknown building ID fails the load.
 - `facilities` and `signs` are keyed by `"x,y"` (`SimSystem.tile_key`).
   Facility records are stored as plain JSON: `StringName` values become
   strings and are restored to `StringName` for the `key` field; whole
@@ -83,6 +85,13 @@ tool can open, while the map itself stays small.
   editing save has no snapshot and carries `generator`, the New City
   settings, so the map can be regenerated or founded later.
 
+Version 1 loading changes only the building layer's in-memory width; saved
+simulation technology records and casino histories retain their existing keys
+and values. New resorts use the stored Comstock invention year rather than
+adding random technology draws. `load()` supplies the document version to the
+city decoder; callers decoding a version 1 city object directly must pass 1.
+
+
 ### API
 
 ```
@@ -93,7 +102,7 @@ SaveFormat.list_saves(dir := default_dir()) -> Array[Dictionary]
     # [{path, mayor, name, date_text, population, year, day, funds, stage, saved_at}], newest first
 SaveFormat.read_header(path) -> Dictionary               # {} when not a save
 SaveFormat.encode_city(city) -> Dictionary               # the "city" object
-SaveFormat.decode_city(doc) -> {city, error, topology}
+SaveFormat.decode_city(doc, version := SaveFormat.VERSION) -> {city, error, topology}
 ```
 
 `load()` rejects documents whose `format` is not `sc2d`, versions above

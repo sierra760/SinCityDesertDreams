@@ -40,6 +40,7 @@ const ANIMATION := {
 	"burst": 0.8,
 	## Longest replayed climb of a launch decided at once (automatic cash-out).
 	"flight_max": 6.0,
+	"signature_reveal": 0.55,
 }
 ## Multiplies every animation; 0 applies events at once (tests).
 static var animation_scale := 1.0
@@ -338,7 +339,10 @@ func resolve_round_now() -> String:
 				&"trajectory":
 					perform_action(&"cash_out")
 				_:
-					break
+					var fallback := game.background_action()
+					if fallback == &"":
+						break
+					perform_action(fallback)
 	if game != null and game.state == CasinoGame.PLAYING and _committed > 0:
 		# A game that cannot be played out here is refunded rather than kept.
 		refunded = _committed
@@ -438,6 +442,8 @@ func _finish_close() -> void:
 
 
 func _make_stage(game_kind: StringName) -> CasinoStage:
+	if game_kind in OriginalSignatureStage.KINDS:
+		return OriginalSignatureStage.new()
 	match game_kind:
 		&"roulette":
 			return RouletteStage.new()
@@ -863,6 +869,8 @@ func _refresh() -> void:
 		patter_label.text = ("%s · %s" % [voice_name, _patter]) if not voice_name.is_empty() and _patter_voiced else _patter
 		patter_label.add_theme_color_override("font_color", palette.ink if palette != null else UITheme.TEXT_PRIMARY)
 	_keep_focus()
+	if kind in OriginalSignatureStage.KINDS:
+		_schedule_bounds()
 
 
 ## Keep keyboard focus on a usable control inside the table.
@@ -920,7 +928,8 @@ func _apply_bounds() -> void:
 	_root.size = inner.size
 	var short := inner.size.y < 520.0
 	chrome.apply_layout(inner.size.x < 520.0, short)
-	bet_bar.apply_layout(inner.size.x, short, _side if short and inner.size.x >= 480.0 else null)
+	var signature_four_actions := kind in OriginalSignatureStage.KINDS and game != null and game.actions().size() >= 4
+	bet_bar.apply_layout(inner.size.x, short, _side if short and inner.size.x >= 480.0 and not signature_four_actions else null)
 	_side.visible = bet_bar.actions_parent() == _side
 
 
@@ -1062,6 +1071,12 @@ func _action_enabled(action: StringName) -> bool:
 static func rules_text(game_kind: StringName, resort_key: StringName, limits: Dictionary) -> String:
 	var table := CasinoParams.table_limits(resort_key)
 	var lines: Array[String] = []
+	if game_kind in OriginalSignatureStage.KINDS:
+		var rules_game := ResortThemes.make_game(game_kind)
+		if rules_game != null:
+			rules_game.begin(CasinoRng.new(1), limits)
+			lines.append(String(rules_game.view_state().get("rules_text", "")))
+		lines.append("During a round, choose on the board or use Tab to reach each action button. Enter chooses the enabled primary action. Backgrounding finishes a committed round using the displayed safe decision; it never restores a lost stake.")
 	match game_kind:
 		&"blackjack":
 			lines.append("Get closer to 21 than the dealer without going over. Number cards count their value, court cards ten, aces one or eleven. The dealer draws to 16 and stands on every 17.")

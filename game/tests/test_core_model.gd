@@ -61,7 +61,7 @@ func test_footprint_stamp_and_anchor() -> void:
 
 
 func test_building_roster_is_complete() -> void:
-	check_eq(Buildings.COUNT, 256)
+	check_eq(Buildings.COUNT, 262)
 	check_eq(Buildings.id_of(&"plant_coal"), Buildings.COAL_PLANT)
 	check_eq(Buildings.size(Buildings.ARCOLOGY_ORBIT), Vector2i(4, 4))
 	check_eq(Buildings.cost(Buildings.POLICE_STATION), 500)

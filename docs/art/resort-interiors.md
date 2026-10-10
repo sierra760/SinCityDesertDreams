@@ -1,6 +1,6 @@
 # Gaming resort casino floors
 
-Each of the four gaming resorts (building codes 251–254) has a walkable casino
+Each of the ten gaming resorts (building codes 251–254 and 256–261) has a walkable casino
 floor in Explore mode. The floor is a closed hall in its own pocket under the
 resort's lot (floor at world height −2.5 tiles, centred under the lot), built
 the first time the resort is entered and kept for the rest of the session.
@@ -26,7 +26,7 @@ stand together). The plan lives in
 `game/scripts/exploration/resorts/resort_interior_layouts.gd`; the hall
 architecture in the GLBs uses the same numbers.
 
-## The four floors
+## The four original floors
 
 | Resort | Floor | Hall | Chandelier | Signage font |
 |---|---|---|---|---|
@@ -34,6 +34,23 @@ architecture in the GLBs uses the same numbers.
 | Silver Junction | The Roundhouse | A vaulted green-glass train shed on brass ribs and limestone piers, checkered ivory and charcoal terrazzo, a station clock over the cage, a split-flap departure board, brass luggage racks over the slot banks and a teal pinstriped lounge carpet | Station lanterns | BioRhyme |
 | Boulder Crown | The Powerhouse | Close-set sandstone pylons with stepped Deco capitals over black lacquer bases, stepped cornices with cool spillway coves, turquoise terrazzo inlaid with brass sunbursts, and the cage as a stepped intake tower | Copper turbine ring | BioRhyme Expanded |
 | Desert Orbit | Mission Control | Ivory walls with teal panelling and copper trim, a navy planetarium dome with star points and orbit ribs, copper nose cones crowning the back bar, a countdown display over the cage and an orbit ring around roulette; navy carpet with ivory orbit rings | Atomic starburst | Atomic Age (signs keep title case) |
+
+## The six additional floors
+
+| ID | Resort / floor | Palette | Architectural motif | Chandelier / font |
+|---|---|---|---|---|
+| 256 | The Fix / The Back Room | Obsidian, brass and emerald | Vault canopy and brass bolts above the pit | Turbine ring / BioRhyme |
+| 257 | Six-Week Alibi / The Fresh Start | Blush pink, mint and warm brass | Intertwined wedding rings and mint-glass bands | Gas-lamp tiers / Fontdiner Swanky |
+| 258 | Velvet Wardrobe / The Scarlet Salon | Oxblood, black wood and amber | Theatrical valances and a ceiling keyhole | Gas-lamp tiers / Fontdiner Swanky |
+| 259 | The Afterglow / The Observation Lounge | Ivory, copper, acid mint and orange | Radial sunburst canopy and observation-lounge rings | Atomic starburst / Atomic Age |
+| 260 | Last Resort / The Last Bank | Weathered sandstone, bottle glass and turquoise | Bottle-glass rosettes and a brass diamond medallion | Station lanterns / BioRhyme Expanded |
+| 261 | Dust Republic / The Common Ground | Rust, bone and ultraviolet | Tensile shade sails and an original prismatic light canopy | Atomic starburst / BioRhyme |
+
+The overhead decoration follows each resort's exterior identity while keeping
+the enclosed vestibule, walking lanes, furniture and collision program. Every
+hall has three flat framed paintings and its own reel, payout and card images.
+The Afterglow uses an observation-lounge sunburst rather than a rocket; Dust
+Republic's light sculpture is original geometry.
 
 ## Assets
 
@@ -43,11 +60,12 @@ Each hall has three framed 2D paintings; the added dimensional wall exhibits
 were replaced with themed heritage paintings.
 
 `game/assets/desert-dreams-resorts/` holds `hall_251.glb` … `hall_254.glb`
-and the shared prop kit; see its README, `catalog.json` and `provenance.json`.
+plus `hall_256.glb` … `hall_261.glb` and the shared prop kit; see its README,
+`catalog.json` and `provenance.json`.
 The generator is `tools/blender_exploration/build_resort_interiors.py`
 (Blender, procedural). `assets/resort-interiors/` holds the editable source
 of every exported model (`hall_251.blend` … and one `.blend` per prop) and
-four review scenes, `review_251.blend` … `review_254.blend`: each hall fully
+four original review scenes, `review_251.blend` … `review_254.blend`: each hall fully
 furnished from the floor plan with its lettering, lamps and review cameras.
 The generator rewrites the model sources on every run and the review scenes whenever it renders reviews (not with `--skip-render`); the review scenes are only
 for looking at a furnished hall in Blender and are never exported. Its
@@ -60,6 +78,19 @@ indices 0 hard floor, 1 carpet, 2 wall, 3 ceiling, 4 stone, 5 wood, 6 metal,
 hall metres with the resort's palette. Sign lettering is set at runtime with
 TextMesh in the resort's bundled font; every rendered character is in that
 font.
+
+The six new halls are authored by
+`tools/blender_exploration/build_six_resort_halls.py`, which reads
+`tools/resort_expansion.json` and preserves the original halls and prop kit.
+Editable masters are retained locally outside the public package. See
+[Model-first 3D art](3d-models.md) for the exterior model package.
+
+Each resort has 20 runtime PNGs: six reels, six transparent payout icons, three
+court portraits, a card back, three paintings and an actual three-reel cabinet
+bake. The six new sets add 120 PNGs, bringing the ten resort sets to 200; with
+Despicable's, the package contains 220 PNGs plus four shared suit SVGs.
+`tools/build_six_resort_art.py` packages the new sets under their six slugs.
+Illustration masters are retained locally outside the public package.
 
 Budgets: hall ≤ 40,000 triangles; slot cabinet ≤ 1,500; other props ≤ 4,000;
 a populated hall ≤ 150,000 triangles and ≤ 40 draw surfaces. All placed
@@ -93,7 +124,7 @@ an editable local master at `assets/resort-interiors/hall_126.blend` and appends
 its model and `stores` record to the existing resort catalog. The generated
 Blender master is kept outside the public package. Rebuilding the original resort
 halls preserves this separate store record. The package checker includes all
-22 models and verifies the equal 60 m² store and gaming areas.
+34 models and verifies the equal 60 m² store and gaming areas.
 
 Despicable's 20 illustrations ship under
 `game/assets/desert-dreams-casino-art/despicables/`. Its packaging tool is
@@ -102,3 +133,12 @@ local under `assets/casino-art/despicables/`. The shared card/reel renderer
 uses these textures without changing game rules. The native preview script is
 `tools/qa/despicables_preview.gd`, run in a caller-owned isolated project with
 `DESPICABLES_EVIDENCE` naming an output folder.
+
+## Original signature tables
+
+The six additional halls now place dedicated signature props on their existing
+dais: three-dial vault desk, branching-route oval table, miniature cabaret
+stage, three-band observation console, three-tray bank desk and shared-pot
+table. `build_original_signature_props.py` exports only these six models.
+The shared finish shader uses each resort's existing palette; the table badges
+and new drawn game boards use the accepted themed PNGs.
