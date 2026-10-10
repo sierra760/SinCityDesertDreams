@@ -141,9 +141,10 @@ func step(frame: ExploreInputFrame, _camera_yaw: float, delta: float) -> void:
 	var dt := clampf(delta,0,.1)
 	if dt<=0: return
 	var throttle := clampf(-frame.move.y,-1,1)
-	var top_speed := .7 if domain == &"rail" else .35
-	_speed = move_toward(_speed,top_speed*throttle,(.8 if frame.brake else .25)*dt)
-	if frame.brake: _speed = move_toward(_speed,0,1.5*dt)
+	var speed_scale := 3.0 if kind == &"sailboat" else 1.0
+	var top_speed := (.7 if domain == &"rail" else .35)*speed_scale
+	_speed = move_toward(_speed,top_speed*throttle,(.8 if frame.brake else .25)*speed_scale*dt)
+	if frame.brake: _speed = move_toward(_speed,0,1.5*speed_scale*dt)
 	var before := global_transform
 	var old_distance := _distance
 	if domain == &"rail":
