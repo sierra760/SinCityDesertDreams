@@ -6,6 +6,7 @@ var runtime: ExploreModRuntime
 var actors: ExploreActorRegistry
 var interactions := ExploreModInteractions.new()
 var objectives := ExploreModObjectives.new()
+var markers := ExploreModMarkers.new()
 var queries: ExploreWorldQueries
 var generation := 0
 var _pending: Dictionary = {}
@@ -20,7 +21,7 @@ func apply(command: Dictionary) -> Dictionary:
 	if not valid_arguments(kind,args): return ExploreActorRegistry.completion(command,"invalid_argument")
 	var outstanding: Dictionary = _outstanding.get(owner,{})
 	if outstanding.size() >= 32: return ExploreActorRegistry.completion(command,"quota_exceeded")
-	if kind.begins_with("interaction.") or kind.begins_with("dialogue.") or kind.begins_with("objective."):
+	if kind.begins_with("interaction.") or kind.begins_with("dialogue.") or kind.begins_with("objective.") or kind.begins_with("marker."):
 		var result: Dictionary
 		match kind:
 			"interaction.register":
@@ -31,6 +32,10 @@ func apply(command: Dictionary) -> Dictionary:
 			"dialogue.dismiss": result = interactions.dismiss_owned(owner,args.key)
 			"objective.set": result = objectives.set_objective(owner,args.key,args.text,args.status)
 			"objective.remove": result = objectives.remove(owner,args.key)
+			"marker.set":
+				markers.actors = actors
+				result = markers.set_marker(owner,args.key,args.options)
+			"marker.remove": result = markers.remove(owner,args.key)
 			_: result = {"code":"unavailable"}
 		return ExploreActorRegistry.completion(command,result.code)
 	if kind == "environment.clear":
@@ -104,6 +109,7 @@ func clear_owner(owner: String) -> void:
 	environment.clear_owner(owner)
 	interactions.clear_owner(owner)
 	objectives.clear_owner(owner)
+	markers.clear_owner(owner)
 	actors.clear_owner(owner)
 
 ## Native enforces copied-data bounds; semantic argument types stay at the host
@@ -113,16 +119,21 @@ static func valid_arguments(kind: String, args: Dictionary) -> bool:
 	if args.has("options") and not args.options is Dictionary: return false
 	var options: Dictionary = args.get("options",{})
 	if options.has("enterable") and not options.enterable is bool: return false
-	if kind.begins_with("interaction.") or kind.begins_with("dialogue.") or kind.begins_with("objective."):
+	if kind.begins_with("interaction.") or kind.begins_with("dialogue.") or kind.begins_with("objective.") or kind.begins_with("marker."):
 		if not args.get("key") is String: return false
 	if kind == "interaction.register" and (not options.get("target") is Dictionary or not options.get("label") is String): return false
 	if kind == "dialogue.show" and (not args.get("speaker") is String or not args.get("text") is String or not args.get("choices") is Array): return false
+	if kind == "marker.set" and (not args.get("options") is Dictionary or not ExploreModMarkers.valid_options(args.options)): return false
 	if kind == "objective.set" and (not args.get("text") is String or not args.get("status") is String): return false
 	for field in ["kind","key"]:
 		if options.has(field) and not options[field] is String: return false
 	if options.has("near_player") and not options.near_player is bool: return false
 	if options.has("position") and not ExploreWorldQueries.point(options.position).is_finite(): return false
 	if options.has("radius") and (not _number(options.radius) or options.radius < 0 or options.radius > 64): return false
+	for field in ["from","away_from"]:
+		if options.has(field) and not ExploreWorldQueries.point(options[field]).is_finite(): return false
+	if options.has("min_distance") and (not _number(options.min_distance) or options.min_distance < 0 or options.min_distance > 40): return false
+	if options.has("skip") and (not options.skip is int or options.skip < 0 or options.skip > 32): return false
 	if kind in ["actor.spawn","world.find_landmark"] and not args.get("kind") is String: return false
 	if kind.begins_with("actor.") and kind != "actor.spawn" and not args.get("id") is String: return false
 	if kind in ["actor.navigate","world.route"] and not ExploreWorldQueries.point(args.get("destination")).is_finite(): return false
@@ -137,7 +148,7 @@ static func _number(value: Variant) -> bool:
 
 ## Host-only copied accounting; no engine handles enter runtime diagnostics.
 func resource_metrics() -> Dictionary:
-	var result := {"actors":actors._actors.size() if actors != null else 0,"timers":0,"interactions":0,"objectives":0,"queries":_pending.size(),"particles":0,"environment_owners":environment._overrides.size()}
+	var result := {"actors":actors._actors.size() if actors != null else 0,"timers":0,"interactions":0,"objectives":0,"markers":markers.count(),"queries":_pending.size(),"particles":0,"environment_owners":environment._overrides.size()}
 	for entries: Dictionary in _timers.values(): result["timers"] += entries.size()
 	for entries: Dictionary in interactions._owned.values(): result["interactions"] += entries.size()
 	for entries: Dictionary in objectives._owned.values(): result["objectives"] += entries.size()

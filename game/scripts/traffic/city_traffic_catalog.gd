@@ -59,6 +59,16 @@ static func dimensions(kind: StringName) -> Vector3:
 	var size: Array = entry.get("size_godot", [1.8, 1.7, 4.4])
 	return Vector3(float(size[0]), float(size[1]), float(size[2])) / METRES_PER_TILE
 
+## Conservative authored envelope at feet/waterline, without compiling a mesh.
+static func visual_bounds(kind: StringName) -> AABB:
+	var size := dimensions(kind)
+	var bottom := 0.0
+	if domain(kind)==&"water":
+		var entry: Dictionary=_metadata.get("models",{}).get(String(kind),{})
+		var minimum: Array=entry.get("min_godot",[0.0,0.0,0.0])
+		bottom=float(minimum[1])/METRES_PER_TILE
+	return AABB(Vector3(-size.x*.5,bottom,-size.z*.5),size)
+
 static func mesh_for(kind: StringName, variant: int = 0, low_detail: bool = false) -> Mesh:
 	if kind != &"pedestrian" and kind not in KINDS and kind not in TRANSIT_PARTS:
 		return null

@@ -21,12 +21,13 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 		return {}
 	var eligible: Array[Dictionary] = []
 	if is_instance_valid(_parent) and is_instance_valid(camera) and _parent.is_visible_in_tree():
+		var frustum := camera.get_frustum()
 		for state in candidates:
 			var id: String=state.id
 			if state.get("excluded",false) or not state.get("visible",true): continue
 			var distance: float=camera.global_position.distance_squared_to(state.position)
 			var radius: float=EXIT if _selected.has(id) else ENTER
-			if distance>radius*radius or not camera.is_position_in_frustum(state.position): continue
+			if distance>radius*radius or not _body_in_frustum(state,frustum): continue
 			eligible.append({"state":state,"distance":distance})
 	eligible.sort_custom(func(a: Dictionary,b: Dictionary)->bool:
 		return String(a.state.id)<String(b.state.id) if a.distance==b.distance else a.distance<b.distance)
@@ -80,6 +81,20 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 		visual.visible=true
 		_sample(visual,wanted[id])
 	return _selected.duplicate()
+
+## Feet or the vehicle origin can leave the screen before the visible body.
+## Test its oriented envelope against each camera plane, keeping the existing
+## distance hysteresis and pool caps independent of this visibility decision.
+func _body_in_frustum(state: Dictionary, frustum: Array[Plane]) -> bool:
+	var bounds := CityTrafficCatalog.visual_bounds(StringName(state.kind))
+	var basis := Basis(Vector3.UP,float(state.yaw))
+	var center: Vector3=state.position+basis*bounds.get_center()
+	var half := bounds.size*.5
+	for plane in frustum:
+		var reach := absf(plane.normal.dot(basis.x))*half.x+absf(plane.normal.dot(basis.y))*half.y+absf(plane.normal.dot(basis.z))*half.z
+		if plane.distance_to(center)>reach: return false
+	return true
+
 func _key(state: Dictionary) -> String:
 	return String(state.kind)+":"+str(posmod(int(state.variant),16) if String(state.kind)=="pedestrian" else 0)
 func _sample(visual: ExploreActorVisual,state: Dictionary) -> void:

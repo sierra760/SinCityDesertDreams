@@ -53,41 +53,54 @@ on_event, on_resume, on_stop). The host schedules only that fixed inventory;
 adding a handler later does not subscribe it. **It does not call on_start.** The host initializes
 only while loading or a suspended Mods panel owns input, then separately
 `dispatch("on_start", {}, context, budget)`. Top-level execution receives the
-same 20,000 instruction and 1,500 microsecond ceiling. Compilation has source
+same 20,000 instruction limit and per-callback time limits described below. Compilation has source
 and memory bounds and occurs outside tick scheduling; its time is not claimed
 as instruction-counted execution. `require` uses precompiled closures only.
 
 Native `dispatch(handler, payload, context, budget)` accepts `budget.instructions`
 (default 20,000, clamped 0–20,000) and `budget.remaining_usec` (default 1,500,
-clamped 0–1,500). The steady-clock deadline starts at native method entry before
-input validation/copying. Hooks check at most every 200 instructions (and at
-the exact remaining allowance); API entry and successful callback exit also
-check it. The GDScript bridge accepts **absolute Godot** `budget.deadline_usec`
-from `Time.get_ticks_usec()`, subtracts current time immediately before calling
-native, and takes the smaller of that remainder and `remaining_usec`. Native
-also retains the absolute deadline and compares it with the same engine Time
-singleton, independently of its entry-anchored steady-clock relative cap. This
-charges transport and validation time without comparing clock epochs. Native
-requires all budget keys to be supported integers. If the
-absolute deadline has already expired, the bridge returns `ok: true, deferred:
-true` with empty output collections and zero counters, without entering or
-closing the VM. Native likewise defers after validated host-side copying if
-an absolute deadline expired before protected callback entry and the relative
-budget is positive. Native deferral reports actual VM memory/native elapsed;
-bridge-only `bytes_used: 0` means no native sample was taken. The host
-keeps the callback queued and performs no output/progress commit. Explicit
-relative `remaining_usec: 0` still enters the native deadline fault path, even
-when an absolute deadline is also supplied. Fresh callback argument tables remain independent. A protected deadline check
-immediately after copying prevents expired copying from entering the handler.
-Once Lua callback execution begins,
-deadline exhaustion remains a fault and the callback is never retried.
+clamped 0–1,500). `remaining_usec` is the callback's own **thread CPU** budget,
+measured from native method entry (so input validation and copying count). A
+**50 ms wall-time backstop**, also from method entry, ends any callback that
+stalls. Hooks check both at most every 200 instructions (and at the exact
+remaining allowance); API entry, `require`, handler entry after argument copying
+and successful callback exit also check them. Exhaustion of either faults with
+`deadline`; the diagnostic names which limit ran out. Wall time lost to OS
+preemption is therefore never charged against the CPU budget, while a genuinely
+busy callback is still stopped. CPU enforcement uses Mach `thread_info` on
+macOS (Rosetta 2 under-reports `CLOCK_THREAD_CPUTIME_ID` for translated x86_64
+code) and `CLOCK_THREAD_CPUTIME_ID` on other POSIX systems. On Windows `GetThreadTimes` advances in whole scheduler-tick quanta, so it stays
+diagnostic only and the instruction limits plus the wall backstop bound callbacks
+there. Wherever the thread CPU clock is unavailable the same fallback applies.
+An explicit `remaining_usec: 0` always faults with `deadline` before Lua runs.
+
+The GDScript bridge accepts an **absolute Godot** `budget.deadline_usec` from
+`Time.get_ticks_usec()`. It is the scheduler's admission window, not a running
+limit: if it has already expired, the bridge returns `ok: true, deferred: true`
+with empty output collections and zero counters, without entering or closing
+the VM. Native retains the absolute deadline and rechecks it with the same
+engine Time singleton after validated host-side copying, immediately before
+protected callback entry, deferring the same way when the relative budget is
+positive. Once Lua callback execution begins the absolute deadline is no longer
+consulted; the shared window never shrinks a started callback's CPU budget.
+Native deferral reports actual VM memory/native elapsed; bridge-only
+`bytes_used: 0` means no native sample was taken. The host keeps the callback
+queued and performs no output/progress commit. Explicit relative
+`remaining_usec: 0` still enters the native deadline fault path, even when an
+absolute deadline is also supplied. Native requires all budget keys to be
+supported integers. Fresh callback argument tables remain independent. A
+deadline or instruction fault is terminal and the callback is never retried.
 Initialization uses relative budgets only, synchronously under entry/panel
 ownership; on_start cannot take the absolute pre-entry deferral path.
-The host scheduler passes the session's remaining instructions/deadline, sums native instruction
-counts, and owns the 100,000-instruction/1.5 ms aggregate tick limit. Successful
+The host scheduler owns the 1.5 ms tick admission window: it starts a callback
+only while at least 400 µs of it remain, passes the session's remaining
+instructions and the window as `deadline_usec`, sums native instruction counts
+and owns the 100,000-instruction aggregate tick limit. Because the window only
+admits, one tick can run past it by at most the last admitted callback. Successful
 callbacks conservatively charge the unfinished hook quantum (at most 200
 instructions), so short callbacks cannot evade aggregate accounting. The native
-budget never extends a smaller allowance. Native-only tests use relative time.
+budget never extends a smaller allowance. Native-only tests use relative budgets;
+preemption tests stop and resume the test process from a helper shell process.
 
 `dispatch` calls lifecycle handlers with `(api, copied_context, copied_context)`;
 `on_event` receives `(api, copied_event, copied_context)`. Authors need only the
@@ -144,11 +157,11 @@ invalid call disables the owner. Ordinary unavailable gestures and unreachable
 or resource-limited requests do not count as malformed commands.
 
 Host-only numeric timing fields split boundary validation, context copy, Lua
-argument copy, payload copy and invocation. Thread CPU uses
-`CLOCK_THREAD_CPUTIME_ID` on macOS and `GetThreadTimes` on Windows (which can
-report zero for short intervals); -1 denotes unavailable measurement. Wall
-clock deadlines remain authoritative, including when the OS deschedules the
-thread. Timing is diagnostic, never an admission exemption or fault retry.
+argument copy, payload copy and invocation. `thread_cpu_usec` uses the same
+clock as CPU enforcement (Mach `thread_info` on macOS) and `GetThreadTimes` on
+Windows (which can report zero for short intervals); -1 denotes unavailable
+measurement. Timing fields are diagnostic, never an admission exemption or
+fault retry.
 
 
 ## Development tests

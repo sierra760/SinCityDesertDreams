@@ -17,6 +17,44 @@ var traversal: CityTraversalWorld3D
 var walker: ExplorePedestrian
 var service: ExploreTransitService
 
+func test_boarding_guidance_disappears_after_walking_away_and_returns_near_platform() -> void:
+	await _setup()
+	check(_wait_boarding())
+	var station := service.network.station_for_route(service.route_data,0)
+	for state_name: String in ["opening","boarding","closing","departing","approaching","braking"]:
+		service.state = state_name
+		walker.global_position = station.platform+Vector3.UP*.002
+		check(not String(service.status().message).is_empty(),"near platform guidance for "+state_name)
+		walker.global_position = station.platform+Vector3(2,.002,2)
+		var status := service.status()
+		check_eq(status.message,"","walking away hides "+state_name+" reminder")
+		check(not bool(status.can_choose_destination),"distant station cannot advertise route changes")
+		walker.global_position = station.platform+Vector3(.5,.002,0)
+		check(not String(service.status().message).is_empty(),"approaching platform restores "+state_name+" guidance")
+	walker.global_position = station.platform+Vector3(1.1,.002,0)
+	check_eq(service.status().message,"","service preparation radius does not become the reminder radius")
+	walker.global_position = station.platform+Vector3(0,1,0)
+	check_eq(service.status().message,"","passing above a platform is not approaching boarding")
+	walker.visible = false
+	check_eq(service.status().message,"","inactive walker cannot show train reminders to a driver")
+
+func test_subway_guidance_stays_at_entrance_lift_platform_and_in_train() -> void:
+	await _setup(true)
+	check(_wait_boarding())
+	var station := service.network.station_for_route(service.route_data,0)
+	for point: Vector3 in service.world.access_waypoints(station):
+		walker.global_position = point
+		check(not String(service.status().message).is_empty(),"station access retains guidance at "+str(point))
+	var lift: Node3D = service.world.elevators[0]
+	lift.cabin.position.y = (float(lift.heights[0])+float(lift.heights[1]))*.5
+	walker.global_position = lift.cabin.global_position+Vector3.UP*.002
+	check(not String(service.status().message).is_empty(),"guidance remains inside the lift between street and platform")
+	walker.global_position = station.platform+Vector3(2,.002,2)
+	check_eq(service.status().message,"","underground location alone is not a station")
+	walker.global_position = service.train.global_transform*Vector3(0,.027,0)
+	check(service.status().passenger,"actual rider retains transit status")
+	check(not String(service.status().message).is_empty(),"passenger still receives door guidance")
+
 func test_platform_guidance_tracks_doors_and_the_actual_next_departure() -> void:
 	await _setup()
 	check(_wait_boarding())

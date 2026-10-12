@@ -6,6 +6,10 @@
 class_name ExploreTransitService
 extends Node3D
 
+## Tile units: boarding guidance starts within 16 m, on the same level.
+const GUIDANCE_RANGE := 1.0
+const GUIDANCE_HEIGHT := .25
+
 var network: ExploreTransitNetwork
 var world: ExploreTransitWorld3D
 var train: ExploreTransitTrain
@@ -386,16 +390,35 @@ func status() -> Dictionary:
 		"approaching", "braking": message="Train approaching. Wait behind the yellow edge."
 	if _message.contains("another platform") and stopped: message=_message
 	var occupied_lift := is_instance_valid(world) and is_instance_valid(walker) and world.in_elevator(walker.global_position)
-	return {"active":state!="idle","station_id":_station_id,"station":station.get("name",""),
+	var nearby := _guidance_nearby(passenger,occupied_lift)
+	return {"active":state!="idle","nearby":nearby,"station_id":_station_id,"station":station.get("name",""),
 		"destination":destination.get("name",""),"next_stop":next.get("name",""),"doors":state,
 		"current_stop":station.get("name","") if stopped else "","selected_destination":destination.get("id",-1),
-		"can_choose_destination":not passenger and not occupied_lift,"transit_kind":"subway" if station.get("subway",false) else "train",
+		"can_choose_destination":nearby and not passenger and not occupied_lift,"transit_kind":"subway" if station.get("subway",false) else "train",
 		"departure_seconds":maxi(0,ceili(ExploreTransitTrain.DWELL-_timer)) if state=="boarding" else -1,
 		"doorway_blocked":is_instance_valid(train) and train.doorway_occupied(walker.global_position),
 		"speed_mps":speed*16.0,"door_state":train.doors if is_instance_valid(train) else "closed",
 		"message_literal":_unavailable_anchor!=Vector2i(-1,-1) and lift_prompt.is_empty() and message==_message,
-		"message":lift_prompt if not lift_prompt.is_empty() else message,"elevator_prompt":lift_prompt,"interior":indoors(walker.global_position) if is_instance_valid(walker) else false,"passenger":passenger,"destinations":network.destinations(_station_id) if network != null and _station_id>=0 else [],
+		"message":(lift_prompt if not lift_prompt.is_empty() else message) if nearby else "","elevator_prompt":lift_prompt,"interior":indoors(walker.global_position) if is_instance_valid(walker) else false,"passenger":passenger,"destinations":network.destinations(_station_id) if network != null and _station_id>=0 else [],
 		"cabin_bounds":ExploreTransitTrain.CABIN,"cabin_transform":train.global_transform if is_instance_valid(train) else Transform3D.IDENTITY}
+
+func _guidance_nearby(passenger: bool, occupied_lift: bool) -> bool:
+	if not is_instance_valid(walker) or not walker.visible or network == null: return false
+	if passenger or occupied_lift: return true
+	var feet := walker.global_position
+	# Preparing a service uses a wider radius and the train keeps running when
+	# the walker leaves. Neither implies that its reminders belong on the HUD.
+	var stations := world.active_stations if is_instance_valid(world) and not world.active_stations.is_empty() else network.stations
+	for stop: Dictionary in stations:
+		if _near_guidance_point(feet,stop.platform): return true
+		if bool(stop.subway) and _near_guidance_point(feet,Vector3(stop.anchor.x+.5,stop.surface,stop.anchor.y+.5)): return true
+	if _unavailable_anchor != Vector2i(-1,-1) and is_instance_valid(view):
+		var point := Vector3(_unavailable_anchor.x+.5,CityGeometry3D.ground_height(view.city,_unavailable_anchor),_unavailable_anchor.y+.5)
+		return _near_guidance_point(feet,point)
+	return false
+
+static func _near_guidance_point(feet: Vector3, point: Vector3) -> bool:
+	return absf(feet.y-point.y)<=GUIDANCE_HEIGHT and Vector2(feet.x-point.x,feet.z-point.z).length_squared()<=GUIDANCE_RANGE*GUIDANCE_RANGE
 
 func indoors(feet: Vector3) -> bool:
 	return (is_instance_valid(train) and train.contains(feet)) or (is_instance_valid(world) and world.indoors(feet))

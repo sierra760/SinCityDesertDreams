@@ -19,6 +19,7 @@ signal recenter_requested
 signal settings_requested
 signal mods_requested
 
+var navigation: ExploreNavigation
 var sensitivity := 1.0
 var invert_y := false
 var _chrome_top := 0.0
@@ -90,7 +91,7 @@ func clear_touch_input() -> void:
 func handle_touch_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 	if not is_instance_valid(touch_controls): return false
 	var at: Vector2 = event.position if event is InputEventScreenTouch or event is InputEventScreenDrag else Vector2.ZERO
-	var blocked := ui_blocked or (_status_panel.visible and _status_panel.get_global_rect().has_point(at)) or (_panel.visible and _panel.get_global_rect().has_point(at))
+	var blocked := ui_blocked or (is_instance_valid(navigation) and navigation.owns_touch(at)) or (_status_panel.visible and _status_panel.get_global_rect().has_point(at)) or (_panel.visible and _panel.get_global_rect().has_point(at))
 	return touch_controls.handle_event(event,blocked)
 
 ## Insets are logical UI units measured by Main's menu and city-status chrome.
@@ -105,6 +106,9 @@ func set_chrome_insets(top: float, bottom: float) -> void:
 func show_session(on: bool) -> void:
 	visible = on
 	if is_instance_valid(touch_controls): touch_controls.set_session_active(on)
+	if is_instance_valid(navigation):
+		set_navigation_expanded(false)
+		navigation.set_session_active(on)
 	if on:
 		_hint_until_msec = Time.get_ticks_msec()+HINT_MSEC
 		set_suspended(false)
@@ -115,7 +119,7 @@ func set_suspended(on: bool, focus_resume: bool = true) -> void:
 	_suspended=on
 	if is_instance_valid(touch_controls): touch_controls.set_suspended(on)
 	if is_instance_valid(_panel):
-		_panel.visible = on
+		_panel.visible = on and not (is_instance_valid(navigation) and navigation.expanded)
 	_update_hint()
 	_reflow()
 	if on and focus_resume and not _touch_enabled and is_instance_valid(_resume_button) and _resume_button.is_visible_in_tree():
@@ -125,7 +129,7 @@ func set_suspended(on: bool, focus_resume: bool = true) -> void:
 ## bindings so rebinding keeps it correct.
 func controls_hint() -> String:
 	var interact := controls.caption(&"interact",0)
-	var esc := "Esc menu"
+	var esc := "%s map · Esc menu" % controls.caption(&"explore_map",0)
 	match _hint_context:
 		"ride":
 			return "%s walk · Mouse look · %s" % [_move_caption(),esc]
@@ -365,6 +369,9 @@ func _build() -> void:
 	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint_panel.add_child(_hint_label)
 	_hint_panel.hide()
+	navigation = ExploreNavigation.new()
+	navigation.name = "ExploreNavigation"
+	add_child(navigation)
 	_update_hint()
 
 ## Fade to black over half of `seconds`, call `midpoint`, then fade back in.
@@ -445,6 +452,10 @@ func _reflow() -> void:
 		var status_chrome := status_style.get_minimum_size().y if status_style != null else 0.0
 		status_height = minf(status_height,maxf(44.0,(status_column as Control).get_combined_minimum_size().y+status_chrome))
 	_status_panel.size = Vector2(status_width, status_height)
+	if is_instance_valid(navigation):
+		navigation.apply_layout(available,_status_panel.get_rect(),_touch_enabled)
+		if _touch_enabled and is_instance_valid(touch_controls._look_label):
+			touch_controls._look_label.visible = not _suspended and not touch_controls._look_label.get_rect().intersects(navigation._compact.get_rect())
 	if is_instance_valid(touch_controls): touch_controls.set_status_rect(_status_panel.get_rect())
 	var width := minf(390.0, available.size.x - margin * 2.0)
 	# The paused panel is as tall as its content, up to the usable height;
@@ -501,7 +512,9 @@ func panel_touch_reflow(available: Rect2, margin: float, width: float, height: f
 
 func set_transit_status(status: Dictionary) -> void:
 	if not is_instance_valid(_transit_label): return
+	var show_transit := _mode == ExploreActorProfile.Mode.WALK and bool(status.get("nearby",true))
 	var text := str(status.get("message","")) if bool(status.get("message_literal",false)) else _touch_caption(str(status.get("message","")))
+	if not show_transit: text=""
 	if text==_prompt_label.text or text==_touch_caption(str(status.get("elevator_prompt",""))): text=""
 	var actor_text := _base_actor_text
 	var speed_text := _base_speed_text
@@ -524,7 +537,7 @@ func set_transit_status(status: Dictionary) -> void:
 			var seconds := int(status.get("departure_seconds",-1))
 			if bool(status.get("doorway_blocked",false)): text+=" · Keep doorway clear"
 			elif seconds>=0: text+=" · Departs in %ds" % seconds
-	elif int(status.get("station_id",-1)) >= 0 and (status.get("destinations",[]) as Array).size() > 1 \
+	elif show_transit and int(status.get("station_id",-1)) >= 0 and (status.get("destinations",[]) as Array).size() > 1 \
 			and bool(status.get("can_choose_destination",true)):
 		# Waiting on a platform: name the chosen service and how to change it.
 		var chosen := _destination_name(status)
@@ -536,7 +549,7 @@ func set_transit_status(status: Dictionary) -> void:
 	changed = _set_label_text(_speed_label,speed_text) or changed
 	changed = _set_label_text(_transit_label,text) or changed
 	changed = _set_visible(_transit_label,not text.is_empty()) or changed
-	var destinations: Array = status.get("destinations",[])
+	var destinations: Array = status.get("destinations",[]) if show_transit else []
 	var station := int(status.get("station_id",-1))
 	if destinations != _destinations or station != _transit_station:
 		changed = true
@@ -562,3 +575,10 @@ static func _destination_name(status: Dictionary) -> String:
 		if destination is Dictionary and int(destination.get("id",-1)) == selected:
 			return str(destination.get("name",""))
 	return str(status.get("destination",""))
+
+func set_navigation_expanded(on: bool) -> void:
+	if not is_instance_valid(navigation): return
+	navigation.set_expanded(on)
+	_panel.visible = _suspended and not on
+	_status_panel.visible = not on
+	_reflow()

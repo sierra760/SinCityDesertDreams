@@ -54,7 +54,10 @@ func request(owner: String, kind: String, args: Dictionary) -> Dictionary:
 	var job := {"owner":owner,"kind":kind,"args":args.duplicate(true),"key":key,"query_id":_serial,"revision":graph.revision,"world_revision":traversal.revision if is_instance_valid(traversal) else -1,"frontier":[],"head":0,"parents":{},"visited":0}
 	job["actor_kind"] = String(args.get("_kind",args.get("options",{}).get("kind","pedestrian")))
 	job["domain"] = String(args.get("_domain",CityTrafficCatalog.domain(StringName(job.actor_kind))))
-	var start := point(args.get("from",player))
+	# A landmark search may start at a script-chosen supported point (for
+	# chained stops); without options.from it starts at the copied player.
+	var start := point(args.get("options",{}).get("from",player)) if kind == "world.find_landmark" else point(args.get("from",player))
+	job["skip"] = int(args.get("options",{}).get("skip",0))
 	if kind == "world.route" or kind == "world.find_landmark":
 		if start.is_finite():
 			var cell := Vector2i(floori(start.x),floori(start.z))
@@ -118,15 +121,12 @@ func step() -> Array[Dictionary]:
 				var destination := point(job.args.get("destination",{}))
 				var found := destination.is_finite() and cell == Vector2i(floori(destination.x),floori(destination.z)) and absf(destination.y-route_point(cell,StringName(job.actor_kind),node.domain).y) < .15
 				if job.kind == "world.find_landmark":
-					var landmark: String = job.args.get("kind","")
-					var origin: Vector2i = job.frontier[0].cell
-					found = landmark in ["road_destination","sidewalk","road"] and cell.distance_squared_to(origin) >= 9
-					if landmark in ["park","station"]:
-						for offset in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
-							var neighbor: Vector2i = cell+offset
-							if graph.city.in_bounds(neighbor.x,neighbor.y):
-								var code: int = graph.city.building.at(neighbor.x,neighbor.y)
-								if (landmark == "station" and code in [Buildings.SUBWAY_STATION,Buildings.RAIL_STATION]) or (landmark == "park" and code in [Buildings.SMALL_PARK,Buildings.LARGE_PARK]): found = true
+					found = _landmark_matches(job,cell)
+					# Skipped matches let scripts vary destinations without
+					# changing search order, quotas or route support rules.
+					if found and job.skip > 0:
+						job.skip -= 1
+						found = false
 				if found:
 					var route: Array[Vector2i] = []
 					var trace := index
@@ -166,6 +166,30 @@ func step() -> Array[Dictionary]:
 		cache[job.key] = public_result
 		_cache[job.owner] = cache
 	return results
+
+## Road kinds keep the original three-tile minimum unless options ask for a
+## farther (Euclidean) stop; away_from requires progress away from a point.
+func _landmark_matches(job: Dictionary, cell: Vector2i) -> bool:
+	var landmark: String = job.args.get("kind","")
+	var options: Dictionary = job.args.get("options",{})
+	var origin: Vector2i = job.frontier[0].cell
+	var road := landmark in ["road_destination","sidewalk","road"]
+	var reach := float(options.get("min_distance",3.0 if road else 0.0))
+	if road: reach = maxf(reach,3.0)
+	if cell.distance_squared_to(origin) < reach*reach: return false
+	if options.has("away_from"):
+		var away := point(options.away_from)
+		var here := Vector2(cell.x+.5,cell.y+.5)
+		var start := Vector2(origin.x+.5,origin.y+.5)
+		if here.distance_to(Vector2(away.x,away.z)) < start.distance_to(Vector2(away.x,away.z))+reach*.5: return false
+	if road: return true
+	if landmark in ["park","station"]:
+		for offset in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+			var neighbor: Vector2i = cell+offset
+			if graph.city.in_bounds(neighbor.x,neighbor.y):
+				var code: int = graph.city.building.at(neighbor.x,neighbor.y)
+				if (landmark == "station" and code in [Buildings.SUBWAY_STATION,Buildings.RAIL_STATION]) or (landmark == "park" and code in [Buildings.SMALL_PARK,Buildings.LARGE_PARK]): return true
+	return false
 
 static func _node_key(node: Dictionary) -> String:
 	return "%s:%s:%s:%s" % [node.cell,node.previous,node.domain,node.lane]

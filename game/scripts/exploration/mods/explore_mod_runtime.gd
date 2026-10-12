@@ -19,6 +19,11 @@ var _owner_metrics: Dictionary = {}
 var resource_counts: Dictionary = {}
 var _transactions: Dictionary = {}
 var _transaction_serial := 0
+## A callback starts only with this much of the shared tick window left; the
+## rest of that tick's work stays queued for the next tick. The window governs
+## admission only: a started callback is judged by its own thread CPU budget
+## and the native wall backstop, so preemption cannot fault a healthy pack.
+const MIN_CALLBACK_USEC := 400
 
 func metrics() -> Dictionary:
 	var result := {"tick":_last_tick.duplicate(true),"owners":_owner_metrics.duplicate(true),"sessions":_sessions.size(),"pending_commands":_commands.size(),"resources":resource_counts.duplicate(true),"pending_transactions":0}
@@ -231,12 +236,12 @@ func step(delta: float, suspended: bool, context: Dictionary) -> Array[Dictionar
 	# consuming the entire callback budget before another gets a turn.
 	var attempted := 0
 	var event_counts: Dictionary = {}
-	while not owners.is_empty() and callbacks < 32 and instructions > 0 and Time.get_ticks_usec() < deadline:
+	while not owners.is_empty() and callbacks < 32 and instructions > 0 and Time.get_ticks_usec() < deadline-MIN_CALLBACK_USEC:
 		var progressed := false
 		for offset in owners.size():
 			var owner: String = owners[(_cursor+offset)%owners.size()]
 			if not _sessions.has(owner) or owner in awaiting_host: continue
-			if callbacks >= 32 or instructions <= 0 or Time.get_ticks_usec() >= deadline: break
+			if callbacks >= 32 or instructions <= 0 or Time.get_ticks_usec() >= deadline-MIN_CALLBACK_USEC: break
 			var session: Dictionary = _sessions[owner]
 			var handler := ""
 			var payload: Dictionary = {}
@@ -250,7 +255,7 @@ func step(delta: float, suspended: bool, context: Dictionary) -> Array[Dictionar
 			var copied_context := _context(owner,context)
 			copied_context["delta"] = session.tick_delta if handler == "on_tick" else elapsed
 			preparation_usec += Time.get_ticks_usec()-prepared
-			if Time.get_ticks_usec() >= deadline: break
+			if Time.get_ticks_usec() >= deadline-MIN_CALLBACK_USEC: break
 			var remaining_usec := maxi(0,deadline-Time.get_ticks_usec())
 			var dispatched := Time.get_ticks_usec()
 			var reply: Dictionary = session.vm.dispatch(handler,payload,copied_context,{"instructions":mini(20000,instructions),"deadline_usec":deadline})

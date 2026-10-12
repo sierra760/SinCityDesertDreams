@@ -16,13 +16,13 @@ const DEFAULTS := {
 	# Arrow keys are Explore alternates; Build's pan uses them in its own scope.
 	"move_forward":[KEY_W,KEY_UP], "move_back":[KEY_S,KEY_DOWN], "move_left":[KEY_A,KEY_LEFT], "move_right":[KEY_D,KEY_RIGHT],
 	"sprint":[KEY_SHIFT], "jump":[KEY_SPACE], "brake":[KEY_SPACE],
-	"ascend":[KEY_Q], "descend":[KEY_E], "interact":[KEY_F],
+	"explore_map":[KEY_M], "ascend":[KEY_Q], "descend":[KEY_E], "interact":[KEY_F],
 	"pause":[KEY_P], "faster":[KEY_EQUAL,KEY_KP_ADD],
 	"slower":[KEY_MINUS,KEY_KP_SUBTRACT], "fullscreen":[KEY_F11],
 }
 const GROUPS := {
 	"Build": ["pan_forward","pan_back","pan_left","pan_right","rotate","zoom_1","zoom_2","zoom_3","zoom_4","zoom_5","query","bulldoze","underground"],
-	"Explore": ["move_forward","move_back","move_left","move_right","sprint","jump","brake","ascend","descend","interact"],
+	"Explore": ["move_forward","move_back","move_left","move_right","sprint","jump","brake","ascend","descend","interact","explore_map"],
 	"General": ["pause","faster","slower","fullscreen"],
 }
 const LABELS := {
@@ -32,7 +32,7 @@ const LABELS := {
 	"underground":"Underground view", "move_forward":"Forward / accelerate", "move_back":"Back / reverse",
 	"move_left":"Left / steer left", "move_right":"Right / steer right", "sprint":"Sprint (walking)",
 	"jump":"Jump (walking)", "brake":"Brake (vehicles)", "ascend":"Climb (flight)",
-	"descend":"Descend (flight)", "interact":"Interact / enter / exit", "pause":"Pause / resume city",
+	"explore_map":"Explore map", "descend":"Descend (flight)", "interact":"Interact / enter / exit", "pause":"Pause / resume city",
 	"faster":"Faster city speed", "slower":"Slower city speed", "fullscreen":"Fullscreen",
 }
 var _bindings: Dictionary = DEFAULTS.duplicate(true)
@@ -57,6 +57,13 @@ static func sanitize(value: Variant) -> Dictionary:
 		candidate[action] = codes.duplicate()
 	var validator := ControlBindings.new()
 	validator._bindings = candidate
+	# Existing profiles may already use M. Pick a free map shortcut instead of
+	# replacing the player's valid older profile with all-default controls.
+	if not value.has("explore_map"):
+		for code: int in [KEY_M,KEY_V,KEY_G,KEY_H,KEY_J,KEY_K,KEY_L,KEY_F10,KEY_F9,KEY_F8]+range(KEY_A,KEY_Z+1)+range(KEY_F1,KEY_F35+1):
+			if validator.conflict("explore_map",0,code).is_empty():
+				candidate.explore_map = [code]
+				break
 	for action: String in candidate:
 		for slot: int in candidate[action].size():
 			if not validator.conflict(action,slot,int(candidate[action][slot])).is_empty(): return DEFAULTS.duplicate(true)

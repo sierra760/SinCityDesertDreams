@@ -226,5 +226,8 @@ func update_minimap_visibility(on: bool = true) -> void:
 	# Touch actions and the compact Explore panel reserve this corner. Keep
 	# the preference so roomy layouts and returning to Build can restore it.
 	var exploration := _host.exploration
+	if is_instance_valid(_host.explore_hud) and is_instance_valid(_host.explore_hud.navigation):
+		_host.explore_hud.navigation.map_visible = bool(_host.preferences.get("minimap",true))
+		_host.explore_hud.navigation._refresh_visibility()
 	var reserved: bool = phone_layout or (_host.is_exploring() and (exploration.touch_controls_enabled() or bool(_host.display_layout.metrics.get("compact",false))))
-	_host.mini_map.visible = on and _host.in_game and bool(_host.preferences.get("minimap",true)) and not reserved
+	_host.mini_map.visible = on and _host.in_game and bool(_host.preferences.get("minimap",true)) and not reserved and not _host.is_exploring()

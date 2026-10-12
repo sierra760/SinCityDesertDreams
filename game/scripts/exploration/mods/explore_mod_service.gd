@@ -35,6 +35,7 @@ func enter() -> void:
 	api.runtime = runtime
 	api.environment.bind(controller.view,controller.camera_rig.camera)
 	if not RenderingServer.frame_pre_draw.is_connected(_refresh_environment_mask): RenderingServer.frame_pre_draw.connect(_refresh_environment_mask)
+	api.markers.actors = actors
 	api.interactions.actors = actors
 	api.interactions.busy = controller.mod_dialogue_busy
 	api.interactions.present = controller.present_mod_dialogue
@@ -53,6 +54,12 @@ func _update_context() -> void:
 		queries.player = ExploreWorldQueries.copied_point(controller.occupied.feet_position(),queries.graph.revision)
 		queries.player["mode"] = int(controller.mode)
 		queries.player["vehicle"] = ""
+		# Horizontal speed in tiles per active second, and the camera's level
+		# view direction so scripts can phrase guidance as ahead/left/right.
+		var velocity: Vector3 = controller.occupied.velocity
+		queries.player["speed"] = Vector2(velocity.x,velocity.z).length()
+		if is_instance_valid(controller.camera_rig):
+			queries.player["heading"] = {"x":-sin(controller.camera_rig.yaw),"z":-cos(controller.camera_rig.yaw)}
 		if not controller._traffic_claim.is_empty():
 			for id: String in actors._actors:
 				if actors._actors[id].record.id == controller._traffic_claim.id: queries.player["vehicle"] = id
@@ -106,6 +113,7 @@ func leave(reason: String) -> void:
 	if RenderingServer.frame_pre_draw.is_connected(_refresh_environment_mask): RenderingServer.frame_pre_draw.disconnect(_refresh_environment_mask)
 	# Also remove host-created fixture/extension actors without live VMs.
 	for actor in actors._actors.values().duplicate(): api.clear_owner(actor.owner)
+	api.markers.clear()
 	api.environment.restore()
 	api._pending.clear()
 	api._timers.clear()

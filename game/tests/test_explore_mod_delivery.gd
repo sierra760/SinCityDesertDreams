@@ -27,9 +27,9 @@ func test_delivery_accept_drive_complete() -> void:
 	var service := _delivery()
 	session.mod_service = service
 	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
-	check_eq(service.actors._actors.size(),3,"actual Lua spawns courier, recipient and car")
+	check_eq(service.actors._actors.size(),2,"actual Lua spawns the dispatcher and the Delivery Van")
 	check_eq(service.api.objectives.list_owned("desert_delivery").size(),1)
-	check(service.activate_interaction(),"courier prompt activates")
+	check(service.activate_interaction(),"dispatcher prompt activates")
 	service.step(.1,false)
 	check(not service.api.interactions._dialogue.is_empty(),"actual Lua opens offer")
 	check(session.is_suspended(),"dialogue suspends actor input")
@@ -37,12 +37,12 @@ func test_delivery_accept_drive_complete() -> void:
 	service.step(5,true)
 	check_eq(service.runtime.tick_count,ticks,"modal freezes Lua")
 	service.api.interactions.choose("accept")
-	check(not service._progress.get_state("desert_delivery",1).data.get("accepted",false),"choice is deferred beyond modal close")
-	service.step(.1,false)
-	check(service._progress.get_state("desert_delivery",1).data.get("accepted",false))
+	check(service.api.interactions._owned.get("desert_delivery",{}).has("parcel"),"choice is deferred beyond modal close")
+	for i in 8: service.step(.1,false)
+	check(not service.api.interactions._owned.get("desert_delivery",{}).has("parcel"),"accepted shift retires the offer")
 	var car_id := ""
 	for id: String in service.actors._actors:
-		if service.actors._actors[id].record.kind == &"car": car_id = id
+		if service.actors._actors[id].record.kind == &"van": car_id = id
 	check(not car_id.is_empty())
 	if car_id.is_empty(): return
 	var record: Dictionary = service.actors._actors[car_id].record
@@ -50,12 +50,12 @@ func test_delivery_accept_drive_complete() -> void:
 	session.pedestrian.place(Transform3D(Basis.IDENTITY,pose.origin+Vector3(0,0,.4)))
 	var claim := view.traffic.claim_nearby_vehicle(pose.origin,.65)
 	check(not claim.is_empty())
-	check(session._select_vehicle(&"car",claim),"supported engine player takeover")
+	check(session._select_vehicle(&"van",claim),"supported engine player takeover")
 	var drive := service.api.apply({"owner":"desert_delivery","generation":service.generation,"request_id":40,"kind":"actor.navigate","args":{"id":car_id,"destination":{"x":25.5,"y":GROUND,"z":20.5}}})
 	check_eq(drive.code,"player_controlled","script cannot steer player's vehicle")
 	var recipient_cell := CityTrafficGraph.INVALID
 	for actor: Dictionary in service.actors._actors.values():
-		if actor.key == "recipient": recipient_cell = actor.record.cell
+		if String(actor.key).begins_with("recipient"): recipient_cell = actor.record.cell
 	check(recipient_cell != CityTrafficGraph.INVALID,"actual recipient identifies delivery destination")
 	var target := view.traffic.graph.point(recipient_cell,&"road")
 	var start: Vector3 = pose.origin
@@ -69,12 +69,16 @@ func test_delivery_accept_drive_complete() -> void:
 		service.step(.1,false)
 		await physics_frame
 		if session.occupied.global_position.distance_to(start) > .2: moved = true
-		if service._progress.get_state("desert_delivery",1).data.get("completed",false): break
+		if int(service._progress.get_state("desert_delivery",1).data.get("deliveries",0)) == 1: break
 	check(moved,"player driving moves engine car along connected road")
-	check(service._progress.get_state("desert_delivery",1).data.get("completed",false),"actual Lua recognizes player arrival")
+	check_eq(int(service._progress.get_state("desert_delivery",1).data.get("deliveries",0)),1,"actual Lua recognizes player arrival")
+	check_eq(service.api.interactions._dialogue.get("key",""),"drop","recipient thanks the courier")
+	service.api.interactions.choose("stop")
+	for i in 4: service.step(.1,false)
 	var listed := service.api.objectives.list_owned("desert_delivery")
 	check(not listed.is_empty())
 	if not listed.is_empty(): check_eq(listed[0].status,"completed")
+	check_eq(int(service._progress.get_state("desert_delivery",1).data.get("shifts",0)),1)
 	check_eq(SaveFormat.encode_city(city),before,"mission never writes city or treasury")
 	check_eq(sim.snapshot(),sim_before,"funds, clock and simulation RNG unchanged")
 	sim.free()
@@ -87,11 +91,11 @@ func test_disable_while_player_drives() -> void:
 	session.mod_service = service
 	var car_id := ""
 	for id: String in service.actors._actors:
-		if service.actors._actors[id].record.kind == &"car": car_id = id
-	if car_id.is_empty(): check(false,"car spawn required"); return
+		if service.actors._actors[id].record.kind == &"van": car_id = id
+	if car_id.is_empty(): check(false,"van spawn required"); return
 	var record: Dictionary = service.actors._actors[car_id].record
 	var claim := view.traffic.claim_nearby_vehicle(view.traffic.actor_pose(record).origin,.65)
-	check(session._select_vehicle(&"car",claim))
+	check(session._select_vehicle(&"van",claim))
 	service.disable("desert_delivery")
 	check(is_instance_valid(session.occupied))
 	check(session.occupied.has_support())
@@ -194,10 +198,10 @@ func test_existing_elevator_and_nearer_parked_car_keep_priority() -> void:
 	session.set_physics_process(false)
 	var service := _delivery()
 	session.mod_service = service
-	check(service.actors._actors.size() == 3)
+	check(service.actors._actors.size() == 2)
 	var car_record: Dictionary = {}
 	for actor: Dictionary in service.actors._actors.values():
-		if actor.record.kind == &"car": car_record = actor.record
+		if actor.record.kind == &"van": car_record = actor.record
 	check(not car_record.is_empty())
 	if not car_record.is_empty():
 		var car_pose := view.traffic.actor_pose(car_record)
@@ -218,13 +222,13 @@ func test_remove_while_claimed_defers_and_cancels_original_drive_once() -> void:
 	session.mod_service = service
 	var id := ""
 	for handle: String in service.actors._actors:
-		if service.actors._actors[handle].record.kind == &"car": id = handle
-	if id.is_empty(): check(false,"car required"); return
+		if service.actors._actors[handle].record.kind == &"van": id = handle
+	if id.is_empty(): check(false,"van required"); return
 	var record: Dictionary = service.actors._actors[id].record
 	var command := {"owner":"desert_delivery","generation":service.generation,"request_id":70,"kind":"actor.navigate","args":{"id":id,"destination":{"x":25.5,"y":GROUND,"z":20.5}}}
 	check(service.api.apply(command).is_empty())
 	var claim := view.traffic.claim_nearby_vehicle(view.traffic.actor_pose(record).origin,.65)
-	check(session._select_vehicle(&"car",claim))
+	check(session._select_vehicle(&"van",claim))
 	service.step(.1,false)
 	check(not service.api._outstanding.desert_delivery.has(70),"claim cancels pending original navigation and releases outstanding slot")
 	command.kind = "actor.remove"
@@ -352,9 +356,9 @@ func test_actual_host_dialogue_restores_input_before_next_physics_tick() -> void
 	service.api.interactions.choose("accept")
 	check_eq(host.modal_depth,0)
 	check(not host.exploration.is_suspended(),"closing before another physics frame restores Explore")
-	check(not service._progress.get_state("desert_delivery",1).data.get("accepted",false),"choice stays deferred after host modal closes")
+	check(service.api.interactions._owned.get("desert_delivery",{}).has("parcel"),"choice stays deferred after host modal closes")
 	service.step(.1,false)
-	check(service._progress.get_state("desert_delivery",1).data.get("accepted",false))
+	check(not service.api.interactions._owned.get("desert_delivery",{}).has("parcel"))
 	host.exploration.pause()
 	var data := {"owner":"desert_delivery","key":"pause","speaker":"Courier","text":"Hello","choices":[{"key":"ok","label":"Okay"}]}
 	check(not host.exploration.present_mod_dialogue(data),"manual pause retains its input ownership")

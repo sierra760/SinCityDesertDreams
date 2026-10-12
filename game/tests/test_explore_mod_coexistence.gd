@@ -2,8 +2,10 @@
 extends "res://tests/exploration/explore_session_case.gd"
 
 # Production Lua/Service throughout: no synthetic completion, actor injection,
-# overlap clearing or player pose assignment. The north/south street aligns the
-# ordinary engine car's initial facing with the actual queried destination.
+# overlap clearing or player pose assignment. Dispatch sends the first parcel
+# about ten tiles from the van; starting at the south end of the north/south
+# street keeps the van's ordinary initial facing toward that address.
+const MISSION_ORIGIN := Vector3(22.5,GROUND,26.5)
 func _street(extend_north: bool = false) -> bool:
 	var value := flat_city()
 	for y in range(15 if extend_north else 16,32): value.building.put(22,y,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,5))
@@ -25,6 +27,21 @@ func _service(packs: Array[Dictionary], progress: ExploreModProgress = null) -> 
 func _actor(service: ExploreModService, owner: String, key: String) -> Dictionary:
 	for actor: Dictionary in service.actors._actors.values():
 		if actor.owner == owner and actor.key == key: return actor
+	return {}
+
+## The address Dispatch actually requested, from its own cached query result.
+func _requested_address(service: ExploreModService) -> Vector2:
+	var entries: Array = service.runtime._sessions.get("desert_delivery",{}).get("queries",{}).get("world.find_landmark",[])
+	for index in range(entries.size()-1,-1,-1):
+		var entry: Dictionary = entries[index]
+		if entry.args.size() > 1 and entry.args[1] is Dictionary and entry.args[1].has("from") and entry.result.code == "ok":
+			return Vector2(entry.result.data.x,entry.result.data.z)
+	return Vector2.INF
+
+## Recipients carry a per-parcel serial suffix.
+func _recipient(service: ExploreModService) -> Dictionary:
+	for actor: Dictionary in service.actors._actors.values():
+		if actor.owner == "desert_delivery" and String(actor.key).begins_with("recipient"): return actor
 	return {}
 
 func _supported_distinct(service: ExploreModService) -> void:
@@ -50,12 +67,14 @@ func test_common_endpoint_delivery_arrival_uses_actual_admitted_recipient() -> v
 
 func _mission(delivery_first: bool, endpoint_blocked: bool = false) -> void:
 	# Keep the displaced recipient on an interior lane, beyond the landmark arrival radius.
-	if not _street(endpoint_blocked) or not await _enter(): return
+	if not _street(endpoint_blocked) or not await _enter(MISSION_ORIGIN): return
 	session.set_physics_process(false)
 	var before := SaveFormat.encode_city(city).duplicate(true)
 	var packs := _packs(delivery_first)
 	if endpoint_blocked:
-		packs.push_front(_blocking_pack('return {on_start=function(api) api.actor.spawn("pedestrian",{key="endpoint",position={x=22.5,y='+str(GROUND)+',z=17.9}}) end}'))
+		# Both possible far addresses are occupied, so the recipient must be
+		# admitted at a different, actual vacancy.
+		packs.push_front(_blocking_pack('return {on_start=function(api) api.actor.spawn("pedestrian",{key="endpoint",position={x=22.5,y='+str(GROUND)+',z=15.9}}); api.actor.spawn("pedestrian",{key="endpoint2",position={x=22.5,y='+str(GROUND)+',z=16.9}}) end}'))
 	var service := _service(packs)
 	for i in 12: service.step(.1,false)
 	check(service.runtime.has_owner("desert_atmosphere"),"all three real packs remain enabled")
@@ -64,12 +83,9 @@ func _mission(delivery_first: bool, endpoint_blocked: bool = false) -> void:
 	check(service.api.interactions._owned.get("desert_delivery",{}).has("parcel"),"real mission has a useful offer")
 	_supported_distinct(service)
 	var car := _actor(service,"desert_delivery","delivery_car")
-	var recipient := _actor(service,"desert_delivery","recipient")
 	var courier := _actor(service,"desert_delivery","courier")
-	if car.is_empty() or recipient.is_empty() or courier.is_empty(): check(false,"actual mission resources required"); return
+	if car.is_empty() or courier.is_empty(): check(false,"actual mission resources required"); return
 	var car_id: String = car.record.mod_handle
-	var target := view.traffic.actor_pose(recipient.record).origin
-	if endpoint_blocked: check(recipient.record.cell != Vector2i(22,17),"real occupied landmark requires a different admitted recipient cell")
 	# Nearest prompt can be the walker in one order. Walk only toward the real
 	# courier until its ordinary proximity prompt wins, then use real dialogue.
 	var courier_point := view.traffic.actor_pose(courier.record).origin
@@ -87,7 +103,7 @@ func _mission(delivery_first: bool, endpoint_blocked: bool = false) -> void:
 	if service.api.interactions._dialogue.get("owner","") != "desert_delivery": return
 	service.api.interactions.choose("accept")
 	for i in 3: service.step(.1,false)
-	check(service._progress.get_state("desert_delivery",1).data.get("accepted",false),"real accepted progress commits")
+	check(not service.api.interactions._owned.get("desert_delivery",{}).has("parcel"),"real accepted shift retires the offer")
 	check(_actor(service,"desert_delivery","courier").is_empty(),"acceptance clears only own courier")
 	check(not _actor(service,"desert_stroll","stroller1").is_empty(),"handoff preserves foreign walker")
 	var pose := view.traffic.actor_pose(car.record)
@@ -99,37 +115,48 @@ func _mission(delivery_first: bool, endpoint_blocked: bool = false) -> void:
 		session.pedestrian.step(frame,0,.1)
 		service.step(.1,false)
 		await physics_frame
-	check(session._board_mod_vehicle(),"player walks to and boards actual mission car")
+	check(session._board_mod_vehicle(),"player walks to and boards actual mission van")
 	if session.mode != 1: return
 	service.step(.1,false)
 	check_eq(service.queries.player.get("vehicle",""),car_id,"ordinary boarding identifies the owned mission handle")
+	for i in 10: service.step(.1,false)
+	var recipient := _recipient(service)
+	if recipient.is_empty(): check(false,"actual mission resources required"); return
+	var target := view.traffic.actor_pose(recipient.record).origin
+	var address := _requested_address(service)
+	check(address.is_finite(),"Dispatch requested a real address")
+	check(absf(target.z-session.occupied.feet_position().z) >= 5.0,"the first parcel goes well beyond the old three-tile hop: "+str(target))
+	if endpoint_blocked: check(recipient.record.cell != Vector2i(floori(address.x),floori(address.y)),"real occupied landmark requires a different admitted recipient cell")
 	var start: Vector3 = session.occupied.feet_position()
-	var passed_anchor := false
-	for i in 240:
+	# Forward when the recipient lies ahead (north), reverse otherwise.
+	var throttle := -1.0 if target.z < start.z else 1.0
+	for i in 600:
 		var frame := ExploreInputFrame.new()
-		frame.move = Vector2(0,-1)
+		frame.move = Vector2(0,throttle)
 		session.occupied.step(frame,0,.1)
 		service.step(.1,false)
 		await physics_frame
-		if endpoint_blocked and absf(session.occupied.feet_position().z-17.5)<.07:
-			passed_anchor = true
-			var probe: Vector3 = session.occupied.feet_position()
-			check(Vector2(probe.x-22.5,probe.z-17.5).length_squared()<.64,"negative probe is inside requested landmark arrival radius")
-			check(Vector2(probe.x-target.x,probe.z-target.z).length_squared()>=.64,"negative probe is outside actual recipient arrival radius")
-			check(not service._progress.get_state("desert_delivery",1).data.get("completed",false),"requested landmark alone cannot earn completion at displaced recipient")
-		if service._progress.get_state("desert_delivery",1).data.get("completed",false): break
-	if endpoint_blocked: check(passed_anchor,"ordinary player driving passes the original landmark before actual arrival")
+		var probe: Vector3 = session.occupied.feet_position()
+		var at_anchor := address.is_finite() and Vector2(probe.x,probe.z).distance_squared_to(address) < .64
+		if endpoint_blocked and at_anchor and Vector2(probe.x-target.x,probe.z-target.z).length_squared() >= .64:
+			check_eq(int(service._progress.get_state("desert_delivery",1).data.get("deliveries",0)),0,"requested landmark alone cannot earn completion at displaced recipient")
+		if int(service._progress.get_state("desert_delivery",1).data.get("deliveries",0)) == 1: break
 	check(session.occupied.feet_position().distance_to(start)>.2,"engine player input moves the actual car")
-	check(service._progress.get_state("desert_delivery",1).data.get("completed",false),"Lua earns completion at actual admitted recipient")
+	check_eq(int(service._progress.get_state("desert_delivery",1).data.get("deliveries",0)),1,"Lua earns completion at actual admitted recipient")
 	check(Vector2(session.occupied.feet_position().x-target.x,session.occupied.feet_position().z-target.z).length()<.8,"arrival compares actual target point")
+	check_eq(service.api.interactions._dialogue.get("key",""),"drop","recipient thanks the courier")
+	service.api.interactions.choose("stop")
 	for i in 3: service.step(.1,false)
-	check(_actor(service,"desert_delivery","recipient").is_empty(),"delivery completion frees own recipient")
+	check_eq(service.api.interactions._dialogue.get("key",""),"radio","ending the shift radios dispatch")
+	service.api.interactions.choose("done")
+	for i in 30: service.step(.1,false)
+	check(_recipient(service).is_empty(),"delivery completion frees own recipient after a wave")
 	for i in 1000: service.step(.1,false)
 	if endpoint_blocked:
 		check(not _actor(service,"street_blocker","endpoint").is_empty(),"mission never removes foreign shared-endpoint blocker")
 		check(service.runtime.has_owner("desert_stroll"),"permanent foreign congestion leaves healthy safe waiting routine")
 	else:
-		check_eq(service._progress.get_state("desert_stroll",1).data.get("strolls",0),3,"all three actual walk/wait routines complete after normal handoffs")
+		check_eq(service._progress.get_state("desert_stroll",1).data.get("strolls",0),3,"all three actual walk/wait routines complete after normal handoffs: "+str(service.api.objectives.list_owned("desert_stroll"))+" "+str(service.actors._actors.values().map(func(a: Dictionary) -> String: return "%s:%s@%s/%s" % [a.owner,a.key,a.record.cell,view.traffic.actor_pose(a.record).origin]))+" player "+str(session.occupied.feet_position()))
 		check_eq(service.api.interactions._owned.get("desert_stroll",{}).size(),3,"three real greetings remain")
 	check_eq(SaveFormat.encode_city(city),before,"concurrent examples leave all city bytes unchanged")
 	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
@@ -151,11 +178,15 @@ func test_occupied_origin_and_common_landmark_use_actual_vacancies() -> void:
 	for i in 12: service.step(.1,false)
 	check_eq(_actor(service,"street_blocker","origin").record.cell,Vector2i(22,20))
 	check_eq(_actor(service,"street_blocker","endpoint").record.cell,Vector2i(22,17))
-	var recipient := _actor(service,"desert_delivery","recipient")
-	check(not recipient.is_empty(),"explicit supported landmark admission finds nearby vacancy")
-	if not recipient.is_empty(): check(recipient.record.cell != Vector2i(22,17),"recipient does not overlap common occupied endpoint")
 	check(not _actor(service,"desert_delivery","courier").is_empty(),"occupied origin does not permanently lose courier")
 	check(service.api.interactions._owned.get("desert_delivery",{}).has("parcel"))
+	service.runtime.deliver("desert_delivery",{"kind":"interaction","key":"parcel","code":"ok","data":{}})
+	for i in 3: service.step(.1,false)
+	service.api.interactions.choose("accept")
+	for i in 12: service.step(.1,false)
+	var recipient := _recipient(service)
+	check(not recipient.is_empty(),"explicit supported landmark admission finds a vacancy")
+	if not recipient.is_empty(): check(recipient.record.cell not in [Vector2i(22,17),Vector2i(22,20)],"recipient does not overlap occupied cells")
 	_supported_distinct(service)
 	var frozen := service.actors.visual_states().duplicate(true)
 	var state := service._progress.snapshot()
@@ -206,7 +237,7 @@ func test_delivery_exhaustion_is_finite_truthful_and_keeps_progress() -> void:
 	check(not listed.is_empty())
 	if not listed.is_empty():
 		check_eq(listed[0].status,"failed")
-		check("two retries" in listed[0].text and "progress is kept" in listed[0].text,"exhausted recovery explains finite bound and normal restart")
+		check("two tries" in listed[0].text and "record is kept" in listed[0].text,"exhausted recovery explains finite bound and normal restart")
 	check(service.api._timers.get("desert_delivery",{}).is_empty(),"no unbounded recovery timer remains")
 	var count := service.actors._actors.size()
 	for i in 100: service.step(.1,false)
@@ -216,8 +247,9 @@ func test_delivery_exhaustion_is_finite_truthful_and_keeps_progress() -> void:
 	progress.commit("desert_delivery",1,"1.0.0",{"accepted":true,"completed":true})
 	service = _service(_packs(false),progress)
 	for i in 12: service.step(.1,false)
-	check(_actor(service,"desert_delivery","delivery_car").is_empty(),"completed progress does not recreate mission resources")
-	check_eq(service.api.objectives.list_owned("desert_delivery")[0].status,"completed")
+	check(not _actor(service,"desert_delivery","courier").is_empty(),"a finished version-one delivery still offers new shifts")
+	var record := service.api.objectives.list_owned("desert_delivery").filter(func(entry: Dictionary) -> bool: return entry.key == "rank")
+	check(not record.is_empty() and String(record[0].text).contains("1 parcel ·"),"the finished delivery counts toward the courier record")
 	service.leave("test")
 
 func _spawn(service: ExploreModService, owner: String, key: String, options: Dictionary) -> Dictionary:

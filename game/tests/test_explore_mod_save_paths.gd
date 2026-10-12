@@ -79,12 +79,14 @@ func test_damaged_progress_keeps_valid_city() -> void:
 	check_eq(loaded.get("explore_mods",{}),{})
 	check(not loaded.get("mod_notices",[]).is_empty(),"malformed progress gives recoverable notice")
 	check(host.exploration.mod_service == null)
-func test_accepted_mission_recreates_logical_actors_after_load() -> void:
+func test_courier_record_survives_load_and_reentry() -> void:
 	var city := flat_city()
 	for x in range(18,30): city.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
 	host.begin_city(city,{},173,null)
 	host.sim.set_speed(GameClock.Speed.PAUSED)
-	check(host.exploration.mod_progress.commit("desert_delivery",1,"1.0.0",{"accepted":true}).ok)
+	var record := {"deliveries":4,"tips":50,"shifts":2,"best_shift":30,"on_time":1}
+	check(host.exploration.mod_progress.commit("desert_delivery",1,"2.0.0",record).ok)
+	record = JSON.parse_string(JSON.stringify(record))
 	var path := "user://f6-mission.sc2d"
 	paths.append(path)
 	check_eq(host.files.write_save(path),OK)
@@ -98,26 +100,24 @@ func test_accepted_mission_recreates_logical_actors_after_load() -> void:
 	var service := host.exploration.mod_service
 	if service == null: check(false,"delivery service entered"); return
 	for i in 16: service.step(.1,false)
-	_check_accepted_delivery_actors(service,"load reconstructs accepted delivery roles")
-	check(service.api.interactions._owned.is_empty(),"accepted phase never reoffers acceptance")
-	var objectives := service.api.objectives.list_owned("desert_delivery")
-	check(not objectives.is_empty())
-	if not objectives.is_empty(): check_eq(objectives[0].text,"Drive to the recipient in purple farther along the road.")
+	_check_dispatch_actors(service,"load recreates the dispatcher and van")
+	check(service.api.interactions._owned.get("desert_delivery",{}).has("parcel"),"a fresh shift is offered")
+	check(_rank_text(service).contains("4 parcels"),"loaded record appears in the journal: "+_rank_text(service))
 	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
-	check_eq(host.exploration.mod_progress.get_state("desert_delivery",1).data,{"accepted":true},"no handles or poses persisted")
+	check_eq(host.exploration.mod_progress.get_state("desert_delivery",1).data,record,"no handles or poses persisted")
 	host.explore_switch.leave()
 	check(host.explore_switch.enter())
 	host.exploration.set_physics_process(false)
 	service = host.exploration.mod_service
 	for i in 16: service.step(.1,false)
-	_check_accepted_delivery_actors(service,"ordinary reentry reconstructs accepted delivery roles")
-	check(service.api.interactions._owned.is_empty())
-	check_eq(host.exploration.mod_progress.get_state("desert_delivery",1).data,{"accepted":true},"reentry retains accepted progress")
+	_check_dispatch_actors(service,"ordinary reentry recreates the dispatcher and van")
+	check_eq(host.exploration.mod_progress.get_state("desert_delivery",1).data,record,"reentry retains the courier record")
 	var old_runtime := service.runtime
 	host.begin_city(flat_city(),{},14,null)
 	check(old_runtime._sessions.is_empty(),"city replacement closes old VMs")
 	check(service.actors._actors.is_empty(),"city replacement releases logical actors")
 	check_eq(host.explore_progress_snapshot(),{})
+
 func test_load_and_city_replacement_use_host_authority() -> void:
 	check(host.mod_progress == host.exploration.mod_progress)
 	check(host.mod_progress.commit("disabled_pack",1,"1",{"phase":"accepted"}).ok)
@@ -185,11 +185,16 @@ func test_version_one_save_without_progress_still_loads() -> void:
 	check_eq(host.explore_progress_snapshot(),{})
 	check_eq(SaveFormat.load(path).version,1)
 
-func _check_accepted_delivery_actors(service: ExploreModService, message: String) -> void:
-	# Accept removes the courier; only the car and recipient reconstruct.
-	check_eq(service.actors._actors.size(),2,"accepted delivery reconstructs exactly its car and recipient")
+func _rank_text(service: ExploreModService) -> String:
+	for entry in service.api.objectives.list_owned("desert_delivery"):
+		if entry.key == "rank": return String(entry.text)
+	return ""
+
+func _check_dispatch_actors(service: ExploreModService, message: String) -> void:
+	# Shifts are never resumed mid-run; only the dispatcher and van reconstruct.
+	check_eq(service.actors._actors.size(),2,"dispatch reconstructs exactly its dispatcher and van")
 	var roles: Dictionary = {}
 	for actor: Dictionary in service.actors._actors.values():
 		roles[String(actor.owner)+":"+String(actor.key)] = String(actor.record.kind)
-	check_eq(roles,{"desert_delivery:delivery_car":"car","desert_delivery:recipient":"pedestrian"},message)
-	check(service.runtime.has_owner("desert_delivery"),"accepted delivery owner remains live")
+	check_eq(roles,{"desert_delivery:courier":"pedestrian","desert_delivery:delivery_car":"van"},message)
+	check(service.runtime.has_owner("desert_delivery"),"dispatch owner remains live")

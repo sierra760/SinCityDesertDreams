@@ -45,8 +45,7 @@ func configure_kind(value: StringName) -> bool:
 	_collider.shape = shape
 	_collider.position.y = shape.size.y*.5
 	_visual.free()
-	_visual = ExploreActorVisual.new()
-	_visual.add_child(CityTrafficCatalog.make_visual(kind))
+	_visual = CityTrafficCatalog.make_detailed_visual(kind)
 	add_child(_visual)
 	return true
 

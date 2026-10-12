@@ -311,3 +311,67 @@ func test_native_absolute_zero_relative_precedence_and_budget_types() -> void:
 	check(invalid.call("start","return {on_tick=function() end}",{},context(),7).ok)
 	check_eq(invalid.call("dispatch","on_tick",{"object":RefCounted.new()},context(),{"deadline_usec":0}).fault,"invalid_input")
 	invalid.call("close")
+
+# Real OS descheduling: a helper process stops and resumes this whole process,
+# so callbacks lose wall time while their thread CPU time stays small.
+# The resume gap is generous: Rosetta can take several ms to resume a process.
+func _preempt_self(pause: String, cycles: int) -> int:
+	var pid := OS.get_process_id()
+	var script := "for i in $(seq 1 %d); do kill -STOP %d; sleep %s; kill -CONT %d; sleep 0.02; done; kill -CONT %d" % [cycles, pid, pause, pid, pid]
+	return OS.create_process("/bin/sh", ["-c", script])
+
+func _wait_for(helper: int) -> void:
+	while OS.is_process_running(helper): OS.delay_msec(1)
+
+func test_preempted_callbacks_are_not_charged_for_lost_wall_time() -> void:
+	# Windows has no /bin/sh helper and enforces only the wall backstop there.
+	if OS.get_name() == "Windows": return
+	var vm = Bridge.new()
+	check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end; api.state.set('n',n) end}", {}, context(), 7).ok)
+	var helper := _preempt_self("0.006", 25)
+	check(helper > 0)
+	var stalled := 0
+	var calls := 0
+	var failure := {}
+	while OS.is_process_running(helper):
+		var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
+		calls += 1
+		if not result.ok:
+			failure = result
+			break
+		var cpu := int(result.get("timing", {}).get("thread_cpu_usec", -1))
+		if int(result.elapsed_usec) > 1500 and cpu >= 0 and cpu < 1500: stalled += 1
+	_wait_for(helper)
+	check(failure.is_empty(), "a 6 ms stall with low CPU must not fault: " + str(failure))
+	check(stalled > 0, "a stop landed inside a callback (" + str(calls) + " calls)")
+	check_eq(vm.dispatch("on_tick", {}, context(), {}).progress_writes, {"n":4501500})
+	vm.close()
+
+func test_wall_backstop_still_ends_a_stalled_callback() -> void:
+	if OS.get_name() == "Windows": return
+	var faulted := {}
+	for attempt in 10:
+		var vm = Bridge.new()
+		check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end end}", {}, context(), 7).ok)
+		var helper := _preempt_self("0.08", 1)
+		while OS.is_process_running(helper):
+			var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
+			if not result.ok:
+				faulted = result
+				break
+		_wait_for(helper)
+		vm.close()
+		if not faulted.is_empty(): break
+	check_eq(faulted.get("fault", ""), "deadline")
+	check(String(faulted.get("diagnostic", "")).contains("wall-time backstop"), str(faulted))
+	check(int(faulted.get("timing", {}).get("thread_cpu_usec", 99999)) < 1500, "stalled, not busy: " + str(faulted.get("timing", {})))
+
+func test_thread_cpu_budget_still_ends_busy_callbacks() -> void:
+	if OS.get_name() == "Windows": return
+	# Each bounded 4 KiB string call costs far more CPU than its few counted
+	# instructions, so the CPU budget ends this before the instruction limit.
+	var result := run_callback("local s=string.char(97); for i=1,12 do s=s..s end; for i=1,3000 do s=string.lower(string.upper(s)) end")
+	check_eq(result.fault, "deadline")
+	check(String(result.get("diagnostic", "")).contains("thread CPU budget"), str(result))
+	check(int(result.instructions) < 20000, str(result))
+	check(int(result.get("timing", {}).get("thread_cpu_usec", 0)) >= 1500, str(result.get("timing", {})))

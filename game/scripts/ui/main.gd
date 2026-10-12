@@ -203,6 +203,8 @@ func _ready() -> void:
 	exploration.set_pedestrian_character(preferences["explore_character"])
 	add_child(exploration)
 	exploration.bind(city_view_3d,explore_hud)
+	explore_hud.navigation.bind(exploration,mini_map)
+	explore_hud.navigation.map_visible = bool(preferences.get("minimap",true))
 	exploration.set_touch_controls_enabled(Platform.uses_touch())
 	exploration.touch_controls_changed.connect(func(_on: bool) -> void:
 		if is_instance_valid(shell) and is_exploring(): shell.update_minimap_visibility())
@@ -756,6 +758,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if is_instance_valid(exploration): exploration.note_pointer_event(event)
+	if is_exploring() and event is InputEventKey and not is_input_blocked() and window_manager.front() == null and _navigation_shortcut_available() and exploration.handle_navigation_key(event):
+		get_viewport().set_input_as_handled()
+		return
 	if is_instance_valid(exploration) and event is InputEventKey and not event.pressed:
 		exploration.handle_event(event)
 	if is_instance_valid(exploration):
@@ -768,6 +773,13 @@ func _input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 	if event is InputEventKey and not event.pressed and controls.matches(event,&"bulldoze"):
 		restore_temporary_bulldoze(true)
+
+
+## Map controls retain their close shortcut; other focused controls own typing.
+func _navigation_shortcut_available() -> bool:
+	if display_layout != null and display_layout.blocks_city_touch(): return false
+	var focus := get_viewport().gui_get_focus_owner()
+	return focus == null or explore_hud.navigation.is_ancestor_of(focus)
 
 
 ## True while a text field inside an open modal dialog has keyboard focus.
@@ -1129,6 +1141,7 @@ func touch_ui_owned(point: Vector2) -> bool:
 	if not display_layout.logical_rect().has_point(point): return true
 	for control: Control in [menu_bar,status_bar,toolbar,query_panel]:
 		if control.is_visible_in_tree() and control.get_global_rect().has_point(point): return true
+	if is_exploring() and explore_hud.navigation.owns_touch(point): return true
 	if mini_map.visible and mini_map.frame_rect().has_point(point): return true
 	if street_names != null and street_names.is_active() and street_names.panel.get_global_rect().has_point(point): return true
 	for control: Control in window_manager.open_windows:

@@ -35,6 +35,7 @@ const MARKER_EDGE := Color(1.0, 0.98, 0.92)
 var city: City
 var view_3d: CityView3D
 var input_blocked: Callable
+var _navigation_texture: ImageTexture
 var _image: Image
 var _inputs: Dictionary = {}
 var _texture_rect: TextureRect
@@ -146,6 +147,11 @@ func generate_image() -> void:
 			for sx: int in IMAGE_SIZE:
 				var d := RotationMapper.screen_to_data(sx, sy, rotation)
 				_image.set_pixel(sx, sy, tile_color(city, d.x, d.y))
+	# Keep a north-up texture for Explore, independent of the Build rotation.
+	var north := _image.duplicate() as Image
+	for turn in rotation: north.rotate_90(CLOCKWISE)
+	if _navigation_texture == null: _navigation_texture = ImageTexture.create_from_image(north)
+	else: _navigation_texture.update(north)
 	if _texture_rect != null:
 		if _texture_rect.texture is ImageTexture:
 			(_texture_rect.texture as ImageTexture).update(_image)
@@ -276,3 +282,6 @@ func _draw_viewport_rect() -> void:
 ## Rotation changes orientation without modifying canonical city data.
 func display_rotation() -> int:
 	return posmod(view_3d.quarter_turn, 4) if view_3d != null else 0
+
+func navigation_texture() -> Texture2D:
+	return _navigation_texture

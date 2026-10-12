@@ -41,16 +41,14 @@ func dispatch(handler: String, payload: Dictionary, context: Dictionary, budget:
 			var rejected := _unavailable()
 			rejected.fault = "invalid_input"
 			return rejected
-	# Preserve the absolute engine-Time deadline: native checks it independently
-	# of its relative steady-clock cap, including time spent in this handoff.
+	# The absolute engine-Time deadline is the scheduler's admission window.
+	# Native rechecks it before entering Lua; once admitted, a callback keeps its
+	# own CPU budget and wall backstop, so the shared window never shrinks them.
 	var native_budget := budget.duplicate()
 	var remaining := clampi(int(budget.get("remaining_usec", 1500)), 0, 1500)
-	if budget.has("deadline_usec"):
-		var host_remaining := int(budget.deadline_usec) - Time.get_ticks_usec()
-		if host_remaining <= 0 and remaining > 0:
-			# No native entry occurred: retain the VM and the caller's queued work.
-			return {"ok":true,"deferred":true,"fault":"","commands":[],"progress_writes":{},"logs":[],"instructions":0,"elapsed_usec":0,"bytes_used":0}
-		remaining = mini(remaining, maxi(0, host_remaining))
+	if budget.has("deadline_usec") and remaining > 0 and int(budget.deadline_usec) <= Time.get_ticks_usec():
+		# No native entry occurred: retain the VM and the caller's queued work.
+		return {"ok":true,"deferred":true,"fault":"","commands":[],"progress_writes":{},"logs":[],"instructions":0,"elapsed_usec":0,"bytes_used":0}
 	native_budget["remaining_usec"] = remaining
 	return _native.call("dispatch", handler, payload, context, native_budget)
 func close() -> void:

@@ -32,6 +32,25 @@ func test_hysteresis_caps_and_identity() -> void:
 	check_eq(manager.update(candidates(17.9),camera)["ambient:000"],first,"same compatible pool allocation reused")
 	manager.clear()
 	check_eq(manager.debug_state().allocated,0)
+
+func test_visible_body_keeps_detail_when_feet_leave_screen() -> void:
+	host=Node3D.new()
+	root.add_child(host)
+	var camera:=Camera3D.new()
+	host.add_child(camera)
+	var manager:=ExploreActorDetailManager.new()
+	manager.bind(host)
+	var screen:=camera.get_viewport().get_visible_rect().size
+	for kind: String in ["pedestrian","bus"]:
+		var feet:=camera.project_position(Vector2(screen.x*.5,screen.y*1.02),.6)
+		check(not camera.is_position_in_frustum(feet),"fixture origin is outside screen")
+		check(camera.is_position_in_frustum(feet+Vector3.UP*CityTrafficCatalog.dimensions(StringName(kind)).y*.5),"fixture body is still visible")
+		var states: Array[Dictionary]=[{"id":"edge","kind":kind,"variant":0,"position":feet,"yaw":0.0,"speed":0.0,"steering":0.0,"airborne":false,"phase":0.0}]
+		check(manager.update(states,camera).has("edge"),"visible "+kind+" body should use detail even with offscreen feet")
+		camera.rotation.y=PI
+		check(manager.update(states,camera).is_empty(),"fully out-of-view actors release detail")
+		camera.rotation.y=0.0
+	manager.clear()
 func test_ties_exclusions_churn_freeze_and_resource_sharing() -> void:
 	host=Node3D.new()
 	root.add_child(host)

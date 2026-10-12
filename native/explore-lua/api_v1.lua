@@ -49,6 +49,16 @@
 -- api.interaction.unregister(key)                      -> {key}
 -- api.dialogue.show(key, speaker, text, choices)        -> {key,speaker,text,choices}
 -- api.dialogue.dismiss(key)                            -> {key}
+-- api.marker.set(key, options)                        -> {key,options}
+-- api.marker.remove(key)                              -> {key}
+-- options.target = {id=<own actor handle>} or a copied tile point {x,y,z,...}.
+-- label (<=192 UTF-8 bytes, default empty); icon objective/person/vehicle/
+-- checkpoint (default objective); map and world booleans (default true);
+-- max_distance (0..2048 tiles, default 2048) hides both displays beyond range;
+-- height (0..8 tiles, default 0) adds lift above the host-chosen model top.
+-- 16 markers/pack, 128/session. Same key replaces; remove is idempotent.
+-- Pins follow live actor poses, disappear with the actor or owner, and are
+-- never saved. A player-occupied vehicle hides its pin until exit.
 -- api.objective.set(key, text, status)                  -> {key,text,status}
 -- api.objective.remove(key)                            -> {key}
 -- api.environment.set(channel, preset, parameters)      -> {channel,preset,parameters}

@@ -10,12 +10,19 @@
 #include <vector>
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach/mach.h>
+#include <pthread.h>
 #else
 #include <time.h>
 #endif
 using namespace godot;
 namespace {
 constexpr size_t MEMORY = 8 * 1024 * 1024;
+// One started callback may use this much of its own thread CPU time. Wall time
+// lost to preemption is not charged; the backstop below still ends a stall.
+constexpr int64_t CALLBACK_CPU_USEC = 1500;
+constexpr int64_t WALL_BACKSTOP_USEC = 50000;
 int active_vms = 0;
 int64_t thread_cpu_usec() {
 #ifdef _WIN32
@@ -23,9 +30,25 @@ int64_t thread_cpu_usec() {
  if(!GetThreadTimes(GetCurrentThread(), &created, &exited, &kernel, &user))return -1;
  ULARGE_INTEGER k,u;k.LowPart=kernel.dwLowDateTime;k.HighPart=kernel.dwHighDateTime;u.LowPart=user.dwLowDateTime;u.HighPart=user.dwHighDateTime;
  return (k.QuadPart+u.QuadPart)/10;
+#elif defined(__APPLE__)
+ // Rosetta 2 under-reports CLOCK_THREAD_CPUTIME_ID for translated x86_64 code
+ // (about 0.5 ms per 20 ms busy); Mach thread accounting is exact on both.
+ thread_basic_info_data_t info;mach_msg_type_number_t count=THREAD_BASIC_INFO_COUNT;
+ if(thread_info(pthread_mach_thread_np(pthread_self()),THREAD_BASIC_INFO,(thread_info_t)&info,&count)!=KERN_SUCCESS)return -1;
+ return int64_t(info.user_time.seconds+info.system_time.seconds)*1000000+info.user_time.microseconds+info.system_time.microseconds;
 #else
  timespec t{};if(clock_gettime(CLOCK_THREAD_CPUTIME_ID,&t)!=0)return -1;
  return int64_t(t.tv_sec)*1000000+t.tv_nsec/1000;
+#endif
+}
+// Enforcement needs a precise per-thread clock. Windows GetThreadTimes advances
+// in whole scheduler-tick quanta, so a short callback could be charged ~15 ms;
+// there it stays diagnostic only and the wall backstop alone bounds time.
+int64_t enforced_cpu_usec() {
+#ifdef _WIN32
+ return -1;
+#else
+ return thread_cpu_usec();
 #endif
 }
 struct Bounds { size_t bytes = 0, entries = 0, cap = 8192, entry_cap = 1024; std::set<const void *> seen; };
@@ -128,6 +151,7 @@ const Method methods[]={
  {"actor.wave",{"id"},1,1,false},{"actor.remove",{"id"},1,1,false},
  {"interaction.register",{"key","options"},2,2,false},{"interaction.unregister",{"key"},1,1,false},
  {"dialogue.show",{"key","speaker","text","choices"},4,4,false},{"dialogue.dismiss",{"key"},1,1,false},
+ {"marker.set",{"key","options"},2,2,false},{"marker.remove",{"key"},1,1,false},
  {"objective.set",{"key","text","status"},3,3,false},{"objective.remove",{"key"},1,1,false},
  {"environment.set",{"channel","preset","parameters"},3,3,false},{"environment.clear",{},0,0,false},
  {"timer.after",{"key","delay"},2,2,false},{"timer.cancel",{"key"},1,1,false},
@@ -158,13 +182,21 @@ bool SCDDExploreLua::absolute_deadline_expired() const {
  // This is the engine Time singleton used by GDScript, not steady_clock's epoch.
  return absolute_deadline_usec<=0 || Time::get_singleton()->get_ticks_usec()>=static_cast<uint64_t>(absolute_deadline_usec);
 }
-bool SCDDExploreLua::deadline_expired() const {return std::chrono::steady_clock::now()>=deadline || absolute_deadline_expired();}
-void SCDDExploreLua::check_deadline(){if(deadline_expired()){fault="deadline";luaL_error(vm,"deadline");}}
+void SCDDExploreLua::restart_clock(){begun=std::chrono::steady_clock::now();cpu_begun=enforced_cpu_usec();}
+// The absolute host deadline only admits a callback; once entered it is judged
+// by its own CPU budget and the wall backstop, never by shared-window wall time.
+const char *SCDDExploreLua::time_fault() const {
+ if(cpu_budget_usec<=0)return "deadline: callback budget is zero";
+ if(std::chrono::steady_clock::now()-begun>=std::chrono::microseconds(WALL_BACKSTOP_USEC))return "deadline: wall-time backstop exhausted";
+ if(cpu_begun<0)return nullptr;
+ const int64_t cpu=enforced_cpu_usec();
+ return cpu>=0 && cpu-cpu_begun>=cpu_budget_usec ? "deadline: thread CPU budget exhausted" : nullptr;
+}
+void SCDDExploreLua::check_deadline(){if(const char*why=time_fault()){fault="deadline";luaL_error(vm,"%s",why);}}
 void SCDDExploreLua::begin(const Dictionary &budget){
  commands.clear();writes.clear();logs.clear();fault="";instructions=0;invalid_calls=0;context_copy_usec=0;lua_copy_usec=0;memory_fault=false;
  allowance=std::clamp((int64_t)budget.get("instructions",20000),(int64_t)0,(int64_t)20000);
- begun=std::chrono::steady_clock::now();auto us=std::clamp((int64_t)budget.get("remaining_usec",1500),(int64_t)0,(int64_t)1500);
- deadline=begun+std::chrono::microseconds(us);
+ restart_clock();cpu_budget_usec=std::clamp((int64_t)budget.get("remaining_usec",CALLBACK_CPU_USEC),(int64_t)0,CALLBACK_CPU_USEC);
  has_absolute_deadline=budget.has("deadline_usec");
  absolute_deadline_usec=has_absolute_deadline ? int64_t(budget["deadline_usec"]) : 0;
  hook_interval=std::max(1,std::min(200,allowance));if(vm)lua_sethook(vm,hook,LUA_MASKCOUNT,hook_interval);
@@ -186,7 +218,7 @@ Dictionary SCDDExploreLua::finish(int status){
  instructions=std::min(allowance,instructions+hook_interval);
  Dictionary r;r["ok"]=true;r["fault"]="";r["commands"]=commands.duplicate(true);r["progress_writes"]=writes.duplicate(true);r["logs"]=logs.duplicate(true);r["instructions"]=instructions;r["invalid_calls"]=invalid_calls;r["active_vms"]=active_vms;
  r["elapsed_usec"]=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begun).count();r["bytes_used"]=(int64_t)memory;lua_settop(vm,0);
- if(deadline_expired())return fail("deadline");return r;
+ if(const char*why=time_fault())return fail("deadline",why);return r;
 }
 bool SCDDExploreLua::copy_context(const Dictionary &input){
  // Host context has separate bounded progress and cached observation envelopes.
@@ -252,7 +284,7 @@ int SCDDExploreLua::initialize(lua_State *L){
  }
  auto text=s->source.utf8();if(luaL_loadbufferx(L,text.get_data(),text.length(),"@main.lua","t")!=LUA_OK)return lua_error(L);
  // Compilation is memory bounded, not instruction/deadline metered; entry is.
- s->begun=std::chrono::steady_clock::now();s->deadline=s->begun+std::chrono::microseconds(1500);s->check_deadline();
+ s->restart_clock();s->check_deadline();
  lua_call(L,0,1);
  if(!lua_istable(L,-1))return luaL_error(L,"entry must return a handler table");
  lua_pushnil(L);while(lua_next(L,-2)){
@@ -312,7 +344,7 @@ Dictionary SCDDExploreLua::dispatch(const String &name,const Dictionary &event,c
   String key=budget_keys[i];
   if(key!="instructions" && key!="remaining_usec" && key!="deadline_usec"){begin(Dictionary());return fail("invalid_input");}
  }
- begin(budget);deadline-=begun-entered;begun=entered;if(!vm)return fail("closed");
+ begin(budget);begun=entered;if(cpu_begun>=0)cpu_begun=cpu_entered;if(!vm)return fail("closed");
  if(name!="on_start" && name!="on_tick" && name!="on_event" && name!="on_resume" && name!="on_stop")return fail("invalid_handler");
  const auto validation_started=std::chrono::steady_clock::now();
  Bounds b;if(!valid(event,b) || !copy_context(input) || String(input["owner"])!=owner || (int64_t)input["generation"]!=generation)return fail("invalid_input");

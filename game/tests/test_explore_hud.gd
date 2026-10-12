@@ -6,6 +6,29 @@ extends "res://tests/test_case.gd"
 
 const HUD_PATH := "res://scripts/ui/explore_hud.gd"
 
+func test_distant_transit_status_hides_reminders_and_destination_controls() -> void:
+	var hud := ExploreHUD.new()
+	root.add_child(hud)
+	var status := {"nearby":true,"station_id":0,"message":"Walk through the open doorway to board or leave.","destinations":[{"id":2,"name":"West"},{"id":3,"name":"East"}],"selected_destination":3,"can_choose_destination":true}
+	hud.set_transit_status(status)
+	check(hud._transit_label.visible,"nearby walking player sees boarding guidance")
+	check(hud._destination_picker.visible)
+	status.nearby=false
+	hud.set_transit_status(status)
+	check(not hud._transit_label.visible,"walking away removes door reminder and destination hint")
+	check(not hud._destination_picker.visible,"walking away hides station-only choices")
+	check(not hud._destination_header.visible)
+	status.nearby=true
+	hud.set_transit_status(status)
+	check(hud._transit_label.visible,"returning restores boarding guidance")
+	check(hud._destination_picker.visible)
+	for mode: int in [ExploreActorProfile.Mode.DRIVE,ExploreActorProfile.Mode.FLY]:
+		hud.set_status({"mode":mode,"vehicle":"car"})
+		hud.set_transit_status(status)
+		check(not hud._transit_label.visible,"vehicle occupants do not receive boarding reminders")
+		check(not hud._destination_picker.visible)
+	hud.free()
+
 func test_destination_picker_matches_service_and_locks_during_a_ride() -> void:
 	var hud := ExploreHUD.new()
 	root.add_child(hud)

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 extends "res://tests/exploration/explore_session_case.gd"
 func test_actual_example_sources_initialize() -> void:
-	for id in ["desert_stroll","desert_delivery","desert_atmosphere"]:
+	for id in ["desert_stroll","desert_delivery","desert_atmosphere","neon_rally","crooner_hunt"]:
 		var pack := ExploreModPack.read("res://explore_mods/"+id)
 		check(pack.ok,id)
 		var runtime := ExploreModRuntime.new()

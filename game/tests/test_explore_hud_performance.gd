@@ -88,6 +88,8 @@ func test_changed_content_and_layout_events_keep_synchronous_bounds() -> void:
 	hud.reflows = 0
 	hud._status_panel.minimum_size_changed.emit()
 	check_gt(hud.reflows,0,"theme/content minimum-size notifications still update layout")
+	# Destination selection belongs to a walker at a station.
+	hud.set_status({"mode":ExploreActorProfile.Mode.WALK})
 	hud.set_transit_status({"station_id":2,"destinations":[{"id":3,"name":"East"},{"id":4,"name":"West"}],"selected_destination":4,"can_choose_destination":true})
 	check(hud._destination_picker.visible)
 	check_eq(hud._destination_picker.get_selected_metadata(),4)

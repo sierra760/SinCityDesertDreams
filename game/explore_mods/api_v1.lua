@@ -41,6 +41,15 @@
 -- api.world.route(from, destination, options?)          -> {from,destination,options?}
 -- api.actor.inspect(id)                                 -> {id}
 -- api.actor.spawn(kind, options)                        -> {kind,options}
+-- world.player data adds mode (0 foot/1 road vehicle/2 air), vehicle (own
+-- handle or ""), speed (horizontal tiles/active second) and heading {x,z}
+-- (camera level view direction; right of heading is {-z,x}).
+-- world.find_landmark kinds road_destination/road/sidewalk/park/station.
+-- options: kind (actor domain), from (supported start point, default player),
+-- min_distance (0..40 straight-line tiles; road kinds never below 3),
+-- away_from (point; stop must be >= start's distance from it + min_distance/2),
+-- skip (integer 0..32 earlier matches passed over). data adds distance (route
+-- tiles). Results cache by exact arguments; pass from when the start moves.
 -- Spawn success data={id,position=<actual admitted copied tile point>}.
 -- Pedestrian options.near_player=true opts into anchor-first supported road
 -- BFS (<=4 connected edges, <=32 inspected cells, shared256-step node budget).
@@ -55,6 +64,16 @@
 -- api.interaction.unregister(key)                      -> {key}
 -- api.dialogue.show(key, speaker, text, choices)        -> {key,speaker,text,choices}
 -- api.dialogue.dismiss(key)                            -> {key}
+-- api.marker.set(key, options)                        -> {key,options}
+-- api.marker.remove(key)                              -> {key}
+-- options.target = {id=<own actor handle>} or a copied tile point {x,y,z,...}.
+-- label (<=192 UTF-8 bytes, default empty); icon objective/person/vehicle/
+-- checkpoint (default objective); map and world booleans (default true);
+-- max_distance (0..2048 tiles, default 2048) hides both displays beyond range;
+-- height (0..8 tiles, default 0) adds lift above the host-chosen model top.
+-- 16 markers/pack, 128/session. Same key replaces; remove is idempotent.
+-- Pins follow live actor poses, disappear with the actor or owner, and are
+-- never saved. A player-occupied vehicle hides its pin until exit.
 -- api.objective.set(key, text, status)                  -> {key,text,status}
 -- api.objective.remove(key)                            -> {key}
 -- api.environment.set(channel, preset, parameters)      -> {channel,preset,parameters}
@@ -97,8 +116,12 @@ return {}
 -- invalid_argument results in a rolling second of active Explore time; >32
 -- disables the owner. Resource/no-route/unavailable-wave refusals are not misuse.
 -- Reply timing contains bounded numeric validation/context-copy/Lua-copy,
--- payload-copy/invocation and thread CPU microseconds. Deadlines always use wall
--- time; these diagnostics never authorize retries or deadline exemptions.
+-- payload-copy/invocation and thread CPU microseconds. Time limits: the host's
+-- 1.5 ms tick window only decides whether a callback starts (>=400 us left;
+-- otherwise it waits for the next tick). A started callback faults with
+-- deadline after 1.5 ms of its own thread CPU time or 50 ms of wall time, so
+-- OS preemption alone cannot fault it. Windows enforces only the wall backstop
+-- (its thread CPU clock is too coarse). A faulted callback is never retried.
 -- Environment presets: daylight day/dawn/dusk/night; haze clear/desert/fog;
 -- wind calm/breeze/gust; precipitation none/dust/rain. Parameters accepts only
 -- intensity (finite 0..1, default 1). Highest manifest priority wins each channel;

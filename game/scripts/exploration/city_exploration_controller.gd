@@ -61,6 +61,7 @@ var occupied: CharacterBody3D
 var camera_rig: CityExploreCamera3D
 var mode := ExploreActorProfile.Mode.WALK
 var _active := false
+var _navigation_resume := false
 var _suspended := false
 var _arming := true
 var _held: Dictionary = {}
@@ -119,6 +120,7 @@ func bind(value: CityView3D, interface: ExploreHUD) -> void:
 			_publish_status())
 	hud.resume_requested.connect(resume)
 	hud.menu_requested.connect(pause)
+	hud.navigation.toggle_requested.connect(toggle_navigation)
 	hud.touch_input_canceled.connect(cancel_touch_input)
 	hud.set_touch_controls_enabled(_touch_enabled)
 	hud.recover_requested.connect(recover)
@@ -406,6 +408,7 @@ func resume() -> void:
 		_message = "Close the open window to resume Explore."
 		_publish_status()
 		return
+	if is_instance_valid(hud.navigation) and hud.navigation.expanded: hud.set_navigation_expanded(false)
 	if release_ui_focus.is_valid(): release_ui_focus.call()
 	if input_blocked.is_valid() and bool(input_blocked.call()): return
 	if mod_service == null and not mod_packs.is_empty():
@@ -430,6 +433,7 @@ func resume_if_unblocked() -> void:
 ## While suspended: a modal that caused (or immediately followed) the
 ## suspension arms an automatic resume for the first tick after it closes.
 func _check_auto_resume() -> void:
+	if is_instance_valid(hud) and is_instance_valid(hud.navigation) and hud.navigation.expanded: return
 	if _manual_pause or not modal_open.is_valid(): return
 	if bool(modal_open.call()):
 		if Engine.get_physics_frames()-_suspended_at_frame <= 2: _resume_when_unblocked = true
@@ -526,6 +530,7 @@ func handle_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 	if not _active: return false
 	if _touch_enabled and event.device==InputEvent.DEVICE_ID_EMULATION and (event is InputEventMouseMotion or event is InputEventMouseButton): return not _suspended
 	if event is InputEventKey:
+		if handle_navigation_key(event): return true
 		if event.pressed and not event.echo and event.keycode == KEY_ESCAPE and not _suspended: _escape_pressed = true
 		var code: int = ControlBindings.event_code(event)
 		if code not in controls.keys_for("Explore"): return code in controls.keys_for("Build")
@@ -1258,3 +1263,31 @@ func _board_mod_vehicle() -> bool:
 	if _select_vehicle(StringName(claim.kind),claim): return true
 	view.traffic.release_vehicle(claim,claim.position)
 	return false
+
+## A map opened during a manual pause returns to that pause. One opened
+## during play resumes only if no modal/window has since taken input.
+func toggle_navigation() -> void:
+	if not _active or not is_instance_valid(hud.navigation): return
+	if hud.navigation.expanded:
+		hud.set_navigation_expanded(false)
+		if _navigation_resume:
+			_manual_pause = false
+			_resume_when_unblocked = true
+			if not (modal_open.is_valid() and bool(modal_open.call())) and not (window_open.is_valid() and bool(window_open.call())): resume()
+		_navigation_resume = false
+	else:
+		if (modal_open.is_valid() and bool(modal_open.call())) or (window_open.is_valid() and bool(window_open.call())): return
+		_navigation_resume = not _suspended
+		pause()
+		hud.set_navigation_expanded(true)
+
+func handle_navigation_key(event: InputEventKey) -> bool:
+	if not _active or not is_instance_valid(hud) or not is_instance_valid(hud.navigation): return false
+	if event.ctrl_pressed or event.meta_pressed or event.alt_pressed: return false
+	if not controls.matches(event,&"explore_map") and not (hud.navigation.expanded and event.keycode == KEY_ESCAPE): return false
+	if event.pressed and not event.echo: toggle_navigation()
+	return true
+
+func navigation_markers() -> Array[Dictionary]:
+	if not _active or mod_service == null or not is_instance_valid(occupied) or mod_service._indoors(): return []
+	return mod_service.api.markers.visible_markers(occupied.feet_position())

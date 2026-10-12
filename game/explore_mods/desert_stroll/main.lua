@@ -35,11 +35,16 @@ local function walk(api, index)
     track(api,api.actor.navigate(person.id, stop),index,"walk")
   end
 end
+-- Followers set out from the leader's starting point, never from wherever the
+-- player has since wandered, so their far-to-near stops stay in order.
+local function anchor(index)
+  if index > 1 and origin then return {x=origin.x, y=origin.y, z=origin.z} end
+end
 start = function(api, index)
   local person = walkers[index]
   if person.started then return end
   person.started = true
-  track(api,api.actor.spawn("pedestrian",{key="stroller"..index,variant=variants[index],near_player=true}),index,"spawn")
+  track(api,api.actor.spawn("pedestrian",{key="stroller"..index,variant=variants[index],near_player=true,position=anchor(index)}),index,"spawn")
   track(api,api.world.find_landmark("road_destination"),index,"destination")
 end
 finished = function(api, index, action, code, data)
@@ -89,7 +94,7 @@ return {
     if event.kind == "timer" then
       for index=1,3 do
         if event.key == "spawn"..index and not walkers[index].id and not walkers[index].settled then
-          track(api,api.actor.spawn("pedestrian",{key="stroller"..index,variant=variants[index],near_player=true}),index,"spawn")
+          track(api,api.actor.spawn("pedestrian",{key="stroller"..index,variant=variants[index],near_player=true,position=anchor(index)}),index,"spawn")
         end
       end
     end

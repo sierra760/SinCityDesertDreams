@@ -60,4 +60,3 @@ func _refresh_fixture_geometry() -> void:
 	view.sample_networks = view.networks.physical_data()
 	view.sample_chunks = [CityGeometry3D.build_chunk(view.city,Rect2i(16,16,24,16))]
 	session._on_geometry_rebuilt(view._geometry_revision)
-

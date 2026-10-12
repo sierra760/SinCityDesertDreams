@@ -17,7 +17,7 @@ var _speed := 0.0
 var _length := 0.0
 var _size := Vector3(.2,.2,.5)
 var _collider: CollisionShape3D
-var _visual: Node3D
+var _visual: ExploreActorVisual
 # Transit route validation depends only on the route and network nodes, so it
 # is reused until the network publishes a change (or the route is replaced).
 var _route_checked_network := 0
@@ -55,7 +55,7 @@ func configure(value: StringName, network: RefCounted, route: Dictionary) -> boo
 	_collider.shape = box
 	_collider.position.y = _size.y*.5
 	if is_instance_valid(_visual): _visual.free()
-	_visual = CityTrafficCatalog.make_visual(kind)
+	_visual = CityTrafficCatalog.make_detailed_visual(kind)
 	add_child(_visual)
 	_distance = 0.0
 	global_position = _points[0]
@@ -74,6 +74,7 @@ func landed() -> bool: return has_support()
 func stop_input() -> void:
 	_speed = 0.0
 	velocity = Vector3.ZERO
+	if is_instance_valid(_visual): _visual.set_motion(0.0,0.0,false)
 
 func _cell(point: Vector3) -> Vector2i: return Vector2i(floori(point.x),floori(point.z))
 
@@ -163,3 +164,5 @@ func step(frame: ExploreInputFrame, _camera_yaw: float, delta: float) -> void:
 	# accepted physical position actually did not move.
 	elif global_position == before.origin: stop_input()
 	else: velocity = (global_position-before.origin)/dt
+	_visual.set_motion(_speed,0.0,false)
+	_visual.advance_visual(dt)

@@ -22,7 +22,8 @@ class SCDDExploreLua : public RefCounted {
  int64_t context_copy_usec = 0, lua_copy_usec = 0;
  int instructions = 0, allowance = 20000, hook_interval = 200;
  uint64_t random_state = 1, serial = 0;
- std::chrono::steady_clock::time_point begun, deadline;
+ std::chrono::steady_clock::time_point begun;
+ int64_t cpu_begun = -1, cpu_budget_usec = 1500;
  bool has_absolute_deadline = false;
  int64_t absolute_deadline_usec = 0;
  std::map<std::string, int> compiled, cached;
@@ -49,7 +50,8 @@ class SCDDExploreLua : public RefCounted {
  Dictionary fail(const String &code, const String &detail = "");
  bool copy_context(const Dictionary &input);
  bool absolute_deadline_expired() const;
- bool deadline_expired() const;
+ void restart_clock();
+ const char *time_fault() const;
  void check_deadline();
 protected:
  static void _bind_methods();
