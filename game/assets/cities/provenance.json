@@ -6,12 +6,12 @@
     {
       "name": "Adaven",
       "file": "Adaven.sc2d",
-      "bytes": 166099,
-      "sha256": "0002d652c11dc266fc48607a0f8f234800f21be50d2096a0d0007d3a1f137123",
+      "bytes": 175097,
+      "sha256": "dec33de32d26afd8e9425f01a709212c16374fd63660a902537d4560e565dbe1",
       "source": {
         "file": "Adaven.sc2d",
         "conversion": "native save copied byte-for-byte",
-        "updated": "2026-10-08: replaced with the owner's current save of the same city (1963, population 1,460)."
+        "updated": "2026-10-12: replaced with the owner's current named save of the same city (1965, population 1,460), saved on 2026-10-12."
       }
     },
     {
