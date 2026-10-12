@@ -10,6 +10,7 @@ extends Node3D
 
 const Layouts := preload("res://scripts/exploration/resorts/resort_interior_layouts.gd")
 const Dresser := preload("res://scripts/exploration/resorts/resort_prop_dresser.gd")
+const Crowd := preload("res://scripts/exploration/resorts/casino_patron_crowd.gd")
 ## Hall and props render on layer 21 only; the Explore sun excludes it.
 const LAYER := 1 << 20
 
@@ -21,6 +22,7 @@ var plan: Dictionary = {}
 var build_usec := 0
 var stats: Dictionary = {}
 var _tables: Array[Dictionary] = []
+var patrons: Node3D
 
 ## Build the hall for `resort_key` under the lot at `lot_anchor`.
 func build(resort_key: StringName, building_code: int, lot_anchor: Vector2i) -> void:
@@ -32,6 +34,11 @@ func build(resort_key: StringName, building_code: int, lot_anchor: Vector2i) -> 
 	plan = Layouts.layout(key)
 	position = Layouts.hall_origin(anchor,code)
 	stats = Dresser.populate(self,key,code,plan)
+	patrons = Crowd.new()
+	patrons.name = "Patrons"
+	add_child(patrons)
+	patrons.build(plan,code*131+anchor.x*17+anchor.y*31)
+	stats["patrons"] = patrons.states().size()
 	build_usec = Time.get_ticks_usec()-started
 
 ## True when `feet` (world) is inside this hall's walkable volume.

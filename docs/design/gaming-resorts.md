@@ -46,6 +46,14 @@ street. Return to Build works from inside as it does anywhere else.
 Inside, marinas and vehicles do not answer F. If the resort is demolished or
 replaced while you are inside, you are put back outside with a message.
 
+Each casino floor has sixteen other patrons, with varied mid-century clothes.
+They walk between tables and machines, press buttons, place bets and react
+between rounds. They give you room as you approach, and the player positions
+at every game and the entrance stay clear. Despicable's has three patrons in
+its smaller gaming area. Their play is ambient; it does not use city funds or
+change your game results. Patrons pause with Explore, including while your
+table overlay is open, and only the occupied hall advances their activity.
+
 | Resort | Floor | Theme | Dealer |
 | --- | --- | --- | --- |
 | Comstock Grand | The Assay Office | Silver-boom sandstone, copper and walnut, gas-lamp chandeliers | the assayer |

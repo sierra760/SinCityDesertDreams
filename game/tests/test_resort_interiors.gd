@@ -271,3 +271,33 @@ func test_fade_transition_moves_walker_at_black() -> void:
 	check(not session.resort_service.is_transitioning(),"fade finished")
 	check(session.resort_service.is_inside(),"walker inside after the fade")
 	ExploreResortService.transition_seconds = 0.0
+
+func test_patron_clocks_follow_explore_pause_and_cached_hall_presence() -> void:
+	if not await _start(): return
+	var before := SaveFormat.encode_city(city)
+	check(await _go_inside())
+	var service: ExploreResortService = session.resort_service
+	var world := service.world_for({"anchor":ANCHOR,"code":251,"key":&"arcology_comstock"})
+	var crowd: Node3D = world.get_node_or_null("Patrons")
+	check(crowd != null,"actual Explore entry populates the hall")
+	if crowd == null: return
+	var initial: Array = crowd.call("states")
+	for frame: int in 12: await physics_frame
+	check_ne(crowd.call("states"),initial,"active Explore advances the crowd")
+	session.suspend()
+	var paused: Array = crowd.call("states")
+	for frame: int in 12: await physics_frame
+	check_eq(crowd.call("states"),paused,"Explore pause freezes all patron clocks")
+	session.resume()
+	check(not session.is_suspended())
+	for frame: int in 12: await physics_frame
+	check_ne(crowd.call("states"),paused,"resume continues patron activity")
+	await _walk_to(world.mat_transform().origin)
+	check(session.request_interaction())
+	var outside: Array = crowd.call("states")
+	for frame: int in 12: await physics_frame
+	check_eq(crowd.call("states"),outside,"cached halls do no visitor work outside")
+	check_eq(SaveFormat.encode_city(city),before,"patrons cannot change city data or the casino ledger")
+	_remove_resort()
+	for frame: int in 4: await physics_frame
+	check(not is_instance_valid(crowd),"removal releases the crowd along with its hall")

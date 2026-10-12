@@ -210,12 +210,14 @@ func table_camera(table: Dictionary) -> Transform3D:
 
 ## Containment watch: a walker who left the hall (for example by Recover)
 ## is simply outside again.
-func step(_delta: float, pedestrian: ExplorePedestrian = null) -> void:
+func step(delta: float, pedestrian: ExplorePedestrian = null) -> void:
 	if pedestrian != null: walker = pedestrian
 	if _transitioning or not is_inside() or not is_instance_valid(walker): return
 	if not _inside.contains(walker.global_position):
 		_inside = null
 		_sync_presence()
+		return
+	_inside.patrons.step(delta,walker.global_position-_inside.position)
 
 ## After a city edit: a hall whose resort was demolished or replaced closes.
 ## A walker inside it is put outside first.

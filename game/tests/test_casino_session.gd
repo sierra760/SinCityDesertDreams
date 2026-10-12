@@ -144,6 +144,10 @@ func _sit_down() -> bool:
 
 func test_walk_in_play_a_hand_walk_out_and_keep_the_ledger() -> void:
 	if not await _walk_inside(): return
+	var world := host.exploration.resort_service.world_for({"anchor":ANCHOR,"code":251,"key":COMSTOCK})
+	var crowd := world.get_node_or_null("Patrons")
+	check(crowd != null,"the real casino session has patrons")
+	if crowd == null: return
 	if not await _sit_down(): return
 	var overlay := host.casino_overlay
 	check_eq(host.modal_depth, 1)
@@ -153,6 +157,7 @@ func test_walk_in_play_a_hand_walk_out_and_keep_the_ledger() -> void:
 	check(_status().has("table_camera"), "the status carries the held view")
 	await _frames(2)
 	check(host.exploration.is_suspended(), "Explore is suspended at the table")
+	var paused_patrons: Array = crowd.call("states")
 	var feet: Vector3 = host.exploration.pedestrian.global_position
 	# One seeded hand by keyboard: either deal order ends in a player win.
 	overlay.game.rig([CasinoDeck.card(10, 0), CasinoDeck.card(9, 1), CasinoDeck.card(8, 2), CasinoDeck.card(8, 3), CasinoDeck.card(10, 2)])
@@ -171,6 +176,7 @@ func test_walk_in_play_a_hand_walk_out_and_keep_the_ledger() -> void:
 	check_eq(host.status_bar.funds_label.text, "$" + UIFactory.commafy(START_FUNDS + 100))
 	await _frames(2)
 	check_eq(host.exploration.pedestrian.global_position, feet, "table keys never move the walker")
+	check_eq(crowd.call("states"),paused_patrons,"table play freezes the other patrons with Explore")
 	# Leave the table.
 	host.escape()
 	check(not host.is_casino_open(), "Escape leaves a settled table")
@@ -182,6 +188,7 @@ func test_walk_in_play_a_hand_walk_out_and_keep_the_ledger() -> void:
 	check(host.explore_hud.visible, "the Explore HUD returns")
 	await _frames(4)
 	check(not host.exploration.is_suspended(), "Explore resumes after the table")
+	check_ne(crowd.call("states"),paused_patrons,"leaving the table resumes the other patrons")
 	check(host.exploration.resort_service.is_inside(), "still on the casino floor")
 	# Inspect reads the floor and the year's play.
 	var rows := QueryPanel.describe(host.sim.city, host.sim, ANCHOR + Vector2i(1, 1))

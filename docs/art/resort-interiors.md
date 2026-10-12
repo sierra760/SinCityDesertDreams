@@ -142,3 +142,21 @@ stage, three-band observation console, three-tray bank desk and shared-pot
 table. `build_original_signature_props.py` exports only these six models.
 The shared finish shader uses each resort's existing palette; the table badges
 and new drawn game boards use the accepted themed PNGs.
+
+## Ambient patrons
+
+`casino_patron_crowd.gd` reuses the sixteen authored detailed traffic pedestrians
+on interior layer 21. It adds sixteen visitors per resort and three per store;
+their models and materials remain shared and immutable. Each visitor owns its
+skeleton and manually sampled gait and game gestures in `casino_patron_visual.gd`.
+Game gestures compose with the imported bone rest rotations. Slot-bank players
+sit on the existing stools, with the pelvis aligned to the cushion across the
+varied roster heights. No new art or
+external assets are required.
+
+The floor-plan obstacles and player seats constrain a capsule-clear grid.
+Routes include individual machine positions and the two raised platforms;
+player proximity and other patrons trigger waiting, sidesteps or a new route.
+Visitors are visual actors with no blocking physics bodies. The occupied
+Explore hall supplies their only clock; leaving or pausing freezes the cached
+hall, and removing the building or ending Explore releases it.
