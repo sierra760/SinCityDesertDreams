@@ -34,6 +34,16 @@ class ClassificationTests(unittest.TestCase):
             with self.subTest(diagnostic=diagnostic):
                 self.assertFalse(runner.classify_output(0, "Results: 1 passed, 0 failed\n" + diagnostic)[0])
 
+    def test_unicode_diagnostic_rejects_green_and_import(self):
+        diagnostic = "Unicode parsing error, some characters were replaced with U+FFFD: Unexpected NUL character"
+        ok, reason = runner.classify_output(0, "Results: 4 passed, 0 failed\n" + diagnostic)
+        self.assertFalse(ok)
+        self.assertEqual(reason, "engine/script/resource diagnostic")
+        completed = subprocess.CompletedProcess([], 0, stdout=diagnostic, stderr="")
+        with patch.object(runner.subprocess, "run", return_value=completed):
+            with self.assertRaises(RuntimeError):
+                runner.refresh_class_cache("godot")
+
     def test_failed_import_raises(self):
         completed = subprocess.CompletedProcess([], 1, stdout="", stderr="import failed")
         with patch.object(runner.subprocess, "run", return_value=completed):

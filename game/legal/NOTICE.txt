@@ -38,3 +38,7 @@ are bundled in data/real_world_terrain_notices.txt.
 Player saves belong to their players. No third-party game content or trademark
 rights are granted. See LICENSING.md in the source repository for the full
 scope.
+
+Lua 5.4.9 — Copyright (C) 1994-2026 Lua.org, PUC-Rio.
+Explore mods use the MIT-licensed upstream Lua library; full permission notice
+is in native/explore-lua/LUA-LICENSE.txt and game/addons/scdd_explore_lua/LUA-LICENSE.txt.

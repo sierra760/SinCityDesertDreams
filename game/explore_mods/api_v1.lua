@@ -1,0 +1,106 @@
+-- Explore API v1 authoring reference. This file is documentation, never loaded
+-- into a user's VM. All listed functions use dot-call (not colon-call) syntax.
+-- start compiles ALL module sources and executes entry, returning no on_start
+-- call. The scheduler then dispatches on_start while loading/panel owns input.
+--
+-- Entry returns only optional on_start/on_tick/on_event/on_resume/on_stop
+-- functions. Handlers return nothing (nil); other returns fault the VM.
+-- on_start(api, context), on_tick(api, context), on_resume(api, context),
+-- on_stop(api, context). on_event(api, event, context) also receives an optional
+-- third context argument; the documented two-argument form remains valid.
+-- context.delta is active Explore seconds; context.reason describes stop/resume.
+-- context.progress is initial/current host progress; modifying it is local only.
+-- context.owner, generation and all other values are copies.
+--
+-- The host supplies context.queries = {
+--   ["world.find_landmark"] = {
+--     {args={"park", {near_player=true}},
+--      result={ok=true,code="ok",data={x=4,y=0,z=8,
+--              coordinate_space="tile",geometry_revision=12}}}
+--   }
+-- }
+-- args are the exact positional Lua arguments, including present options;
+-- omitted options differ from {}. Each result is copied afresh for each call.
+-- No matching cache entry returns {ok=true,code="pending",request_id=<integer>}
+-- and queues one dotted-name query command. The host owns query execution and completions.
+-- Actor/landmark result arrays have at most 64 records, each payload <=8 KiB.
+-- Queries inspect no scene objects or filesystem in this bridge.
+--
+-- Every queued action returns {ok=true,code="pending",request_id=<integer>}.
+-- Completion arrives in a later on_event as {kind="action_completed" or
+-- "action_failed" or "query_completed",request_id=...,key=...,code=...,data=...}.
+-- A failed synchronous argument/quota check returns {ok=false,code=...}.
+-- Request IDs are increasing integers within this VM generation.
+-- Host command envelope: {request_id,kind=<dotted name>,args=<named map>,
+-- owner=<host owner>,generation=<host generation>}. Options cannot override it.
+--
+-- Exact signatures -> command args keys:
+-- api.world.player()                                    -> {}
+-- api.world.nearby(options?)                            -> {options?}
+-- api.world.find_landmark(kind, options?)               -> {kind,options?}
+-- api.world.route(from, destination, options?)          -> {from,destination,options?}
+-- api.actor.inspect(id)                                 -> {id}
+-- api.actor.spawn(kind, options)                        -> {kind,options}
+-- Spawn success data={id,position=<actual admitted copied tile point>}.
+-- Pedestrian options.near_player=true opts into anchor-first supported road
+-- BFS (<=4 connected edges, <=32 inspected cells, shared256-step node budget).
+-- Anchor=options.position or copied player; anchor height must match support.
+-- No-route/occupancy and all actor caps stay authoritative. Explicit position
+-- without this opt-in retains exact-cell/height admission; vehicles unchanged.
+-- api.actor.navigate(id, destination, options?)         -> {id,destination,options?}
+-- api.actor.wait(id, duration)                          -> {id,duration}
+-- api.actor.wave(id)                                    -> {id}
+-- api.actor.remove(id)                                  -> {id}
+-- api.interaction.register(key, options)                -> {key,options}
+-- api.interaction.unregister(key)                      -> {key}
+-- api.dialogue.show(key, speaker, text, choices)        -> {key,speaker,text,choices}
+-- api.dialogue.dismiss(key)                            -> {key}
+-- api.objective.set(key, text, status)                  -> {key,text,status}
+-- api.objective.remove(key)                            -> {key}
+-- api.environment.set(channel, preset, parameters)      -> {channel,preset,parameters}
+-- api.environment.clear()                              -> {}
+-- api.timer.after(key, delay)                          -> {key,delay}
+-- api.timer.cancel(key)                                -> {key}
+-- Complete objectives with objective.set(key, text, "completed"); there is
+-- no separate objective.complete binding. Host statuses: active/completed/failed.
+-- All world methods and actor.inspect use the cached-query convention above.
+-- All others above queue asynchronous commands. Semantic validation, handles,
+-- resource quotas, navigation, ownership and completions belong to the host.
+-- timer.after delay is finite 0.1..86400 active Explore seconds, inclusive.
+-- dialogue body <=2048 UTF-8 bytes, <=8 choices, all strings <=4096 bytes.
+--
+-- Immediate state/utility functions (never queue transient commands):
+-- api.state.get(key, default?) -> copied value; nil if absent without default.
+--   Reads this callback's staged write first, then context.progress.
+-- api.state.set(key, value) -> {ok,code}; stages one top-level progress key.
+--   Returns quota_exceeded for >64 KiB progress or >32 distinct writes/callback.
+--   nil stages a JSON null; deletion is not an API v1 operation.
+-- api.utility.random() -> deterministic float [0,1), local xorshift64* generator.
+-- api.utility.log(message) -> {ok,code}; <=32 messages/callback, <=4 KiB each.
+-- Normal on_stop permits only state.get/state.set/utility.log. Other API calls
+-- return unavailable and cannot create resources. on_stop always closes VM.
+-- Fault close NEVER calls on_stop; all callback outputs, including logs, vanish.
+--
+-- require("helpers.route") or require("helpers/route.lua") uses the immutable
+-- validated source snapshot only. All Lua modules compile in start, text-only.
+-- Their first require executes once under current budget; result is cached.
+-- nil module result becomes true; cyclic require faults. JSON files are inert.
+-- No OS/io/package/debug/coroutine/metatable/protected-call/dynamic-load APIs.
+-- string has byte,char,len,lower,upper,reverse,sub only, with bounded inputs.
+-- table has insert,remove,concat only, on small JSON-safe tables.
+-- math has deterministic numeric helpers, never random/randomseed.
+return {}
+
+-- Host-only reply accounting (never placed in script context): invalid_calls is
+-- the count of synchronous invalid-argument rejections, saturated at 33 and
+-- reset per native dispatch. The host combines it with deferred host semantic
+-- invalid_argument results in a rolling second of active Explore time; >32
+-- disables the owner. Resource/no-route/unavailable-wave refusals are not misuse.
+-- Reply timing contains bounded numeric validation/context-copy/Lua-copy,
+-- payload-copy/invocation and thread CPU microseconds. Deadlines always use wall
+-- time; these diagnostics never authorize retries or deadline exemptions.
+-- Environment presets: daylight day/dawn/dusk/night; haze clear/desert/fog;
+-- wind calm/breeze/gust; precipitation none/dust/rain. Parameters accepts only
+-- intensity (finite 0..1, default 1). Highest manifest priority wins each channel;
+-- lexical ID breaks ties. Interiors preserve the outdoor request while masking
+-- particles and restoring baseline lighting. Effects never change city weather.

@@ -40,7 +40,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GAME = Path(os.environ.get("TEST_GAME_PATH", str(ROOT / "game"))).resolve()
 RESULTS = re.compile(r"^Results: (\d+) passed, (\d+) failed\s*$", re.M)
-ENGINE_ERROR = re.compile(r"SCRIPT ERROR:|Parse Error:|Compile Error:|(?:^|\n)(?:ERROR|WARNING):|ObjectDB instances leaked|resources still in use", re.I)
+ENGINE_ERROR = re.compile(r"Unicode parsing error|SCRIPT ERROR:|Parse Error:|Compile Error:|(?:^|\n)(?:ERROR|WARNING):|ObjectDB instances leaked|resources still in use", re.I)
 
 
 @contextmanager

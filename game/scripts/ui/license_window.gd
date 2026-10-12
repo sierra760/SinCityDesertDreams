@@ -119,6 +119,10 @@ static func third_party_notices() -> String:
 		lines.append("")
 		lines.append("GODOT-CPP (native extensions)")
 		lines.append(FileAccess.get_file_as_string(GODOT_CPP_NOTICE).strip_edges())
+	var lua_notice := "res://addons/scdd_explore_lua/LUA-LICENSE.txt"
+	if FileAccess.file_exists(lua_notice):
+		lines.append("\nLUA 5.4.9 (Explore mods)")
+		lines.append(FileAccess.get_file_as_string(lua_notice).strip_edges())
 	return "\n".join(lines)
 
 func close() -> void:

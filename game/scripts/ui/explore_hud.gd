@@ -17,6 +17,7 @@ signal recover_requested
 signal return_requested
 signal recenter_requested
 signal settings_requested
+signal mods_requested
 
 var sensitivity := 1.0
 var invert_y := false
@@ -33,6 +34,8 @@ var _speed_label: Label
 var _altitude_label: Label
 var _prompt_label: Label
 var _message_label: Label
+var _objective_label: Label
+var _journal_label: Label
 var _transit_label: Label
 var _destination_picker: OptionButton
 var _transit_station := -1
@@ -183,6 +186,17 @@ func _place_hint() -> void:
 	_hint_panel.position = Vector2(available.position.x+(available.size.x-width)*.5,available.end.y-8.0-_hint_panel.size.y)
 
 func set_status(status: Dictionary) -> void:
+	if not is_instance_valid(_actor_label): return
+	var journal: Array = status.get("objectives",[])
+	var tracked := ""
+	var lines := PackedStringArray()
+	for objective: Dictionary in journal:
+		if tracked.is_empty() and objective.status == "active": tracked = String(objective.text).replace("\n"," ").replace("\r"," ")
+		lines.append("%s: %s" % [String(objective.status).capitalize(),String(objective.text)])
+	_set_label_text(_objective_label,tracked)
+	_set_visible(_objective_label,not tracked.is_empty())
+	_set_label_text(_journal_label,"Journal\n"+"\n".join(lines))
+	_set_visible(_journal_label,not lines.is_empty())
 	if not is_instance_valid(_actor_label):
 		return
 	var mode := clampi(int(status.get("mode", 0)), 0, 2)
@@ -251,6 +265,13 @@ func _build() -> void:
 	_status_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_status_scroll.follow_focus = true
 	status_column.add_child(_status_scroll)
+	_objective_label = UIFactory.make_label("",UITheme.FONT_SMALL)
+	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_label.max_lines_visible = 2
+	_objective_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_objective_label.clip_text = true
+	_objective_label.custom_minimum_size.y = UITheme.FONT_SMALL*2.0+8.0
+	_critical_scroll.get_child(0).add_child(_objective_label)
 	_message_label = UIFactory.make_label("")
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -280,6 +301,10 @@ func _build() -> void:
 	_panel_hint_label.name = "ExplorePanelControlsHint"
 	_panel_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_panel_hint_label)
+	_journal_label = UIFactory.make_label("",UITheme.FONT_SMALL)
+	_journal_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_journal_label)
+	column.move_child(_journal_label,2)
 	column.add_child(UIFactory.make_section_header("Choose a vehicle"))
 	var picker := OptionButton.new()
 	picker.name = "VehicleChoice"
@@ -320,6 +345,10 @@ func _build() -> void:
 	var settings := UIFactory.make_button("Control settings")
 	settings.pressed.connect(func() -> void: settings_requested.emit())
 	column.add_child(settings)
+	var mods := UIFactory.make_button("Explore Mods")
+	mods.name = "ExploreMods"
+	mods.pressed.connect(func() -> void: mods_requested.emit())
+	column.add_child(mods)
 	touch_controls=ExploreTouchControls.new()
 	touch_controls.name="ExploreTouchControls"
 	add_child(touch_controls)

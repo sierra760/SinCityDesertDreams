@@ -208,6 +208,14 @@ static func restore_imported_terrain(settings: Dictionary, city: City) -> Dictio
 	return restored if restored.ok else invalid
 
 
+## Restore only committed data after the old city has been disposed.
+func _restore_mod_progress(result: Dictionary) -> void:
+	_host.mod_progress.restore(result.get("explore_mods", {}))
+	var messages: Array = result.get("mod_notices", [])
+	if not messages.is_empty():
+		_host.notices.show("Explore Progress", "\n".join(messages))
+
+
 ## Load a native save. Returns false (and shows why) when the file is bad.
 ## An unfounded map returns to the editing stage.
 func load_city(path: String) -> bool:
@@ -222,6 +230,7 @@ func load_city(path: String) -> bool:
 		var settings: Dictionary = result["generator"]
 		settings["name"] = city.name
 		begin_editing(city, settings)
+		_restore_mod_progress(result)
 		_host.save_path = manual_path
 		_host.files.mark_saved()
 		if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(city)
@@ -229,6 +238,7 @@ func load_city(path: String) -> bool:
 		return true
 	var snapshot: Dictionary = result["snapshot"]
 	begin_city(city, snapshot, -1, null, topology)
+	_restore_mod_progress(result)
 	var sim := _host.sim
 	_host.save_path = manual_path
 	_host.files.mark_saved()
@@ -304,6 +314,7 @@ func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CitySt
 	host.files.reset()
 	host.message_seconds_left = 0.0
 	host.explore_switch.dispose()
+	host.mod_progress.restore({})
 	host.cancel_map_gesture()
 	host.window_manager.close_all()
 	host.query_panel.close()

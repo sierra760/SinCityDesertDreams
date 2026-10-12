@@ -71,7 +71,7 @@ static func default_dir() -> String:
 ## Write the city and the simulation snapshot to `path`. `stage` marks an
 ## unfounded map (STAGE_EDITING) whose `generator` settings are kept so the
 ## map can be regenerated after loading.
-static func save(path: String, city: City, sim_snapshot: Dictionary = {}, stage: String = STAGE_PLAY, generator: Dictionary = {}) -> Error:
+static func save(path: String, city: City, sim_snapshot: Dictionary = {}, stage: String = STAGE_PLAY, generator: Dictionary = {}, explore_mods: Dictionary = {}) -> Error:
 	if city == null:
 		return ERR_INVALID_PARAMETER
 	# Reject invalid applied metadata before staging or replacing any save.
@@ -90,6 +90,10 @@ static func save(path: String, city: City, sim_snapshot: Dictionary = {}, stage:
 		"city": encode_city(city),
 		"snapshot": sim_snapshot,
 	}
+	var progress := ExploreModProgress.new()
+	progress.restore(explore_mods)
+	var committed := progress.snapshot()
+	if not committed.is_empty(): doc["explore_mods"] = committed
 	if not generator.is_empty():
 		var stored_generator := generator.duplicate() if generator.get("source") == "real_world" else generator
 		if stored_generator.get("source") == "real_world":
@@ -220,7 +224,7 @@ const MESSAGE_DAMAGED := "This city file is damaged and can't be opened."
 ## Read a save. Returns {ok, city, snapshot, stage, generator, error, version};
 ## `error` is player-facing, and a technical `detail` may accompany it.
 static func load(path: String) -> Dictionary:
-	var result := {"ok": false, "city": null, "snapshot": {}, "stage": STAGE_PLAY, "generator": {}, "error": "", "version": 0, "topology": null}
+	var result := {"ok": false, "city": null, "snapshot": {}, "stage": STAGE_PLAY, "generator": {}, "error": "", "version": 0, "topology": null, "explore_mods": {}, "mod_notices": []}
 	if not FileAccess.file_exists(path):
 		result["error"] = MESSAGE_MISSING
 		return result
@@ -286,6 +290,10 @@ static func load(path: String) -> Dictionary:
 	result["generator"] = generator if typeof(generator) == TYPE_DICTIONARY else {}
 	if result["generator"].get("source") == "real_world":
 		result["generator"]["terrain_origin"] = RealWorldManifest.sanitize_origin(generator.get("terrain_origin"))
+	var progress := ExploreModProgress.new()
+	var restored := progress.restore(doc.get("explore_mods", {}))
+	result["explore_mods"] = progress.snapshot()
+	result["mod_notices"] = restored.notices
 	result["ok"] = true
 	return result
 

@@ -11,6 +11,7 @@ extends Control
 
 signal option_changed(key: StringName, value: Variant)
 signal closed
+signal mods_requested
 
 var panel: PanelContainer
 var checks: Dictionary = {}
@@ -110,6 +111,10 @@ func _build() -> void:
 	checks[&"offer_ramps"] = ramps_check
 	body.add_child(ramps_check)
 	body.add_child(UIFactory.make_section_header("Explore"))
+	var mods := UIFactory.make_button("Explore Mods")
+	mods.name = "ExploreMods"
+	mods.pressed.connect(func() -> void: mods_requested.emit())
+	body.add_child(mods)
 	body.add_child(UIFactory.make_label("Pedestrian character"))
 	character_button = OptionButton.new()
 	character_button.name = "PedestrianCharacter"

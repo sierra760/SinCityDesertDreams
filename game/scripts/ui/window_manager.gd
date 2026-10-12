@@ -16,12 +16,13 @@ const SCRIPTS := {
 	"license": preload("res://scripts/ui/license_window.gd"),
 	"neighbors": preload("res://scripts/ui/neighbors_window.gd"),
 	"newspaper": preload("res://scripts/ui/newspaper_window.gd"),
+	"explore_mods": preload("res://scripts/ui/explore_mods_panel.gd"),
 	"options": preload("res://scripts/ui/options_window.gd"),
 	"ordinances": preload("res://scripts/ui/ordinances_window.gd"),
 	"population": preload("res://scripts/ui/population_window.gd"),
 }
 ## Windows that can open before the city is founded.
-const EDITING_WINDOWS: Array[String] = ["options", "help", "license"]
+const EDITING_WINDOWS: Array[String] = ["options", "help", "license", "explore_mods"]
 
 ## name -> window, created on first use.
 var windows: Dictionary = {}
@@ -45,7 +46,11 @@ func open(window_name: String) -> Control:
 	if w == null:
 		_host.status_bar.set_message("The %s window is not available." % window_name.replace("_", " "))
 		return null
-	if w.has_method("bind"):
+	if w is ExploreModsPanel:
+		_host.mod_registry.service = _host.exploration.mod_service
+		w.progress = _host.mod_progress
+		w.bind(_host.mod_registry,_host.exploration.mod_service)
+	elif w.has_method("bind"):
 		w.call("bind", _host.sim)
 	if w is OptionsWindow:
 		_host.prefs.refresh_options_window(_host.display_layout.metrics)
@@ -55,7 +60,7 @@ func open(window_name: String) -> Control:
 	_place(w)
 	open_windows.erase(w)
 	open_windows.append(w)
-	var layer := _host.ui_layer if _host.in_game else _host.modal_layer
+	var layer := _host.modal_layer if w is ExploreModsPanel else (_host.ui_layer if _host.in_game else _host.modal_layer)
 	if w.get_parent() != layer: w.reparent(layer)
 	_place(w)
 	layer.move_child(w, layer.get_child_count() - 1)
@@ -76,6 +81,9 @@ func window(window_name: String) -> Control:
 	w.connect("closed", _on_window_closed.bind(w))
 	if w is OptionsWindow:
 		(w as OptionsWindow).option_changed.connect(_host.prefs.set_option)
+		(w as OptionsWindow).mods_requested.connect(func() -> void:
+			w.close()
+			_host.open_explore_mods())
 	elif w is OrdinancesWindow:
 		(w as OrdinancesWindow).ordinance_changed.connect(func(_key: StringName, _on: bool) -> void: _host.refresh_toolbar())
 	elif w is CityMapsWindow:
@@ -124,7 +132,10 @@ func front() -> Control:
 ## Point every created window at the simulation of a newly bound city.
 func bind_all(sim: Simulation) -> void:
 	for w: Control in windows.values():
-		if w.has_method("bind"):
+		if w is ExploreModsPanel:
+			w.progress = _host.mod_progress
+			w.bind(_host.mod_registry,null)
+		elif w.has_method("bind"):
 			w.call("bind", sim)
 
 

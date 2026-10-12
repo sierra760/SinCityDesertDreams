@@ -37,6 +37,7 @@ const DEFAULTS := {
 	## Ask about highway ramps after a road or highway build.
 	"offer_ramps": true,
 	"explore_character": "woman",
+	"explore_enabled_mods": [],
 	"control_bindings": {},
 	## 2 adds the arrow keys as Explore movement alternates.
 	"control_bindings_version": CONTROL_BINDINGS_VERSION,
@@ -51,6 +52,7 @@ const DEFAULTS := {
 
 static func sanitize(settings: Dictionary) -> Dictionary:
 	var clean := DEFAULTS.duplicate()
+	clean["explore_enabled_mods"] = clean_mod_ids(settings.get("explore_enabled_mods",[]))
 	clean["mayor_name"] = clean_mayor_name(settings.get("mayor_name", ""))
 	var bindings: Variant = settings.get("control_bindings",{})
 	var version: Variant = settings.get("control_bindings_version",1)
@@ -142,3 +144,15 @@ static func write(settings: Dictionary, path: String = PATH) -> Error:
 	for key: String in clean:
 		config.set_value(SECTION, key, clean[key])
 	return config.save(path)
+
+
+static func clean_mod_ids(value: Variant) -> Array[String]:
+	var result: Array[String] = []
+	if not value is Array: return result
+	for item: Variant in value.slice(0,128):
+		if not item is String or item.is_empty() or item.length() > 64 or item in result: continue
+		var valid := true
+		for c in item:
+			if not c in "abcdefghijklmnopqrstuvwxyz0123456789._": valid = false
+		if valid and result.size() < 8: result.append(item)
+	return result

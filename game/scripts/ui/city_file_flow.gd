@@ -75,7 +75,7 @@ func prepare_city_share(path: String = "") -> Dictionary:
 	if not path.is_empty(): return CityShare.copy_saved(path)
 	if not _host.in_game: return {"ok":false,"error":"Open a city before sharing it."}
 	var editing := _host.stage == GameHost.Stage.EDITING
-	return CityShare.create_current(_host.sim.city,_host.sim.snapshot() if _host.stage == GameHost.Stage.PLAY else {},SaveFormat.STAGE_EDITING if editing else SaveFormat.STAGE_PLAY,_host.editing_params if editing else {})
+	return CityShare.create_current(_host.sim.city,_host.sim.snapshot() if _host.stage == GameHost.Stage.PLAY else {},SaveFormat.STAGE_EDITING if editing else SaveFormat.STAGE_PLAY,_host.editing_params if editing else {},CityShare.DIRECTORY,_host.explore_progress_snapshot())
 
 
 ## Reopen the Load browser on the save a share started from.
@@ -273,7 +273,7 @@ func save_content() -> Dictionary:
 	runtime.erase("speed")
 	runtime.erase("accumulator")
 	return {"city": SaveFormat.encode_city(sim.city), "runtime": runtime,
-		"stage": _host.stage, "generator": _host.editing_params}.duplicate(true)
+		"stage": _host.stage, "generator": _host.editing_params, "explore_mods": _host.explore_progress_snapshot()}.duplicate(true)
 
 
 func has_unsaved_changes() -> bool:
@@ -456,9 +456,9 @@ func write_save(path: String) -> Error:
 	var sim := _host.sim
 	var err: Error
 	if _host.stage == GameHost.Stage.EDITING:
-		err = SaveFormat.save(path, sim.city, {}, SaveFormat.STAGE_EDITING, _host.editing_params)
+		err = SaveFormat.save(path, sim.city, {}, SaveFormat.STAGE_EDITING, _host.editing_params, _host.explore_progress_snapshot())
 	else:
-		err = SaveFormat.save(path, sim.city, sim.snapshot())
+		err = SaveFormat.save(path, sim.city, sim.snapshot(), SaveFormat.STAGE_PLAY, {}, _host.explore_progress_snapshot())
 	if err == OK:
 		mark_saved()
 		# A named save supersedes the background recovery copy this session

@@ -347,3 +347,89 @@ func test_ambient_clock_samples_once_and_render_never_advances() -> void:
 	check_eq(traffic.detail_manager.debug_state().owner_updates,updates+1)
 	traffic.set_detail_enabled(false)
 	check(traffic.detail_manager==null,"disabling frees the pool")
+
+func test_wheel_distance_uses_partial_advances_and_preserves_clock_ownership() -> void:
+	host=Node3D.new()
+	root.add_child(host)
+	var traffic:=CityTraffic3D.new()
+	host.add_child(traffic)
+	var city: City=load("res://tests/test_explore_transit_network.gd").rail_city()
+	for x in range(18,34): city.building.put(x,24,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
+	traffic.bind_city(city)
+	traffic.actors.clear()
+	traffic.set_detail_enabled(true)
+	for id in [1,2]:
+		var cell:=Vector2i(23 if id==1 else 28,24)
+		traffic.actors.append({"id":id,"type":&"road","kind":&"car","domain":&"road","cell":cell,"previous":cell-Vector2i(1,0),"next":cell+Vector2i(1,0),"lane":0,"t":.49 if id==1 else .2,"variant":0,"turns":0,"side":1.0,"speed":.5,"length":.02,"stopped":false,"mod_owner":"distance","mod_handle":"distance:%d"%id,"mod_hold":false,"mod_failed":false,"mod_destination":cell if id==1 else Vector2i(32,24),"mod_route_index":0,"mod_route":[]})
+	traffic.advance_owned(.1)
+	var states:=traffic.visual_states(1)
+	check(absf(float(states[0].distance)-.01)<.000001,"arrival caps actual distance even when the final substep marks stopped")
+	check(absf(float(states[1].distance)-.05)<.000001,"free motion keeps speed times elapsed distance")
+	check(absf(float(states[0].visual_time)-.1)<.000001 and absf(float(states[1].visual_time)-.1)<.000001)
+	traffic._step(.1)
+	check_eq(traffic.visual_states(1),states,"Build clock never advances scripted wheel distance or time")
+	traffic._claims[2]=true
+	traffic.advance_owned(.1)
+	states=traffic.visual_states(1)
+	check(absf(float(states[0].distance)-.01)<.000001,"stationary owner adds no distance")
+	check(absf(float(states[0].visual_time)-.2)<.000001,"stationary owner still advances active time")
+	check(absf(float(traffic._detail_clocks[2].distance)-.05)<.000001 and absf(float(traffic._detail_clocks[2].time)-.1)<.000001,"claimed owner freezes both clocks")
+
+func test_ambient_stop_line_records_only_accepted_substep_distance() -> void:
+	host=Node3D.new()
+	root.add_child(host)
+	var traffic:=CityTraffic3D.new()
+	host.add_child(traffic)
+	var city:=flat_city()
+	for i in range(15,26):
+		city.building.put(i,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
+		city.building.put(20,i,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,5))
+	city.building.put(20,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,15))
+	var arriving: Dictionary={"id":1,"kind":&"car","type":&"road","domain":&"road","cell":Vector2i(20,20),"previous":Vector2i(19,20),"next":Vector2i(21,20),"lane":0,"side":1.0,"t":CityTraffic3D.STOP_LINE-.01,"speed":1.05,"turns":0,"stopped":false,"variant":0,"length":.3}
+	var crossing: Dictionary=arriving.duplicate()
+	crossing.id=2
+	crossing.previous=Vector2i(20,19)
+	crossing.next=Vector2i(20,21)
+	crossing.t=.5
+	crossing.speed=0.0
+	traffic.bind_city(city)
+	traffic.actors.assign([arriving,crossing])
+	traffic.set_detail_enabled(true)
+	traffic._step(.1)
+	check(not arriving.stopped,"partial stop-line advance retains existing movement flags")
+	check(absf(float(arriving.t)-(CityTraffic3D.STOP_LINE-.001))<.000001)
+	check(absf(float(traffic._detail_clocks[1].distance)-.009)<.000001,"wheels record actual stop-line creep instead of nominal speed")
+	check(absf(float(traffic._detail_clocks[1].time)-.1)<.000001)
+
+func test_highway_partial_distance_uses_segment_length() -> void:
+	host=Node3D.new()
+	root.add_child(host)
+	var traffic:=CityTraffic3D.new()
+	host.add_child(traffic)
+	var city:=flat_city()
+	for y in range(15,20):
+		for x in [20,21]: city.building.put(x,y,NetworkShapes.HIGHWAY_NS)
+	for x in range(22,27):
+		for y in [20,21]: city.building.put(x,y,NetworkShapes.HIGHWAY_EW)
+	for y in [20,21]:
+		for x in [20,21]: city.building.put(x,y,NetworkShapes.HIGHWAY_CORNER_NE)
+	traffic.bind_city(city)
+	traffic.actors.clear()
+	traffic.set_detail_enabled(true)
+	var cell:=Vector2i.ZERO
+	var segment: Dictionary={}
+	for candidate: Vector2i in traffic.graph.highways.routes:
+		for route: Dictionary in traffic.graph.highways.routes[candidate]:
+			if route.has("radius"):
+				cell=candidate
+				segment=route
+				break
+		if not segment.is_empty(): break
+	check(not segment.is_empty(),"connected highway fixture contains an authored arc")
+	if segment.is_empty(): return
+	var actor: Dictionary={"id":1,"type":&"highway","kind":&"car","domain":&"highway","cell":cell,"previous":segment.previous,"next":segment.next,"lane":segment.lane,"t":.49,"variant":0,"turns":0,"side":1.0,"speed":.5,"length":.02,"stopped":false,"mod_owner":"distance","mod_handle":"distance:1","mod_hold":false,"mod_failed":false,"mod_destination":cell,"mod_route_index":0,"mod_route":[]}
+	traffic.actors.append(actor)
+	var length:=maxf(.12,float(traffic.graph.highway_segment(cell,actor.previous,actor.next,actor.lane).length))
+	check(absf(length-1.0)>.001,"arc distinguishes segment-distance convention from raw t")
+	traffic.advance_owned(.1)
+	check(absf(float(traffic._detail_clocks[1].distance)-.01*length)<.000001,"partial highway advance converts t using the engine segment length")

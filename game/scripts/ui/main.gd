@@ -52,6 +52,8 @@ var explore_switch: ExploreModeSwitch
 var modal_layer: CanvasLayer
 var loading_screen: GameLoadingScreen
 var city_view_3d: CityView3D
+var mod_progress := ExploreModProgress.new()
+var mod_registry := ExploreModRegistry.new()
 var exploration: CityExplorationController
 var explore_hud: ExploreHUD
 var cursor_caption_3d: Label
@@ -74,6 +76,7 @@ var casino_overlay: CasinoTableOverlay
 ## Music, interface sounds and effects.
 var audio: GameAudio
 var _casino_hid_hud := false
+var _mod_dialogue: ConstructionChoiceDialog
 
 ## The selected tool, or NO_TOOL.
 var tool := NO_TOOL
@@ -190,6 +193,12 @@ func _ready() -> void:
 		var options := window_manager.open("options") as OptionsWindow
 		if options != null: options.tabs.current_tab = 1)
 	exploration = CityExplorationController.new()
+	exploration.mod_progress = mod_progress
+	mod_registry.set_preferences(preferences.get("explore_enabled_mods",[]))
+	mod_registry.scan("res://explore_mods")
+	exploration.mod_packs = mod_registry.active_packs()
+	mod_registry.changed.connect(_mods_changed)
+	explore_hud.mods_requested.connect(open_explore_mods)
 	exploration.controls = controls
 	exploration.set_pedestrian_character(preferences["explore_character"])
 	add_child(exploration)
@@ -198,6 +207,8 @@ func _ready() -> void:
 	exploration.touch_controls_changed.connect(func(_on: bool) -> void:
 		if is_instance_valid(shell) and is_exploring(): shell.update_minimap_visibility())
 	exploration.input_blocked = is_explore_input_blocked
+	exploration.mod_dialogue_presenter = open_mod_dialogue
+	exploration.mod_dialogue_dismisser = close_mod_dialogue
 	exploration.release_ui_focus = display_layout.release_city_focus
 	exploration.return_requested.connect(explore_switch.leave)
 	exploration.casino_table_requested.connect(_on_casino_table_requested)
@@ -419,11 +430,16 @@ func run_loading(title: String, detail: String, work: Callable) -> Variant:
 	return result
 
 
+## Current-city committed progress; saving never dispatches script callbacks.
+func explore_progress_snapshot() -> Dictionary:
+	return mod_progress.snapshot()
+
+
 ## Write the annual backup. Only a founded city has one.
 func autosave() -> Error:
 	if stage != Stage.PLAY:
 		return ERR_UNAVAILABLE
-	return SaveFormat.save(CityFileFlow.autosave_path(), sim.city, sim.snapshot())
+	return SaveFormat.save(CityFileFlow.autosave_path(), sim.city, sim.snapshot(), SaveFormat.STAGE_PLAY, {}, explore_progress_snapshot())
 
 
 ## iOS keeps applications alive; leaving a city returns to the title instead.
@@ -450,7 +466,7 @@ func suspend_for_background(recovery_path: String = "") -> Error:
 		return _background_save_error
 	sim.set_speed(GameClock.Speed.PAUSED)
 	var path := CityFileFlow.application_recovery_path() if recovery_path.is_empty() else recovery_path
-	_background_save_error = SaveFormat.save(path, sim.city, {}, SaveFormat.STAGE_EDITING, editing_params) if stage == Stage.EDITING else SaveFormat.save(path, sim.city, sim.snapshot())
+	_background_save_error = SaveFormat.save(path, sim.city, {}, SaveFormat.STAGE_EDITING, editing_params, explore_progress_snapshot()) if stage == Stage.EDITING else SaveFormat.save(path, sim.city, sim.snapshot(), SaveFormat.STAGE_PLAY, {}, explore_progress_snapshot())
 	if _background_save_error == OK and is_instance_valid(files) and CityFileFlow.is_application_recovery_path(path):
 		files.note_recovery_copy(sim.city)
 	return _background_save_error
@@ -1338,3 +1354,39 @@ func _exit_tree() -> void:
 	get_tree().auto_accept_quit = _previous_auto_accept_quit
 	explore_switch.dispose()
 	prefs.flush()
+
+## Outdoor dialogue uses the same host pause and input boundary as other modals.
+func open_mod_dialogue(data: Dictionary) -> bool:
+	if not is_exploring() or is_input_blocked(): return false
+	if _mod_dialogue == null:
+		_mod_dialogue = ConstructionChoiceDialog.new()
+		_mod_dialogue.name = "ExploreDialogue"
+		modal_layer.add_child(_mod_dialogue)
+		_mod_dialogue.chosen.connect(func(key: StringName) -> void:
+			if exploration.mod_service != null: exploration.mod_service.api.interactions.choose(String(key)))
+		_mod_dialogue.cancelled.connect(func() -> void:
+			if exploration.mod_service != null: exploration.mod_service.api.interactions.choose(""))
+	push_modal()
+	_mod_dialogue.open(String(data.speaker),String(data.text),data.choices,0,"Choose","Close")
+	_mod_dialogue.price_label.hide()
+	for i in _mod_dialogue.option_buttons.size(): _mod_dialogue.option_buttons[i].text = String(data.choices[i].label)
+	_mod_dialogue.panel.custom_minimum_size.x = 0
+	_mod_dialogue.panel.size.x = minf(400,get_viewport().get_visible_rect().size.x-16)
+	exploration.suspend()
+	return true
+
+func close_mod_dialogue() -> void:
+	if _mod_dialogue == null: return
+	_mod_dialogue.hide()
+	pop_modal()
+	exploration.resume_if_unblocked()
+
+
+func open_explore_mods() -> void:
+	if is_exploring(): exploration._suspend(true)
+	window_manager.open("explore_mods")
+
+func _mods_changed() -> void:
+	exploration.mod_packs = mod_registry.active_packs()
+	if exploration.mod_service != null: exploration.mod_service.configure_packs(exploration.mod_packs)
+	prefs.set_value("explore_enabled_mods",mod_registry.enabled_ids())

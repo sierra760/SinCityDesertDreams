@@ -190,6 +190,7 @@ func advance(delta: float, paused: bool, records: Array = [], camera: Camera3D =
 func _reconcile() -> void:
 	for i: int in range(actors.size()-1,-1,-1):
 		var a: Dictionary = actors[i]
+		if a.domain == &"air" and a.has("mod_owner"): continue # Registry owns revision invalidation.
 		if not (_choice_continues(a.cell,a.domain,a.previous,int(a.get(&"lane",0)),a.next) or _exit_choice(a.cell,a.domain,a.previous,int(a.get(&"lane",0))) == a.next) or not (_route_has(a.previous,a.domain) or (a.domain in [&"road",&"highway"] and _route_has(a.previous,&"road"))) or (a.domain == &"rail" and (_reserved_rail.has(a.cell) or _reserved_rail.has(a.next))): actors.remove_at(i)
 	var cars := 0.0
 	var people := 0.0
@@ -207,7 +208,10 @@ func _reconcile() -> void:
 	# Each type's pass removes and admits only its own type, so every type's
 	# count at the start of its pass equals its count before the first pass.
 	var counts: Dictionary = {}
-	for a: Dictionary in actors: counts[a.type] = int(counts.get(a.type,0))+1
+	var vehicle_total := 0
+	for a: Dictionary in actors:
+		counts[a.type] = int(counts.get(a.type,0))+1
+		if a.type != &"pedestrian": vehicle_total += 1
 	# Bounded, deterministic admission weighted by local development/congestion.
 	for type: StringName in [&"road", &"highway", &"pedestrian", &"rail", &"water"]:
 		var count := int(counts.get(type,0))
@@ -215,9 +219,10 @@ func _reconcile() -> void:
 		if count > target:
 			for i: int in range(actors.size()-1,-1,-1):
 				if count <= target: break
-				if actors[i].type == type and not _claims.has(actors[i].id):
+				if actors[i].type == type and not _claims.has(actors[i].id) and not actors[i].has("mod_owner"):
 					actors.remove_at(i)
 					count -= 1
+					if type != &"pedestrian": vehicle_total -= 1
 		if count >= target: continue
 		var domain: StringName = &"road" if type == &"pedestrian" else type
 		var choices := graph.cells(domain)
@@ -226,7 +231,7 @@ func _reconcile() -> void:
 		for other: Dictionary in actors: admission[_admission_key(other.type,other.cell,other.next,other.get("lane",0))] = true
 		var attempts := mini(2048, choices.size()*4)
 		for attempt: int in attempts:
-			if count >= target: break
+			if count >= target or (type != &"pedestrian" and vehicle_total >= MAX_VEHICLES): break
 			var cell: Vector2i = choices[posmod(_next_id*37 + attempt*17, choices.size())]
 			if type == &"road" and _upper_road(cell): continue
 			# Same predicate as graph.allows_pedestrians(cell).
@@ -257,6 +262,7 @@ func _reconcile() -> void:
 				"length":CityTrafficCatalog.dimensions(kind).z,"stopped":false})
 			_next_id += 1
 			count += 1
+			if type != &"pedestrian": vehicle_total += 1
 
 ## One admission slot per ramp cell, otherwise per type/cell/next/lane. Common
 ## values use an integer key; anything else keeps the equivalent string key.
@@ -281,16 +287,16 @@ func _choose_kind(type: StringName, cell: Vector2i, id: int) -> StringName:
 	return [&"car",&"compact",&"sedan",&"pickup",&"van"][id%5]
 
 func _step(delta: float) -> void:
-	_step_motion(delta)
-	_advance_detail_clock(delta)
-	if detail_manager != null: detail_manager.advance(visual_states(),delta)
+	_step_clock(delta,false)
+	_advance_detail_clock(delta,false)
+	if detail_manager!=null: detail_manager.advance(_detail_visual_states(null,true,0),delta)
 
-func _step_motion(delta: float) -> void:
+func _step_clock(delta: float, explore_clock: bool) -> void:
 	for i: int in range(actors.size()-1,-1,-1):
 		var waiting_actor: Dictionary = actors[i]
-		if _claims.has(waiting_actor.id): continue
+		if _claims.has(waiting_actor.id) or waiting_actor.has("mod_owner") != explore_clock: continue
 		waiting_actor.wait = float(waiting_actor.get(&"wait",0.0))+delta if waiting_actor.stopped else 0.0
-		if float(waiting_actor.wait) > STUCK_LIMIT and (waiting_actor.type == &"road" or waiting_actor.type == &"highway"): actors.remove_at(i)
+		if not explore_clock and float(waiting_actor.wait) > STUCK_LIMIT and (waiting_actor.type == &"road" or waiting_actor.type == &"highway"): actors.remove_at(i)
 	var occupied: Dictionary = {}
 	var entries: Dictionary = {}
 	var rail_crossings: Dictionary = {}
@@ -300,8 +306,8 @@ func _step_motion(delta: float) -> void:
 	var waiting: Dictionary = {}
 	var merging: Dictionary = {}
 	for a: Dictionary in actors:
-		if _claims.has(a.id): continue
-		_record_render_state(a)
+		if _claims.has(a.id) or a.domain == &"air": continue
+		if a.has("mod_owner") == explore_clock: _record_render_state(a)
 		var cell: Vector2i = a.cell
 		var ramp := _ramp(cell)
 		if ramp: ramps[cell] = a.id
@@ -344,7 +350,15 @@ func _step_motion(delta: float) -> void:
 		grants[junction] = _junction_grant(waiting[junction],int(boxes.get(junction,0)),entries,box_exits,ready)
 	var leaving: Dictionary = {}
 	for a: Dictionary in actors:
-		if _claims.has(a.id): continue
+		if _claims.has(a.id) or a.has("mod_owner") != explore_clock: continue
+		if a.domain == &"air":
+			var prior_position: Vector3 = a.air_position
+			ExploreAirWaypoints.step(a,delta,self)
+			_record_detail_distance(a.id,prior_position.distance_to(a.air_position))
+			continue
+		if explore_clock and (a.get("mod_hold",true) or a.get("mod_failed",false)):
+			a.stopped = true
+			continue
 		if a.domain == &"rail" and _reserved_rail.has(a.next):
 			a.stopped = true
 			continue
@@ -377,10 +391,18 @@ func _step_motion(delta: float) -> void:
 					if other.id != a.id and 1.0-float(a.t)+float(other.t) < _following_gap(a,other): speed = 0; break
 		# Slow terminal turns rather than advancing a narrow reversal at street speed.
 		if a.previous == a.next and a.type != &"pedestrian": speed = minf(speed,.25)
+		if explore_clock and a.cell == a.mod_destination: limit = minf(limit,.5)
 		var prior_t := float(a.t)
 		var segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
 		a.t = maxf(prior_t,minf(prior_t + speed*delta / maxf(.12,float(segment.get("length",1.0))),limit))
+		var advanced := (float(a.t)-prior_t)*maxf(.12,float(segment.get("length",1.0)))
 		a.stopped = float(a.t) == prior_t
+		if explore_clock:
+			a.mod_phase = float(a.get("mod_phase",0.0)) + (float(a.t)-prior_t)*16.0
+			if a.cell == a.mod_destination and float(a.t) >= .5:
+				a.mod_hold = true
+				a.mod_arrived = true
+				a.stopped = true
 		if junction >= 0 and a.type != &"pedestrian" and float(a.t) >= STOP_LINE:
 			boxes[junction] = int(boxes.get(junction,0)) | _axis_bit(a)
 			var exit := _lane_key(&"road",&"road",a.cell,a.next)
@@ -436,6 +458,14 @@ func _step_motion(delta: float) -> void:
 			if choices.is_empty() and next_domain == &"highway":
 				var exit := _exit_choice(a.next,next_domain,prior,next_lane)
 				if exit != CityTrafficGraph.INVALID: choices.append(exit)
+			if explore_clock and int(a.mod_route_index)+1 < a.mod_route.size():
+				var intended: Vector2i = a.mod_route[int(a.mod_route_index)+1]
+				if not choices.has(intended):
+					a.mod_failed = true
+					a.stopped = true
+					a.t = prior_t
+					continue
+				choices.assign([intended])
 			if choices.is_empty():
 				a.t = prior_t
 				a.stopped = true
@@ -447,10 +477,12 @@ func _step_motion(delta: float) -> void:
 			a.domain = next_domain
 			if a.type in [&"road",&"highway"]: a.type = a.domain
 			a.cell = a.next
+			if explore_clock: a.mod_route_index = int(a.mod_route_index)+1
 			a.turns = int(a.turns)+1
 			a.next = choices[posmod(int(a.id)*11+int(a.turns)*7,choices.size())]
 			var following_segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
 			a.t = (float(a.t)-1)*maxf(.12,float(segment.get("length",1.0)))/maxf(.12,float(following_segment.get("length",1.0)))
+		_record_detail_distance(a.id,advanced)
 	if not leaving.is_empty():
 		for i: int in range(actors.size()-1,-1,-1):
 			if leaving.has(actors[i].id): actors.remove_at(i)
@@ -551,6 +583,7 @@ func _pose_cached(a: Dictionary) -> bool:
 	return a.get(&"_pose_t",-1.0) == a.t and a.get(&"_pose_revision",-1) == graph.revision and a.get(&"_pose_cell") == a.cell and a.get(&"_pose_previous") == a.previous and a.get(&"_pose_next") == a.next and a.get(&"_pose_style") == _pose_style(a)
 
 func actor_pose(a: Dictionary) -> Transform3D:
+	if a.domain == &"air": return Transform3D(Basis(Vector3.UP,float(a.air_yaw)),a.air_position)
 	var style := hash([a.type,a.domain,a.get(&"lane",0),a.side,a.get(&"reversed",false)])
 	if a.get(&"_pose_t",-1.0) == a.t and a.get(&"_pose_revision",-1) == graph.revision and a.get(&"_pose_cell") == a.cell and a.get(&"_pose_previous") == a.previous and a.get(&"_pose_next") == a.next and a.get(&"_pose_style") == style:
 		return a._pose
@@ -634,7 +667,7 @@ func _render(camera: Camera3D) -> void:
 			if _render_state(camera) == _paused_render_state:
 				statistics["render_cache_hits"] = int(statistics.get("render_cache_hits",0))+1
 				return
-	var promoted: Dictionary = detail_manager.update(visual_states(),camera) if detail_manager != null else {}
+	var promoted: Dictionary = detail_manager.update(_detail_visual_states(camera),camera) if detail_manager != null else {}
 	var groups: Dictionary = {}
 	var visible_count := 0
 	# Camera/display ownership may change between renders. Capture only for this
@@ -663,7 +696,7 @@ func _render(camera: Camera3D) -> void:
 		var from := prior if prior.origin.distance_squared_to(target.origin)<2.25 else target
 		a._render_from = from
 		a._render_target = target
-		var pose: Transform3D = from.interpolate_with(target,weight)
+		var pose: Transform3D = target if a.has("mod_owner") else from.interpolate_with(target,weight)
 		# Different tick durations have different presentation latency. Catch up
 		# from the displayed pose at a bounded rate rather than dropping that lag
 		# in one frame. Pausing also pauses this brief handoff.
@@ -977,8 +1010,69 @@ func get_drive_route(kind: StringName, near_position: Vector3) -> Dictionary:
 		cell = choices[0]
 	return {"points":points,"cells":cells,"domain":domain,"revision":graph.revision}
 
+## Owned records share ambient geometry, occupancy and batching. Only this entry
+## advances their separate active-Explore clock; ordinary advance never does.
+func advance_owned(delta: float) -> void:
+	# Empty scripted populations need no ambient occupancy/junction rebuild.
+	# Keep clock pruning after removal; the paused render key tracks membership.
+	var has_owned := false
+	for actor: Dictionary in actors:
+		if actor.has("mod_owner"):
+			has_owned = true
+			break
+	var left := maxf(0,delta)
+	while left > .000001:
+		var amount := minf(STEP,left)
+		if has_owned: _step_clock(amount,true)
+		_advance_detail_clock(amount,true)
+		left -= amount
+	if not has_owned:
+		var empty_states: Array[Dictionary] = []
+		if detail_manager != null: detail_manager.advance(empty_states,delta)
+		return
+	if detail_manager!=null: detail_manager.advance(_detail_visual_states(null,true,1),delta)
+	_render_serial += 1
+	_paused_camera_ready = false
+	_paused_render_state.clear()
 
-## Explore allocates nearby detail; traffic retains ownership of ambient time.
+func owned_spawn(owner: String, kind: StringName, cell: Vector2i, variant: int, air_position: Vector3 = Vector3.INF, air_world: CityTraversalWorld3D = null) -> Dictionary:
+	var domain := CityTrafficCatalog.domain(kind)
+	if domain == &"air" and (not ExploreAirWaypoints.clear_segment(air_world,kind,air_position,air_position) or not ExploreAirWaypoints.separated(self,kind,-1,air_position,air_position)): return {}
+	if domain != &"air" and (not graph.has_cell(cell,domain) or (kind == &"pedestrian" and not graph.allows_pedestrians(cell))): return {}
+	var people := 0
+	var vehicles := 0
+	var owned := 0
+	for actor in actors:
+		if actor.type == &"pedestrian": people += 1
+		else: vehicles += 1
+		if actor.has("mod_owner"): owned += 1
+	if owned >= 64 or (people >= MAX_PEDESTRIANS if kind == &"pedestrian" else vehicles >= MAX_VEHICLES): return {}
+	var choices: Array[Vector2i] = []
+	if domain == &"air": choices.append(cell)
+	else: choices.assign(graph.neighbors(cell,domain))
+	if kind == &"pedestrian": choices = choices.filter(func(next: Vector2i) -> bool: return graph.allows_pedestrians(next))
+	if domain == &"rail": choices = choices.filter(func(next: Vector2i) -> bool: return not _reserved_rail.has(next))
+	if choices.is_empty() or (domain == &"rail" and _reserved_rail.has(cell)): return {}
+	var next: Vector2i = choices[0]
+	var previous: Vector2i = choices.back()
+	for actor in actors:
+		if domain != &"air" and actor.cell == cell and actor.type == (&"pedestrian" if kind == &"pedestrian" else domain) and absf(float(actor.t)-.5) < FOLLOW_GAP: return {}
+	var record := {"id":_next_id,"type":&"pedestrian" if kind == &"pedestrian" else domain,"kind":kind,"domain":domain,"cell":cell,"previous":previous,"next":next,"lane":0,"t":.5,"variant":variant,"turns":0,"side":1.0,"speed":.09 if kind == &"pedestrian" else .6 if domain == &"water" else 1.2 if domain == &"rail" else 1.05,"length":CityTrafficCatalog.dimensions(kind).z,"stopped":true,"mod_owner":owner,"mod_hold":true,"mod_phase":0.0}
+	if domain == &"air":
+		record["air_position"] = air_position
+		record["air_yaw"] = 0.0
+		record["air_world"] = air_world
+		record["air_revision"] = air_world.revision
+	_next_id += 1
+	actors.append(record)
+	return record
+
+func owned_remove(id: int) -> void:
+	for index in range(actors.size()-1,-1,-1):
+		if actors[index].id == id and actors[index].has("mod_owner") and not _claims.has(id): actors.remove_at(index)
+
+## Explore alone allocates nearby detail; the traffic owner keeps ambient time,
+## and advance_owned keeps scripted time. Neither path changes motion rules.
 func set_detail_enabled(enabled: bool) -> void:
 	_detail_clocks.clear()
 	if detail_manager != null:
@@ -990,24 +1084,67 @@ func set_detail_enabled(enabled: bool) -> void:
 	_paused_render_state.clear()
 	_paused_camera_ready=false
 
-func _advance_detail_clock(delta: float) -> void:
+func _record_detail_distance(id: int, advanced: float) -> void:
+	if detail_manager==null: return
+	if not _detail_clocks.has(id):
+		_detail_clocks[id]={"time":0.0,"distance":0.0}
+	var clock: Dictionary=_detail_clocks[id]
+	clock.distance+=advanced
+
+func _advance_detail_clock(delta: float, owned: bool) -> void:
 	if detail_manager==null: return
 	var live: Dictionary={}
 	for actor in actors:
 		live[actor.id]=true
-		if _claims.has(actor.id): continue
-		var clock: Dictionary=_detail_clocks.get(actor.id,{"time":0.0,"distance":0.0})
+		if actor.has("mod_owner")!=owned or _claims.has(actor.id): continue
+		if not _detail_clocks.has(actor.id):
+			_detail_clocks[actor.id]={"time":0.0,"distance":0.0}
+		var clock: Dictionary=_detail_clocks[actor.id]
 		clock.time+=delta
-		clock.distance+=0.0 if actor.stopped else float(actor.speed)*delta
-		_detail_clocks[actor.id]=clock
 	for id in _detail_clocks.keys():
 		if not live.has(id): _detail_clocks.erase(id)
 
-## Copied presentation state; visual selection never advances the owner clock.
-func visual_states() -> Array[Dictionary]:
+## Copied host-only records. No engine object crosses the Lua boundary.
+func visual_states(owner_filter: int = -1) -> Array[Dictionary]:
 	var result: Array[Dictionary]=[]
 	for actor in actors:
 		if _claims.has(actor.id): continue
-		var pose:=actor_pose(actor)
-		result.append({"id":String(actor.get("mod_handle","ambient:"+str(actor.id))),"kind":String(actor.kind),"variant":int(actor.variant),"position":pose.origin,"yaw":pose.basis.get_euler().y,"speed":0.0 if actor.stopped else float(actor.speed),"steering":0.0,"airborne":actor.domain==&"air","phase":float(actor.get("mod_phase",_elapsed*float(actor.speed)*16.0+float(actor.id)*.173)),"visual_time":float(_detail_clocks.get(actor.id,{}).get("time",0.0)),"distance":float(_detail_clocks.get(actor.id,{}).get("distance",0.0)),"gesture":String(actor.get("visual_gesture","")),"gesture_time":float(actor.get("visual_gesture_time",0.0))})
+		if owner_filter>=0 and actor.has("mod_owner")!=(owner_filter==1): continue
+		result.append(_visual_state(actor))
 	return result
+
+## State sampling for the bounded detail pool only. Public visual_states remains
+## exhaustive; owner clocks/distance still advance for every live actor.
+func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_filter: int = -1) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var selected: Array = detail_manager.debug_state().ids if selected_only else []
+	if selected_only and selected.is_empty(): return result
+	if not selected_only and (not is_instance_valid(camera) or not is_visible_in_tree()): return result
+	var camera_position := camera.global_position if not selected_only else Vector3.ZERO
+	for actor: Dictionary in actors:
+		if _claims.has(actor.id): continue
+		if owner_filter>=0 and actor.has("mod_owner")!=(owner_filter==1): continue
+		if selected_only:
+			var id := String(actor.get("mod_handle","ambient:"+str(actor.id)))
+			if not selected.has(id): continue
+		elif not _detail_may_be_near(actor,camera_position): continue
+		result.append(_visual_state(actor))
+	return result
+
+func _detail_may_be_near(actor: Dictionary, camera_position: Vector3) -> bool:
+	if actor.domain == &"air":
+		return camera_position.distance_squared_to(actor.air_position) <= ExploreActorDetailManager.EXIT*ExploreActorDetailManager.EXIT
+	# Highway curves use authored anchors/radii; unusual extrapolated records
+	# retain exact evaluation too. Never assume they fit an ordinary tile.
+	if actor.domain == &"highway" or not is_finite(float(actor.t)) or not is_finite(float(actor.side)) or float(actor.t)<0.0 or float(actor.t)>1.0: return true
+	# Straight/turn/terminal and ramp ground poses stay within this square
+	# around the cell center (including arbitrary public side values). Ignore
+	# altitude here: a height/slope/bridge cannot create a false rejection.
+	var margin := ExploreActorDetailManager.EXIT + 2.0 + .4*absf(float(actor.side))
+	var center := Vector2(actor.cell) + Vector2(.5,.5)
+	var camera_xz := Vector2(camera_position.x,camera_position.z)
+	return absf(center.x-camera_xz.x)<=margin and absf(center.y-camera_xz.y)<=margin
+
+func _visual_state(actor: Dictionary) -> Dictionary:
+	var pose := actor_pose(actor)
+	return {"id":String(actor.get("mod_handle","ambient:"+str(actor.id))),"kind":String(actor.kind),"variant":int(actor.variant),"position":pose.origin,"yaw":pose.basis.get_euler().y,"speed":0.0 if actor.stopped else float(actor.speed),"steering":0.0,"airborne":actor.domain==&"air","phase":float(actor.get("mod_phase",_elapsed*float(actor.speed)*16.0+float(actor.id)*.173)),"visual_time":float(_detail_clocks.get(actor.id,{}).get("time",0.0)),"distance":float(_detail_clocks.get(actor.id,{}).get("distance",0.0)),"gesture":String(actor.get("visual_gesture","")),"gesture_time":float(actor.get("visual_gesture_time",0.0))}

@@ -25,6 +25,8 @@ var input_blocked: Callable
 var release_ui_focus: Callable
 ## Host policy: true while a notice or other modal owns input. A session that
 ## a modal suspended resumes by itself once the modal closes.
+var mod_dialogue_presenter: Callable
+var mod_dialogue_dismisser: Callable
 var modal_open: Callable
 ## Host policy: true while a Build window (Options, reports) is open. Resume
 ## waits until it is closed.
@@ -43,6 +45,9 @@ var car: CharacterBody3D
 var helicopter: CharacterBody3D
 var selected_vehicle: CharacterBody3D
 var transit_service: Node3D
+var mod_service: ExploreModService
+var mod_packs: Array[Dictionary] = []
+var mod_progress := ExploreModProgress.new()
 var resort_service: ExploreResortService
 ## The table record last requested on a resort floor, until it is released.
 var _casino_table: Dictionary = {}
@@ -180,6 +185,10 @@ func enter(city: City, origin: Vector3) -> bool:
 	_last_safe[pedestrian.get_instance_id()] = pedestrian.global_transform
 	hud.show_session(true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if _touch_enabled else Input.MOUSE_MODE_CAPTURED
+	if not mod_packs.is_empty():
+		mod_service = ExploreModService.new()
+		mod_service.bind(self,mod_packs,mod_progress)
+		mod_service.enter()
 	active_changed.emit(true)
 	_publish_status()
 	return true
@@ -399,6 +408,12 @@ func resume() -> void:
 		return
 	if release_ui_focus.is_valid(): release_ui_focus.call()
 	if input_blocked.is_valid() and bool(input_blocked.call()): return
+	if mod_service == null and not mod_packs.is_empty():
+		mod_service = ExploreModService.new()
+		mod_service.bind(self,mod_packs,mod_progress)
+		mod_service.enter()
+	elif mod_service != null:
+		mod_service.apply_configuration()
 	_suspended = false
 	_manual_pause = false
 	_resume_when_unblocked = false
@@ -471,6 +486,11 @@ func dispose() -> void:
 
 func _clear_actors() -> void:
 	if is_instance_valid(view) and is_instance_valid(view.traffic): view.traffic.set_detail_enabled(false)
+	if mod_service != null:
+		mod_service.leave("leave")
+		_release_traffic_claim()
+		mod_service.actors.release_detached()
+		mod_service = null
 	_release_traffic_claim()
 	# Station/portal cut-outs restore their visuals now; the kept physical
 	# world is brought up to date by the next entry's rebuild, before any query.
@@ -545,9 +565,12 @@ func _physics_process(delta: float) -> void:
 		return
 	if _suspended:
 		_check_auto_resume()
-		if _suspended: return
+		if _suspended:
+			if mod_service != null: mod_service.step(0,true)
+			return
 	_tick_message(delta)
 	if not _reconcile_revision(): return
+	if mod_service != null: mod_service.step(delta,false)
 	if _pending_recovery:
 		_pending_recovery = false
 		if not _recover_nearby(): return
@@ -806,6 +829,8 @@ func request_interaction() -> bool:
 				return entered
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): return _board_marina(&"sailboat",marina)
+		if mod_service != null and mod_service.activate_interaction(): return true
+		if _board_mod_vehicle(): return true
 		var nearest := _nearest_vehicle()
 		if nearest == null:
 			_ambient_claimed = false
@@ -946,6 +971,7 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 	elif mode == 0:
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): prompt="F to board a boat at the marina"
+		elif not _nearby_mod_vehicle().is_empty(): prompt = "F to enter nearby vehicle"
 		elif _nearest_vehicle() != null: prompt = "F to enter nearby vehicle"
 		else:
 			var now := Time.get_ticks_msec()
@@ -960,6 +986,10 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 	if is_instance_valid(resort_service):
 		status["resort"] = resort_service.status()
 		if not _casino_table.is_empty(): status["table_camera"] = casino_table_pose(_casino_table)
+	if mod_service != null:
+		var entry := mod_service.api.interactions.nearby(mod_service.queries.player)
+		if mode == 0 and not inside_resort and resort_door.is_empty() and String(transit_status.get("elevator_prompt","")).is_empty() and MarinaAccess.nearby(view.city,pedestrian.global_position).is_empty() and not entry.is_empty(): status["prompt"] = "F to "+String(entry.label)
+		status["objectives"] = mod_service.api.objectives.journal()
 	hud.set_status(status)
 	if is_instance_valid(transit_service):
 		_update_camera_space(transit_status)
@@ -1153,6 +1183,10 @@ func _board_ambient() -> bool:
 	if traffic == null or not traffic.has_method("claim_nearby_vehicle"): return false
 	var claim: Dictionary = traffic.claim_nearby_vehicle(pedestrian.global_position,.65)
 	if claim.is_empty(): return false
+	for actor: Dictionary in traffic.actors:
+		if actor.id == claim.id and actor.has("mod_owner") and not actor.get("mod_enterable",false):
+			traffic.release_vehicle(claim,claim.position)
+			return false
 	_ambient_claimed = true
 	if _select_vehicle(StringName(claim.kind),claim): return true
 	traffic.release_vehicle(claim,claim.position)
@@ -1164,6 +1198,7 @@ func _release_traffic_claim() -> void:
 	if traffic != null and traffic.has_method("release_vehicle"):
 		var position: Vector3 = _claimed_vehicle.global_position if is_instance_valid(_claimed_vehicle) else _traffic_claim.position
 		traffic.release_vehicle(_traffic_claim,position)
+		if mod_service != null: mod_service.actors.release_detached()
 	_traffic_claim.clear()
 	_claimed_vehicle = null
 
@@ -1174,3 +1209,52 @@ static func _no_route_message(kind: StringName) -> String:
 		&"rail": return "No connected track nearby for the %s." % noun
 		&"road": return "No connected road nearby for the %s." % noun
 	return "No connected route nearby for the %s." % noun
+
+## Host owns the modal; no script receives GUI objects or callables.
+func mod_dialogue_busy() -> bool:
+	return not _active or _suspended or (input_blocked.is_valid() and bool(input_blocked.call())) or (is_instance_valid(resort_service) and resort_service.is_inside())
+
+func present_mod_dialogue(data: Dictionary) -> bool:
+	if mod_dialogue_busy(): return false
+	if mod_dialogue_presenter.is_valid():
+		var opened := bool(mod_dialogue_presenter.call(data))
+		if opened and not _manual_pause: _resume_when_unblocked = true
+		return opened
+	_suspend(false,false)
+	_resume_when_unblocked = true
+	return true
+
+func dismiss_mod_dialogue() -> void:
+	if mod_dialogue_dismisser.is_valid(): mod_dialogue_dismisser.call()
+	else: resume()
+
+func _nearby_mod_vehicle() -> Dictionary:
+	if mod_service == null or not is_instance_valid(pedestrian): return {}
+	var nearest: Dictionary = {}
+	var distance := .65*.65
+	var handles: Array = mod_service.actors._actors.keys()
+	handles.sort()
+	for id: String in handles:
+		var actor: Dictionary = mod_service.actors._actors[id]
+		var record: Dictionary = actor.record
+		if not record.get("mod_enterable",false) or view.traffic._claims.has(record.id): continue
+		var pose := view.traffic.actor_pose(record)
+		var d := pose.origin.distance_squared_to(pedestrian.global_position)
+		if d < distance:
+			distance = d
+			nearest = {"id":record.id,"kind":record.kind}
+	var parked := _nearest_vehicle()
+	if is_instance_valid(parked) and parked.global_position.distance_squared_to(pedestrian.global_position) < distance: return {}
+	return nearest
+
+func _board_mod_vehicle() -> bool:
+	var nearby := _nearby_mod_vehicle()
+	if nearby.is_empty(): return false
+	var claim := view.traffic.claim_nearby_vehicle(pedestrian.global_position,.65)
+	if claim.is_empty(): return false
+	if claim.id != nearby.id:
+		view.traffic.release_vehicle(claim,claim.position)
+		return false
+	if _select_vehicle(StringName(claim.kind),claim): return true
+	view.traffic.release_vehicle(claim,claim.position)
+	return false

@@ -28,11 +28,11 @@ static func _path(city_name: String, directory: String) -> String:
 		path = directory.path_join(folder).path_join(name + ".sc2d")
 	return path
 
-static func create_current(city: City, snapshot: Dictionary, stage: String, generator: Dictionary, directory: String = DIRECTORY) -> Dictionary:
+static func create_current(city: City, snapshot: Dictionary, stage: String, generator: Dictionary, directory: String = DIRECTORY, explore_mods: Dictionary = {}) -> Dictionary:
 	if city == null: return _failure("Open a city before sharing it.")
 	if FileAccess.file_exists(directory): return _failure("The share-copy folder is not available.")
 	var path := _path(city.name,directory)
-	var error := SaveFormat.save(path,city,snapshot,stage,generator)
+	var error := SaveFormat.save(path,city,snapshot,stage,generator,explore_mods)
 	if error != OK: return _failure("The share copy couldn't be written. Check free space and try again.")
 	_prune(directory,path)
 	return _success(path,city.name,city.mayor)

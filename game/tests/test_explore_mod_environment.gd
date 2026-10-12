@@ -1,0 +1,281 @@
+extends "res://tests/exploration/explore_session_case.gd"
+
+func test_environment_priority_and_restore() -> void:
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	camera.environment.ambient_light_color = Color(.3,.4,.5)
+	var original := camera.environment
+	var service := ExploreEnvironmentService.new()
+	service.bind(null,camera)
+	check_eq(service.apply("zulu",10,"daylight","night",{}).code,"ok")
+	check_eq(service.apply("alpha",10,"daylight","dawn",{}).code,"ok")
+	check_eq(service._winners.daylight.owner,"alpha","lexical tie break")
+	check_eq(service.apply("low",9,"daylight","day",{}).code,"ok")
+	check_eq(service._winners.daylight.owner,"alpha")
+	service.clear_owner("alpha")
+	check_eq(service._winners.daylight.owner,"zulu","winner removal reveals previous owner")
+	check_eq(original.ambient_light_color,Color(.3,.4,.5),"baseline resource not mutated")
+	service.restore()
+	check_eq(camera.environment.ambient_light_color,original.ambient_light_color)
+	check(camera.environment != original,"restoration uses a copy")
+	check(service._overrides.is_empty())
+	camera.free()
+
+func test_particle_caps_indoor_mask_wind_and_cleanup() -> void:
+	var view := CityView3D.new()
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	var service := ExploreEnvironmentService.new()
+	service.bind(view,camera)
+	service.apply("weather",1,"precipitation","dust",{})
+	service.apply("weather",1,"wind","gust",{})
+	for quality: String in ["high","balanced","performance"]:
+		view.render_quality = quality
+		service.step(.1,false)
+		check_eq(service._particles.multimesh.instance_count,ExploreEnvironmentService.CAPS[quality])
+		var first := service._particles.transform
+		service.step(.1,false)
+		check(service._particles.transform != first,"wind moves presentation")
+		service.step(.1,true)
+		check(not service._particles.visible,"transit/resort mask outdoor particles")
+		check_eq(service._winners.precipitation.preset,"dust","indoor mask retains outdoor request")
+		service.step(.1,false)
+		check(service._particles.visible)
+	service.restore()
+	check_eq(camera.get_child_count(),0,"effect nodes freed synchronously")
+	camera.free()
+	view.free()
+
+func test_bounded_parameters_and_owner_clear() -> void:
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	var service := ExploreEnvironmentService.new()
+	service.bind(null,camera)
+	for args in [["unknown","rain",{}],["haze","shader",{}],["haze","fog",{"intensity":2}],["haze","fog",{"resource":"file"}]]:
+		check_eq(service.apply("owner",1,args[0],args[1],args[2]).code,"invalid_argument")
+	service.apply("owner",1,"haze","fog",{})
+	check(camera.environment.fog_enabled)
+	service.step(0,true)
+	check(not camera.environment.fog_enabled,"interior lighting/fog baseline preserved")
+	service.step(0,false)
+	check(camera.environment.fog_enabled)
+	service.clear_owner("owner")
+	check(not camera.environment.fog_enabled)
+	service.restore()
+	camera.free()
+
+func test_actual_atmosphere_preserves_simulation_and_repeated_cleanup() -> void:
+	var value := flat_city()
+	for x in range(18,30): value.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
+	if not _setup(value): return
+	if not await _enter(): return
+	session.set_physics_process(false)
+	var simulation := Simulation.new()
+	simulation.setup(city,93)
+	var before := simulation.snapshot().duplicate(true)
+	var layers := SaveFormat.encode_city(city).duplicate(true)
+	var camera: Camera3D = session.camera_rig.camera
+	var baseline := camera.environment.duplicate(true) as Environment
+	for cycle in 4:
+		var service := ExploreModService.new()
+		service.bind(session,[ExploreModPack.read("res://explore_mods/desert_atmosphere")],ExploreModProgress.new())
+		service.enter()
+		for i in 5: service.step(.1,false)
+		check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+		var effect_ready := service.api.environment._winners.has("precipitation") and is_instance_valid(service.api.environment._particles)
+		check(effect_ready,"actual atmosphere must provide precipitation and particles")
+		if not effect_ready:
+			service.leave("failed_fixture")
+			check(service.runtime._sessions.is_empty(),"failed fixture releases VMs")
+			check(service.actors._actors.is_empty(),"failed fixture releases actors")
+			check(service.api._timers.is_empty(),"failed fixture releases timers")
+			check(not is_instance_valid(service.api.environment._particles),"failed fixture releases particles")
+			check(not RenderingServer.frame_pre_draw.is_connected(service._refresh_environment_mask),"failed fixture disconnects presentation callback")
+			continue
+		check_eq(service.api.environment._winners.precipitation.preset,"dust")
+		check(is_instance_valid(service.api.environment._particles))
+		check_eq(service.runtime.metrics().get("resources",{}).get("timers",-1),1,"metrics expose host timer ownership")
+		var ticks := service.runtime.tick_count
+		var timer_before := service.api._timers.duplicate(true)
+		session.camera_rig.set_interior(true)
+		RenderingServer.frame_pre_draw.emit()
+		check(not service.api.environment._particles.visible,"transit entry masks in the same render frame")
+		session.camera_rig.set_interior(false)
+		RenderingServer.frame_pre_draw.emit()
+		check(service.api.environment._particles.visible)
+		check_eq(service.runtime.tick_count,ticks,"pre-draw never advances scripts")
+		check_eq(service.api._timers,timer_before,"pre-draw never advances timers")
+		service.disable("desert_atmosphere")
+		service.step(.1,false)
+		check_eq(camera.get_child_count(),0,"disabled owner releases particle node")
+		check(service.api._timers.is_empty())
+		check_eq(service.runtime.metrics().get("resources",{}).get("particles",-1),0,"metrics show released particles")
+		check(service.actors._actors.is_empty())
+		service.leave("test")
+		check(not RenderingServer.frame_pre_draw.is_connected(service._refresh_environment_mask),"leave disconnects presentation callback")
+		check_eq(camera.environment.ambient_light_color,baseline.ambient_light_color)
+		check_eq(camera.environment.background_energy_multiplier,baseline.background_energy_multiplier)
+	check_eq(simulation.snapshot(),before,"simulation weather/clock/RNG unchanged by real pack")
+	check_eq(SaveFormat.encode_city(city),layers,"city layers unchanged")
+	simulation.free()
+
+# Resource identity makes redundant engine allocations observable without timing.
+func _environment_resource_ids(service: ExploreEnvironmentService, camera: Camera3D) -> Dictionary:
+	var particles := service._particles
+	var multimesh := particles.multimesh
+	var mesh := multimesh.mesh
+	return {"environment":camera.environment.get_instance_id(),"particles":particles.get_instance_id(),"multimesh":multimesh.get_instance_id(),"mesh":mesh.get_instance_id(),"material":mesh.surface_get_material(0).get_instance_id()}
+
+func test_unchanged_environment_winners_preserve_resources_and_accounting() -> void:
+	var view := CityView3D.new()
+	view.render_quality = "high"
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	var service := ExploreEnvironmentService.new()
+	service.bind(view,camera)
+	var parameters := {"intensity":.25}
+	check_eq(service.apply("alpha",10,"precipitation","dust",parameters).code,"ok")
+	parameters.intensity = .75
+	check_eq(service._winners.precipitation.parameters.intensity,.25,"request parameters are copied")
+	check_eq(service.apply("alpha",10,"wind","gust",{}).code,"ok")
+	service.step(.25,false)
+	var ids := _environment_resource_ids(service,camera)
+	var transform := service._particles.multimesh.get_instance_transform(0)
+	var phase := service._phase
+	var winners := service._winners.duplicate(true)
+	var overrides := service._overrides.duplicate(true)
+	check_eq(service.apply("alpha",10,"precipitation","dust",{"intensity":.25}).code,"ok")
+	check_eq(_environment_resource_ids(service,camera),ids,"identical winning request retains all render resources")
+	check_eq(service._winners,winners,"identical winning snapshot")
+	check_eq(service._overrides,overrides,"identical override snapshot")
+	check_eq(service._particles.multimesh.get_instance_transform(0),transform,"zero-delta resolve preserves transforms")
+	check_eq(service._phase,phase,"resolve never advances active phase")
+	check_eq(service.apply("zulu",9,"precipitation","rain",{"intensity":.5}).code,"ok")
+	check_eq(_environment_resource_ids(service,camera),ids,"suppressed request retains all render resources")
+	check_eq(service._winners,winners,"suppressed request does not alter winning snapshot")
+	check(service._overrides.has("zulu"),"suppressed owner retains request")
+	check_eq(service._suppressed.get("zulu:precipitation"),"alpha","suppression accounting retained")
+	check_eq(service.ownership_log.size(),1,"new suppression logged once")
+	check_eq(service.ownership_log[0],{"owner":"zulu","channel":"precipitation","winner":"alpha","reason":"suppressed"})
+	service.apply("zulu",9,"precipitation","rain",{"intensity":.5})
+	check_eq(_environment_resource_ids(service,camera),ids,"repeated suppressed request retains resources")
+	check_eq(service.ownership_log.size(),1,"repeated suppression does not duplicate log")
+	service.clear_owner("zulu")
+	check_eq(_environment_resource_ids(service,camera),ids,"suppressed owner removal retains resources")
+	check(service._suppressed.is_empty() and not service._overrides.has("zulu"),"removed suppression accounting cleared")
+	check_eq(service.ownership_log.size(),1,"ownership history retained after removal")
+	# An unchanged resolve still performs quality detection via its original step(0).
+	view.render_quality = "performance"
+	service.apply("alpha",10,"wind","gust",{})
+	var quality_ids := _environment_resource_ids(service,camera)
+	check_eq(quality_ids.environment,ids.environment,"quality alone retains Environment")
+	check(quality_ids.multimesh != ids.multimesh,"quality change rebuilds particles even with unchanged winner")
+	check_eq(service._particles.multimesh.instance_count,32,"performance cap and winning intensity")
+	check_eq(service._phase,phase,"quality refresh does not advance phase")
+	service.step(.5,true)
+	check(not service._particles.visible,"indoor transition masks particles")
+	check_eq(service._phase,phase,"indoor time does not advance outdoor phase")
+	var indoor_ids := _environment_resource_ids(service,camera)
+	service.apply("alpha",10,"wind","gust",{})
+	check_eq(_environment_resource_ids(service,camera),indoor_ids,"identical indoor winner retains current resources")
+	service.step(0,false)
+	check(service._particles.visible,"outdoor transition restores particles")
+	check_eq(service._phase,phase,"zero-delta outdoor transition freezes phase")
+	var before_change := _environment_resource_ids(service,camera)
+	service.apply("beta",20,"precipitation","rain",{"intensity":.5})
+	var changed := _environment_resource_ids(service,camera)
+	for key: String in changed: check(changed[key] != before_change[key],"actual winner change rebuilds "+key)
+	check_eq(service._winners.precipitation.owner,"beta","higher priority winner admitted")
+	check_eq(service._particles.multimesh.instance_count,64,"changed winning intensity applies current cap")
+	check_eq(service._suppressed.get("alpha:precipitation"),"beta","new winner suppression updates")
+	service.clear_owner("beta")
+	var revealed := _environment_resource_ids(service,camera)
+	for key: String in revealed: check(revealed[key] != changed[key],"winner clear rebuilds revealed "+key)
+	check_eq(service._winners.precipitation.owner,"alpha","clear winner reveals retained request")
+	check_eq(service._particles.multimesh.instance_count,32,"revealed request retains copied intensity")
+	service.clear_owner("alpha")
+	check(not is_instance_valid(service._particles),"last winner clear frees particles")
+	check_eq(camera.get_child_count(),0,"last winner clear synchronously frees effect node")
+	check(service._winners.is_empty() and service._overrides.is_empty() and service._suppressed.is_empty(),"last clear empties all ownership snapshots")
+	check_eq(service._phase,phase,"all command operations retain active phase")
+	service.restore()
+	camera.free()
+	view.free()
+
+class RefreshCountingEnvironment:
+	extends ExploreEnvironmentService
+	var zero_steps := 0
+	var active_steps := 0
+	func step(delta: float, indoors: bool) -> void:
+		if delta == 0: zero_steps += 1
+		else: active_steps += 1
+		super.step(delta,indoors)
+
+func test_repeated_refresh_skips_only_unchanged_zero_steps() -> void:
+	var view := CityView3D.new()
+	view.render_quality = "high"
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	var service := RefreshCountingEnvironment.new()
+	service.bind(view,camera)
+	service.apply("owner0",10,"precipitation","dust",{"intensity":.125})
+	for i in 8: service.apply("owner"+str(i),10,"wind","breeze",{"intensity":.25})
+	service.step(.25,false)
+	service.zero_steps = 0
+	service.active_steps = 0
+	var ids := _environment_resource_ids(service,camera)
+	var phase := service._phase
+	var transform := service._particles.multimesh.get_instance_transform(0)
+	var position := service._particles.position
+	var winners := service._winners.duplicate(true)
+	var overrides := service._overrides.duplicate(true)
+	var suppression := service._suppressed.duplicate(true)
+	var history := service.ownership_log.duplicate(true)
+	for refresh in 3:
+		for i in 8:
+			check_eq(service.apply("owner"+str(i),10,"wind","breeze",{"intensity":.25}).code,"ok")
+	check_eq(service.zero_steps,0,"24 identical winning/suppressed refreshes do not recompute particle presentation")
+	check_eq(service.active_steps,0,"refreshes introduce no active step")
+	check_eq(_environment_resource_ids(service,camera),ids,"refreshes retain render resources")
+	check_eq(service._phase,phase,"refreshes retain phase")
+	check_eq(service._particles.multimesh.get_instance_transform(0),transform,"refreshes retain exact particle transform")
+	check_eq(service._particles.position,position,"refreshes retain exact wind offset")
+	check_eq(service._winners,winners,"refreshes retain winning snapshot")
+	check_eq(service._overrides,overrides,"refreshes retain all owner overrides")
+	check_eq(service._suppressed,suppression,"refreshes retain suppression accounting")
+	check_eq(service.ownership_log,history,"refreshes retain ownership history")
+	service.clear_owner("owner7")
+	check_eq(service.zero_steps,0,"unchanged winning clear does not invoke zero step")
+	check(not service._overrides.has("owner7") and not service._suppressed.has("owner7:wind"),"suppressed clear still updates accounting")
+	# Dirty work and quality transitions must remain synchronous on unchanged resolve.
+	service._dirty = true
+	service.apply("owner0",10,"wind","breeze",{"intensity":.25})
+	check_eq(service.zero_steps,1,"pending dirty state invokes actual zero step")
+	check(not service._dirty,"pending rebuild completed")
+	check_eq(service._phase,phase,"dirty step does not advance phase")
+	view.render_quality = "performance"
+	service.apply("owner0",10,"wind","breeze",{"intensity":.25})
+	check_eq(service.zero_steps,2,"effective quality change invokes actual zero step")
+	check_eq(service._particles.multimesh.instance_count,16,"new quality cap applies immediately")
+	service.apply("owner0",10,"wind","gust",{"intensity":.25})
+	check_eq(service.zero_steps,3,"changed winning snapshot invokes actual zero step")
+	check_eq(service._winners.wind.preset,"gust","changed wind applied")
+	check_eq(service._phase,phase,"winner-change zero step retains phase")
+	var steps_before := service.zero_steps
+	service.step(0,true)
+	check_eq(service.zero_steps,steps_before+1,"ordinary direct zero step remains unconditional")
+	check(not service._particles.visible,"ordinary indoor step masks particles")
+	service.step(.1,true)
+	check_eq(service.active_steps,1,"ordinary suspended presentation step is retained")
+	check_eq(service._phase,phase,"indoor step retains outdoor phase")
+	service.step(.1,false)
+	check_eq(service.active_steps,2,"ordinary active presentation step is retained")
+	check_eq(service._phase,phase+.1,"ordinary active step advances phase exactly")
+	check(service._particles.visible,"ordinary outdoor step restores visibility")
+	service.clear_owner("owner0")
+	check_eq(service.zero_steps,steps_before+2,"actual winner clear invokes zero step")
+	check(not is_instance_valid(service._particles),"removed precipitation winner frees particles")
+	check_eq(service._winners.wind.owner,"owner1","winner clear reveals sorted retained wind owner")
+	service.restore()
+	camera.free()
+	view.free()
