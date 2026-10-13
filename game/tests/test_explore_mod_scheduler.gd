@@ -58,6 +58,40 @@ class AccountingRuntime extends ExploreModRuntime:
 		bridges.append(bridge)
 		return bridge
 
+func test_native_landmark_cache_defers_implicit_origin_and_keeps_explicit_from() -> void:
+	var runtime := ExploreModRuntime.new()
+	var source := "return {on_tick=function(api) local a=api.world.find_landmark('road_destination'); assert(a.code=='pending'); local b=api.world.find_landmark('road_destination',{kind='car'}); assert(b.code=='pending'); local c=api.world.find_landmark('road_destination',{from={x=20.5,y=2.47,z=20.5}}); assert(c.code=='ok' and c.data.x==23.5) end,on_resume=function(api) assert(api.world.find_landmark('road_destination',{from={x=20.5,y=2.47,z=20.5}}).code=='pending') end}"
+	runtime.bind([pack("origin",source)],ExploreModProgress.new(),1)
+	var reply := {"ok":true,"code":"ok","data":{"x":15.5,"y":2.47,"z":20.5}}
+	runtime.cache_query("origin","world.find_landmark",["road_destination"],reply)
+	runtime.cache_query("origin","world.find_landmark",["road_destination",{"kind":"car"}],{"ok":false,"code":"no_route"})
+	runtime.cache_query("origin","world.find_landmark",["road_destination",{"from":{"x":20.5,"y":2.47,"z":20.5}}],{"ok":true,"code":"ok","data":{"x":23.5}})
+	if runtime.has_owner("origin"):
+		var result: Dictionary = runtime._sessions.origin.vm.dispatch("on_tick",{},runtime._context("origin",{}),{})
+		check(result.ok,"native calls must send implicit origins to the live host: "+str(result))
+		check_eq(result.commands.size(),2)
+		runtime.invalidate_queries()
+		runtime.cache_query("origin","world.find_landmark",["road_destination",{"from":{"x":20.5,"y":2.47,"z":20.5}}],{"ok":false,"code":"stale_geometry"})
+		var invalidated: Dictionary = runtime._sessions.origin.vm.dispatch("on_resume",{},runtime._context("origin",{}),{})
+		check(invalidated.ok,"geometry invalidation drops native explicit-origin observations: "+str(invalidated))
+		check_eq(invalidated.commands.size(),1)
+	else: check(false,"native origin fixture starts")
+	runtime.stop("test")
+
+func test_mock_runtime_omits_implicit_origin_cache_but_keeps_explicit_from() -> void:
+	var runtime := AccountingRuntime.new()
+	runtime.bind([pack("origin","return {}")],ExploreModProgress.new(),1)
+	var result := {"ok":false,"code":"no_route"}
+	runtime.cache_query("origin","world.find_landmark",["road"],result)
+	runtime.cache_query("origin","world.find_landmark",["road",{}],result)
+	check(runtime._context("origin",{}).queries.is_empty(),"a callback context cannot reuse an implicit-origin failure")
+	runtime.cache_query("origin","world.find_landmark",["road",{"from":{"x":20.5,"y":2.47,"z":20.5}}],result)
+	check_eq(runtime._context("origin",{}).queries.get("world.find_landmark",[]).size(),1,"explicit-origin observations retain memoization")
+	runtime.invalidate_queries()
+	runtime.cache_query("origin","world.route",[{"x":20.5,"y":2.47,"z":20.5},{"x":23.5,"y":2.47,"z":20.5}],{"ok":false,"code":"stale_geometry"})
+	check(runtime._context("origin",{}).queries.is_empty(),"a stale host completion cannot repopulate a new native query cache")
+	runtime.stop("test")
+
 func test_eight_mod_fairness_ninth_refusal_and_instruction_caps() -> void:
 	var runtime := AccountingRuntime.new()
 	runtime.cost = 20000

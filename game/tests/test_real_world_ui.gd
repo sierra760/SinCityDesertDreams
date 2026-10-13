@@ -726,3 +726,187 @@ func test_geojson_search_formats() -> void:
  check_eq(maptiler.results.size(),1,"non-point and out-of-range features are skipped")
  check_eq(maptiler.results[0].latitude,35.97)
  check(not TerrainPlaceSearch.parse("[]","geojson").ok)
+
+# Editing a pending query must not strand the Search button when its old
+# result arrives; the old answer still must not replace the current field.
+func test_edited_pending_place_search_releases_button_after_result() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ var idle_status := child.search_status.text
+ var now := [100000]
+ child.place_search.set_clock(func() -> int: return now[0])
+ maps.search_json='[{"lat":"36","lon":"-115","display_name":"Henderson"}]'
+ child.search_field.text="Henderson"
+ child.search_place()
+ child.search_field.text="Boulder City"
+ maps.serve()
+ await pump()
+ check(not child.place_search.is_searching())
+ check(not child.search_button.disabled,"edited query can use Search after old result")
+ check_eq(child.search_results.get_child_count(),0,"old query result is ignored")
+ check_eq(child.search_status.text,idle_status,"old search is no longer shown as pending")
+ child.search_place()
+ check(child.search_button.disabled,"replacement search remains busy")
+ var pending_status := child.search_status.text
+ child._places_found("Henderson",[])
+ child._place_search_failed("Henderson","old error")
+ check(child.search_button.disabled,"stale callbacks cannot unlock a new search")
+ check_eq(child.search_status.text,pending_status,"stale callbacks preserve the new search status")
+ now[0]+=TerrainMapConfig.NOMINATIM_MIN_INTERVAL_MS
+ await pump()
+ maps.serve()
+ await pump()
+ var result_status := child.search_status.text
+ check_eq(child.search_results.get_child_count(),1)
+ child.search_field.text="Henderson"
+ child._places_found("Henderson",[])
+ child._place_search_failed("Henderson","old error")
+ check_eq(child.search_results.get_child_count(),1,"stale callbacks preserve newer completed results")
+ check_eq(child.search_status.text,result_status,"stale callbacks preserve newer completed status")
+
+func test_edited_pending_place_search_releases_button_after_error() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ var idle_status := child.search_status.text
+ maps.codes["nominatim"]=503
+ child.search_field.text="Henderson"
+ child.search_place()
+ child.search_field.text="Boulder City"
+ maps.serve()
+ await pump()
+ check(not child.search_button.disabled,"edited query can use Search after old error")
+ check(not child.search_status.text.contains("Search unavailable"),"old error is ignored")
+ check_eq(child.search_status.text,idle_status,"failed old search is no longer shown as pending")
+
+func test_cancelling_place_search_restores_search_on_return() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ var idle_status := child.search_status.text
+ child.search_field.text="Henderson"
+ child.search_place()
+ child.close()
+ child.open({})
+ check(not child.search_button.disabled,"closing a search allows the next visit")
+ check_eq(child.search_status.text,idle_status,"closing clears pending search status")
+ child.search_field.text="Boulder City"
+ child.search_place()
+ child.suspend()
+ child.resume()
+ check(not child.search_button.disabled,"background cancellation allows another search")
+ check_eq(child.search_status.text,idle_status,"suspending clears pending search status")
+ child.close()
+
+func test_completed_place_results_survive_close_and_suspend() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ maps.search_json='[{"lat":"36","lon":"-115","display_name":"Henderson"}]'
+ child.search_field.text="Henderson"
+ child.search_place()
+ maps.serve()
+ await pump()
+ var completed_status := child.search_status.text
+ child.close()
+ child.open({})
+ check_eq(child.search_results.get_child_count(),1,"completed results survive reopening")
+ check_eq(child.search_status.text,completed_status)
+ child.suspend()
+ child.resume()
+ check_eq(child.search_results.get_child_count(),1,"completed results survive backgrounding")
+ check_eq(child.search_status.text,completed_status)
+ child.close()
+
+func _prime_place_provider_cache(child: RealWorldTerrainDialog) -> void:
+ child.apply_map_config(TerrainMapConfig.validate(TerrainMapConfig.DEFAULT).config)
+ child.place_search.set_clock(func() -> int: return 100000)
+ maps.search_json='[{"lat":"36","lon":"-115","display_name":"Old Provider Henderson"}]'
+ child.search_field.text="Henderson"
+ child.search_place()
+ maps.serve()
+ await pump()
+ check_eq(child.search_results.get_child_count(),1)
+ check_eq(child.search_results.get_child(0).text,"Old Provider Henderson")
+
+func _place_provider_config(change_search: bool) -> Dictionary:
+ var value := TerrainMapConfig.DEFAULT.duplicate(true)
+ value.tiles.url="https://tiles.example.invalid/{z}/{x}/{y}.png"
+ if change_search:
+  value.search.url="https://places.example.invalid/search?q={query}&limit={limit}"
+  value.search.attribution="Search © New Provider"
+  value.search.min_interval_ms=0
+ var checked := TerrainMapConfig.validate(value)
+ check(checked.ok,checked.error)
+ return checked.config
+
+func test_provider_change_cancels_deferred_cached_place_reply() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ await _prime_place_provider_cache(child)
+ child.search_place()
+ child.apply_map_config(_place_provider_config(true))
+ await pump()
+ check_eq(child.search_results.get_child_count(),0,"old provider's deferred memory result is canceled")
+ check_eq(child.search_status.text,"Search © New Provider")
+ check(not child.search_button.disabled)
+
+func test_same_query_after_provider_change_keeps_new_provider_reply() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ await _prime_place_provider_cache(child)
+ child.search_place()
+ child.apply_map_config(_place_provider_config(true))
+ maps.search_json='[{"lat":"36.1","lon":"-115.1","display_name":"New Provider Henderson"}]'
+ child.search_place()
+ var pending_status := child.search_status.text
+ await pump()
+ check_eq(child.search_results.get_child_count(),0,"new provider waits for its own reply")
+ check_eq(child.search_status.text,pending_status,"old deferred reply cannot consume the new query")
+ check(child.search_button.disabled)
+ maps.serve()
+ await pump()
+ check_eq(child.search_results.get_child_count(),1)
+ check_eq(child.search_results.get_child(0).text,"New Provider Henderson","new provider's reply remains accepted")
+ check(not child.search_button.disabled)
+
+func test_tiles_only_config_preserves_pending_and_completed_place_search() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ child.search_field.text="Boulder City"
+ maps.search_json='[{"lat":"36","lon":"-115","display_name":"Boulder City"}]'
+ child.search_place()
+ var pending_status := child.search_status.text
+ var changed := _place_provider_config(false)
+ child.apply_map_config(changed)
+ check(child.search_button.disabled,"tiles-only update cannot unlock a pending search")
+ check_eq(child.search_status.text,pending_status,"tiles-only update preserves pending status")
+ maps.serve()
+ await pump()
+ child.apply_map_config(changed)
+ check_eq(child.search_results.get_child_count(),1,"unchanged search settings preserve completed results")
+ if child.search_results.get_child_count()>0:
+  check_eq(child.search_results.get_child(0).text,"Boulder City")
+ check(not child.search_button.disabled)
+ check_eq(maps.search_starts().size(),1,"configuration refresh does not repeat the search")
+
+func test_cancel_and_same_query_resubmit_emit_only_current_cached_reply() -> void:
+ await _open()
+ dialog.open_real_world()
+ var child := dialog.terrain_dialog
+ await _prime_place_provider_cache(child)
+ var deliveries := [0]
+ child.place_search.results_ready.connect(func(_query: String,_results: Array) -> void: deliveries[0]+=1)
+ child.search_place()
+ child.close()
+ child.open({})
+ child.search_place()
+ await pump()
+ check_eq(deliveries[0],1,"canceled cached completion cannot emit after a same-query resubmit")
+ check_eq(child.search_results.get_child_count(),1)
+ check_eq(child.search_results.get_child(0).text,"Old Provider Henderson")
+ check_eq(maps.search_starts().size(),1,"cached resubmit does not make another search request")

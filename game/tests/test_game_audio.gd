@@ -256,3 +256,54 @@ func test_effects_volume_plays_a_sample() -> void:
 	host.audio.played.clear()
 	host.prefs.set_option(&"effects_volume", 0.6)
 	check(&"click" in host.audio.played, "moving the effects level plays a sample")
+
+# Use a silent in-memory stream to exercise actual playback and fades even
+# with the Dummy driver, without Ogg playback teardown timing artifacts.
+func _playback_fixture() -> GameAudio:
+	var audio := host.audio
+	audio.set_process(false)
+	audio._silent=false
+	var sound := AudioStreamWAV.new()
+	sound.mix_rate=44100
+	sound.format=AudioStreamWAV.FORMAT_8_BITS
+	var samples := PackedByteArray()
+	samples.resize(441000)
+	sound.data=samples
+	for song: StringName in GameAudio.SONGS:
+		audio._cache["music/"+String(song)]=sound
+	return audio
+
+func _finish_playback_fixture(audio: GameAudio) -> void:
+	audio._music.stop()
+	audio._music.stream=null
+	audio._silent=true
+	for frame in 10:
+		await process_frame
+
+func test_music_reenabled_during_title_fade_keeps_next_song_playing() -> void:
+	var audio := _playback_fixture()
+	audio._start_song(GameAudio.TITLE_SONG)
+	audio._on_title=true
+	host.title_screen.close()
+	audio._update_music(0.0)
+	audio.apply_preferences({"music_enabled":false})
+	audio.apply_preferences({"music_enabled":true})
+	audio._gap_left=0.0
+	audio._update_music(0.0)
+	check(audio._music.playing,"reenabling starts a city song")
+	audio._update_music(2.0)
+	check(audio._music.playing,"old title fade cannot stop the city song")
+	await _finish_playback_fixture(audio)
+
+func test_returning_to_title_interrupts_city_transition_fade() -> void:
+	var audio := _playback_fixture()
+	audio._start_song(GameAudio.TITLE_SONG)
+	audio._on_title=true
+	host.title_screen.close()
+	audio._update_music(0.0)
+	host.title_screen.open()
+	audio._update_music(0.0)
+	audio._update_music(2.0)
+	check(audio._music.playing,"returning to title restarts its theme without the old fade")
+	check_eq(audio._song,GameAudio.TITLE_SONG)
+	await _finish_playback_fixture(audio)

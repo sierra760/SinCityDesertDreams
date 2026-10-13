@@ -25,6 +25,7 @@ var _backend: Node
 var _query := ""
 var _pending := ""
 var _last_start := -60000
+var _generation := 0
 var _provider: Dictionary = TerrainMapConfig.DEFAULT.search.duplicate(true)
 
 func _init() -> void:
@@ -33,12 +34,13 @@ func _init() -> void:
 func set_clock(clock: Callable) -> void:
 	if clock.is_valid(): _clock=clock
 
-## Use the `search` section of a validated TerrainMapConfig.
-func configure_provider(search: Dictionary) -> void:
-	if search==_provider: return
+## Use the `search` section of a validated TerrainMapConfig; return whether it changed.
+func configure_provider(search: Dictionary) -> bool:
+	if search==_provider: return false
 	cancel()
 	_cache.clear()
 	_provider=search.duplicate(true)
+	return true
 
 func enabled() -> bool: return bool(_provider.get("enabled",false))
 func attribution() -> String: return str(_provider.get("attribution",""))
@@ -64,12 +66,19 @@ func search(text: String) -> void:
 		return
 	# Nominatim ignores case, so the memory cache does too.
 	if _cache.has(query.to_lower()):
-		results_ready.emit.call_deferred(query,_cache[query.to_lower()].duplicate(true))
+		_query=query
+		_emit_cached.call_deferred(_generation,query,_cache[query.to_lower()].duplicate(true))
 		return
 	_pending=query
 	_try_start()
 
+func _emit_cached(generation: int, query: String, results: Array) -> void:
+	if generation!=_generation or query!=_query: return
+	_query=""
+	results_ready.emit(query,results)
+
 func cancel() -> void:
+	_generation+=1
 	_pending=""
 	_query=""
 	if is_instance_valid(_backend):

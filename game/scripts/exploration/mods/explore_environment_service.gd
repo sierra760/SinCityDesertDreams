@@ -16,6 +16,8 @@ var _indoors := false
 var _phase := 0.0
 var _quality := ""
 var _dirty := true
+## A rebuilt buffer needs its first pose even if active time is frozen.
+var _particles_pose_dirty := false
 var ownership_log: Array[Dictionary] = []
 
 func bind(view: CityView3D, camera: Camera3D) -> void:
@@ -56,14 +58,23 @@ func _resolve() -> void:
 				if ownership_log.size() >= 128: ownership_log.pop_front()
 				ownership_log.append({"owner":owner,"channel":channel,"winner":winner,"reason":"suppressed"})
 	_suppressed = suppressed
-	var winners_changed := winners != _winners
+	var precipitation_changed := _presentation(winners,"precipitation") != _presentation(_winners,"precipitation")
+	var wind_changed := _presentation(winners,"wind") != _presentation(_winners,"wind")
+	var lighting_changed := _presentation(winners,"daylight") != _presentation(_winners,"daylight") or _presentation(winners,"haze") != _presentation(_winners,"haze")
 	_winners = winners.duplicate(true)
-	if winners_changed:
-		_dirty = true
-		_render_environment()
+	if precipitation_changed: _dirty = true
+	if wind_changed and is_instance_valid(_particles): _particles_pose_dirty = true
+	if lighting_changed: _render_environment()
 	var quality: String = _view.render_quality if is_instance_valid(_view) else "high"
-	if winners_changed or _dirty or quality != _quality:
+	if _dirty or _particles_pose_dirty or quality != _quality:
 		step(0,_indoors)
+
+## Ownership/priority remain in _winners, but only effective presentation
+## changes require engine work. Omitted intensity and explicit 1 are equal.
+static func _presentation(winners: Dictionary, channel: String) -> Array:
+	if not winners.has(channel): return []
+	var request: Dictionary = winners[channel]
+	return [request.preset,float(request.parameters.get("intensity",1.0))]
 
 func clear_owner(owner: String) -> void:
 	_overrides.erase(owner)
@@ -107,6 +118,9 @@ func step(delta: float, indoors: bool) -> void:
 	if not is_instance_valid(_particles): return
 	_particles.visible = not indoors
 	if indoors: return
+	# Pre-draw and suspended physics steps only refresh visibility. Reuse the
+	# existing transforms until time advances or a new buffer needs its pose.
+	if delta<=0 and not _particles_pose_dirty: return
 	_phase += maxf(0,delta)
 	var rain := _preset("precipitation","none") == "rain"
 	var speed: float = {"calm":0.0,"breeze":.15,"gust":.45}[_preset("wind","calm")]
@@ -116,10 +130,12 @@ func step(delta: float, indoors: bool) -> void:
 		var y := fposmod(float(i)*.41421356237-_phase*(1.2 if rain else .08),1.0)-.5
 		var z := -.25-fposmod(float(i)*.73205080757,1.0)*1.8
 		_particles.multimesh.set_instance_transform(i,Transform3D(Basis.IDENTITY,Vector3(x,y,z)))
+	_particles_pose_dirty = false
 
 func _rebuild_particles() -> void:
 	if is_instance_valid(_particles): _particles.free()
 	_particles = null
+	_particles_pose_dirty = false
 	var preset := _preset("precipitation","none")
 	if preset == "none" or _intensity("precipitation") == 0: return
 	_particles = MultiMeshInstance3D.new()
@@ -137,10 +153,12 @@ func _rebuild_particles() -> void:
 	_particles.multimesh.mesh = quad
 	_particles.multimesh.instance_count = int(CAPS.get(_quality,512)*_intensity("precipitation"))
 	_camera.add_child(_particles)
+	_particles_pose_dirty = true
 
 func restore() -> void:
 	if is_instance_valid(_particles): _particles.free()
 	_particles = null
+	_particles_pose_dirty = false
 	if is_instance_valid(_camera) and _baseline != null: _camera.environment = _baseline.duplicate(true) as Environment
 	_overrides.clear()
 	_winners.clear()

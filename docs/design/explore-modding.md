@@ -89,8 +89,12 @@ asks for a farther stop; `away_from` (a point) requires the stop to be at least
 half that distance farther from it than the start is, so chained stops keep
 moving outward; `skip` (integer 0–32) passes over that many earlier matches to
 vary destinations. Success data adds `distance`, the route length in tiles.
-Results are cached per exact arguments until geometry changes, so pass an
-explicit `from` when the start moves. An unreachable request returns no_route.
+Without `from`, each request starts at the current copied player position;
+moving retries a previous no_route result. Pass an explicit `from` to anchor
+repeated searches at a fixed point, as the Pedestrians pack does for its
+followers. Cached answers expire when route geometry, traversal support,
+landmark buildings or passenger rail reservations change. An unreachable
+request returns no_route.
 
 `world.player()` returns the copied player point plus `mode` (0 on foot, 1 road
 vehicle, 2 aircraft), `vehicle` (this pack's own handle when the player drives a

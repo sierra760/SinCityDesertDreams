@@ -64,9 +64,10 @@ func _update_context() -> void:
 			for id: String in actors._actors:
 				if actors._actors[id].record.id == controller._traffic_claim.id: queries.player["vehicle"] = id
 	queries.reserved_rail = controller.view.traffic._reserved_rail
-	if _revision != queries.graph.revision:
+	var query_revision := queries.refresh_cache_revision()
+	if _revision != query_revision:
 		runtime.invalidate_queries()
-		_revision = queries.graph.revision
+		_revision = query_revision
 
 func _indoors() -> bool:
 	return controller.camera_rig.interior_active or (is_instance_valid(controller.resort_service) and controller.resort_service.is_inside())

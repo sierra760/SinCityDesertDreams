@@ -51,6 +51,8 @@ var _selection_valid := true
 var _exaggeration_edit_dirty := false
 var _exaggeration_typed_text := ""
 var _exaggeration_typed_caret := 0
+var _search_status_query := ""
+var _search_configured := false
 
 func _init() -> void:
  name="RealWorldTerrainDialog"
@@ -283,6 +285,8 @@ func close() -> void:
  cancel_work()
  basemap.set_active(false)
  place_search.cancel()
+ _clear_pending_search_status()
+ _sync_search_button()
  map_config.cancel()
  if importer!=null: importer.set_visible(false)
  visible=false
@@ -309,6 +313,8 @@ func suspend() -> void:
  cancel_work()
  basemap.set_active(false)
  place_search.cancel()
+ _clear_pending_search_status()
+ _sync_search_button()
  map_config.cancel()
  if importer!=null: importer.suspend()
 func resume() -> void:
@@ -441,12 +447,15 @@ func _candidate_ready(generation: int,candidate: Dictionary) -> void:
 ## Switch street-map and search providers to validated settings.
 func apply_map_config(value: Dictionary) -> void:
  basemap.configure_provider(value.tiles)
- place_search.configure_provider(value.search)
+ var search_changed := place_search.configure_provider(value.search)
  var searchable := place_search.enabled()
  search_field.editable=searchable
- search_button.disabled=not searchable
+ _sync_search_button()
  search_field.placeholder_text="Search for a place" if searchable else "Place search is unavailable"
- _clear_places(place_search.attribution() if searchable else "Place search is turned off. Drag the map or type coordinates instead.")
+ if search_changed or not _search_configured:
+  _search_status_query=""
+  _clear_places(place_search.attribution() if searchable else "Place search is turned off. Drag the map or type coordinates instead.")
+ _search_configured=true
  extent_map.request_tiles()
  extent_map.queue_redraw()
 
@@ -457,12 +466,26 @@ func search_place() -> void:
  if query.length()<2:
   _clear_places("Type a place name to search.")
   return
+ _search_status_query=query
  _clear_places("Searching for “%s”…"%query)
  search_button.disabled=true
  place_search.search(query)
+func _sync_search_button() -> void:
+ search_button.disabled=not place_search.enabled() or place_search.is_searching()
+func _clear_pending_search_status() -> void:
+ if _search_status_query.is_empty(): return
+ _search_status_query=""
+ _clear_places(place_search.attribution())
+func _complete_search_status(query: String) -> bool:
+ _sync_search_button()
+ if query!=_search_status_query: return false
+ _search_status_query=""
+ if not visible or query!=TerrainPlaceSearch.normalize(search_field.text):
+  _clear_places(place_search.attribution())
+  return false
+ return true
 func _places_found(query: String,results: Array) -> void:
- if not visible or query!=TerrainPlaceSearch.normalize(search_field.text): return
- search_button.disabled=not place_search.enabled()
+ if not _complete_search_status(query): return
  if results.is_empty():
   _clear_places("No places found for “%s”."%query)
   return
@@ -477,8 +500,7 @@ func _places_found(query: String,results: Array) -> void:
   button.pressed.connect(choose_place.bind(result))
  _ensure_focus_visible.call_deferred()
 func _place_search_failed(query: String,detail: String) -> void:
- if not visible or query!=TerrainPlaceSearch.normalize(search_field.text): return
- search_button.disabled=not place_search.enabled()
+ if not _complete_search_status(query): return
  _clear_places(detail+". The map and square still work.")
 func _clear_places(status: String) -> void:
  search_status.text=status

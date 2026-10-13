@@ -12,13 +12,45 @@ var _queue: Array[Dictionary] = []
 var _cache: Dictionary = {}
 var _serial := 0
 var _revision := -1
+var _cache_revision := 0
+var _building_snapshot := PackedInt32Array()
+var _reserved_snapshot: Dictionary = {}
+var _world_snapshot: Array = []
+var _landmark_revision := 0
+var _rail_revision := 0
+var _world_revision := 0
 
 func bind(value: CityTrafficGraph, world: CityTraversalWorld3D) -> void:
 	graph = value
 	traversal = world
 	_queue.clear()
 	_cache.clear()
-	_revision = graph.revision if graph != null else -1
+	_revision = -1
+	refresh_cache_revision()
+
+## Host and native observation caches share this dependency revision. Packed
+## comparison is exact native work; copies happen only when a layer changes.
+func refresh_cache_revision() -> int:
+	if graph == null: return _cache_revision
+	var buildings: PackedInt32Array = graph.city.building.data if graph.city != null else PackedInt32Array()
+	var world: Array = [traversal.get_instance_id(),traversal.revision,traversal.rebuild_count] if is_instance_valid(traversal) else []
+	var land_changed := _building_snapshot != buildings
+	var rail_changed := _reserved_snapshot != reserved_rail
+	var world_changed := _world_snapshot != world
+	if _revision == graph.revision and not land_changed and not rail_changed and not world_changed: return _cache_revision
+	if land_changed:
+		_building_snapshot = buildings.duplicate()
+		_landmark_revision += 1
+	if rail_changed:
+		_reserved_snapshot = reserved_rail.duplicate()
+		_rail_revision += 1
+	if world_changed:
+		_world_snapshot = world
+		_world_revision += 1
+	_revision = graph.revision
+	_cache.clear()
+	_cache_revision += 1
+	return _cache_revision
 
 static func point(value: Variant) -> Vector3:
 	if not value is Dictionary: return Vector3(INF,INF,INF)
@@ -43,7 +75,15 @@ func route_point(cell: Vector2i, kind: StringName, domain: StringName) -> Vector
 
 func request(owner: String, kind: String, args: Dictionary) -> Dictionary:
 	if graph == null: return {"ok":false,"code":"unavailable"}
+	refresh_cache_revision()
 	var key := JSON.stringify([kind,args])
+	# A search without options.from starts at the current player, which is
+	# absent from its arguments. Include that effective origin in the host
+	# cache key so movement also retries earlier no_route observations.
+	if kind == "world.find_landmark" and not args.get("options",{}).has("from"):
+		var origin := point(player)
+		# Vector3's display string rounds positions across cell boundaries.
+		key = JSON.stringify([kind,args,[origin.x,origin.y,origin.z]],"",true,true)
 	var cache: Dictionary = _cache.get(owner,{})
 	if CityTrafficCatalog.domain(StringName(args.get("options",{}).get("kind","pedestrian"))) != &"air" and not args.has("_kind") and kind not in ["world.player","world.nearby"] and _revision == graph.revision and cache.has(key): return cache[key].duplicate(true)
 	var count := 0
@@ -52,6 +92,9 @@ func request(owner: String, kind: String, args: Dictionary) -> Dictionary:
 	if count >= 32 or _queue.size() >= 256: return {"ok":false,"code":"quota_exceeded"}
 	_serial += 1
 	var job := {"owner":owner,"kind":kind,"args":args.duplicate(true),"key":key,"query_id":_serial,"revision":graph.revision,"world_revision":traversal.revision if is_instance_valid(traversal) else -1,"frontier":[],"head":0,"parents":{},"visited":0}
+	job["landmark_revision"] = _landmark_revision
+	job["rail_revision"] = _rail_revision
+	job["support_revision"] = _world_revision
 	job["actor_kind"] = String(args.get("_kind",args.get("options",{}).get("kind","pedestrian")))
 	job["domain"] = String(args.get("_domain",CityTrafficCatalog.domain(StringName(job.actor_kind))))
 	# A landmark search may start at a script-chosen supported point (for
@@ -80,13 +123,13 @@ func step() -> Array[Dictionary]:
 	nodes_visited_in_one_step = 0
 	var results: Array[Dictionary] = []
 	if graph == null: return results
-	if _revision != graph.revision:
-		_cache.clear()
-		_revision = graph.revision
+	refresh_cache_revision()
 	while not _queue.is_empty() and nodes_visited_in_one_step < 256:
 		var job: Dictionary = _queue[0]
 		var result: Dictionary = {}
 		if job.revision != graph.revision: result = {"ok":false,"code":"stale_geometry"}
+		elif job.kind in ["world.route","world.find_landmark"] and (job.support_revision != _world_revision or (job.domain == "rail" and job.rail_revision != _rail_revision) or (job.kind == "world.find_landmark" and job.landmark_revision != _landmark_revision)):
+			result = {"ok":false,"code":"stale_geometry"}
 		elif job.domain == "air" and job.kind == "world.route":
 			var start := point(job.args.get("from",{}))
 			var destination := point(job.args.get("destination",{}))
@@ -159,6 +202,8 @@ func step() -> Array[Dictionary]:
 		result["args"] = job.args
 		result["kind"] = job.kind
 		results.append(result)
+		# This completion describes the abandoned job, never the current world.
+		if result.code == "stale_geometry": continue
 		var cache: Dictionary = _cache.get(job.owner,{})
 		if cache.size() >= 32: cache.erase(cache.keys()[0])
 		var public_result := result.duplicate(true)

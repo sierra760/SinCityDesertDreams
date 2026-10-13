@@ -1,1 +1,1 @@
-{"id":"desert_stroll","name":"Pedestrians","version":"1.0.1","api_version":1,"state_version":1,"entry":"main.lua","description":"A local walker follows a supported outdoor route, rests, and greets the city.","priority":0}
+{"id":"desert_stroll","name":"Pedestrians","version":"1.0.2","api_version":1,"state_version":1,"entry":"main.lua","description":"A local walker follows a supported outdoor route, rests, and greets the city.","priority":0}

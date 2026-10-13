@@ -126,3 +126,39 @@ func test_new_city_and_native_save_without_power_runtime_keep_initialization() -
 	var power := host.sim.get_system(&"power") as PowerSystem
 	check_eq(power.plant_capacity(WIND), host.sim.city.facility(WIND).capacity)
 	check_eq(power.plant_capacity(SOLAR), host.sim.city.facility(SOLAR).capacity)
+
+
+func test_damaged_nested_snapshot_keeps_current_city_and_runtime() -> void:
+	_play_power_city()
+	var current := host.sim.city
+	var runtime := host.sim.snapshot().duplicate(true)
+	var data := SaveFormat.encode_city(current).duplicate(true)
+	var path_before := host.save_path
+	var replacement := flat_city()
+	replacement.name = "Damaged replacement"
+	for damaged: Dictionary in [
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"x": [], "y": 1}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"at": [{}, 1]}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"count": []}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"need": []}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"kind": []}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"stats": {"neighbor_populations": []}},
+		{"stats": {"bonds": [{"principal": []}]}},
+		{"stats": {"history": {"population": {}}}},
+		{"systems": {"population": {"complaints": [1]}}},
+		{"systems": {"rewards": {"military": {"sites": [1]}}}},
+		{"systems": {"budget": {"carry": {"taxes": []}}}},
+		{"systems": {"newspaper": {"queue": [{"priority": []}]}}},
+		{"systems": {"economy": {"sector_base": 1}}},
+		{"systems": {"ports": {"vehicles": [1]}}},
+		{"systems": {"ports": {"centre": []}}},
+		{"systems": {"services": {"prisons": {"0,0": 1}}}},
+		{"systems": {"disasters": {"entities": [1]}}},
+	]:
+		check_eq(SaveFormat.save(SAVE, replacement, damaged), OK)
+		check(not host.load_city(SAVE), "host refuses nested damage")
+		check(host.sim.city == current, "original city remains bound")
+		check_eq(SaveFormat.encode_city(host.sim.city), data, "original city bytes remain")
+		check_eq(host.sim.snapshot(), runtime, "original clock, funds, systems and RNG remain")
+		check_eq(host.save_path, path_before, "manual save destination remains")
+		host.notice_dialog.dismiss()

@@ -168,6 +168,7 @@ func apply_preferences(preferences: Dictionary) -> void:
 	effects_volume = clampf(float(preferences.get("effects_volume", effects_volume)), 0.0, 1.0)
 	_apply_levels()
 	if not music_enabled and _music != null:
+		_fading_out = false
 		_music.stop()
 		_song = &""
 	elif music_enabled and _music != null and not _music.playing:
@@ -319,6 +320,7 @@ func _fade_loops(delta: float) -> void:
 # ── Music ────────────────────────────────────────────────────────────────
 
 func _start_song(song: StringName) -> void:
+	_fading_out = false
 	_song = song
 	if record_cues:
 		played.append(song)

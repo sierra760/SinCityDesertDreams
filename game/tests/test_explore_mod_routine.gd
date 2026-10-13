@@ -135,6 +135,9 @@ func test_disconnected_height_and_revision_fail_safely() -> void:
 	queries.request("test","world.route",{"from":{"x":22.5,"y":GROUND,"z":20.5},"destination":{"x":24.5,"y":GROUND,"z":20.5}})
 	view.traffic.graph.revision += 1
 	check_eq(queries.step()[0].code,"stale_geometry")
+	var retry := queries.request("test","world.route",{"from":{"x":22.5,"y":GROUND,"z":20.5},"destination":{"x":24.5,"y":GROUND,"z":20.5}})
+	check_eq(retry.code,"pending","stale completion must not poison the new graph's cache")
+	if retry.code == "pending": check_eq(queries.step()[0].code,"ok")
 
 func test_actual_stroll_finishes_wait_and_safe_wave() -> void:
 	if not _street(): return
@@ -256,6 +259,208 @@ func test_landmarks_cached_replies_and_owner_disable() -> void:
 	check(service.actors.visual_states().is_empty())
 	check(service.api._timers.is_empty())
 	check(service.runtime.step(1.0,false,{}).is_empty())
+	service.leave("test")
+
+func test_implicit_landmarks_follow_player_and_recover_after_no_route() -> void:
+	var value := flat_city()
+	for x in range(10,30): value.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
+	var graph := CityTrafficGraph.new()
+	graph.bind_city(value)
+	var queries := Queries.new()
+	queries.bind(graph,null)
+	queries.player = {"x":12.5,"y":GROUND,"z":20.5}
+	var args := {"kind":"road_destination"}
+	check_eq(queries.request("moving","world.find_landmark",args).code,"pending")
+	check_eq(queries.step()[0].data.x,15.5)
+	check_eq(queries.request("moving","world.find_landmark",args).data.x,15.5,"unchanged origin reuses the bounded cache")
+	queries.player.x = 25.5
+	var moved := queries.request("moving","world.find_landmark",args)
+	check_eq(moved.code,"pending","a moved player needs a search from the new origin")
+	if moved.code == "pending": check_eq(queries.step()[0].data.x,28.5)
+	queries.player.x = 5.5
+	queries.request("retry","world.find_landmark",args)
+	check_eq(queries.step()[0].code,"no_route")
+	queries.player.x = 20.5
+	var retry := queries.request("retry","world.find_landmark",args)
+	check_eq(retry.code,"pending","moving onto a road retries an earlier missing route")
+	if retry.code == "pending": check_eq(queries.step()[0].code,"ok")
+	queries.player.x = 12.999999
+	queries.request("boundary","world.find_landmark",args)
+	check_eq(queries.step()[0].data.x,15.5)
+	queries.player.x = 13.000001
+	var crossed := queries.request("boundary","world.find_landmark",args)
+	check_eq(crossed.code,"pending","rounded display coordinates cannot alias opposite sides of a cell boundary")
+	if crossed.code == "pending": check_eq(queries.step()[0].data.x,16.5)
+
+func test_explicit_landmark_origin_stays_cached_when_player_moves() -> void:
+	var value := flat_city()
+	for x in range(10,30): value.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
+	var graph := CityTrafficGraph.new()
+	graph.bind_city(value)
+	var queries := Queries.new()
+	queries.bind(graph,null)
+	queries.player = {"x":12.5,"y":GROUND,"z":20.5}
+	var args := {"kind":"road_destination","options":{"from":{"x":20.5,"y":GROUND,"z":20.5}}}
+	queries.request("fixed","world.find_landmark",args)
+	check_eq(queries.step()[0].data.x,23.5)
+	queries.player.x = 25.5
+	var cached := queries.request("fixed","world.find_landmark",args)
+	check_eq(cached.code,"ok","explicit from is independent of the player")
+	check_eq(cached.data.x,23.5)
+	for x in range(10,30): value.building.put(x,20,0)
+	graph.refresh()
+	check_eq(queries.request("fixed","world.find_landmark",args).code,"pending","geometry edits invalidate even explicit-origin cache")
+	check_eq(queries.step()[0].code,"no_route")
+
+func test_actual_stroll_destinations_stay_at_origin_after_player_moves() -> void:
+	if not _street() or not await _enter(): return
+	session.set_physics_process(false)
+	var progress := Progress.new()
+	var service := Service.new()
+	service.bind(session,[ExploreModPack.read("res://explore_mods/desert_stroll")],progress)
+	service.enter()
+	for i in 20: service.step(.1,false)
+	session.pedestrian.place(Transform3D(Basis.IDENTITY,Vector3(18.5,GROUND,20.5)))
+	for i in 900: service.step(.1,false)
+	check_eq(progress.get_state("desert_stroll",1).data.get("strolls",0),3,"moving the player cannot send followers ahead of the leader")
+	var stops := {}
+	for actor: Dictionary in service.actors._actors.values(): stops[actor.key] = actor.record.cell
+	check_eq(stops.get("stroller1"),Vector2i(25,20))
+	check_eq(stops.get("stroller2"),Vector2i(24,20))
+	check_eq(stops.get("stroller3"),Vector2i(23,20))
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	service.leave("test")
+
+func test_actual_stroll_origin_failure_preserves_three_safe_greetings() -> void:
+	if not _street() or not await _enter(): return
+	session.set_physics_process(false)
+	var progress := Progress.new()
+	var service := Service.new()
+	service.bind(session,[ExploreModPack.read("res://explore_mods/desert_stroll")],progress)
+	service.enter()
+	service.step(.1,false)
+	view.traffic.graph.revision += 1
+	for i in 900: service.step(.1,false)
+	check(service.runtime.has_owner("desert_stroll"),"failed initial origin leaves a healthy pack")
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	check_eq(service.actors.visual_states().size(),3,"all three safe waiting walkers still arrive after origin failure")
+	check_eq(service.api.interactions._owned.get("desert_stroll",{}).size(),3,"all waiting walkers retain their greetings")
+	check_eq(progress.get_state("desert_stroll",1).data.get("strolls",0),0,"failed origin must not award completed walks")
+	var exclusions: Array[RID] = []
+	for actor: Dictionary in service.actors._actors.values():
+		check(actor.record.mod_hold,"origin failure never starts unsupported navigation")
+		check(actor.record.get("mod_route",[]).is_empty())
+		var feet := view.traffic.actor_pose(actor.record).origin
+		check(not session.traversal.support_near(feet,.06,.06,exclusions).is_empty(),"waiting actors stay physically supported")
+	check_eq(service.queries.pending_count(),0)
+	check_eq(service.api.resource_metrics().queries,0)
+	check_eq(service.runtime.metrics().pending_transactions,0)
+	service.leave("test")
+
+func test_landmark_cache_tracks_park_creation_and_removal_without_graph_revision() -> void:
+	var value := flat_city()
+	for x in range(10,30): value.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
+	var graph := CityTrafficGraph.new()
+	graph.bind_city(value)
+	var queries := Queries.new()
+	queries.bind(graph,null)
+	var args := {"kind":"park","options":{"from":{"x":12.5,"y":GROUND,"z":20.5}}}
+	queries.request("park","world.find_landmark",args)
+	check_eq(queries.step()[0].code,"no_route")
+	var revision := graph.revision
+	value.building.put(15,21,Buildings.SMALL_PARK)
+	graph.refresh()
+	check_eq(graph.revision,revision,"park land use leaves traffic topology unchanged")
+	var added := queries.request("park","world.find_landmark",args)
+	check_eq(added.code,"pending","park creation retries cached missing landmarks")
+	if added.code == "pending": check_eq(queries.step()[0].data.x,15.5)
+	check_eq(queries.request("park","world.find_landmark",args).code,"ok","unchanged explicit origin remains memoized")
+	value.building.put(15,21,0)
+	graph.refresh()
+	var removed := queries.request("park","world.find_landmark",args)
+	check_eq(removed.code,"pending","park removal discards its cached approach")
+	if removed.code == "pending": check_eq(queries.step()[0].code,"no_route")
+
+func test_rail_query_cache_and_queued_routes_track_reservation_changes() -> void:
+	var value := flat_city()
+	for x in range(10,30): value.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.RAIL,10))
+	var graph := CityTrafficGraph.new()
+	graph.bind_city(value)
+	var queries := Queries.new()
+	queries.bind(graph,null)
+	var args := {"from":Queries.copied_point(graph.point(Vector2i(12,20),&"rail"),graph.revision),"destination":Queries.copied_point(graph.point(Vector2i(16,20),&"rail"),graph.revision),"options":{"kind":"train"}}
+	queries.reserved_rail = {Vector2i(12,20):true}
+	queries.request("rail","world.route",args)
+	check_eq(queries.step()[0].code,"no_route")
+	queries.reserved_rail.clear()
+	var opened := queries.request("rail","world.route",args)
+	check_eq(opened.code,"pending","released rail reservations retry missing routes")
+	if opened.code == "pending": check_eq(queries.step()[0].code,"ok")
+	queries.reserved_rail[Vector2i(14,20)] = true
+	var blocked := queries.request("rail","world.route",args)
+	check_eq(blocked.code,"pending","new rail reservations discard cached success")
+	if blocked.code == "pending": check_eq(queries.step()[0].code,"no_route")
+	queries.reserved_rail.clear()
+	queries.request("queued","world.route",args)
+	queries.reserved_rail[Vector2i(14,20)] = true
+	check_eq(queries.step()[0].code,"stale_geometry","queued routes cannot straddle reservation versions")
+
+func test_queued_road_route_survives_unrelated_landmark_and_rail_changes() -> void:
+	var value := flat_city()
+	for x in range(10,30): value.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
+	var graph := CityTrafficGraph.new()
+	graph.bind_city(value)
+	var queries := Queries.new()
+	queries.bind(graph,null)
+	var args := {"from":{"x":12.5,"y":GROUND,"z":20.5},"destination":{"x":16.5,"y":GROUND,"z":20.5}}
+	queries.request("walking","world.route",args)
+	value.building.put(15,21,Buildings.SMALL_PARK)
+	graph.refresh()
+	queries.reserved_rail[Vector2i(50,50)] = true
+	var result := queries.step()[0]
+	check_eq(result.code,"ok","ordinary construction and rail reservations cannot cancel an unrelated walk")
+	check_eq(result.data.x,16.5)
+
+func test_ground_query_cache_and_pending_jobs_track_physical_rebuilds() -> void:
+	if not _street() or not await _enter(): return
+	session.set_physics_process(false)
+	var queries := Queries.new()
+	queries.bind(view.traffic.graph,session.traversal)
+	var args := {"from":{"x":22.5,"y":GROUND,"z":20.5},"destination":{"x":25.5,"y":GROUND,"z":20.5}}
+	queries.request("cached","world.route",args)
+	check_eq(queries.step()[0].code,"ok")
+	queries.request("queued","world.route",args)
+	var empty_chunks: Array[Dictionary] = []
+	session.traversal.rebuild(city,empty_chunks,{},session.traversal.revision+1)
+	await physics_frame
+	check_eq(queries.step()[0].code,"stale_geometry","pending ground route refuses stale physical support")
+	var lost := queries.request("cached","world.route",args)
+	check_eq(lost.code,"pending","physical rebuild drops cached supported route")
+	if lost.code == "pending": check_eq(queries.step()[0].code,"no_route")
+
+func test_service_invalidates_native_queries_for_all_host_dependencies() -> void:
+	if not _street() or not await _enter(): return
+	session.set_physics_process(false)
+	var source := "return {on_tick=function(api) api.utility.log(api.world.find_landmark('park',{from={x=22.5,y="+str(GROUND)+",z=20.5}}).code) end}"
+	var pack := ExploreModPack._snapshot({"manifest.json":'{"id":"dependency","name":"Dependency","version":"1.0.0","api_version":1,"state_version":1,"entry":"main.lua"}'.to_utf8_buffer(),"main.lua":source.to_utf8_buffer()})
+	var service := Service.new()
+	service.bind(session,[pack],Progress.new())
+	service.enter()
+	var args: Array = ["park",{"from":{"x":22.5,"y":GROUND,"z":20.5}}]
+	for dependency in ["buildings","rail","traversal"]:
+		service.runtime.cache_query("dependency","world.find_landmark",args,{"ok":false,"code":"no_route"})
+		service._update_context()
+		var unchanged: Dictionary = service.runtime._sessions.dependency.vm.dispatch("on_tick",{},service.runtime._context("dependency",{}),{})
+		check_eq(unchanged.logs,["no_route"],"unchanged host dependencies preserve explicit-from native memoization")
+		if dependency == "buildings":
+			city.building.put(24,21,Buildings.SMALL_PARK)
+			view.traffic.graph.refresh()
+		elif dependency == "rail": view.traffic.set_reserved_rail_cells([Vector2i(24,20)])
+		else: session.traversal.rebuild(city,view.sample_chunks,view.sample_networks,session.traversal.revision+1)
+		service._update_context()
+		var changed: Dictionary = service.runtime._sessions.dependency.vm.dispatch("on_tick",{},service.runtime._context("dependency",{}),{})
+		check_eq(changed.logs,["pending"],dependency+" change forces native lookup through current host")
+		check_eq(changed.commands.size(),1)
 	service.leave("test")
 
 func test_fault_drops_commands_from_earlier_callback_in_same_step() -> void:

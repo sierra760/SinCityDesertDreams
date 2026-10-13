@@ -64,6 +64,64 @@ func test_bounded_parameters_and_owner_clear() -> void:
 	service.restore()
 	camera.free()
 
+func test_zero_delta_keeps_particle_buffer_until_time_or_configuration_changes() -> void:
+	var view := CityView3D.new()
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	var service := ExploreEnvironmentService.new()
+	service.bind(view,camera)
+	service.apply("weather",1,"precipitation","rain",{})
+	service.step(.25,false)
+	var particles := service._particles
+	var phase := service._phase
+	# Witnesses detect writes at the owned node and native buffer boundaries.
+	# The dummy headless renderer exposes no MultiMesh buffer; Metal does.
+	var witness := Transform3D(Basis.IDENTITY,Vector3(100,100,100))
+	var native_buffer := not particles.multimesh.buffer.is_empty()
+	particles.transform = witness
+	if native_buffer: particles.multimesh.set_instance_transform(0,witness)
+	for i in 20: service.step(0,false)
+	check_eq(particles.transform,witness,"unchanged phase must not write particle transforms again")
+	if native_buffer: check_eq(particles.multimesh.get_instance_transform(0),witness,"unchanged phase must not upload the buffer again")
+	check_eq(service._phase,phase)
+	service.step(0,true)
+	check(not particles.visible,"zero-delta indoor transition masks particles immediately")
+	service.step(0,false)
+	check(particles.visible,"zero-delta outdoor transition reveals particles immediately")
+	check_eq(particles.transform,witness,"visibility changes do not write unchanged transforms")
+	if native_buffer: check_eq(particles.multimesh.get_instance_transform(0),witness,"visibility changes do not upload unchanged transforms")
+	service.step(.1,false)
+	check(particles.transform != witness,"active time updates particle transforms")
+	if native_buffer: check(particles.multimesh.get_instance_transform(0) != witness,"active time updates the engine buffer")
+	var advanced := particles.multimesh.get_instance_transform(0) if native_buffer else particles.transform
+	service.apply("weather",1,"wind","gust",{})
+	particles = service._particles
+	service.step(.1,false)
+	check((particles.multimesh.get_instance_transform(0) if native_buffer else particles.transform) != advanced,"positive delta still animates particles")
+	view.render_quality = "performance"
+	service.step(0,false)
+	check_eq(service._particles.multimesh.instance_count,128)
+	if native_buffer: check(service._particles.multimesh.get_instance_transform(0) != Transform3D.IDENTITY,"zero-delta quality rebuild initializes transforms")
+	service.step(0,true)
+	service.apply("weather",1,"precipitation","dust",{"intensity":.5})
+	check_eq(service._particles.multimesh.instance_count,64,"amount changes rebuild while indoors")
+	check(not service._particles.visible)
+	service.step(0,false)
+	check(service._particles.visible)
+	if native_buffer: check(service._particles.multimesh.get_instance_transform(0) != Transform3D.IDENTITY,"first outdoor frame initializes particles rebuilt indoors")
+	service.restore()
+	var replacement := Camera3D.new()
+	replacement.environment = Environment.new()
+	service.bind(view,replacement)
+	service.apply("weather",1,"precipitation","rain",{})
+	check_eq(camera.get_child_count(),0,"camera rebind releases previous particles")
+	check_eq(service._particles.get_parent(),replacement)
+	if native_buffer: check(service._particles.multimesh.get_instance_transform(0) != Transform3D.IDENTITY,"new camera receives initialized particles without advancing time")
+	service.restore()
+	replacement.free()
+	camera.free()
+	view.free()
+
 func test_actual_atmosphere_preserves_simulation_and_repeated_cleanup() -> void:
 	var value := flat_city()
 	for x in range(18,30): value.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
@@ -94,6 +152,14 @@ func test_actual_atmosphere_preserves_simulation_and_repeated_cleanup() -> void:
 			continue
 		check_eq(service.api.environment._winners.precipitation.preset,"dust")
 		check(is_instance_valid(service.api.environment._particles))
+		var particle_ids := _environment_resource_ids(service.api.environment,camera)
+		particle_ids.erase("environment")
+		var fog_density := camera.environment.fog_density
+		for blend_step in 10: service.step(.1,false)
+		var blended_ids := _environment_resource_ids(service.api.environment,camera)
+		blended_ids.erase("environment")
+		check_eq(blended_ids,particle_ids,"actual smooth daylight/fog blend retains particle resources")
+		check(camera.environment.fog_density != fog_density,"actual blend still updates fog presentation")
 		check_eq(service.runtime.metrics().get("resources",{}).get("timers",-1),1,"metrics expose host timer ownership")
 		var ticks := service.runtime.tick_count
 		var timer_before := service.api._timers.duplicate(true)
@@ -125,6 +191,59 @@ func _environment_resource_ids(service: ExploreEnvironmentService, camera: Camer
 	var multimesh := particles.multimesh
 	var mesh := multimesh.mesh
 	return {"environment":camera.environment.get_instance_id(),"particles":particles.get_instance_id(),"multimesh":multimesh.get_instance_id(),"mesh":mesh.get_instance_id(),"material":mesh.surface_get_material(0).get_instance_id()}
+
+func test_lighting_wind_and_equal_owner_changes_preserve_particle_resources() -> void:
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	var service := ExploreEnvironmentService.new()
+	service.bind(null,camera)
+	service.apply("weather",1,"precipitation","rain",{})
+	service.step(.25,false)
+	var ids := _environment_resource_ids(service,camera)
+	ids.erase("environment")
+	var phase := service._phase
+	var background := camera.environment.background_energy_multiplier
+	service.apply("weather",1,"daylight","night",{"intensity":.8})
+	check(camera.environment.background_energy_multiplier != background,"changed daylight is immediately visible")
+	service.apply("weather",1,"haze","desert",{"intensity":.3})
+	var fog_density := camera.environment.fog_density
+	service.apply("weather",1,"haze","desert",{"intensity":.7})
+	check(camera.environment.fog_density != fog_density,"changed fog is immediately visible")
+	var after_light := _environment_resource_ids(service,camera)
+	after_light.erase("environment")
+	check_eq(after_light,ids,"lighting and fog do not replace particle resources")
+	var position := service._particles.position
+	var native_buffer := not service._particles.multimesh.buffer.is_empty()
+	var before_wind := service._particles.multimesh.get_instance_transform(0)
+	service.apply("weather",1,"wind","gust",{"intensity":.5})
+	var after_wind := _environment_resource_ids(service,camera)
+	after_wind.erase("environment")
+	check_eq(after_wind,ids,"wind only refreshes existing particle poses")
+	check(service._particles.position != position,"wind changes refresh offset at the frozen phase")
+	if native_buffer: check(service._particles.multimesh.get_instance_transform(0) != before_wind,"wind immediately updates the real native buffer")
+	service.apply("replacement",10,"precipitation","rain",{"intensity":1.0})
+	service.apply("replacement",10,"wind","gust",{"intensity":.5})
+	var transferred := _environment_resource_ids(service,camera)
+	transferred.erase("environment")
+	check_eq(transferred,ids,"equal presentation retains particles across owner/priority changes")
+	check_eq(service._winners.precipitation.owner,"replacement")
+	check_eq(service._suppressed.get("weather:precipitation"),"replacement")
+	check_eq(service._phase,phase,"channel changes never advance active time")
+	service.step(0,true)
+	service.apply("replacement",10,"wind","breeze",{"intensity":.5})
+	service.step(0,false)
+	check(service._particles.visible,"indoor wind changes preserve immediate outdoor masking")
+	var indoors_changed := _environment_resource_ids(service,camera)
+	indoors_changed.erase("environment")
+	check_eq(indoors_changed,ids,"indoor wind change retains the same particle set")
+	service.apply("replacement",10,"precipitation","dust",{"intensity":.5})
+	check_eq(service._particles.multimesh.instance_count,256,"effective precipitation amount still rebuilds immediately")
+	check(service._particles.get_instance_id() != ids.particles,"effective precipitation preset still replaces its resources")
+	service.clear_owner("replacement")
+	check_eq(service._winners.precipitation.owner,"weather")
+	check_eq(service._particles.multimesh.instance_count,512,"owner clear reveals retained lower priority weather")
+	service.restore()
+	camera.free()
 
 func test_unchanged_environment_winners_preserve_resources_and_accounting() -> void:
 	var view := CityView3D.new()
@@ -184,13 +303,17 @@ func test_unchanged_environment_winners_preserve_resources_and_accounting() -> v
 	var before_change := _environment_resource_ids(service,camera)
 	service.apply("beta",20,"precipitation","rain",{"intensity":.5})
 	var changed := _environment_resource_ids(service,camera)
-	for key: String in changed: check(changed[key] != before_change[key],"actual winner change rebuilds "+key)
+	check_eq(changed.environment,before_change.environment,"precipitation change retains unrelated lighting resource")
+	for key: String in changed:
+		if key != "environment": check(changed[key] != before_change[key],"actual precipitation change rebuilds "+key)
 	check_eq(service._winners.precipitation.owner,"beta","higher priority winner admitted")
 	check_eq(service._particles.multimesh.instance_count,64,"changed winning intensity applies current cap")
 	check_eq(service._suppressed.get("alpha:precipitation"),"beta","new winner suppression updates")
 	service.clear_owner("beta")
 	var revealed := _environment_resource_ids(service,camera)
-	for key: String in revealed: check(revealed[key] != changed[key],"winner clear rebuilds revealed "+key)
+	check_eq(revealed.environment,changed.environment,"revealed precipitation retains unrelated lighting resource")
+	for key: String in revealed:
+		if key != "environment": check(revealed[key] != changed[key],"winner clear rebuilds revealed "+key)
 	check_eq(service._winners.precipitation.owner,"alpha","clear winner reveals retained request")
 	check_eq(service._particles.multimesh.instance_count,32,"revealed request retains copied intensity")
 	service.clear_owner("alpha")

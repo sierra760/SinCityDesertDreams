@@ -291,6 +291,11 @@ func deliver(owner: String, event: Dictionary) -> void:
 
 func cache_query(owner: String, kind: String, args: Array, result: Dictionary) -> void:
 	if not _sessions.has(owner) or kind in ["world.player","world.nearby","actor.inspect"]: return
+	if result.get("code","") == "stale_geometry": return
+	# Native memoization compares only the Lua arguments. Implicit-origin
+	# landmarks must reach the host, whose bounded cache includes the live
+	# player origin; explicit from searches can still return synchronously.
+	if kind == "world.find_landmark" and (args.size()<2 or not args[1] is Dictionary or not args[1].has("from")): return
 	var cache: Dictionary = _sessions[owner].queries
 	var entries: Array = cache.get(kind,[])
 	if entries.size() >= 8: entries.pop_front()

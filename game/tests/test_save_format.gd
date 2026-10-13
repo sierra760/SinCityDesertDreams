@@ -290,6 +290,179 @@ func test_a_damaged_snapshot_is_refused_before_anything_is_replaced() -> void:
 		check(loaded["city"] == null, "no half-loaded city is handed back")
 
 
+func test_nested_snapshot_damage_is_refused_before_restore() -> void:
+	var cases := [
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"x": [], "y": 1}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"at": [{}, 1]}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"count": []}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"need": []}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"systems": {"newspaper": {"queue": [{"kind": "disaster_started", "args": {"kind": []}, "priority": 2, "born_day": 0, "seq": 0}]}}},
+		{"stats": {"neighbor_populations": []}},
+		{"stats": {"bonds": [{"principal": []}]}},
+		{"stats": {"history": {"population": {}}}},
+		{"systems": {"population": {"complaints": [1]}}},
+		{"systems": {"rewards": {"military": {"sites": [1]}}}},
+		{"systems": {"budget": {"carry": {"taxes": []}}}},
+		{"systems": {"newspaper": {"queue": [{"priority": []}]}}},
+		{"systems": {"economy": {"sector_base": 1}}},
+		{"systems": {"ports": {"vehicles": [1]}}},
+		{"systems": {"ports": {"centre": []}}},
+		{"systems": {"ports": {"centre": [0, {}]}}},
+		{"systems": {"ports": {"vehicles": [{"target": [0]}]}}},
+		{"systems": {"ports": {"vehicles": [{"route": [0, {}]}]}}},
+		{"systems": {"services": {"prisons": {"0,0": 1}}}},
+		{"systems": {"services": {"prisons": {"0,0": {"inmates": []}}}}},
+		{"systems": {"disasters": {"entities": [1]}}},
+		{"systems": {"disasters": {"entities": [{}]}}},
+		{"systems": {"disasters": {"crews": [1]}}},
+		{"systems": {"disasters": {"fires": {"0,0": []}}}},
+		{"systems": {"disasters": {"active": {"kind": "earthquake"}}}},
+	]
+	for snapshot: Dictionary in cases:
+		var path := DIR.path_join("nested-damage.sc2d")
+		check_eq(SaveFormat.save(path, flat_city(), snapshot), OK)
+		var loaded := SaveFormat.load(path)
+		check(not loaded.ok, "nested damage refused: %s" % JSON.stringify(snapshot))
+		check_eq(loaded.error, SaveFormat.MESSAGE_DAMAGED)
+		check(loaded.city == null)
+
+
+func test_valid_nested_records_and_legacy_absent_fields_still_load() -> void:
+	var sim := Simulation.new()
+	sim.setup(flat_city(), 7)
+	check(sim.request_disaster(&"earthquake", Vector2i(40, 40)))
+	var snapshot := sim.snapshot()
+	var path := DIR.path_join("nested-valid.sc2d")
+	check_eq(SaveFormat.save(path, sim.city, snapshot), OK)
+	var loaded := SaveFormat.load(path)
+	check(loaded.ok, str(loaded.get("detail", "")))
+	check_eq(loaded.snapshot.systems.disasters, JSON.parse_string(JSON.stringify(snapshot.systems.disasters, "", false)))
+	for legacy: Dictionary in [{}, {"systems": {"ports": {}, "services": {}, "disasters": {}}}]:
+		check_eq(SaveFormat.save(path, flat_city(), legacy), OK)
+		check(SaveFormat.load(path).ok, "missing legacy fields retain defaults")
+	sim.free()
+
+
+func test_populated_port_and_prison_records_survive_native_roundtrip() -> void:
+	var city := flat_city()
+	var ctx := make_context(city, 11)
+	for y in range(20, 24):
+		for x in range(20, 26):
+			city.zone.put(x, y, Zones.make(Zones.AIRPORT))
+			city.set_flag(x, y, TileFlags.POWERED, true)
+	for x in range(20, 20 + PortParams.RUNWAY_LENGTH):
+		city.building.put(x, 20, Buildings.RUNWAY)
+	var ports = preload("res://scripts/sim/port_system.gd").new()
+	ports.setup(ctx)
+	for day in 100:
+		ports.daily(ctx)
+		ctx.clock.advance()
+		if not ports.vehicles().is_empty(): break
+	check(not ports.vehicles().is_empty(), "real operating airport creates saved vehicle records")
+	city.stamp_building(60, 60, Buildings.PRISON)
+	city.crime.fill(60)
+	var services := ServicesSystem.new()
+	services.setup(ctx)
+	services.monthly(ctx)
+	var prison_records: Dictionary = services.save().prisons
+	check(not prison_records.is_empty(), "real prison scan creates saved records")
+	check_gt(int(prison_records["60,60"].inmates), 0, "record includes real arrests")
+	var snapshot := {"systems": {"ports": ports.save(), "services": services.save()}}
+	var path := DIR.path_join("populated-records.sc2d")
+	check_eq(SaveFormat.save(path, city, snapshot), OK)
+	var loaded := SaveFormat.load(path)
+	check(loaded.ok, str(loaded.get("detail", "")))
+	var expected: Dictionary = JSON.parse_string(JSON.stringify(snapshot, "", false))
+	check_eq(loaded.snapshot, expected, "all populated nested records retain their saved values")
+	var restored_ports = preload("res://scripts/sim/port_system.gd").new()
+	restored_ports.setup(make_context(loaded.city))
+	restored_ports.load(loaded.snapshot.systems.ports)
+	check_eq(restored_ports.vehicles(), ports.vehicles())
+	var restored_services := ServicesSystem.new()
+	restored_services.load(loaded.snapshot.systems.services)
+	check_eq(restored_services.prison_report(), services.prison_report())
+
+
+func test_conditional_and_populated_system_schemas_keep_valid_snapshots() -> void:
+	var included := SaveFormat.load("res://assets/cities/Adaven.sc2d")
+	check(included.ok)
+	var sim := Simulation.new()
+	sim.setup(included.city, 17, null, included.snapshot)
+	sim.restore(included.snapshot)
+	# A real March population pass generates complaint records from this city.
+	sim.clock.day = 2 * GameClock.DAYS_PER_MONTH + 13
+	sim.city.day = sim.clock.day
+	var population := sim.get_system(&"population") as PopulationSystem
+	population.monthly(sim._ctx)
+	check(not population.save().complaints.is_empty(), "March vote creates complaint records")
+	var budget := sim.get_system(&"budget") as BudgetSystem
+	budget.monthly(sim._ctx)
+	check(not budget.save().carry.is_empty(), "budget pass creates fractional account records")
+	check(budget.issue_bond(), "ordinary eligible city creates a real bond record")
+	var newspaper: Variant = sim.get_system(&"newspaper")
+	newspaper.monthly(sim._ctx)
+	check(not sim.stats.newspaper_archive.is_empty(), "real issue records enter the saved archive")
+	sim.get_system(&"statistics").monthly(sim._ctx)
+	check(not sim.stats.history.is_empty(), "real monthly graph samples enter saved history")
+	newspaper.submit(sim._ctx, &"city_milestone", {"population": sim.stats.population}, 2)
+	check(not newspaper.save().queue.is_empty(), "real news enters the saved queue")
+	var economy := sim.get_system(&"economy") as EconomySystem
+	sim.stats.sector_taxes[0] = 2
+	economy.sector_taxes_changed()
+	sim.stats.tax_industrial = 20
+	economy.industrial_rate_written()
+	check(economy.save().has("sector_base"), "Budget shift stores its conditional sector spread")
+	var rewards: Variant = sim.get_system(&"rewards")
+	var sites: Array[Rect2i] = rewards._find_missile_sites(sim._ctx)
+	check(not sites.is_empty(), "real site finder produces usable military rectangles")
+	# Use the existing wire codec/load path to retain a legacy pending proposal.
+	rewards.load({"military": {"kind": "missile", "sites": rewards._rects_to_array(sites)}})
+	var snapshot := sim.snapshot()
+	var path := DIR.path_join("conditional-records.sc2d")
+	check_eq(SaveFormat.save(path, sim.city, snapshot), OK)
+	var loaded := SaveFormat.load(path)
+	check(loaded.ok, str(loaded.get("detail", "")))
+	check_eq(loaded.snapshot, JSON.parse_string(JSON.stringify(snapshot, "", false)), "full populated snapshot remains exact")
+	var restored := Simulation.new()
+	restored.setup(loaded.city, 17, null, loaded.snapshot)
+	restored.restore(loaded.snapshot)
+	# JSON restores numeric values in typed bond records as floats; compare
+	# their saved values through the same wire representation on both sides.
+	check_eq(JSON.parse_string(JSON.stringify(restored.snapshot(), "", false)),
+		JSON.parse_string(JSON.stringify(sim.snapshot(), "", false)), "restored runtime keeps all saved values")
+	restored.free()
+	sim.free()
+
+
+func test_valid_newspaper_argument_forms_and_custom_payload_roundtrip() -> void:
+	var cases: Array[Dictionary] = [
+		{}, {"count": 3}, {"amount": 12.5}, {"count": "several"},
+		{"need": "needs_water"}, {"kind": "tornado", "x": "12", "y": "13"},
+		{"x": true, "y": false},
+		{"count": 3, "custom_payload": {"list": [{"arbitrary": []}]}},
+	]
+	for field: String in NewsStories.PLACE_KEYS:
+		cases.append({field: [12, 13]})
+		cases.append({field: ["12", "13"]})
+		cases.append({field: "12,13"})
+	var path := DIR.path_join("news-arguments.sc2d")
+	for args: Dictionary in cases:
+		var row := {"kind": "disaster_started", "args": args, "priority": 2, "born_day": 0, "seq": 0}
+		var snapshot := {"systems": {"newspaper": {"queue": [row]}}}
+		check_eq(SaveFormat.save(path, flat_city(), snapshot), OK)
+		var loaded := SaveFormat.load(path)
+		check(loaded.ok, "valid news arguments: %s (%s)" % [str(args), str(loaded.get("detail", ""))])
+		check_eq(loaded.snapshot, JSON.parse_string(JSON.stringify(snapshot, "", false)), "wire forms and custom keys preserved")
+		var paper = preload("res://scripts/sim/newspaper_system.gd").new()
+		paper.load(loaded.snapshot.systems.newspaper)
+		var restored_args: Dictionary = paper.pending()[0].args
+		check_eq(NewsStories.values_for(&"disaster_started", restored_args, "City", "Mayor", 2000),
+			NewsStories.values_for(&"disaster_started", args, "City", "Mayor", 2000), "restored formatting matches")
+		check_eq(NewsStories.template_key(&"disaster_started", restored_args),
+			NewsStories.template_key(&"disaster_started", args), "restored template matches")
+		paper.monthly(make_context(loaded.city))
+
+
 func test_a_running_city_snapshot_passes_the_shape_check() -> void:
 	var c := flat_city()
 	var sim := Simulation.new()

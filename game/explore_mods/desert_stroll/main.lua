@@ -2,6 +2,7 @@
 local walkers = {}
 local requests = {}
 local origin
+local origin_failed = false
 local variants = {"pedestrian_03", "pedestrian_05", "pedestrian_07"}
 local start, finished
 local function track(api, result, index, action)
@@ -40,16 +41,24 @@ end
 local function anchor(index)
   if index > 1 and origin then return {x=origin.x, y=origin.y, z=origin.z} end
 end
+local function find_destination(api, index)
+  local person = walkers[index]
+  if not origin or not person.started or person.destination_requested then return end
+  person.destination_requested = true
+  -- Every follower uses the same origin as its spawn and far-to-near stop.
+  track(api,api.world.find_landmark("road_destination",{from={x=origin.x,y=origin.y,z=origin.z}}),index,"destination")
+end
 start = function(api, index)
   local person = walkers[index]
   if person.started then return end
   person.started = true
   track(api,api.actor.spawn("pedestrian",{key="stroller"..index,variant=variants[index],near_player=true,position=anchor(index)}),index,"spawn")
-  track(api,api.world.find_landmark("road_destination"),index,"destination")
+  find_destination(api,index)
 end
 finished = function(api, index, action, code, data)
   local person = walkers[index]
   if code ~= "ok" then
+    if action == "origin" then origin_failed = true end
     if action == "spawn" and not person.retried then
       person.retried = true
       api.timer.after("spawn"..index,9 * index)
@@ -63,10 +72,12 @@ finished = function(api, index, action, code, data)
   end
   if action == "origin" then
     origin = data
-    for next_index=1,3 do walk(api,next_index) end
+    for next_index=1,3 do find_destination(api,next_index); walk(api,next_index) end
   elseif action == "spawn" then
     person.id = data.id
     api.interaction.register("greet"..index,{target={id=person.id},label="greet the walker"})
+    -- A missing origin keeps all greetings, but starts no walking route.
+    if origin_failed then settle(api,index) end
   elseif action == "destination" then
     person.destination = data
   elseif action == "walk" then

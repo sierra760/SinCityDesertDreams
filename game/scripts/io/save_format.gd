@@ -328,6 +328,8 @@ static func validate_snapshot(snap: Dictionary) -> String:
 				continue
 			if not CityStats.accepts(defaults.get(p.name), stats[p.name]):
 				return "Snapshot stat '%s' is damaged." % p.name
+		var problem := _stats_problem(stats, defaults)
+		if problem != "": return problem
 	if snap.has("systems"):
 		if typeof(snap["systems"]) != TYPE_DICTIONARY:
 			return "Snapshot systems are damaged."
@@ -341,7 +343,31 @@ static func validate_snapshot(snap: Dictionary) -> String:
 			var problem := _shape_problem(shapes[String(key)], systems[key], String(key))
 			if problem != "":
 				return problem
+			problem = _nested_system_problem(String(key), systems[key])
+			if problem != "":
+				return problem
 	return ""
+
+
+## These stats tables and fixed-size vectors are read directly by reports and
+## scheduled systems after restoration, so a container check alone is not enough.
+static func _stats_problem(saved: Dictionary, defaults: CityStats) -> String:
+	for field in ["cohorts", "sector_taxes", "sector_shares", "neighbor_populations"]:
+		if saved.has(field) and saved[field].size() != defaults.get(field).size():
+			return "Snapshot stat '%s' has the wrong number of entries." % field
+	for field in ["funding", "ledger", "last_year_ledger", "ordinances",
+		"rewards_offered", "rewards_built", "inventions"]:
+		var problem := _number_map_problem(saved.get(field, {}), "stats." + field)
+		if problem != "": return problem
+	var history: Dictionary = saved.get("history", {})
+	for field: Variant in history:
+		var problem := _shape_problem({"samples": [0]}, {"samples": history[field]}, "stats.history")
+		if problem != "": return problem
+	return _shape_problem({
+		"bonds": [{"principal": 0, "rate": 0, "age": 0, "issued_year": 0}],
+		"newspaper_archive": [{"date": "", "year": 0, "month": 0, "day": 0, "extra": false,
+			"stories": [{"kind": "", "headline": "", "body": "", "priority": 0, "filler": false}]}],
+	}, saved, "stats")
 
 
 static func _shapes() -> Dictionary:
@@ -351,6 +377,16 @@ static func _shapes() -> Dictionary:
 				continue
 			var system: SimSystem = (ResourceLoader.load(path) as Script).new()
 			_system_shapes[String(system.key)] = system.save()
+		# Fresh systems have empty collections; conditional economy fields do
+		# not appear until the player shifts the sector tax spread.
+		_system_shapes.population.complaints = [{"key": "", "name": "", "votes": 0}]
+		_system_shapes.newspaper.queue = [{"kind": "", "args": {}, "priority": 0, "born_day": 0, "seq": 0}]
+		_system_shapes.rewards.military.sites = [[0, 0, 0, 0]]
+		_system_shapes.economy["sector_base"] = [0]
+		_system_shapes.economy["sector_offset"] = 0
+		for pair in [["economy", "announced"], ["disasters", "advice"],
+			["rewards", "seen_standing"], ["ports", "opened"], ["statistics", "status_lines"]]:
+			_system_shapes[pair[0]][pair[1]] = [""]
 	return _system_shapes
 
 
@@ -376,6 +412,11 @@ static func _shape_problem(expected: Dictionary, saved: Dictionary, where: Strin
 		elif typeof(want) == TYPE_DICTIONARY:
 			if typeof(got) != TYPE_DICTIONARY:
 				return "Snapshot field '%s' is not a table." % name
+			var problem := _shape_problem(want, got, name)
+			if problem != "": return problem
+		elif typeof(want) in [TYPE_STRING, TYPE_STRING_NAME]:
+			if typeof(got) not in [TYPE_STRING, TYPE_STRING_NAME]:
+				return "Snapshot field '%s' is not text." % name
 		elif _is_list(want):
 			if typeof(got) != TYPE_ARRAY:
 				return "Snapshot field '%s' is not a list." % name
@@ -387,6 +428,146 @@ static func _shape_problem(expected: Dictionary, saved: Dictionary, where: Strin
 				for item in got:
 					if typeof(item) != TYPE_DICTIONARY:
 						return "Snapshot field '%s' holds a damaged entry." % name
+					var problem := _shape_problem(want[0], item, name)
+					if problem != "": return problem
+			elif want.size() > 0 and _is_number(want[0]):
+				for item in got:
+					if not _is_number(item):
+						return "Snapshot field '%s' holds a damaged number." % name
+			elif want.size() > 0 and typeof(want[0]) in [TYPE_STRING, TYPE_STRING_NAME]:
+				for item in got:
+					if typeof(item) not in [TYPE_STRING, TYPE_STRING_NAME]:
+						return "Snapshot field '%s' holds damaged text." % name
+			elif want.size() > 0 and _is_list(want[0]):
+				for item in got:
+					var problem := _shape_problem({"entry": want[0]}, {"entry": item}, name)
+					if problem != "": return problem
+	return ""
+
+
+## Empty fresh-system collections cannot describe the records their loaders
+## consume. Check those wire shapes here before the host releases its current
+## city. Missing fields still take each loader's legacy defaults.
+static func _nested_system_problem(key: String, saved: Dictionary) -> String:
+	if key == "newspaper":
+		for story: Dictionary in saved.get("queue", []):
+			var problem := _news_args_problem(String(story.get("kind", "generic")), story.get("args", {}))
+			if problem != "": return problem
+	if key == "budget":
+		return _number_map_problem(saved.get("carry", {}), "budget.carry")
+	if key == "rewards":
+		return _record_map_problem(saved.get("arcologies", {}), {
+			"residents": 0, "capacity": 0, "built_year": 0, "condition": 0,
+		}, "rewards.arcologies")
+	if key == "services":
+		return _record_map_problem(saved.get("prisons", {}), {
+			"inmates": 0, "guards": 0, "capacity": 0, "utilization": 0,
+			"escapes": 0, "powered": false,
+		}, "services.prisons")
+	if key == "disasters":
+		for field in ["fires", "riots", "hot", "flood"]:
+			var problem := _number_map_problem(saved.get(field, {}), "disasters." + field)
+			if problem != "": return problem
+		var active: Dictionary = saved.get("active", {})
+		if not active.is_empty():
+			var problem := _record_problem(active, {
+				"kind": "", "x": 0, "y": 0, "remaining": 0, "wrecked": 0, "burned": 0,
+			}, "disasters.active", ["kind", "x", "y", "remaining", "wrecked", "burned"])
+			if problem != "": return problem
+		for entity: Variant in saved.get("entities", []):
+			var problem := _record_problem(entity, {
+				"kind": "", "x": 0, "y": 0, "frame": 0, "heading": 0,
+				"tx": 0, "ty": 0, "arrived": false,
+			}, "disasters.entities", ["kind", "x", "y", "frame", "heading"])
+			if problem != "": return problem
+			if entity.kind in ["monster", "hurricane", "plane"]:
+				for field in ["tx", "ty"]:
+					if not entity.has(field): return "Snapshot disaster entity has no target."
+			if entity.kind == "monster" and not entity.has("arrived"):
+				return "Snapshot monster entity has no arrival flag."
+		for crew: Variant in saved.get("crews", []):
+			var problem := _record_problem(crew, {"kind": "", "x": 0, "y": 0, "day": 0},
+				"disasters.crews", ["kind", "x", "y"])
+			if problem != "": return problem
+	if key == "ports":
+		if saved.has("centre"):
+			var problem := _point_problem(saved.centre, "ports.centre")
+			if problem != "": return problem
+		for vehicle: Variant in saved.get("vehicles", []):
+			var problem := _record_problem(vehicle, {
+				"kind": "", "x": 0, "y": 0, "heading": 0, "frame": 0,
+				"altitude": 0, "phase": "", "days": 0, "index": 0,
+			}, "ports.vehicles")
+			if problem != "": return problem
+			for field in ["target", "port"]:
+				if vehicle.has(field):
+					problem = _point_problem(vehicle[field], "ports.vehicles." + field)
+					if problem != "": return problem
+			if vehicle.has("route"):
+				problem = _shape_problem({"route": [0]}, vehicle, "ports.vehicles")
+				if problem != "": return problem
+		var opened_tiles: Dictionary = saved.get("opened_tiles", {})
+		for points: Variant in opened_tiles.values():
+			if not points is Array: return "Snapshot port tiles are not a list."
+			for point: Variant in points:
+				var problem := _point_problem(point, "ports.opened_tiles")
+				if problem != "": return problem
+	return ""
+
+
+## NewsStories consumes only these known scalar/place arguments. Other story
+## payload remains open-ended; numeric strings and string tile keys retain their
+## existing conversion, and omitted arguments still use ordinary story defaults.
+static func _news_args_problem(kind: String, args: Dictionary) -> String:
+	for field: String in NewsStories.COUNT_KEYS:
+		if args.has(field) and typeof(args[field]) not in [TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME]:
+			return "Snapshot newspaper count '%s' is damaged." % field
+	if args.has("need") and typeof(args.need) not in [TYPE_STRING, TYPE_STRING_NAME]:
+		return "Snapshot newspaper need is damaged."
+	if kind == "disaster_started" and args.has("kind") and typeof(args.kind) not in [TYPE_STRING, TYPE_STRING_NAME]:
+		return "Snapshot newspaper disaster kind is damaged."
+	if args.has("x") and args.has("y"):
+		for field in ["x", "y"]:
+			if not _news_coordinate(args[field]): return "Snapshot newspaper coordinate is damaged."
+	for field: String in NewsStories.PLACE_KEYS:
+		var point: Variant = args.get(field)
+		if point is Array and point.size() == 2:
+			for component: Variant in point:
+				if not _news_coordinate(component): return "Snapshot newspaper location '%s' is damaged." % field
+	return ""
+
+
+static func _news_coordinate(value: Variant) -> bool:
+	return _is_number(value) or typeof(value) == TYPE_STRING
+
+
+static func _record_problem(value: Variant, shape: Dictionary, where: String, required: Array = []) -> String:
+	if not value is Dictionary:
+		return "Snapshot field '%s' holds a damaged entry." % where
+	for field: String in required:
+		if not value.has(field): return "Snapshot field '%s' has no '%s'." % [where, field]
+	return _shape_problem(shape, value, where)
+
+
+static func _number_map_problem(value: Dictionary, where: String) -> String:
+	for item: Variant in value.values():
+		if not _is_number(item): return "Snapshot field '%s' holds a damaged number." % where
+	return ""
+
+
+static func _record_map_problem(value: Dictionary, shape: Dictionary, where: String) -> String:
+	for record: Variant in value.values():
+		var problem := _record_problem(record, shape, where)
+		if problem != "": return problem
+	return ""
+
+
+static func _point_problem(value: Variant, where: String) -> String:
+	if not value is Array or value.size() != 2:
+		return "Snapshot field '%s' is not a tile point." % where
+	for component: Variant in value:
+		if not _is_number(component):
+			return "Snapshot field '%s' holds a damaged coordinate." % where
 	return ""
 
 
