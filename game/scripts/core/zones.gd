@@ -44,6 +44,24 @@ const NAMES := {
 	SEAPORT: "Seaport",
 }
 
+## Traditional U.S. planning land-use colors, tuned for the desert presentation.
+## Keep these literal hex tokens: tools/build_ui_icons.py reads them when authoring SVGs.
+const COLOR_RES_LOW := Color("f2cf57")
+const COLOR_RES_HIGH := Color("b78538")
+const COLOR_COM_LOW := Color("e68a80")
+const COLOR_COM_HIGH := Color("ba4548")
+const COLOR_IND_LOW := Color("b99bd8")
+const COLOR_IND_HIGH := Color("8054a6")
+const COLOR_MILITARY := Color("d99bae")
+const COLOR_AIRPORT := Color("acb2b8")
+const COLOR_SEAPORT := Color("747c84")
+const COLORS := {
+	RES_LOW: COLOR_RES_LOW, RES_HIGH: COLOR_RES_HIGH,
+	COM_LOW: COLOR_COM_LOW, COM_HIGH: COLOR_COM_HIGH,
+	IND_LOW: COLOR_IND_LOW, IND_HIGH: COLOR_IND_HIGH,
+	MILITARY: COLOR_MILITARY, AIRPORT: COLOR_AIRPORT, SEAPORT: COLOR_SEAPORT,
+}
+
 
 static func kind(code: int) -> int:
 	return code & KIND_MASK

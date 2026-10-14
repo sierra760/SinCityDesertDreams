@@ -19,9 +19,9 @@ const COLOR_POWER := Color(0.90, 0.85, 0.20)
 const COLOR_ROAD := Color(0.65, 0.65, 0.65)
 const COLOR_HIGHWAY := Color(0.45, 0.45, 0.45)
 const COLOR_RAIL := Color(0.55, 0.35, 0.15)
-const COLOR_RESIDENTIAL := Color(0.45, 0.80, 0.40)
-const COLOR_COMMERCIAL := Color(0.35, 0.50, 0.90)
-const COLOR_INDUSTRIAL := Color(0.90, 0.65, 0.20)
+const COLOR_RESIDENTIAL := Zones.COLOR_RES_LOW
+const COLOR_COMMERCIAL := Zones.COLOR_COM_LOW
+const COLOR_INDUSTRIAL := Zones.COLOR_IND_LOW
 const COLOR_CIVIC := Color(0.95, 0.95, 0.95)
 const COLOR_WATER := Color(0.37, 0.64, 0.62)
 const COLOR_DEFAULT := Color(0.55, 0.55, 0.55)
@@ -175,10 +175,10 @@ static func _changed_indices(before: Variant, after: Variant, changed: Dictionar
 ## Colour for a data tile by what stands on it.
 static func tile_color(city: City, x: int, y: int) -> Color:
 	var id := city.building.at(x, y)
+	var zone_kind := city.zone_kind_at(x, y)
 	if id == Buildings.NONE:
 		if city.is_water(x, y):
 			return COLOR_WATER
-		var zone_kind := city.zone_kind_at(x, y)
 		if zone_kind != Zones.NONE:
 			var tint: Color = CityOverlaySampler.ZONE_TINTS.get(zone_kind, COLOR_DEFAULT)
 			return COLOR_EMPTY.lerp(tint, ZONE_ALPHA)
@@ -191,9 +191,15 @@ static func tile_color(city: City, x: int, y: int) -> Color:
 		Buildings.Category.BRIDGE: return COLOR_POWER if id == Buildings.id_of(&"power_elevated") else COLOR_ROAD
 		Buildings.Category.RAIL: return COLOR_RAIL
 		Buildings.Category.HIGHWAY: return COLOR_HIGHWAY
-		Buildings.Category.RESIDENTIAL: return COLOR_RESIDENTIAL
-		Buildings.Category.COMMERCIAL: return COLOR_COMMERCIAL
-		Buildings.Category.INDUSTRIAL: return COLOR_INDUSTRIAL
+		Buildings.Category.RESIDENTIAL:
+			return Zones.COLORS[zone_kind] if Zones.is_residential(zone_kind) else COLOR_RESIDENTIAL
+		Buildings.Category.COMMERCIAL:
+			return Zones.COLORS[zone_kind] if Zones.is_commercial(zone_kind) else COLOR_COMMERCIAL
+		Buildings.Category.INDUSTRIAL:
+			return Zones.COLORS[zone_kind] if Zones.is_industrial(zone_kind) else COLOR_INDUSTRIAL
+		Buildings.Category.PORT:
+			return Zones.COLORS[zone_kind] if Zones.is_port(zone_kind) or zone_kind == Zones.MILITARY else Zones.COLOR_AIRPORT
+		Buildings.Category.MILITARY: return Zones.COLOR_MILITARY
 	return COLOR_CIVIC
 
 

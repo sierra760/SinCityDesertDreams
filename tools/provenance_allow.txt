@@ -42,3 +42,12 @@ game/data/real_world_terrain_notices.txt:51
 game/data/real_world_terrain_notices.txt:53
 # Public deflate length/distance tables from RFC 1951, section 3.2.5.
 game/scripts/terrain/real_world/terrain_zlib.gd
+
+# Authored planning-palette RGB hex literals: ochre/brown and deep red.
+# These six exact lines contain color tokens, not source-address identifiers.
+game/scripts/core/zones.gd:50
+game/scripts/core/zones.gd:52
+game/tests/test_city_overlay_sampler.gd:79
+game/tests/test_city_overlay_sampler.gd:81
+docs/design/zone-colors.md:13
+docs/design/zone-colors.md:15

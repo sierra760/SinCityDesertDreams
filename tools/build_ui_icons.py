@@ -10,11 +10,22 @@ SVG sources are shipped at 128px so 32px icons stay sharp at doubled UI scale.
 Run from any directory. Only the SVG files in game/assets/ui/tool-icons are written.
 """
 import math
+import re
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parents[1] / 'game/assets/ui/tool-icons'
 INK, PAPER, TEAL, BLUE, GOLD, RED, GREEN = (
     '#293e3b', '#f4efdf', '#258873', '#487cac', '#cd9c42', '#b95b40', '#659452')
+
+def zone_colors():
+    """Read the runtime's canonical hex tokens so regenerated icons stay in sync."""
+    source = (OUT.parents[2] / 'scripts/core/zones.gd').read_text()
+    colors = dict(re.findall(r'^const COLOR_(\w+) := Color\("([0-9a-f]{6})"\)$', source, re.M))
+    required = {'RES_LOW', 'RES_HIGH', 'COM_LOW', 'COM_HIGH', 'IND_LOW', 'IND_HIGH',
+                'MILITARY', 'AIRPORT', 'SEAPORT'}
+    if not required <= colors.keys():
+        raise ValueError('Missing canonical zone color tokens in zones.gd')
+    return {key: '#' + colors[key] for key in required}
 
 def path(d, fill='none', stroke=INK, width=4):
     return f'<path d="{d}" fill="{fill}" stroke="{stroke}" stroke-width="{width}"/>'
@@ -57,8 +68,8 @@ def train():
 def rails():
     return path('M23 9 L17 55 M41 9 L47 55') + path('M21 17 H43 M20 28 H44 M19 39 H45 M17 50 H47', stroke=GOLD)
 
-def house():
-    return path('M12 30 L32 12 52 30', stroke=GREEN, width=5) + path('M18 27 V52 H46 V27', PAPER) + rect(28, 36, 9, 16, GREEN)
+def house(color=GREEN):
+    return path('M12 30 L32 12 52 30', stroke=color, width=5) + path('M18 27 V52 H46 V27', PAPER) + rect(28, 36, 9, 16, color)
 
 def tower(x=20, y=10, w=26, h=44, fill=BLUE):
     return rect(x, y, w, h, fill) + path(f'M{x+7} {y+9}h{w-14}m-{w-14} 10h{w-14}m-{w-14} 10h{w-14}', stroke=PAPER, width=3)
@@ -77,6 +88,7 @@ def resort_roof():
 
 def build():
     icons = {}
+    zones = zone_colors()
     icons['query'] = circle(27, 26, 16, PAPER, TEAL, 5) + path('M40 40 L53 53', width=6) + circle(27, 26, 3, INK)
     icons['sign'] = path('M29 29 V55') + path('M10 12 H43 L55 23 43 34 H10Z', GOLD) + path('M18 23 H39', stroke=PAPER)
     icons['bulldoze'] = rect(12, 36, 33, 16, GOLD, 8) + rect(21, 17, 17, 22, GOLD) + rect(25, 21, 9, 11) + path('M46 32 V52 H57 M45 42 H51') + circle(21, 44, 3, INK) + circle(35, 44, 3, INK)
@@ -90,14 +102,14 @@ def build():
     icons['subway_portal'] = path('M8 52 H21 V42 H31 V32 H41 V22 H55', stroke=BLUE, width=5) + arrow(18, 19, False) + path('M40 54 H56 M44 48 V57 M52 48 V57', width=3)
     icons['power_line'] = path('M22 55 L29 9 H35 L43 55 M17 22 H47 M13 34 H51 M25 36 L39 48 M39 36 L25 48 M18 22 V28 M46 22 V28', stroke=TEAL) + path('M26 13 H38', stroke=GOLD)
     icons['water_pipe'] = path('M10 18 H36 V46 H55', stroke=INK, width=15) + path('M10 18 H36 V46 H55', stroke=BLUE, width=9) + path('M11 9 V27 M25 29 H47 M53 36 V56', width=3)
-    icons['zone_res_low'] = house()
-    icons['zone_res_high'] = tower(12, 24, 17, 30, GREEN) + tower(29, 9, 23, 45, GREEN)
-    icons['zone_com_low'] = rect(13, 23, 38, 30) + path('M10 27 L16 12 H48 L54 27Z', BLUE) + path('M24 13 V26 M40 13 V26', stroke=PAPER) + rect(19, 36, 13, 17, BLUE) + rect(37, 35, 8, 8, BLUE)
-    icons['zone_com_high'] = tower(12, 22, 20, 32) + tower(31, 9, 23, 45) + path('M43 5 V9', stroke=GOLD)
-    icons['zone_ind_low'] = path('M10 53 V31 L23 21 V31 L38 21 V53Z', GOLD) + rect(39, 13, 12, 40, GOLD) + path('M17 42 H30', stroke=PAPER)
-    icons['zone_ind_high'] = path('M9 53 V32 L24 23 V32 L38 23 V53Z', GOLD) + rect(39, 11, 8, 42, GOLD) + rect(50, 7, 7, 46, GOLD) + path('M16 41 H30 M16 48 H30', stroke=PAPER, width=3)
-    icons['airport'] = path('M29 8 H35 L38 26 55 36 V42 L37 37 36 48 43 52 V56 L32 53 21 56 V52 L28 48 27 37 9 42 V36 L26 26Z', BLUE, INK, 3)
-    icons['seaport'] = path('M9 35 H55 L47 47 H18Z', TEAL) + rect(23, 21, 21, 14, GOLD) + path('M32 10 V21 M17 27 V35') + waves(53)
+    icons['zone_res_low'] = house(zones['RES_LOW'])
+    icons['zone_res_high'] = tower(12, 24, 17, 30, zones['RES_HIGH']) + tower(29, 9, 23, 45, zones['RES_HIGH'])
+    icons['zone_com_low'] = rect(13, 23, 38, 30) + path('M10 27 L16 12 H48 L54 27Z', zones['COM_LOW']) + path('M24 13 V26 M40 13 V26', stroke=PAPER) + rect(19, 36, 13, 17, zones['COM_LOW']) + rect(37, 35, 8, 8, zones['COM_LOW'])
+    icons['zone_com_high'] = tower(12, 22, 20, 32, zones['COM_HIGH']) + tower(31, 9, 23, 45, zones['COM_HIGH']) + path('M43 5 V9', stroke=GOLD)
+    icons['zone_ind_low'] = path('M10 53 V31 L23 21 V31 L38 21 V53Z', zones['IND_LOW']) + rect(39, 13, 12, 40, zones['IND_LOW']) + path('M17 42 H30', stroke=PAPER)
+    icons['zone_ind_high'] = path('M9 53 V32 L24 23 V32 L38 23 V53Z', zones['IND_HIGH']) + rect(39, 11, 8, 42, zones['IND_HIGH']) + rect(50, 7, 7, 46, zones['IND_HIGH']) + path('M16 41 H30 M16 48 H30', stroke=PAPER, width=3)
+    icons['airport'] = path('M29 8 H35 L38 26 55 36 V42 L37 37 36 48 43 52 V56 L32 53 21 56 V52 L28 48 27 37 9 42 V36 L26 26Z', zones['AIRPORT'], INK, 3)
+    icons['seaport'] = path('M9 35 H55 L47 47 H18Z', zones['SEAPORT']) + rect(23, 21, 21, 14, zones['AIRPORT']) + path('M32 10 V21 M17 27 V35') + waves(53)
     icons['trees'] = tree()
     icons['small_park'] = group(tree(), 'translate(0 0) scale(.7)') + path('M28 39 H54 M28 45 H54 M31 45 V54 M50 45 V54', stroke=GOLD, width=4)
     icons['large_park'] = rect(8, 9, 48, 46, GREEN, 8) + path('M32 54 V39 Q19 33 32 24 V11', stroke=PAPER, width=6) + group(tree(), 'translate(3 8) scale(.45)') + group(tree(), 'translate(29 15) scale(.45)')
@@ -170,7 +182,7 @@ def build():
     icons['reward_mayors_residence'] = house() + path('M39 9 V20 M39 9 H53 L49 15 H39', GOLD, INK, 2)
     icons['reward_city_hall'] = path('M8 54 H56 M13 54 V25 H51 V54', GOLD) + path('M10 25 L32 13 54 25Z', TEAL) + path('M21 34 V46 M32 34 V46 M43 34 V46 M32 13 V5 H46', width=3)
     icons['reward_monument'] = path('M12 54 H52 L47 43 H17Z', GOLD) + path('M26 42 L28 24 H36 L39 42Z', TEAL) + circle(32, 16, 7, GOLD) + path('M28 26 L19 33 M36 26 L45 17', stroke=TEAL, width=5)
-    icons['reward_military_base'] = rect(10, 11, 44, 43, TEAL) + group(star(), 'translate(8 8) scale(.75)')
+    icons['reward_military_base'] = rect(10, 11, 44, 43, zones['MILITARY']) + group(star(), 'translate(8 8) scale(.75)')
     icons['reward_neon_dome'] = path('M8 49 A24 24 0 0 1 56 49ZM16 49 Q18 19 32 25 46 19 48 49 M32 26 V49', TEAL) + path('M7 54 H57', stroke=GOLD, width=4) + path('M32 7 V16 M16 12 L21 18 M48 12 L43 18', stroke=GOLD, width=3)
     icons['dispatch_fire'] = dispatch(flame())
     icons['dispatch_police'] = dispatch(shield())

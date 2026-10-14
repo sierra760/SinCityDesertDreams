@@ -39,17 +39,7 @@ const UNPOWERED := Color(0.9, 0.2, 0.15)
 const WATERED := Color(0.25, 0.55, 0.95)
 const UNWATERED := Color(0.9, 0.3, 0.2)
 
-const ZONE_TINTS := {
-	Zones.RES_LOW: Color(0.45, 0.85, 0.45),
-	Zones.RES_HIGH: Color(0.20, 0.60, 0.25),
-	Zones.COM_LOW: Color(0.45, 0.60, 0.95),
-	Zones.COM_HIGH: Color(0.20, 0.35, 0.80),
-	Zones.IND_LOW: Color(0.95, 0.85, 0.35),
-	Zones.IND_HIGH: Color(0.75, 0.62, 0.15),
-	Zones.MILITARY: Color(0.55, 0.60, 0.45),
-	Zones.AIRPORT: Color(0.75, 0.75, 0.80),
-	Zones.SEAPORT: Color(0.45, 0.70, 0.75),
-}
+const ZONE_TINTS := Zones.COLORS
 
 static func tiles_per_cell(kind: StringName) -> int:
 	return TILES_PER_CELL.get(kind, 0)

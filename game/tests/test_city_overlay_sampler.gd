@@ -7,7 +7,7 @@ extends "res://tests/test_case.gd"
 ## Fixed authored outputs at 0, 1, 124, 128, 132, 255; intentionally independent
 ## of rendering owners and production sampler constants/formulas.
 const AUTHORED_COLORS := {
-	&"zones": [Color.TRANSPARENT, Color(0.45, 0.85, 0.45, 0.44), Color(0.7, 0.7, 0.7, 0.44), Color(0.7, 0.7, 0.7, 0.44), Color(0.7, 0.7, 0.7, 0.44), Color(0.7, 0.7, 0.7, 0.44)],
+	&"zones": [Color.TRANSPARENT, Color(Color("f2cf57"), 0.44), Color(0.7, 0.7, 0.7, 0.44), Color(0.7, 0.7, 0.7, 0.44), Color(0.7, 0.7, 0.7, 0.44), Color(0.7, 0.7, 0.7, 0.44)],
 	&"power": [Color.TRANSPARENT, Color(0.9, 0.2, 0.15, 0.55), Color(0.9, 0.2, 0.15, 0.55), Color(0.9, 0.2, 0.15, 0.55), Color(0.9, 0.2, 0.15, 0.55), Color(0.95, 0.85, 0.2, 0.55)],
 	&"water": [Color.TRANSPARENT, Color(0.9, 0.3, 0.2, 0.55), Color(0.9, 0.3, 0.2, 0.55), Color(0.9, 0.3, 0.2, 0.55), Color(0.9, 0.3, 0.2, 0.55), Color(0.25, 0.55, 0.95, 0.55)],
 	&"crime": [Color.TRANSPARENT, Color(0.949607843137, 0.348823529412, 0.149607843137, 0.0344423360097), Color(0.90137254902, 0.204117647059, 0.10137254902, 0.383533622015), Color(0.899803921569, 0.199411764706, 0.0998039215686, 0.389670549638), Color(0.898235294118, 0.194705882353, 0.0982352941176, 0.395712313801), Color(0.85, 0.05, 0.05, 0.55)],
@@ -75,15 +75,15 @@ func test_service_encoding_growth_dead_band_and_authored_ramps() -> void:
 				for component in 4:
 					check(absf(actual[component] - expected[component]) < 0.000001, "%s value %d component %d" % [kind, values[i], component])
 	var zones := {
-		Zones.RES_LOW: Color(0.45, 0.85, 0.45, 0.44),
-		Zones.RES_HIGH: Color(0.20, 0.60, 0.25, 0.44),
-		Zones.COM_LOW: Color(0.45, 0.60, 0.95, 0.44),
-		Zones.COM_HIGH: Color(0.20, 0.35, 0.80, 0.44),
-		Zones.IND_LOW: Color(0.95, 0.85, 0.35, 0.44),
-		Zones.IND_HIGH: Color(0.75, 0.62, 0.15, 0.44),
-		Zones.MILITARY: Color(0.55, 0.60, 0.45, 0.44),
-		Zones.AIRPORT: Color(0.75, 0.75, 0.80, 0.44),
-		Zones.SEAPORT: Color(0.45, 0.70, 0.75, 0.44),
+		Zones.RES_LOW: Color(Color("f2cf57"), 0.44),
+		Zones.RES_HIGH: Color(Color("b78538"), 0.44),
+		Zones.COM_LOW: Color(Color("e68a80"), 0.44),
+		Zones.COM_HIGH: Color(Color("ba4548"), 0.44),
+		Zones.IND_LOW: Color(Color("b99bd8"), 0.44),
+		Zones.IND_HIGH: Color(Color("8054a6"), 0.44),
+		Zones.MILITARY: Color(Color("d99bae"), 0.44),
+		Zones.AIRPORT: Color(Color("acb2b8"), 0.44),
+		Zones.SEAPORT: Color(Color("747c84"), 0.44),
 	}
 	for kind: int in zones: check_eq(sampler.cell_color(&"zones", kind), zones[kind])
 	check_eq(sampler.cell_color(&"bogus", 255), Color.TRANSPARENT)

@@ -568,7 +568,7 @@ static func cell_sand_color(city: City, x: int, y: int) -> Color:
 	var building := city.building.at(x, y)
 	if zone > Zones.NONE and (building == Buildings.NONE \
 			or (building >= Buildings.POWER_LINE_FIRST and building <= Buildings.POWER_LINE_LAST)):
-		var tint := Color(0.35, 0.64, 0.34) if zone <= Zones.RES_HIGH else Color(0.28, 0.53, 0.70) if zone <= Zones.COM_HIGH else Color(0.79, 0.64, 0.27)
+		var tint: Color = Zones.COLORS.get(zone, sand)
 		sand = sand.lerp(tint, 0.65)
 	return sand
 

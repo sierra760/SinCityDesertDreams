@@ -14,6 +14,12 @@ const PALETTE: Array[Color] = [
 	Color("17806c"), Color("c79a3a"), Color("3f6fb0"), Color("9a3b1a"),
 	Color("6a3d9a"), Color("3f9d3f"), Color("b03f6f"), Color("2a2a22"),
 ]
+## Darker planning shades keep fine lines readable on the ivory plot face.
+const ZONE_SERIES_COLORS := {
+	&"residents": Zones.COLOR_RES_HIGH, &"demand_residential": Zones.COLOR_RES_HIGH,
+	&"commercial": Zones.COLOR_COM_HIGH, &"demand_commercial": Zones.COLOR_COM_HIGH,
+	&"industrial": Zones.COLOR_IND_HIGH, &"demand_industrial": Zones.COLOR_IND_HIGH,
+}
 const SERIES_LABELS := {
 	&"population": "Population", &"residents": "Residential", &"commercial": "Commercial",
 	&"industrial": "Industrial", &"money": "Funds", &"crime": "Crime", &"pollution": "Pollution",
@@ -271,7 +277,7 @@ func refresh() -> void:
 			"name": name,
 			"label": _label_of(name),
 			"values": values,
-			"color": PALETTE[index % PALETTE.size()],
+			"color": ZONE_SERIES_COLORS.get(name, PALETTE[index % PALETTE.size()]),
 		})
 		index += 1
 	_canvas.set_series(rows, _range_years * GameClock.MONTHS_PER_YEAR)

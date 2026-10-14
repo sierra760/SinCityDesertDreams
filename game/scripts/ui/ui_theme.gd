@@ -41,9 +41,9 @@ const MONEY_NEGATIVE := Color("9a3b1a")
 const MONEY_NEUTRAL  := Color("5a5a48")
 
 # ── Zone identity (icons / RCI meters) ──
-const ZONE_R := Color("3f9d3f")
-const ZONE_C := Color("3f6fb0")
-const ZONE_I := Color("c7a93a")
+const ZONE_R := Zones.COLOR_RES_LOW
+const ZONE_C := Zones.COLOR_COM_HIGH
+const ZONE_I := Zones.COLOR_IND_HIGH
 
 # ── Font tiers ──
 const FONT_TITLE  := 22
