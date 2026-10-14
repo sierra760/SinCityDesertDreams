@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## Saved footprint orientations must retain connected highway curves and lanes.
+## Saved footprint orientations must retain connected highway diagonals and lanes.
 extends "res://tests/test_case.gd"
 
 const Smoothness := preload("res://tests/test_highway_smoothness.gd")
@@ -20,15 +20,16 @@ static func stamp(city: City, anchor: Vector2i, code: int, flags: Array) -> void
 			city.zone.putv(anchor+Vector2i(dx,dy),flags[dy*2+dx])
 
 
-## Independent concentric lane centers in each authored quarter turn.
+## Independent straight lane centers, preserving the saved block edge intercepts.
 static func lane_point(anchor: Vector2i, code: int, radius: float, t: float) -> Vector2:
 	var quarter := code-101
 	var pivot: Vector2 = [Vector2(2,0),Vector2(2,2),Vector2(0,2),Vector2.ZERO][quarter]
-	var angle: float = [PI,-PI*.5,0.0,PI*.5][quarter]-t*PI*.5
-	return Vector2(anchor)+pivot+Vector2(cos(angle),sin(angle))*radius
+	var first: Vector2 = [Vector2.LEFT,Vector2.UP,Vector2.RIGHT,Vector2.DOWN][quarter]
+	var last: Vector2 = [Vector2.DOWN,Vector2.LEFT,Vector2.UP,Vector2.RIGHT][quarter]
+	return Vector2(anchor)+pivot+first.lerp(last,t)*radius
 
 
-func test_all_saved_flag_orientations_keep_complete_curves_and_junctions() -> void:
+func test_all_saved_flag_orientations_keep_complete_diagonals_and_junctions() -> void:
 	var gaps := 0
 	for flags: Array in LAYOUTS:
 		for anchor: Vector2i in [Vector2i(30,30),Vector2i(47,47)]:
@@ -75,7 +76,7 @@ func test_corner_pillars_meet_the_pavement_across_their_complete_top() -> void:
 		stamp(city,anchor,code,LAYOUTS[2])
 		var layer := CityNetworks3D.new()
 		layer._build_region(city,Rect2i(anchor,Vector2i(2,2)))
-		check_eq(layer._physical_boxes.size(),4,"each curve retains four support pillars")
+		check_eq(layer._physical_boxes.size(),4,"each diagonal retains four support pillars")
 		for box: Dictionary in layer._physical_boxes:
 			var transform: Transform3D = box.transform
 			var size: Vector3 = box.size
@@ -86,7 +87,7 @@ func test_corner_pillars_meet_the_pavement_across_their_complete_top() -> void:
 					if hit.is_empty():missing+=1;continue
 					check_ge(top.y,hit.height-.095,"pier top overlaps the deck underside")
 		layer.free()
-	check_eq(missing,0,"no pillar projects beyond the curved pavement and stands disconnected")
+	check_eq(missing,0,"no pillar projects beyond the diagonal pavement and stands disconnected")
 
 
 func test_oro_canyon_all_twenty_blocks_have_connected_pavement() -> void:
@@ -137,7 +138,7 @@ func test_saved_oro_flags_resolve_after_native_roundtrip_and_each_view_rotation(
 						"view choice cannot reinterpret retained footprint flags")
 
 
-func test_oro_traffic_uses_all_four_curved_lanes_and_matching_pavement() -> void:
+func test_oro_traffic_uses_all_four_diagonal_lanes_and_matching_pavement() -> void:
 	var city: City = Sc2Import.load("res://assets/cities/Oro Canyon.sc2").city
 	var graph := CityTrafficGraph.new()
 	graph.bind_city(city)
@@ -166,10 +167,10 @@ func test_oro_traffic_uses_all_four_curved_lanes_and_matching_pavement() -> void
 						if hit.is_empty():gaps+=1;continue
 						var traffic := graph.point(cell,&"highway",point-Vector2(cell))
 						maximum_error = maxf(maximum_error,absf(traffic.y-hit.height))
-		check_eq(block_segments,8,"two inner and six outer segments serve four lanes in each actual curve")
+		check_eq(block_segments,8,"two inner and six outer segments serve four lanes in each actual diagonal")
 		count += block_segments
 		layer.free()
-	check_eq(count,144,"all eighteen actual corners retain their directed arcs")
-	check_eq(gaps,0,"ambient lane arcs stay on the rendered pavement")
+	check_eq(count,144,"all eighteen actual corners retain their directed diagonals")
+	check_eq(gaps,0,"ambient diagonal lanes stay on the rendered pavement")
 	check_lt(maximum_error,.0015,"ambient highway height matches actual pavement between vertices")
 	print("ORO_TRAFFIC segments=",count," missing=",gaps," height_error=",maximum_error)

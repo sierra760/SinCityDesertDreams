@@ -78,13 +78,15 @@ func _append(cell: Vector2i, segment: Dictionary) -> void:
 	routes[cell].append(segment)
 
 func _curve(anchor: Vector2i, quarter: int) -> void:
+	# Saved corner lanes keep their entrance/exit intercepts, now joined by
+	# straight diagonals. Split where each line crosses the 2x2 tile borders.
 	for outer: bool in [false,true]:
 		for lane: int in 2:
 			var radius := (1.28 if lane==0 else 1.72) if outer else (.72 if lane==0 else .28)
 			var cuts: Array[float] = [0.0,PI*.5]
 			if radius>1:
-				cuts.append(asin(1.0/radius))
-				cuts.append(acos(1.0/radius))
+				cuts.append((1.0-1.0/radius)*PI*.5)
+				cuts.append(PI*.5/radius)
 			cuts.sort()
 			for i: int in cuts.size()-1:
 				var start: float = cuts[i] if outer else cuts[i+1]
@@ -93,10 +95,13 @@ func _curve(anchor: Vector2i, quarter: int) -> void:
 				var middle := curve_point(anchor,quarter,radius,(start+end)*.5)
 				var previous := curve_point(anchor,quarter,radius,start-sign*.0001)
 				var next := curve_point(anchor,quarter,radius,end+sign*.0001)
-				_append(Vector2i(floori(middle.x),floori(middle.y)),{"lane":lane,"previous":Vector2i(floori(previous.x),floori(previous.y)),"next":Vector2i(floori(next.x),floori(next.y)),"length":absf(end-start)*radius,"anchor":anchor,"quarter":quarter,"radius":radius,"start":start,"end":end})
+				_append(Vector2i(floori(middle.x),floori(middle.y)),{"lane":lane,"previous":Vector2i(floori(previous.x),floori(previous.y)),"next":Vector2i(floori(next.x),floori(next.y)),"length":absf(end-start)/(PI*.5)*radius*sqrt(2.0),"anchor":anchor,"quarter":quarter,"radius":radius,"start":start,"end":end})
 
 static func curve_point(anchor: Vector2i, quarter: int, radius: float, angle: float) -> Vector2:
-	var p := Vector2(2.0-radius*cos(angle),radius*sin(angle))-Vector2.ONE
+	# The retained route fields use 0..PI/2 progress and a border intercept
+	# named radius. They describe a straight chord rather than a circular arc.
+	var t := angle/(PI*.5)
+	var p := Vector2(2.0-radius*(1.0-t),radius*t)-Vector2.ONE
 	# Exact quarter rotations avoid floating-point floor errors at tile borders.
 	match quarter:
 		1: p = Vector2(-p.y,p.x)

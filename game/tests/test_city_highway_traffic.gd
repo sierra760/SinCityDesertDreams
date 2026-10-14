@@ -25,7 +25,7 @@ func test_paired_carriageways_have_two_us_direction_lanes() -> void:
 		for lane: int in [0,1]: check(lanes.has(Vector2i(x,lane)),"both lanes used on both carriageways")
 	traffic.free()
 
-func test_four_corner_orientations_follow_exact_lane_arcs() -> void:
+func test_four_corner_orientations_follow_exact_diagonal_lanes() -> void:
 	for quarter: int in 4:
 		var city := flat_city()
 		var anchor := Vector2i(30,30)
@@ -43,7 +43,6 @@ func test_four_corner_orientations_follow_exact_lane_arcs() -> void:
 		var traffic := CityTraffic3D.new()
 		traffic.bind_city(city)
 		var graph := traffic.graph
-		var pivots: Array[Vector2] = [Vector2(2,0),Vector2(2,2),Vector2(0,2),Vector2.ZERO]
 		var tested := 0
 		for cell: Vector2i in graph.highways.routes:
 			for segment: Dictionary in graph.highways.routes[cell]:
@@ -56,7 +55,13 @@ func test_four_corner_orientations_follow_exact_lane_arcs() -> void:
 					a.t = t
 					var pose := traffic.actor_pose(a)
 					var p := Vector2(pose.origin.x,pose.origin.z)
-					check(absf(p.distance_to(Vector2(anchor)+pivots[quarter])-float(segment.radius))<.0001,"vehicles follow the exact authored pavement arc")
+					var local := p-Vector2(anchor)-Vector2.ONE
+					match quarter:
+						1:local=Vector2(local.y,-local.x)
+						2:local=-local
+						3:local=Vector2(-local.y,local.x)
+					local+=Vector2.ONE
+					check(absf(2-local.x+local.y-float(segment.radius))<.0001,"vehicles follow the straight authored diagonal lane")
 					check(p.x>=cell.x-.001 and p.x<=cell.x+1.001 and p.y>=cell.y-.001 and p.y<=cell.y+1.001,"lane stays within its route cell")
 				# Neighboring segment endpoints join without a lateral teleport.
 				a.t = 1.0

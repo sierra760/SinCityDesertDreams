@@ -410,12 +410,7 @@ func walk_point(cell: Vector2i, offset: Vector2) -> Vector3:
 			var polygons: Array[PackedVector2Array] = []
 			var lo := (1-width)*.5
 			if mask in [3,6,9,12]:
-				var pivot: Vector2={3:Vector2(1,0),6:Vector2(1,1),12:Vector2(0,1),9:Vector2(0,0)}[mask]
-				var angle: float={3:PI,6:-PI*.5,12:0.0,9:PI*.5}[mask]
-				for i: int in 16:
-					var a := Vector2(cos(angle-i*PI/32),sin(angle-i*PI/32))
-					var b := Vector2(cos(angle-(i+1)*PI/32),sin(angle-(i+1)*PI/32))
-					polygons.append(PackedVector2Array([pivot+a*lo,pivot+a*(1-lo),pivot+b*(1-lo),pivot+b*lo]))
+				polygons.append(PackedVector2Array(CityNetworks3D.diagonal_strip(mask,width)))
 			else:
 				var rectangles: Array[Rect2]=[Rect2(lo,lo,width,width)]
 				for direction: int in 4:

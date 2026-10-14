@@ -60,16 +60,25 @@ height curves as the visible network. No new numerical congestion model is
 written back into the city.
 
 Paired four-lane highways have two lanes in each direction, with white dividers
-between same-direction lanes. Traffic follows the actual curved pavement and
+between same-direction lanes. Traffic follows the actual pavement and
 uses the shoulder lane for ramp merges and exits. Unpaired incomplete highway
 fragments fall back to two-way traffic. Routine changes to power, demand and
 congestion refresh traffic without rebuilding unchanged routes.
 
-Complete 2×2 highway curves and junctions recognize all four corner-flag
+Road and railroad bend tiles form straight diagonal strips between their saved
+edge connections. Markings, parallel rails, sleepers, shoulders and physical
+floors follow those strips. Alternating bend tiles form one straight corridor;
+vehicles follow its diagonal, including backing or turning at unfinished ends.
+Highway bend blocks use two parallel diagonal carriageways, with four directed
+lanes and their supports beneath the pavement. Widths retain the same tile-edge
+intercepts as neighboring straight pieces. Ground facets and highway grades
+still determine height, and saved network codes and connections are preserved.
+
+Complete 2×2 highway bends and junctions recognize all four corner-flag
 orientations, independently of the current view rotation. Native saves and
 classic-city imports keep those flags unchanged. Partial, mixed and mirrored
-footprints are rejected. Curve pillars sit beneath the pavement, including the
-quadrant outside the outer bend's radius.
+footprints are rejected. Diagonal blocks retain four pillars beneath their two
+carriageways; incomplete bend tiles retain a pier beneath their surviving floor.
 
 Transit geometry uses finite walkable platforms, physical cabin walls and
 sliding doors, bounded physical elevator access and connected tunnel corridors. The

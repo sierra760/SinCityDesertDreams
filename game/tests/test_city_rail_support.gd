@@ -39,7 +39,7 @@ func test_straight_flat_and_grade_rail_has_solid_terrain_bound_shoulders() -> vo
 		check_eq(SaveFormat.encode_city(city),before,"berm is presentation only")
 		layer.free()
 
-func test_curved_and_branch_rail_foundations_fill_only_track_outline() -> void:
+func test_diagonal_and_branch_rail_foundations_fill_only_track_outline() -> void:
 	var city := flat_city(); var cell := Vector2i(20,20)
 	for mask: int in [3,6,9,12,7,11,13,14,15]:
 		city.building.putv(cell,NetworkShapes.shape_id(NetworkShapes.Family.RAIL,mask))
@@ -48,8 +48,8 @@ func test_curved_and_branch_rail_foundations_fill_only_track_outline() -> void:
 		var offset := Vector2(.85,.15)
 		if mask in [3,6,9,12]:
 			var pivot: Vector2 = {3:Vector2(1,0),6:Vector2(1,1),12:Vector2(0,1),9:Vector2(0,0)}[mask]
-			var angle: float = {3:PI,6:-PI/2.0,12:0.0,9:PI/2.0}[mask]-PI/4.0
-			offset = pivot+Vector2(cos(angle),sin(angle))*.84
+			var outward: Vector2 = {3:Vector2(-1,1),6:Vector2(-1,-1),12:Vector2(1,-1),9:Vector2(1,1)}[mask]
+			offset = pivot+outward*.37
 		var ground := CityGeometry3D.point_on_ground(city,cell,offset).y
 		check(_height(physical,Vector2(cell)+offset)>ground+.005,"curve/branch shoulder has solid support "+str(mask))
 		layer.free()

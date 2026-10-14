@@ -80,6 +80,16 @@ func test_vehicle_waits_outside_the_box_until_its_exit_has_room() -> void:
 	check(arriving.cell != Vector2i(20,20) or float(arriving.t) > CityTraffic3D.STOP_LINE, "enters once the exit moves")
 	traffic.free()
 
+func test_junction_rechecks_exit_room_when_the_leading_car_stops_this_tick() -> void:
+	var ahead := _car(1,Vector2i(21,20),Vector2i(20,20),Vector2i(22,20),.4)
+	ahead.speed=0.0
+	var arriving := _car(2,Vector2i(20,20),Vector2i(19,20),Vector2i(21,20),.21)
+	var traffic := _traffic(_crossroads(),[ahead,arriving])
+	traffic._step(.1)
+	check(ahead.stopped,"leading car stopped during this tick")
+	check_lt(float(arriving.t),CityTraffic3D.STOP_LINE,"live exit room replaces the earlier moving-car allowance")
+	traffic.free()
+
 func test_box_passes_to_a_waiting_crossing_axis() -> void:
 	var traffic := _traffic(_crossroads(), [])
 	var platoon := _car(1, Vector2i(20,20), Vector2i(19,20), Vector2i(21,20), .5)

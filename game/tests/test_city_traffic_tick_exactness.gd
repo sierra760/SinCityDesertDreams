@@ -10,7 +10,8 @@
 extends "res://tests/exploration/async_test_case.gd"
 
 ## Unoptimized reference versions of _step, _record_render_state, actor_pose
-## and _render, kept unchanged so the optimized ones have something to match.
+## and _render. Geometry expectations include the October 14 straight diagonals;
+## direct queries remain independent of the optimized per-revision caches.
 ## _step follows the October 8 junction/interchange flow rules with direct
 ## graph queries in place of the per-revision route caches.
 class FrozenTraffic:
@@ -223,24 +224,32 @@ class FrozenTraffic:
 		var lane := .40 if a.type == &"pedestrian" else .13 if a.type in [&"road",&"highway"] else 0.0
 		if a.domain==&"highway" and graph.highways.routes.has(a.cell): lane = -.22 if int(a.get("lane",0))==0 else .22
 		if graph.is_ramp(a.cell): lane = 0.0
+		var family := NetworkShapes.Family.HIGHWAY if a.domain==&"highway" else NetworkShapes.Family.RAIL if a.domain==&"rail" else NetworkShapes.Family.ROAD
+		var is_diagonal: bool = a.type in [&"road",&"rail",&"highway"] and not graph.is_ramp(a.cell) and CityNetworks3D.network_mask(graph.city.building.atv(a.cell),family) in [3,6,9,12]
 		var side := float(a.side)
 		if a.previous == a.next and a.type != &"pedestrian" and not graph.is_ramp(a.cell):
 			var angle := PI * clampf(float(a.t),0,1)
 			var entry := Vector2(.5,.5)-incoming*.5
 			var perpendicular := Vector2(-incoming.y,incoming.x)*side
+			var excursion := incoming
+			if is_diagonal:
+				var mask := CityNetworks3D.network_mask(graph.city.building.atv(a.cell),family)
+				var first: Vector2 = [Vector2(.5,0),Vector2(1,.5),Vector2(.5,1),Vector2(0,.5)][[3,6,12,9].find(mask)]
+				var last: Vector2 = [Vector2(1,.5),Vector2(.5,1),Vector2(0,.5),Vector2(.5,0)][[3,6,12,9].find(mask)]
+				excursion = (last-first).normalized() if entry.distance_squared_to(first)<entry.distance_squared_to(last) else (first-last).normalized()
 			var offset: Vector2
 			var direction: Vector2
 			if a.domain == &"rail":
 				# A locomotive backs out without rotating its body at a terminal.
-				offset = entry+incoming*(.35*sin(angle))
-				direction = incoming * (-1.0 if a.get("reversed",false) else 1.0)
+				offset = entry+excursion*(.35*sin(angle))
+				direction = excursion * (-1.0 if a.get("reversed",false) else 1.0)
 			elif a.domain == &"water":
 				# A loop with distinct sides avoids the zero-tangent out-and-back cusp.
 				offset = entry+incoming*(.4*sin(angle))+perpendicular*(.16*sin(2*angle)*sin(angle))
 				direction = incoming*(.4*cos(angle))+perpendicular*(.16*(2*cos(2*angle)*sin(angle)+sin(2*angle)*cos(angle)))
 			else:
-				offset = entry+incoming*(.4*sin(angle))+perpendicular*(lane*cos(angle))
-				direction = incoming*(.4*cos(angle))-perpendicular*(lane*sin(angle))
+				offset = entry+excursion*(.4*sin(angle))+perpendicular*(lane*cos(angle))
+				direction = excursion*(.4*cos(angle))-perpendicular*(lane*sin(angle))
 			var position := graph.point(a.cell,a.domain,offset)
 			var tangent := graph.point(a.cell,a.domain,offset+direction.normalized()*.015)-position
 			return _cache_pose(a,Transform3D(Basis.looking_at(tangent.normalized(),Vector3.UP),position),style)
@@ -250,14 +259,14 @@ class FrozenTraffic:
 		if graph.is_ramp(a.next): end = Vector2(.5,.5)+outgoing*.5
 		var pivot := Vector2(.5,.5)+(Vector2(-incoming.y,incoming.x)+Vector2(-outgoing.y,outgoing.x))*lane*side*.5
 		var t := float(a.t)
-		var offset := start.lerp(pivot,t).lerp(pivot.lerp(end,t),t)
-		var direction := (pivot-start).lerp(end-pivot,t)
+		var offset := start.lerp(end,t) if is_diagonal else start.lerp(pivot,t).lerp(pivot.lerp(end,t),t)
+		var direction := end-start if is_diagonal else (pivot-start).lerp(end-pivot,t)
 		if direction.length_squared() < .0001: direction = outgoing
 		var position := graph.walk_point(a.cell,offset) if a.type==&"pedestrian" else graph.point(a.cell,a.domain,offset)
 		var basis := Basis(Vector3.UP,atan2(-direction.x,-direction.y))
 		if a.type != &"pedestrian":
 			var sample_t := clampf(t+.015,0,1) if t<.985 else t-.015
-			var sample_offset := start.lerp(pivot,sample_t).lerp(pivot.lerp(end,sample_t),sample_t)
+			var sample_offset := start.lerp(end,sample_t) if is_diagonal else start.lerp(pivot,sample_t).lerp(pivot.lerp(end,sample_t),sample_t)
 			var tangent := graph.point(a.cell,a.domain,sample_offset) - position
 			if sample_t<t: tangent = -tangent
 			if tangent.length_squared()>.000001: basis = Basis.looking_at(tangent.normalized(),Vector3.UP)

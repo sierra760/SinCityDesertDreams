@@ -382,7 +382,9 @@ func _step_clock(delta: float, explore_clock: bool) -> void:
 			var granted := int(grants.get(junction,0))
 			if a.type == &"pedestrian":
 				if int(boxes.get(junction,0)) & (3^bit) or granted == 3^bit: limit = STOP_LINE-.001
-			elif granted != bit or not _ready_now(a,entries,box_exits,ready): limit = STOP_LINE-.001
+			# Earlier actors may stop or advance after grants are chosen; exit
+			# entries are live dictionaries, so recheck their current room.
+			elif granted != bit or not _exit_ready(a,entries,box_exits): limit = STOP_LINE-.001
 		if a.domain == &"highway" and int(a.get(&"lane",0)) == 1 and merging.has(a.next) and float(a.t) < .5: limit = .5
 		if float(a.t) > .1:
 			var entrants: Variant = entries.get(_lane_key(a.type,a.domain,a.next,a.cell,int(a.get(&"lane",0)) if a.domain == &"highway" and not _ramp(a.next) else 0))
@@ -504,8 +506,8 @@ func _exit_ready(a: Dictionary, entries: Dictionary, box_exits: Dictionary) -> b
 	room -= float(box_exits.get(_lane_key(&"road",&"road",a.cell,a.next),0))*gap
 	return room >= gap
 
-## _exit_ready for a waiting vehicle, reusing the answer `ready` recorded for
-## it this tick unless another vehicle has since entered the box for its exit.
+## Reuse answers while choosing junction grants, before advancement changes
+## the live entry dictionaries. Vehicle advancement calls _exit_ready anew.
 func _ready_now(a: Dictionary, entries: Dictionary, box_exits: Dictionary, ready: Dictionary) -> bool:
 	var count := int(box_exits.get(_lane_key(&"road",&"road",a.cell,a.next),0))
 	var known: Variant = ready.get(a.id)
@@ -600,24 +602,37 @@ func actor_pose(a: Dictionary) -> Transform3D:
 	var lane := .40 if a.type == &"pedestrian" else .13 if a.type in [&"road",&"highway"] else 0.0
 	if a.domain==&"highway" and graph.highways.routes.has(a.cell): lane = -.22 if int(a.get(&"lane",0))==0 else .22
 	if _ramp(a.cell): lane = 0.0
+	# Two-edge road/rail tiles and incomplete highways are diagonal pieces. Junction turns,
+	# pedestrians, boats and onramps keep their paths.
+	var diagonal := false
+	if a.type in [&"road",&"rail",&"highway"] and not _ramp(a.cell):
+		var family := NetworkShapes.Family.HIGHWAY if a.domain==&"highway" else NetworkShapes.Family.RAIL if a.domain==&"rail" else NetworkShapes.Family.ROAD
+		diagonal = CityNetworks3D.network_mask(graph.city.building.atv(a.cell),family) in [3,6,9,12]
 	var side := float(a.side)
 	if a.previous == a.next and a.type != &"pedestrian" and not _ramp(a.cell):
 		var angle := PI * clampf(float(a.t),0,1)
 		var entry := Vector2(.5,.5)-incoming*.5
 		var perpendicular := Vector2(-incoming.y,incoming.x)*side
+		var excursion := incoming
+		if diagonal:
+			var family := NetworkShapes.Family.HIGHWAY if a.domain==&"highway" else NetworkShapes.Family.RAIL if a.domain==&"rail" else NetworkShapes.Family.ROAD
+			var mask := CityNetworks3D.network_mask(graph.city.building.atv(a.cell),family)
+			var first: Vector2 = CityNetworks3D.PIVOTS[mask]+CityNetworks3D.BEND_START[mask]*.5
+			var last: Vector2 = CityNetworks3D.PIVOTS[mask]+CityNetworks3D.BEND_END[mask]*.5
+			excursion = (last-first).normalized() if entry.distance_squared_to(first)<entry.distance_squared_to(last) else (first-last).normalized()
 		var offset: Vector2
 		var direction: Vector2
 		if a.domain == &"rail":
 			# A locomotive backs out without rotating its body at a terminal.
-			offset = entry+incoming*(.35*sin(angle))
-			direction = incoming * (-1.0 if a.get(&"reversed",false) else 1.0)
+			offset = entry+excursion*(.35*sin(angle))
+			direction = excursion * (-1.0 if a.get(&"reversed",false) else 1.0)
 		elif a.domain == &"water":
 			# A loop with distinct sides avoids the zero-tangent out-and-back cusp.
 			offset = entry+incoming*(.4*sin(angle))+perpendicular*(.16*sin(2*angle)*sin(angle))
 			direction = incoming*(.4*cos(angle))+perpendicular*(.16*(2*cos(2*angle)*sin(angle)+sin(2*angle)*cos(angle)))
 		else:
-			offset = entry+incoming*(.4*sin(angle))+perpendicular*(lane*cos(angle))
-			direction = incoming*(.4*cos(angle))-perpendicular*(lane*sin(angle))
+			offset = entry+excursion*(.4*sin(angle))+perpendicular*(lane*cos(angle))
+			direction = excursion*(.4*cos(angle))-perpendicular*(lane*sin(angle))
 		var position := graph.point(a.cell,a.domain,offset)
 		var tangent := graph.point(a.cell,a.domain,offset+direction.normalized()*.015)-position
 		return _cache_pose(a,Transform3D(Basis.looking_at(tangent.normalized(),Vector3.UP),position),style)
@@ -627,14 +642,14 @@ func actor_pose(a: Dictionary) -> Transform3D:
 	if _ramp(a.next): end = Vector2(.5,.5)+outgoing*.5
 	var pivot := Vector2(.5,.5)+(Vector2(-incoming.y,incoming.x)+Vector2(-outgoing.y,outgoing.x))*lane*side*.5
 	var t := float(a.t)
-	var offset := start.lerp(pivot,t).lerp(pivot.lerp(end,t),t)
-	var direction := (pivot-start).lerp(end-pivot,t)
+	var offset := start.lerp(end,t) if diagonal else start.lerp(pivot,t).lerp(pivot.lerp(end,t),t)
+	var direction := end-start if diagonal else (pivot-start).lerp(end-pivot,t)
 	if direction.length_squared() < .0001: direction = outgoing
 	var position := graph.walk_point(a.cell,offset) if a.type==&"pedestrian" else graph.point(a.cell,a.domain,offset)
 	var basis := Basis(Vector3.UP,atan2(-direction.x,-direction.y))
 	if a.type != &"pedestrian":
 		var sample_t := clampf(t+.015,0,1) if t<.985 else t-.015
-		var sample_offset := start.lerp(pivot,sample_t).lerp(pivot.lerp(end,sample_t),sample_t)
+		var sample_offset := start.lerp(end,sample_t) if diagonal else start.lerp(pivot,sample_t).lerp(pivot.lerp(end,sample_t),sample_t)
 		var tangent := graph.point(a.cell,a.domain,sample_offset) - position
 		if sample_t<t: tangent = -tangent
 		if tangent.length_squared()>.000001: basis = Basis.looking_at(tangent.normalized(),Vector3.UP)

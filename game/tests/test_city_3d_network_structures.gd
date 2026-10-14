@@ -14,7 +14,6 @@ func test_highway_corner_is_one_connected_two_cell_turn() -> void:
 	# An odd anchor proves grouping follows the footprint flags, not map parity.
 	var anchor := Vector2i(35, 89)
 	var pivots := [Vector2(37, 89), Vector2(37, 91), Vector2(35, 91), Vector2(35, 89)]
-	var angles := [PI, -PI / 2.0, 0.0, PI / 2.0]
 	for corner: int in 4:
 		for dy: int in 2:
 			for dx: int in 2:
@@ -22,12 +21,13 @@ func test_highway_corner_is_one_connected_two_cell_turn() -> void:
 				city.zone.put(anchor.x + dx, anchor.y + dy, Zones.corner_flags_for(dx, dy, 2, 2))
 		var layer := CityNetworks3D.new()
 		layer.rebuild(city)
-		# Independent concentric centerlines cross each tile boundary continuously.
+		# Independent parallel centerlines cross each tile boundary continuously.
 		for radius: float in [0.5, 1.5]:
 			var gaps := 0
 			for step: int in 129:
-				var angle: float = angles[corner] - step * PI / 256.0
-				var point: Vector2 = pivots[corner] + Vector2(cos(angle), sin(angle)) * radius
+				var first: Vector2 = [Vector2.LEFT,Vector2.UP,Vector2.RIGHT,Vector2.DOWN][corner]
+				var last: Vector2 = [Vector2.DOWN,Vector2.LEFT,Vector2.UP,Vector2.RIGHT][corner]
+				var point: Vector2 = pivots[corner]+first.lerp(last,step/128.0)*radius
 				if is_nan(surface_y(layer, point, PAVEMENT)):
 					gaps += 1
 			check_eq(gaps, 0, "both carriageways connect throughout 2x2 turn %d" % corner)
@@ -49,11 +49,12 @@ func test_imported_highway_corner_flags_form_complete_even_and_odd_blocks() -> v
 			var layer := CityNetworks3D.new()
 			layer.rebuild(city)
 			var pivot: Vector2 = Vector2(anchor) + [Vector2(2, 0), Vector2(2, 2), Vector2(0, 2), Vector2.ZERO][corner]
-			var angle: float = [PI, -PI / 2.0, 0.0, PI / 2.0][corner]
 			for radius: float in [0.5, 1.5]:
 				var gaps := 0
 				for step: int in 129:
-					var point := pivot + Vector2(cos(angle - step * PI / 256.0), sin(angle - step * PI / 256.0)) * radius
+					var first: Vector2 = [Vector2.LEFT,Vector2.UP,Vector2.RIGHT,Vector2.DOWN][corner]
+					var last: Vector2 = [Vector2.DOWN,Vector2.LEFT,Vector2.UP,Vector2.RIGHT][corner]
+					var point := pivot+first.lerp(last,step/128.0)*radius
 					if is_nan(surface_y(layer, point, PAVEMENT)):
 						gaps += 1
 				check_eq(gaps, 0, "both imported carriageways connect throughout corner %d at %s" % [101 + corner, anchor])

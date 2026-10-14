@@ -94,6 +94,8 @@ var _facets: Dictionary = {}
 static var _network_masks := PackedInt32Array()
 const PIVOTS := {3: Vector2(1, 0), 6: Vector2(1, 1), 12: Vector2(0, 1), 9: Vector2(0, 0)}
 const ANGLES := {3: PI, 6: -PI / 2.0, 12: 0.0, 9: PI / 2.0}
+const BEND_START := {3: Vector2.LEFT, 6: Vector2.UP, 12: Vector2.RIGHT, 9: Vector2.DOWN}
+const BEND_END := {3: Vector2.DOWN, 6: Vector2.LEFT, 12: Vector2.UP, 9: Vector2.RIGHT}
 const PortalProfile := preload("res://scripts/view/city_portal_3d.gd")
 const HighwayHeight := preload("res://scripts/view/city_highway_height_3d.gd")
 const HIGHWAY_LANE_DIVIDER := Color(0.94, 0.94, 0.90)
@@ -343,7 +345,11 @@ func _emit_cell(city: City, region: Rect2i, cell: Vector2i, drawn_blocks: Dictio
 	if bridge:
 		_bridge_structure(city, cell, code)
 	elif NetworkShapes.is_highway(code):
-		_highway_supports(city, cell, code)
+		var mask := network_mask(code,NetworkShapes.Family.HIGHWAY)
+		var center := Vector2(.5,.5)
+		if mask in [3,6,9,12]:
+			center = PIVOTS[mask]+(BEND_START[mask]+BEND_END[mask])*.25
+		_highway_supports(city, cell, code, center)
 	for family: int in [NetworkShapes.Family.ROAD, NetworkShapes.Family.RAIL, NetworkShapes.Family.HIGHWAY, NetworkShapes.Family.POWER]:
 		if not NetworkShapes.in_family(code, family):
 			continue
@@ -651,7 +657,7 @@ func _draw_network(city: City, cell: Vector2i, family: int, mask: int, elevation
 	var stripe := HIGHWAY_LANE_DIVIDER if family == NetworkShapes.Family.HIGHWAY else Color(0.86, 0.72, 0.36)
 	if bend:
 		for i: int in range(0, 12, 3):
-			_arc(city, cell, mask, 0.022, stripe, elevation + 0.006, float(i) / 12.0, float(i + 1) / 12.0)
+			_surface_polygon(city, cell, diagonal_strip(mask, .022, float(i)/12.0, float(i+1)/12.0), stripe, elevation+.006)
 	elif mask == 5 or mask == 10:
 		for i: int in 4:
 			var start := 0.06 + i * 0.25
@@ -670,16 +676,7 @@ func _grounded_path(city: City, cell: Vector2i, mask: int, width: float, color: 
 	if mask not in [3,6,9,12]:
 		_grounded_outline(city,cell,_rail_berm_outline(mask,(1-width)*.5,(1+width)*.5),color,elevation)
 		return
-	var pivot: Vector2 = PIVOTS[mask]
-	var angle: float = ANGLES[mask]
-	var outline: Array[Vector2] = []
-	for i: int in range(17):
-		var a := angle-i*PI/32.0
-		outline.append(pivot+Vector2(cos(a),sin(a))*(.5+width*.5))
-	for i: int in range(16,-1,-1):
-		var a := angle-i*PI/32.0
-		outline.append(pivot+Vector2(cos(a),sin(a))*(.5-width*.5))
-	_grounded_outline(city,cell,outline,color,elevation)
+	_grounded_outline(city,cell,diagonal_strip(mask,width),color,elevation)
 
 
 func _grounded_outline(city: City, cell: Vector2i, outline: Array[Vector2], color: Color, elevation: float) -> void:
@@ -718,18 +715,11 @@ func _grounded_outline(city: City, cell: Vector2i, outline: Array[Vector2], colo
 func _rail_berm(city: City, cell: Vector2i, mask: int, elevation: float) -> void:
 	if _deck_profiles.has(cell) or city.is_water(cell.x,cell.y): return
 	if mask in [3,6,9,12]:
-		var pivot: Vector2 = PIVOTS[mask]
-		var angle: float = ANGLES[mask]
-		for i: int in 16:
-			var a0 := angle-float(i)/16.0*PI*.5
-			var a1 := angle-float(i+1)/16.0*PI*.5
-			var d0 := Vector2(cos(a0),sin(a0)); var d1 := Vector2(cos(a1),sin(a1))
-			for side: float in [-1.0,1.0]:
-				var upper := .5+side*.295; var lower := .5+side*.395
-				_rail_berm_band(city,cell,pivot+d0*upper,pivot+d1*upper,pivot+d0*lower,pivot+d1*lower,elevation)
-		for at: float in [angle,angle-PI*.5]:
-			var direction := Vector2(cos(at),sin(at))
-			_rail_berm_band(city,cell,pivot+direction*.205,pivot+direction*.795,pivot+direction*.105,pivot+direction*.895,elevation)
+		var upper := diagonal_strip(mask,.59)
+		var lower := diagonal_strip(mask,.79)
+		for i: int in upper.size():
+			var next := (i+1)%upper.size()
+			_rail_berm_band(city,cell,upper[i],upper[next],lower[i],lower[next],elevation)
 		return
 	var upper := _rail_berm_outline(mask,.205,.795)
 	var lower := _rail_berm_outline(mask,.105,.895)
@@ -795,11 +785,20 @@ func _rail_details(city: City, cell: Vector2i, mask: int, elevation: float) -> v
 	var steel := Color(0.72, 0.75, 0.71)
 	var timber := Color(0.40, 0.33, 0.26)
 	if mask in [3, 6, 9, 12]:
+		var first: Vector2 = PIVOTS[mask]+BEND_START[mask]*.5
+		var last: Vector2 = PIVOTS[mask]+BEND_END[mask]*.5
+		var tangent := (last-first).normalized()
+		var normal := Vector2(-tangent.y,tangent.x)
 		for i: int in 7:
-			var t := (float(i) + 0.5) / 7.0
-			_arc(city, cell, mask, 0.5, timber, elevation, t - 0.012, t + 0.012)
-		_arc(city, cell, mask, 0.026, steel, elevation + 0.006, 0.0, 1.0, 0.344)
-		_arc(city, cell, mask, 0.026, steel, elevation + 0.006, 0.0, 1.0, 0.656)
+			var center := first.lerp(last,(float(i)+.5)/7.0)
+			var along := tangent*.013
+			var across := normal*(.25/sqrt(2.0))
+			var sleeper: Array[Vector2] = [center-along-across,center-along+across,center+along+across,center+along-across]
+			for axis: int in 2:
+				sleeper = clip_axis(clip_axis(sleeper,axis,0,true),axis,1,false)
+			_surface_polygon(city,cell,sleeper,timber,elevation)
+		for radius: float in [.344,.656]:
+			_surface_polygon(city,cell,diagonal_strip(mask,.026,0,1,radius),steel,elevation+.006)
 		return
 	for direction: int in 4:
 		if not mask & (1 << direction):
@@ -993,7 +992,10 @@ func _draw_path(city: City, cell: Vector2i, mask: int, width: float, color: Colo
 		_rect(city,cell,Rect2(lo,0,width,1) if mask==5 else Rect2(0,lo,1,width),color,elevation,role)
 		return
 	if mask in [3, 6, 9, 12]:
-		_arc(city, cell, mask, width, color, elevation, 0.0, 1.0, 0.5, role)
+		if _physical_group == NetworkShapes.Family.POWER:
+			_arc(city, cell, mask, width, color, elevation, 0.0, 1.0, 0.5, role)
+		else:
+			_surface_polygon(city,cell,diagonal_strip(mask,width),color,elevation,role)
 		return
 	var lo := (1.0 - width) / 2.0
 	_rect(city, cell, Rect2(lo, lo, width, width), color, elevation, role)
@@ -1045,18 +1047,18 @@ func _highway_block(city: City, anchor: Vector2i, code: int) -> void:
 	_physical_group = NetworkShapes.Family.HIGHWAY
 	_physical_depth = 0.095
 	var mask := network_mask(code, NetworkShapes.Family.HIGHWAY)
-	var pivot: Vector2 = Vector2.ZERO
-	if code != NetworkShapes.HIGHWAY_JUNCTION:
-		pivot = {3: Vector2(2, 0), 6: Vector2(2, 2), 12: Vector2(0, 2), 9: Vector2(0, 0)}[mask]
-	for dy: int in 2:
-		for dx: int in 2:
-			var offset := Vector2(dx + .5, dy + .5)
-			var radial := offset - pivot
-			# The opposite quadrant's center lies beyond the outer bend. Place
-			# its pier beneath the lane instead of leaving a freestanding pillar.
-			if code != NetworkShapes.HIGHWAY_JUNCTION and radial.length_squared() > 4.0:
-				offset = pivot + radial.normalized() * 1.72
-			_highway_supports(city, anchor + Vector2i(dx, dy), code, offset - Vector2(dx, dy))
+	if code == NetworkShapes.HIGHWAY_JUNCTION:
+		for dy: int in 2:
+			for dx: int in 2:
+				_highway_supports(city,anchor+Vector2i(dx,dy),code)
+	else:
+		# Two piers on each straight carriageway; even the empty quadrant's
+		# former pier now meets pavement rather than standing beside it.
+		for radius: float in [.5,1.5]:
+			for t: float in [1.0/3.0,2.0/3.0]:
+				var offset: Vector2 = PIVOTS[mask]*2+(BEND_START[mask] as Vector2).lerp(BEND_END[mask],t)*radius
+				var local := Vector2i(floori(offset.x),floori(offset.y))
+				_highway_supports(city,anchor+local,code,offset-Vector2(local))
 	if code == NetworkShapes.HIGHWAY_JUNCTION:
 		# One clear crossing through the block, with two carriageways per axis.
 		for across: float in [0.5, 1.5]:
@@ -1068,20 +1070,28 @@ func _highway_block(city: City, anchor: Vector2i, code: int) -> void:
 				var rect := Rect2(across - 0.46, 0, 0.92, 2) if vertical else Rect2(0, across - 0.46, 2, 0.92)
 				_block_polygon(city, anchor, _rect_polygon(rect), Color(0.34, 0.38, 0.40), HIGHWAY_ELEVATION, PhysicalRole.FLOOR)
 		return
-	var angle: float = {3: PI, 6: -PI / 2.0, 12: 0.0, 9: PI / 2.0}[mask]
-	for radius: float in [0.5, 1.5]:
+	for radius: float in [.5,1.5]:
 		for surface: int in 3:
-			var width: float = [0.995, 0.92, 0.022][surface]
-			var color: Color = [Color(0.74, 0.72, 0.65), Color(0.34, 0.38, 0.40), HIGHWAY_LANE_DIVIDER][surface]
-			var elevation: float = [HIGHWAY_ELEVATION - 0.008, HIGHWAY_ELEVATION, HIGHWAY_ELEVATION + 0.006][surface]
-			for i: int in 32:
-				if surface == 2 and i % 4 > 1:
-					continue
-				var d0 := Vector2(cos(angle - i * PI / 64.0), sin(angle - i * PI / 64.0))
-				var d1 := Vector2(cos(angle - (i + 1) * PI / 64.0), sin(angle - (i + 1) * PI / 64.0))
-				_block_polygon(city, anchor, [pivot + d0 * (radius - width / 2), pivot + d0 * (radius + width / 2),
-					pivot + d1 * (radius + width / 2), pivot + d1 * (radius - width / 2)], color, elevation,
-					PhysicalRole.SHOULDER if surface == 0 else PhysicalRole.FLOOR if surface == 1 else PhysicalRole.DETAIL)
+			var width: float = [.995,.92,.022][surface]
+			var color: Color = [Color(.74,.72,.65),Color(.34,.38,.40),HIGHWAY_LANE_DIVIDER][surface]
+			var elevation: float = [HIGHWAY_ELEVATION-.008,HIGHWAY_ELEVATION,HIGHWAY_ELEVATION+.006][surface]
+			if surface == 2:
+				for i: int in range(0,8,2):
+					_block_polygon(city,anchor,diagonal_strip(mask,width,i/8.0,(i+1)/8.0,radius,2),color,elevation)
+			else:
+				_block_polygon(city,anchor,diagonal_strip(mask,width,0,1,radius,2),color,elevation,PhysicalRole.SHOULDER if surface==0 else PhysicalRole.FLOOR)
+
+
+## Straight diagonal with the same edge intercepts as the saved bend tile.
+## Width is measured on the tile borders, so adjacent straight/diagonal pieces
+## share endpoints. Larger highway footprints retain two parallel carriageways.
+static func diagonal_strip(mask: int, width: float, start: float = 0.0, end: float = 1.0, radius: float = .5, extent: float = 1.0) -> Array[Vector2]:
+	var pivot: Vector2 = PIVOTS[mask]*extent
+	var first: Vector2 = BEND_START[mask]
+	var last: Vector2 = BEND_END[mask]
+	var a := first.lerp(last,start)
+	var b := first.lerp(last,end)
+	return [pivot+a*(radius-width*.5),pivot+a*(radius+width*.5),pivot+b*(radius+width*.5),pivot+b*(radius-width*.5)]
 
 
 static func _rect_polygon(rect: Rect2) -> Array[Vector2]:
