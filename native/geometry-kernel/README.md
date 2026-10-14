@@ -58,7 +58,7 @@ incremental result with a full resolution after every edit, on both paths.
 
 Requires Xcode on macOS, MinGW-w64 for the Windows DLL (`brew install
 mingw-w64`) and the pinned official godot-cpp checkout at `godot-4.5-stable`
-(commit `e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77`, compatible with Godot 4.6.1)
+(commit `e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77`, compatible with Godot 4.7.2)
 with its `template_release` static libraries built using
 `native/apple-share/build_profile.json` (Windows with `use_mingw=yes`). Run
 from the repository root:
@@ -81,12 +81,12 @@ Matching output has been verified on arm64 macOS and on the x86_64 macOS
 engine under Rosetta (the same SSE float32 arithmetic the Windows engine uses).
 The Windows DLL itself has not yet been run on Windows. `tools/run_tests.py`
 needs a Unix host, so on Windows run the two suites directly from a copy of the
-`game` folder with the Godot 4.6.1 console executable:
+`game` folder with the Godot 4.7.2 console executable:
 
 ```bat
-Godot_v4.6.1-stable_win64_console.exe --headless --path game --import
-Godot_v4.6.1-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_native_network_physics.gd
-Godot_v4.6.1-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_network_physics_incremental.gd
+Godot_v4.7.2-stable_win64_console.exe --headless --path game --import
+Godot_v4.7.2-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_native_network_physics.gd
+Godot_v4.7.2-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_network_physics_incremental.gd
 ```
 
 Each must end with `Results: N passed, 0 failed`, and the first must not print

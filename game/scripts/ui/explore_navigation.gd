@@ -142,6 +142,8 @@ func apply_layout(usable: Rect2, status_rect: Rect2, touch: bool) -> void:
 	_legend.visible = usable.size.y >= 360
 	for label: Label in [_caption,_legend]:
 		label.size.x = maxf(1,width-UITheme.MARGIN*2)
+		# Refresh deferred 4.7 text shaping before reserving the map's height.
+		label.get_minimum_size()
 	(_expanded.get_child(0) as Control).size.x = maxf(1,width-UITheme.MARGIN*2)
 	var header_height := 124.0
 	if _caption.visible: header_height += _caption.get_combined_minimum_size().y+6

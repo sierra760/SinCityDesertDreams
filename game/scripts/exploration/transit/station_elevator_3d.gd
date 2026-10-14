@@ -33,7 +33,6 @@ var _materials := {}
 static var _lift_materials := {}
 static var _finish_material: ShaderMaterial
 var _floor_label: TextMesh
-var _control_label: MeshInstance3D
 var _door_obstructed := false
 
 static func pose_for(stop: Dictionary) -> Transform3D:
@@ -76,11 +75,10 @@ func configure(stop: Dictionary) -> void:
 	var rear_face := CABIN_REAR-.006
 	_piece(body,Vector3(0,.03475,rear_face-.001),Vector3(.122,.0705,.002),Color(.31,.18,.079),false)
 	_piece(body,Vector3(0,.21,rear_face-.0025),Vector3(.12,.003,.003),Color(.98,.87,.67),false)
-	# One readable destination control faces the passenger as they enter.
+	# A readable floor indicator faces the passenger as they enter.
 	var label := ExploreStationInterior.add_plaque(cabin,Transform3D(Basis(Vector3.UP,PI),Vector3(0,.174,rear_face-.0015)),"PLATFORM",.00029,Color(.025,.24,.23),Vector2(.12,.024))
 	_floor_label=label.mesh
 	_floor_label.text="STREET"
-	_control_label=ExploreStationInterior.add_plaque(cabin,Transform3D(Basis(Vector3.UP,PI),Vector3(0,.123,rear_face-.0015)),"PRESS F\nTO PLATFORM",.00027,Color(.025,.24,.23),Vector2(.12,.036))
 	_button(cabin,Vector3(0,.083,rear_face-.0012))
 	# Recessed bronze skirting and a horizontal grab rail stay clear of signs.
 	_piece(body,Vector3(0,.057,rear_face-.0025),Vector3(.12,.003,.003),Color(.67,.47,.19),false)
@@ -131,16 +129,13 @@ func configure(stop: Dictionary) -> void:
 		# passenger at floor level, so a taller threshold would trap them.
 		_piece(shaft,CENTER+Vector3(0,heights[level]-.0015,-.125),Vector3(.16,.005,.032),Color(.50,.55,.54))
 		if level==1:
-			ExploreStationInterior.add_plaque(self,Transform3D(Basis(Vector3.UP,PI),CENTER+Vector3(-.117,heights[level]+.108,-.1195)),"PRESS F\nCALL LIFT",.00018,Color(.025,.24,.23),Vector2(.055,.030))
 			_button(self,CENTER+Vector3(-.117,heights[level]+.078,-.1195))
 		else:
 			# The lobby's back wall is always outside the clipped diagonal
 			# access passage. A pier beside this landing could obstruct ascent.
-			ExploreStationInterior.add_plaque(self,Transform3D(Basis.IDENTITY,Vector3(.415,heights[level]+.100,-.4305)),"PRESS F\nCALL LIFT",.00023,Color(.025,.24,.23),Vector2(.090,.036))
 			_button(self,Vector3(.415,heights[level]+.066,-.43075),1)
 
 	_set_doors(1.0)
-	_update_control()
 
 func _material(color: Color) -> StandardMaterial3D:
 	if not _materials.has(color):
@@ -325,16 +320,7 @@ func prompt(feet: Vector3) -> String:
 		if state=="moving": return "Elevator to "+destination+" — please wait"
 		return "Doors closing — to "+destination if state=="closing" else "Arrived at "+destination+" — doors opening"
 	if inside: return "F to ride to platform" if floor==1 else "F to ride to street"
-	return "Enter elevator, then press F to ride" if landing==floor else "F to call elevator"
-
-func _update_control() -> void:
-	var words := "PRESS F\nTO PLATFORM" if floor==1 else "PRESS F\nTO STREET"
-	if state!="open": words=("TO PLATFORM" if _destination==0 else "TO STREET")+"\nPLEASE WAIT"
-	_control_label.mesh.text=words
-	var size: Vector3=_control_label.mesh.get_aabb().size
-	var board: MeshInstance3D=_control_label.get_meta("sign_backing").get_ref()
-	var space: Vector3=board.mesh.size-Vector3(.010,.006,0)
-	_control_label.scale=Vector3.ONE*minf(1.0,minf(space.x/maxf(size.x,.0001),space.y/maxf(size.y,.0001)))
+	return "Enter elevator to ride" if landing==floor else "F to call elevator"
 
 func interact(traveler: ExplorePedestrian) -> bool:
 	var feet := traveler.global_position
@@ -350,7 +336,6 @@ func interact(traveler: ExplorePedestrian) -> bool:
 	if requested==floor: return true
 	_destination=requested
 	state="closing"
-	_update_control()
 	return true
 
 func step(delta: float, traveler: ExplorePedestrian) -> void:
@@ -382,4 +367,3 @@ func step(delta: float, traveler: ExplorePedestrian) -> void:
 			_set_doors(minf(1.0,_door_fraction+dt*1.8))
 			if _door_fraction>=1:
 				state="open"
-				_update_control()

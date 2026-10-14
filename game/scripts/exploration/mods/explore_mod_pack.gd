@@ -147,7 +147,9 @@ static func import_zip(path: String, destination: String) -> Dictionary:
 	if end + 22 + bytes.decode_u16(end + 20) != bytes.size():
 		return _bad("archive")
 	var count := bytes.decode_u16(end + 10)
-	if count > Limits.PACK_FILES or bytes.decode_u16(end + 8) != count:
+	# Godot 4.7 ZIPPacker emits parent directory entries. Bound traversal as
+	# read() does, while keeping the file quota independent of those entries.
+	if count > 64 or bytes.decode_u16(end + 8) != count:
 		return _bad("files")
 	var offset := int(bytes.decode_u32(end + 16))
 	# minizip adjusts raw offsets by EOCD - (directory offset + size).
@@ -156,6 +158,7 @@ static func import_zip(path: String, destination: String) -> Dictionary:
 		return _bad("archive_directory")
 	var names := {}
 	var total := 0
+	var file_count := 0
 	for i in count:
 		if offset + 46 > end or bytes.decode_u32(offset) != 0x02014b50:
 			return _bad("archive")
@@ -168,15 +171,21 @@ static func import_zip(path: String, destination: String) -> Dictionary:
 			return _bad("archive_path")
 		var name := name_bytes.get_string_from_utf8()
 		var mode := bytes.decode_u32(offset + 38) >> 16
-		if mode & 0xf000 == 0xa000 or not _type_ok(name) or names.has(name.to_lower()) or bytes.decode_u16(offset + 8) & 1:
-			return _bad("archive_path")
+		var directory := name.ends_with("/")
+		var canonical := name.trim_suffix("/") if directory else name
 		var size := bytes.decode_u32(offset + 24)
+		var safe_directory := directory and Manifest.safe_path(canonical) and canonical.split("/").size()<=8 and size==0 and (mode & 0xf000) in [0,0x4000]
+		if mode & 0xf000 == 0xa000 or (not safe_directory if directory else not _type_ok(name)) or names.has(canonical.to_lower()) or bytes.decode_u16(offset + 8) & 1:
+			return _bad("archive_path")
+		if not directory:
+			file_count+=1
+			if file_count > Limits.PACK_FILES: return _bad("files")
 		if size > (Limits.MANIFEST_BYTES if name == "manifest.json" else Limits.FILE_BYTES):
 			return _bad("file_size")
 		total += size
 		if total > Limits.PACK_BYTES:
 			return _bad("pack_size")
-		names[name.to_lower()] = {"name":name, "size":size}
+		names[canonical.to_lower()] = {"name":name, "size":size,"directory":directory}
 		offset = next
 	if offset != end:
 		return _bad("archive_directory")
@@ -185,6 +194,7 @@ static func import_zip(path: String, destination: String) -> Dictionary:
 		return _bad("archive")
 	var files := {}
 	for record in names.values():
+		if record.directory: continue
 		var data := zip.read_file(record.name)
 		if data.size() != record.size:
 			zip.close()

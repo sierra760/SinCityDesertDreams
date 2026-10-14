@@ -109,17 +109,29 @@ def timeout_output(exc: subprocess.TimeoutExpired) -> str:
 
 
 def find_godot() -> str:
+    def usable(path: str) -> bool:
+        try:
+            # The first Rosetta launch can spend over ten seconds translating
+            # a newly installed universal editor before it reports its version.
+            version = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?\.stable\.", version.stdout.strip())
+        return version.returncode == 0 and match is not None and tuple(int(part or 0) for part in match.groups()) >= (4, 7, 2)
+
     env = os.environ.get("GODOT")
     if env:
-        return env
+        if usable(env):
+            return env
+        sys.exit("Godot 4.7.2 or newer stable is required; GODOT points to an incompatible or unavailable engine")
     for name in ("godot", "godot4", "Godot"):
         path = shutil.which(name)
-        if path:
+        if path and usable(path):
             return path
     mac = "/Applications/Godot.app/Contents/MacOS/Godot"
-    if Path(mac).exists():
+    if Path(mac).exists() and usable(mac):
         return mac
-    sys.exit("Godot binary not found; set GODOT=/path/to/godot")
+    sys.exit("Godot 4.7.2 or newer stable not found; set GODOT=/path/to/godot")
 
 
 def refresh_class_cache(godot: str) -> None:

@@ -105,6 +105,28 @@ func test_valid_archive_preserves_installed_folder() -> void:
 	check(result.sources.is_read_only())
 	check(result.manifest.is_read_only())
 
+func test_nested_archive_keeps_the_full_file_quota_with_implicit_directories() -> void:
+	var manifest := FileAccess.get_file_as_string(fixture()+"/manifest.json")
+	var entries := [["manifest.json",manifest],["main.lua","return {}"]]
+	for index in 30: entries.append(["modules/file%d.lua" % index,"return %d" % index])
+	serial+=1
+	var destination := "user://nested-pack-%d" % serial
+	var result := Pack.import_zip(archive(entries),destination)
+	check(result.ok,"Godot's implicit ZIP directories do not consume the 32-file quota")
+	if not result.ok: return
+	check_eq(result.sources.size(),31,"only Lua files enter the immutable snapshot")
+	check_eq(FileAccess.get_file_as_string(destination+"/modules/file29.lua"),"return 29")
+	check_eq(Pack.read(destination).content_hash,result.content_hash,"nested ZIP and directory snapshots agree")
+
+func test_directory_entries_cannot_bypass_archive_validation() -> void:
+	var manifest := FileAccess.get_file_as_string(fixture()+"/manifest.json")
+	var good := [["manifest.json",manifest],["main.lua","return {}"]]
+	for name in ["../outside/","a/../outside/","/outside/"]:
+		reject_archive(archive(good+[[name,""]]),"archive_path")
+	reject_archive(archive(good+[["modules/","payload"]]),"archive_path")
+	reject_archive(archive(good+[["main.lua/",""]]),"archive_path")
+	reject_archive(archive(good+[["lib/a.lua","return {}"],["LIB/b.lua","return {}"]]),"archive_path")
+
 func test_prefixed_directory_rejected_before_decoder() -> void:
 	var manifest := FileAccess.get_file_as_string(fixture() + "/manifest.json")
 	var path := archive([["manifest.json", manifest], ["main.lua", " ".repeat(262144)]])

@@ -1,6 +1,6 @@
 # Architecture
 
-Sin City: Desert Dreams is a Godot 4.6 project. Everything that matters lives
+Sin City: Desert Dreams is a Godot 4.7 project. Everything that matters lives
 under `game/`. This document describes the layers, the data model and the
 contract between the simulation and the rest of the game. Read it before adding
 a system or touching the save format.

@@ -135,6 +135,10 @@ func _build() -> void:
 
 	form.add_child(UIFactory.make_section_header("Terrain source"))
 	source_choice = OptionButton.new()
+	# Keep full names in the popup while the selected caption fits narrow phones.
+	source_choice.fit_to_longest_item = false
+	source_choice.clip_text = true
+	source_choice.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	source_choice.custom_minimum_size.y = 44
 	source_choice.add_item("Procedural")
 	source_choice.add_item("Real-world terrain · Online")

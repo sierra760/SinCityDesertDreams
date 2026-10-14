@@ -25,7 +25,7 @@ Sharing needs no extra signing or entitlement settings.
 
 Requires Xcode and Python/SCons on macOS. Clone official godot-cpp at
 `godot-4.5-stable` (commit `e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77`), which is
-compatible with the game's Godot 4.6.1. Its MIT license is copied here and into
+compatible with the game's Godot 4.7.2. Its MIT license is copied here and into
 the addon. Run from the repository root:
 
 ```sh

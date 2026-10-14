@@ -1,6 +1,6 @@
 # Contributing
 
-Use Godot 4.6.1 standard and Python 3.10 or later. Set `GODOT=/path/to/godot`
+Use Godot 4.7.2 standard and Python 3.10 or later. Set `GODOT=/path/to/godot`
 if the engine is not on your PATH. The checks below need only the Python
 standard library.
 

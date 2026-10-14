@@ -203,6 +203,8 @@ func _build() -> void:
 	section_picker = OptionButton.new()
 	section_picker.name = "ToolSection"
 	section_picker.allow_reselect = true
+	# The popup keeps full category names; they must not set the sidebar width.
+	section_picker.fit_to_longest_item = false
 	section_picker.theme = UITheme.control_theme()
 	section_picker.add_theme_font_size_override("font_size", UITheme.FONT_SMALL)
 	section_picker.custom_minimum_size.y = 44

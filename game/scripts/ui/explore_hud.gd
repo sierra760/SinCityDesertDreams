@@ -445,6 +445,9 @@ func _reflow() -> void:
 	# is queried; otherwise their first layout can count one character per line.
 	for label in [_actor_label, _speed_label, _altitude_label, _prompt_label, _transit_label]:
 		label.size.x = maxf(0.0,status_width - UITheme.MARGIN * 2.0)
+		# Godot 4.7 defers reshaping after resize; refresh the text minimum now
+		# so the parent card never retains its initial one-character line height.
+		label.get_minimum_size()
 	# Without a scrolling message the card fits its lines instead of leaving
 	# an empty band below them.
 	if not _status_scroll.visible:

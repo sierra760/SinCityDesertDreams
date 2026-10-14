@@ -43,11 +43,11 @@ func _sign_words(node: Node) -> String:
 	for child: Node in node.get_children(): words+=_sign_words(child)
 	return words
 
-func test_lift_controls_have_mounted_instructions_and_landing_labels() -> void:
+func test_lift_keeps_floor_labels_without_mounted_interaction_instructions() -> void:
 	var lift := _lift()
 	var words := _sign_words(lift)
-	check(words.contains("PRESS F"),"physical control panel explains the interaction key")
-	check(words.contains("STREET") and words.contains("PLATFORM"),"both landings and cabin controls are identified")
+	check_eq(words,"STREET PLATFORM LEVEL STREET LEVEL ","only the cabin floor and landing labels remain; interaction hints belong in the HUD")
+	check(words.contains("STREET") and words.contains("PLATFORM"),"both landings and cabin floor are identified")
 	lift.free()
 	await physics_frame
 

@@ -32,9 +32,25 @@ var _look_label: Label
 var _pad_size := PAD_SIZE
 var _pad_radius := PAD_RADIUS
 var _status_rect := Rect2()
+var _joystick: VirtualJoystick
+var _joystick_viewport: SubViewport
+var _joystick_display: TextureRect
+var _move_contact := -1
+var _move_actions: Array[StringName] = []
+
+func _enter_tree() -> void:
+	# A detached HUD can be reused. Restore its private namespace before its
+	# children enter, and reset the native control's prior contact ownership.
+	for action: StringName in _move_actions:
+		if not InputMap.has_action(action): InputMap.add_action(action,0.0)
+	if is_instance_valid(_joystick): _joystick.notification(Control.NOTIFICATION_RESIZED)
+
+func _notification(what: int) -> void:
+	if what==NOTIFICATION_POST_ENTER_TREE and is_instance_valid(_joystick): _refresh()
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_build_joystick()
 	for action: StringName in [&"menu",&"sprint",&"jump",&"brake",&"interact",&"ascend",&"descend"]:
 		var button := UIFactory.make_button(_caption(action))
 		button.name = "Touch"+str(action).capitalize()
@@ -95,6 +111,7 @@ func set_status_rect(rect: Rect2) -> void:
 
 ## Clear all input. Fingers already down stay blocked until they lift.
 func clear_input() -> void:
+	_release_joystick()
 	_move=Vector2.ZERO
 	_look=Vector2.ZERO
 	_edges.clear()
@@ -111,16 +128,26 @@ func control_rect(action: StringName) -> Rect2:
 	return _rects.get(action,Rect2())
 
 func handle_event(event: InputEvent, ui_blocked: bool = false) -> bool:
+	if not is_inside_tree():
+		# Retire fingers lifted during detachment without forwarding input to
+		# the native control or accepting new owners outside the scene tree.
+		if event is InputEventScreenTouch and (not event.pressed or event.canceled):
+			_contacts.erase(event.index)
+			if _contacts.is_empty(): _quarantined=false
+		return false
 	if event is InputEventScreenTouch:
 		var contact := event as InputEventScreenTouch
 		if contact.canceled:
+			_release_joystick()
 			_contacts.erase(contact.index)
 			clear_input()
 			return _active
 		if not contact.pressed:
 			var old: Dictionary = _contacts.get(contact.index,{})
 			_contacts.erase(contact.index)
-			if old.get("role",&"")==&"move": _move=Vector2.ZERO
+			if old.get("role",&"")==&"move":
+				_release_joystick()
+				_move=Vector2.ZERO
 			if _contacts.is_empty(): _quarantined=false
 			if old.get("role",&"")==&"menu" and bool(old.get("engaged",false)) and control_rect(&"menu").has_point(contact.position):
 				clear_input()
@@ -134,7 +161,9 @@ func handle_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 			role=_role_at(contact.position)
 		_contacts[contact.index]={"role":role,"position":contact.position,"engaged":true}
 		if role in [&"jump",&"interact"]: _edges[role]=true
-		if role==&"move": _update_move(contact.position)
+		if role==&"move":
+			_move_contact=contact.index
+			_route_joystick(contact)
 		_sync_action_feedback()
 		queue_redraw()
 		return _active and role!=&"blocked"
@@ -145,7 +174,7 @@ func handle_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 		var role: StringName = entry.role
 		entry.position=drag.position
 		if not _enabled or _suspended or _quarantined or not _active or role==&"blocked": return false
-		if role==&"move": _update_move(drag.position)
+		if role==&"move": _route_joystick(drag)
 		elif role==&"look":
 			if drag.screen_relative.is_finite(): _look+=drag.screen_relative
 		else: entry.engaged=control_rect(role).has_point(drag.position)
@@ -156,7 +185,7 @@ func handle_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 
 func sample_frame() -> ExploreInputFrame:
 	var frame := ExploreInputFrame.idle()
-	if not _enabled or not _active or _suspended or _quarantined: return frame
+	if not is_inside_tree() or not _enabled or not _active or _suspended or _quarantined: return frame
 	frame.move=_move
 	frame.sprint=_held(&"sprint")
 	frame.brake=_held(&"brake")
@@ -212,9 +241,74 @@ func _role_at(at: Vector2) -> StringName:
 		return &"look"
 	return &"blocked"
 
-func _update_move(at: Vector2) -> void:
-	_move=((at-control_rect(&"move").get_center())/_pad_radius).limit_length(1.0)
+## The small transparent viewport gives the native control only its owning
+## finger. Main consumes Explore touches before normal GUI delivery; forwarding
+## here also preserves quarantine and prevents UI-origin fingers acquiring it.
+func _build_joystick() -> void:
+	for direction: String in ["left","right","up","down"]:
+		var action := StringName("explore_touch_%d_%s" % [get_instance_id(),direction])
+		InputMap.add_action(action,0.0)
+		_move_actions.append(action)
+	_joystick_viewport=SubViewport.new()
+	_joystick_viewport.name="MovementViewport"
+	_joystick_viewport.disable_3d=true
+	_joystick_viewport.transparent_bg=true
+	_joystick_viewport.size=Vector2i(PAD_SIZE,PAD_SIZE)
+	add_child(_joystick_viewport)
+	_joystick=VirtualJoystick.new()
+	_joystick.name="MovementJoystick"
+	_joystick.action_left=_move_actions[0]
+	_joystick.action_right=_move_actions[1]
+	_joystick.action_up=_move_actions[2]
+	_joystick.action_down=_move_actions[3]
+	_joystick.focus_mode=Control.FOCUS_NONE
+	_joystick.size=Vector2(PAD_SIZE,PAD_SIZE)
+	_joystick.tip_size=40.0
+	# Keep the existing linear analog response; the router applies the small
+	# center dead zone after sampling, without a second InputMap dead zone.
+	_joystick.deadzone_ratio=0.0
+	for state: String in ["normal","pressed"]:
+		var base := StyleBoxFlat.new()
+		base.bg_color=Color(.08,.10,.12,.46)
+		base.border_color=Color(.90,.86,.72,.7)
+		base.set_border_width_all(2)
+		base.set_corner_radius_all(100)
+		base.anti_aliasing=true
+		_joystick.add_theme_stylebox_override(state+"_joystick",base)
+		var tip := StyleBoxFlat.new()
+		tip.bg_color=Color(.92,.86,.68,.86 if state=="normal" else 1.0)
+		tip.set_corner_radius_all(100)
+		tip.anti_aliasing=true
+		_joystick.add_theme_stylebox_override(state+"_tip",tip)
+	_joystick_viewport.add_child(_joystick)
+	_joystick_display=TextureRect.new()
+	_joystick_display.name="MovementPad"
+	_joystick_display.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	_joystick_display.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
+	_joystick_display.texture=_joystick_viewport.get_texture()
+	add_child(_joystick_display)
+
+func _route_joystick(event: InputEvent) -> void:
+	var local := event.duplicate() as InputEvent
+	local.position=event.position-control_rect(&"move").position
+	_joystick_viewport.push_input(local,true)
+	_move=Vector2(Input.get_axis(_move_actions[0],_move_actions[1]),Input.get_axis(_move_actions[2],_move_actions[3])).limit_length(1.0)
 	if _move.length()<DEAD_ZONE: _move=Vector2.ZERO
+
+func _release_joystick() -> void:
+	if _move_contact>=0 and is_instance_valid(_joystick_viewport) and _joystick_viewport.is_inside_tree():
+		var release := InputEventScreenTouch.new()
+		release.index=_move_contact
+		release.position=Vector2(_joystick_viewport.size)*.5
+		_joystick_viewport.push_input(release,true)
+	_move_contact=-1
+	for action: StringName in _move_actions:
+		if InputMap.has_action(action): Input.action_release(action)
+
+func _exit_tree() -> void:
+	clear_input()
+	for action: StringName in _move_actions:
+		if InputMap.has_action(action): InputMap.erase_action(action)
 
 func _mode_actions() -> Array[StringName]:
 	if _mode==ExploreActorProfile.Mode.DRIVE: return [&"brake",&"interact"]
@@ -229,6 +323,15 @@ func _refresh() -> void:
 	_pad_radius = 40.0 if short else PAD_RADIUS
 	_rects[&"menu"]=Rect2(_usable.position+Vector2(_usable.size.x-104,8),Vector2(96,48))
 	_rects[&"move"]=Rect2(Vector2(_usable.position.x+16,_usable.end.y-_pad_size-16),Vector2(_pad_size,_pad_size))
+	if is_instance_valid(_joystick) and _joystick.is_inside_tree():
+		_joystick_viewport.size=Vector2i(_pad_size,_pad_size)
+		_joystick.size=Vector2(_pad_size,_pad_size)
+		_joystick.joystick_size=_pad_size
+		_joystick.clampzone_ratio=2.0*_pad_radius/_pad_size
+		_joystick_display.position=control_rect(&"move").position
+		_joystick_display.size=Vector2(_pad_size,_pad_size)
+		_joystick_display.visible=not _suspended
+		_joystick_viewport.render_target_update_mode=SubViewport.UPDATE_WHEN_VISIBLE if visible and not _suspended else SubViewport.UPDATE_DISABLED
 	var right := _usable.end-Vector2(108,64)
 	_rects[&"interact"]=Rect2(right,Vector2(100,48))
 	var actions := _mode_actions()
@@ -267,12 +370,3 @@ func _refresh() -> void:
 
 func _caption(action: StringName) -> String:
 	return {&"menu":"Menu",&"sprint":"Sprint",&"jump":"Jump",&"brake":"Brake",&"interact":"Interact",&"ascend":"Climb",&"descend":"Descend"}.get(action,str(action))
-
-func _draw() -> void:
-	if not visible or _suspended: return
-	var center := control_rect(&"move").get_center()
-	draw_circle(center,_pad_size*.5,Color(.08,.10,.12,.46))
-	draw_arc(center,_pad_radius,0,TAU,48,Color(.90,.86,.72,.7),2,true)
-	draw_line(center-Vector2(0,10),center+Vector2(0,10),Color(.9,.86,.72,.5),2,true)
-	draw_line(center-Vector2(10,0),center+Vector2(10,0),Color(.9,.86,.72,.5),2,true)
-	draw_circle(center+_move*_pad_radius,20,Color(.92,.86,.68,.86))

@@ -73,6 +73,42 @@ class ClassificationTests(unittest.TestCase):
         self.assertIn("import stderr", retained.call_args.args[1])
 
 
+class EngineSelectionTests(unittest.TestCase):
+    def test_initial_minor_stable_uses_an_implicit_zero_patch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = Path(temporary) / "godot"
+            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.8.stable.official.current'\n")
+            engine.chmod(0o755)
+            with patch.dict(os.environ, {"GODOT": str(engine)}):
+                self.assertEqual(runner.find_godot(), str(engine))
+
+    def test_prerelease_is_not_selected_for_the_stable_upgrade(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = Path(temporary) / "godot"
+            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.8.dev6.official.preview'\n")
+            engine.chmod(0o755)
+            with patch.dict(os.environ, {"GODOT": str(engine)}):
+                with self.assertRaisesRegex(SystemExit, "4.7.2"):
+                    runner.find_godot()
+
+    def test_explicit_engine_rejects_versions_without_native_joystick(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = Path(temporary) / "godot"
+            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.6.1.stable.official.old'\n")
+            engine.chmod(0o755)
+            with patch.dict(os.environ, {"GODOT": str(engine)}):
+                with self.assertRaisesRegex(SystemExit, "4.7.2"):
+                    runner.find_godot()
+
+    def test_explicit_stable_engine_is_usable(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = Path(temporary) / "godot"
+            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.7.2.stable.official.current'\n")
+            engine.chmod(0o755)
+            with patch.dict(os.environ, {"GODOT": str(engine)}):
+                self.assertEqual(runner.find_godot(), str(engine))
+
+
 class IsolatedProjectTests(unittest.TestCase):
     def fixture(self, parent):
         source = Path(parent) / "source-game"

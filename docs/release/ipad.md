@@ -1,6 +1,6 @@
 # iPhone and iPad controls and device builds
 
-The Godot 4.6.1 project includes touch input, iPad display and lifecycle
+The Godot 4.7.2 project includes touch input, iPad display and lifecycle
 handling, and an **iOS** export preset. It has not yet been tested as a signed
 build on a physical iPhone or iPad. See the [iPhone interface guide](iphone.md)
 for the compact phone controls.
@@ -14,11 +14,16 @@ for the compact phone controls.
 | Locked tools | Tap a locked tool for its name and unlock requirement. Close details returns to the sidebar; the tool remains unavailable. |
 | Pan and zoom | Put two fingers on the city. The second finger cancels a pending tool action; drag to pan and pinch to zoom. Lift both before starting another tool action. |
 | Rotate and analyze | Use the View menu for rotation, zoom, underground view and data overlays. |
-| Walk | Use the left movement pad; drag on the right to look. Hold Sprint or tap Jump. |
+| Walk | Use the left analog joystick; drag on the right to look. Hold Sprint or tap Jump. |
 | Drive | Push the pad forward to accelerate, backward to brake/reverse and sideways to steer. Hold Brake to stop. |
 | Fly | Use the movement pad for horizontal travel; hold Climb or Descend. Release controls to hover. |
 | Interact | Tap Interact to call/ride a lift or enter/exit a nearby vehicle. Stop or land before exiting, and leave room to step out. Walk through open passenger-train doors. |
 | Explore menu | Tap Menu for vehicle selection, destinations, Recover, Reset camera, Control settings and Return to Build. Drive selected vehicle starts driving at once; otherwise choose Resume to continue movement. |
+
+Explore uses Godot’s built-in `VirtualJoystick` for movement, styled to match
+the game. Its actions are private to the active touch controller, so the stick
+does not navigate menus. Movement, looking and action buttons accept separate
+fingers simultaneously.
 
 Touch controls appear on iOS and detected touchscreens. Hardware keyboard and
 mouse controls remain available. Touch Explore hides the minimap to reserve its
@@ -59,7 +64,7 @@ folder and open them with **Load City → Browse**. The arm64 sharing plugin is
 bundled with iOS builds but has not yet been tried on a signed device.
 Game Center's personal saved-game storage does not share city files with friends.
 
-Godot 4.6.1 uses an app-folder picker on iOS; copying through Files supplies the
+The game uses an app-folder picker on iOS; copying through Files supplies the
 file before selection. Cloud providers remain usable through Files' copy action.
 The folder label follows the installed app's display name.
 
@@ -100,7 +105,7 @@ mode. This has not been checked on a device.
 
 ## Creating a device build
 
-To make a device build, install matching Godot 4.6.1 export templates
+To make a device build, install matching Godot 4.7.2 export templates
 and Xcode on macOS. Open `game/project.godot`, select **Project → Export → iOS**,
 set your Apple Team ID, and verify the bundle identifier against that
 account. The preset exports to `ios/SCDD.xcodeproj` beside `game/` and keeps
@@ -108,7 +113,7 @@ files from earlier exports there (`delete_old_export_files_unconditionally` is
 off); to start clean, choose a new empty directory in the export dialog
 instead. Open the Xcode project, configure development signing and select a
 connected iPad. This follows the
-[Godot iOS export workflow](https://docs.godotengine.org/en/4.6/tutorials/export/exporting_for_ios.html).
+[Godot iOS export workflow](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_ios.html).
 
 The preset is arm64 and includes iPhone and iPad, permits all rotations and exposes Documents
 through Files and sharing. Its deployment setting is iOS 17; Godot's Mobile
@@ -116,9 +121,9 @@ exporter also adds its A12 performance requirement, so that number alone is not
 a supported-device promise. Verify the team and provisioning fields against your
 account before exporting. The preset already includes the app icon and the
 resource and license include filters. Official
-[iOS export options](https://docs.godotengine.org/en/4.6/classes/class_editorexportplatformios.html)
-describe the platform fields. Godot 4.6 currently does not support an iOS simulator
-export; use a real device for acceptance.
+[iOS export options](https://docs.godotengine.org/en/4.7/classes/class_editorexportplatformios.html)
+describe the platform fields. This project’s native sharing and geometry
+frameworks target physical iOS devices; use a connected device for acceptance.
 
 Record the device model, iPadOS version and exact build hash. On that build,
 verify touch construction/cancellation, simultaneous movement/look/actions,

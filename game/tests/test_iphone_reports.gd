@@ -49,6 +49,12 @@ func test_phone_dialogs_keep_actions_inside_notch_and_keyboard_rect() -> void:
 			check(host.display_layout.logical_rect().grow(.1).encloses(panel.get_global_rect()),dialog.name+" fits physical occlusion")
 			var scroll: ScrollContainer = chrome.body_scroll
 			check(scroll.get_h_scroll_bar().max_value<=scroll.get_h_scroll_bar().page+1.0,dialog.name+" fits narrow content")
+			if dialog == host.new_city_dialog:
+				for selected: int in [0,1]:
+					host.new_city_dialog.source_choice.select(selected)
+					await HostFixture.settle(self, 10)
+					check(scroll.get_h_scroll_bar().max_value<=scroll.get_h_scroll_bar().page+1.0,"both terrain-source captions fit without sideways reading")
+				host.new_city_dialog.source_choice.select(0)
 			for button: BaseButton in (chrome.actions as Control).find_children("*","BaseButton",true,false):
 				check(host.display_layout.logical_rect().grow(.1).encloses(button.get_global_rect()),"persistent "+button.text)
 				check_ge(button.size.y,44)

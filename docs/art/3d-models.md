@@ -143,7 +143,7 @@ through the city. See the README for controls.
 
 ## Building a package
 
-Use Godot 4.6.1 with its matching export templates. From the repository root:
+Use Godot 4.7.2 with its matching export templates. From the repository root:
 
 ```sh
 godot --headless --path game --import
