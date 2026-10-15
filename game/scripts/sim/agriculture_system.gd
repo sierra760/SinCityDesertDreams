@@ -13,6 +13,13 @@ const DEVELOPMENT_BUDGET := 16
 ## One unchanged active census, at most 16 candidate previews, and at most
 ## 16 validation passes (every failed pass removes at least one activation).
 const MAX_PROJECTIONS_PER_PHASE := 2 * DEVELOPMENT_BUDGET + 1
+## Reserve the complete phase before any mutation at the signed save boundary.
+## At most two lifecycle writes per owner/member (aging then dormancy),
+## two writes per development
+## action (recovery then activation), and one repair plus one adoption apply.
+const MONTHLY_STORE_REVISION_HEADROOM := 2 * AgriculturalParcels.CELL_COUNT + 2 * DEVELOPMENT_BUDGET + 2
+## A retained record may be repaired, age, recover acreage and activate.
+const MONTHLY_RECORD_REVISION_HEADROOM := 4
 var _ctx: SimContext
 var _rng := SimRng.from_saved_seed(0)
 var _raw := Params.DEMAND_INITIAL
@@ -157,17 +164,20 @@ func _parcel_lot(r: Dictionary) -> Dictionary:
 		"source_key":StringName("parcel:%d" % r.id),"members":r.members.duplicate(),
 		"origin":AgriculturalParcels.tile(r.origin_index),"revision":r.revision}
 
-func _persist_lot(lot: Dictionary) -> void:
-	if not lot.has("parcel_id"): return
+func _persist_lot(lot: Dictionary) -> Error:
+	if not lot.has("parcel_id"): return OK
 	var r := _ctx.city.agricultural_parcels.record(lot.parcel_id)
-	if r.is_empty(): return
-	if r.state == lot.state and r.failed_months == lot.failed_months and r.last_month == lot.last_month: return
+	if r.is_empty(): return OK
+	if r.state == lot.state and r.failed_months == lot.failed_months and r.last_month == lot.last_month: return OK
 	r.state = lot.state
 	if r.mode == &"legacy": r.legacy_code = lot.building_id
 	r.failed_months = lot.failed_months
 	r.last_month = lot.last_month
 	var error := _ctx.city.agricultural_parcels.put(_ctx.city,r)
-	assert(error == OK, "Canonical parcel lifecycle update failed.")
+	if error != OK:
+		_migration_error = error
+		_repair_error = "Canonical parcel lifecycle update failed."
+	return error
 
 func inspect_tile(tile: Vector2i) -> Dictionary:
 	if _ctx == null or not _ctx.city.in_bounds(tile.x, tile.y): return {}
@@ -214,6 +224,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 	_ctx = ctx
 	@warning_ignore("integer_division")
 	var month := ctx.clock.day / GameClock.DAYS_PER_MONTH
+	if _migration_error != OK or not _monthly_revision_capacity(): return
 	if _reconcile() != OK: return
 	if _phase_months[phase] == month: return
 	if _demand_month != month:
@@ -259,9 +270,9 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			if lot.failed_months >= Params.FAILURE_MONTHS: declining.append(lot)
 			elif lot.get("mode",&"legacy") != &"legacy" and lot.failed_months == 0:
 				extending.append(lot)
-		_persist_lot(lot)
+		if _persist_lot(lot) != OK: return
 	for lot in declining:
-		_change(lot,&"dormant",month)
+		if _change(lot,&"dormant",month) != OK: return
 		dirty = _merge(dirty,lot.rect)
 		_touch(touched,lot.rect)
 	# Reserve one action for formation and, when present, one for extensions.
@@ -348,7 +359,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 							if rect.encloses(_lots[covered].rect): _lots.erase(covered)
 						var lot := _record(at,archetype,&"prepared",kind)
 						_lots[at] = lot
-						_change(lot,&"prepared",month)
+						if _change(lot,&"prepared",month) != OK: return
 						dirty = _merge(dirty,rect)
 						_touch(touched,rect)
 						break
@@ -369,7 +380,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			if ctx.city.agricultural_parcels.put(ctx.city,value) != OK: continue
 			dirty = _merge(dirty,AgriculturalParcels.bounds(value.members))
 		else:
-			_change(value,&"active",month)
+			if _change(value,&"active",month) != OK: return
 			_touch(touched,value.rect)
 			dirty = _merge(dirty,value.rect)
 	if dirty.has_area() and ctx.city.building.data != before_building:
@@ -381,6 +392,30 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 	_service_map = null
 	_reconcile()
 	_publish()
+
+## Near the representable limit, refuse conservatively rather than publish a
+## partial phase. The final reserved counters may remain unused; save domains
+## and ordinary growth rules do not change. Empty nonfarm cities need no writes.
+func _monthly_revision_capacity() -> bool:
+	var store := _ctx.city.agricultural_parcels
+	var records := store.records()
+	var exhausted := false
+	for record in records:
+		if record.revision > AgriculturalParcels.MAX_ID - MONTHLY_RECORD_REVISION_HEADROOM:
+			exhausted = true
+			break
+	if not exhausted and store.revision > AgriculturalParcels.MAX_ID - MONTHLY_STORE_REVISION_HEADROOM:
+		exhausted = not records.is_empty()
+		if not exhausted:
+			for zone: int in _ctx.city.zone.data:
+				if Zones.kind(zone) == Zones.AGR_LOW:
+					exhausted = true
+					break
+	if exhausted:
+		_migration_error = ERR_OUT_OF_MEMORY
+		_repair_error = "Agricultural lifecycle revision capacity exhausted."
+	return not exhausted
+
 
 func _count_shape(shape: Dictionary) -> void:
 	_counts.evaluations += shape.evaluations
@@ -424,6 +459,10 @@ func _proposal_served(value: Dictionary, supplied: City) -> bool:
 
 func _project_values(values: Array[Dictionary]) -> City:
 	_projection_count += 1
+	# Keep logical attempts bounded and the empty active-census City cacheable.
+	# Every agricultural activation draws water; without any possible existing
+	# source, full detached allocation cannot change its rejection.
+	if not values.is_empty() and not AgriculturalParcelService.has_established_water_source(_ctx): return null
 	return AgriculturalParcelService.project(_ctx,{},values)
 
 func _update_demand() -> void:
@@ -457,16 +496,18 @@ func _record(at: Vector2i, archetype: StringName, state: StringName, kind: int) 
 	return {"anchor": at, "archetype": archetype, "state": state, "building_id": id,
 		"zone_kind": kind, "rect": Rect2i(at, size), "failed_months": Params.FAILURE_MONTHS if state == &"dormant" else 0, "last_month": -1}
 
-func _change(lot: Dictionary, state: StringName, month: int) -> void:
+func _change(lot: Dictionary, state: StringName, month: int) -> Error:
 	lot.state = state
 	lot.building_id = Params.building_id(lot.archetype) if state == &"active" else Params.state_id(state, lot.rect.size.x)
 	lot.last_month = month
 	if state != &"dormant": lot.failed_months = 0
 	if lot.has("parcel_id"):
-		_persist_lot(lot)
+		var error := _persist_lot(lot)
+		if error != OK: return error
 	else:
 		_ctx.city.stamp_building(lot.anchor.x, lot.anchor.y, lot.building_id, lot.zone_kind)
 	_service_map = null
+	return OK
 
 func _candidate(rect: Rect2i, kind: int, touched: Dictionary) -> bool:
 	if _emergency(): return false

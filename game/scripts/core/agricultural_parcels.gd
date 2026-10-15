@@ -23,6 +23,13 @@ var _owners := PackedInt32Array()
 # Exact detached proofs only; full static validation never consults this cache.
 var _layout_proofs: Dictionary = {}
 var _layout_validations := 0
+# Exact successful record proofs for the current occupancy/land snapshot. Packed
+# arrays and the mutable flood map are explicitly detached.
+var _record_proofs: Dictionary = {}
+var _proof_layers: Array = []
+var _data_validations := 0
+var _canonical_proof: Dictionary = {}
+var _canonical_proven := false
 
 
 func _init() -> void:
@@ -68,6 +75,11 @@ func duplicate_store() -> AgriculturalParcels:
 	copy.revision = revision
 	copy._layout_proofs = _layout_proofs.duplicate(true)
 	copy._layout_validations = _layout_validations
+	copy._record_proofs = _record_proofs.duplicate(true)
+	copy._proof_layers = _proof_layers.duplicate(true)
+	copy._data_validations = _data_validations
+	copy._canonical_proof = bytes_to_var(var_to_bytes(_canonical_proof))
+	copy._canonical_proven = _canonical_proven
 	return copy
 
 
@@ -196,31 +208,68 @@ static func _record_error(city: City, r: Dictionary) -> String:
 	return error if not error.is_empty() else AgriculturalParcelGeometry.record_error(r)
 
 
+## A raw layer write invalidates all proofs before any update can use them.
+## Owners and the store identity also participate because validation consults
+## the city's authoritative ownership map, not just the visible building code.
+func _refresh_record_proofs(city: City) -> bool:
+	if city.agricultural_parcels != self or _proof_layers.size() != 7 or \
+		_proof_layers[0] != city.building.data or _proof_layers[1] != city.zone.data or \
+		_proof_layers[2] != city.terrain.data or _proof_layers[3] != city.altitude.data or \
+		_proof_layers[4] != city.flags.data or _proof_layers[5] != _owners or \
+		_proof_layers[6] != city.flood_overlay:
+		_record_proofs.clear()
+		_canonical_proof.clear()
+		_canonical_proven = false
+		return false
+	return true
+
+
+func _remember_proof_layers(city: City) -> void:
+	_proof_layers = [city.building.data.duplicate(),city.zone.data.duplicate(),city.terrain.data.duplicate(),
+		city.altitude.data.duplicate(),city.flags.data.duplicate(),_owners.duplicate(),city.flood_overlay.duplicate(true)]
+
+
 ## Call only after bounded structural/land/type validation. Keep every canonical
 ## field except the three counters which geometry never reads. Exact equality,
 ## not a hash, guards membership, poses, stock, state and all transform inputs.
-func _cached_record_error(city: City, r: Dictionary) -> String:
+func _cached_record_error(city: City, r: Dictionary, retained: bool = false) -> String:
+	# Only canonical retained records or the already checked update may use a
+	# byte proof. Untrusted input still reaches bounded schema checks first.
+	if retained and _record_proofs.get(r.get("id",0),PackedByteArray()) == var_to_bytes(r): return ""
+	_data_validations += 1
 	var error := _record_data_error(city,r)
 	if not error.is_empty(): return error
 	var signature := r.duplicate(true)
 	for field in ["failed_months","last_month","revision"]: signature.erase(field)
-	if _layout_proofs.get(r.id,{}) == signature: return ""
+	if _layout_proofs.get(r.id,{}) == signature:
+		if _records.has(r.id): _record_proofs[r.id] = var_to_bytes(r)
+		return ""
 	_layout_validations += 1
 	error = AgriculturalParcelGeometry.record_error(r)
-	if error.is_empty(): _layout_proofs[r.id] = signature
+	if error.is_empty():
+		_layout_proofs[r.id] = signature
+		if _records.has(r.id): _record_proofs[r.id] = var_to_bytes(r)
 	return error
 
 
 ## Existing layer bytes are checked even for counter-only replacements. A raw
 ## edit cannot be silently healed by replaying a previously validated record.
 func _validate_update(city: City, values: Array[Dictionary]) -> bool:
-	for old: Dictionary in _records.values():
+	var expected_owners := PackedInt32Array()
+	expected_owners.resize(CELL_COUNT)
+	expected_owners.fill(0)
+	for key in _records:
+		var old: Dictionary = _records[key]
+		if typeof(key) != TYPE_INT or key != old.get("id",0): return false
 		for i in old.members:
 			if city.building.data[i] != _code(old): return false
+			expected_owners[i] = old.id
+	# This also rejects orphan ownership outside every retained footprint.
+	if _owners != expected_owners: return false
 	var ids := {}
 	var members := {}
 	for r in values:
-		if not _cached_record_error(city,r).is_empty() or ids.has(r.id): return false
+		if not _cached_record_error(city,r,true).is_empty() or ids.has(r.id): return false
 		ids[r.id] = true
 		for i in r.members:
 			if members.has(i): return false
@@ -247,6 +296,8 @@ static func validate(city: City, values: Array[Dictionary]) -> Dictionary:
 ## A normal update may add land and change lifecycle state, but cannot remove
 ## cells, change identity, or refill retained stock. Cuts use a topology transaction.
 func put(city: City, value: Dictionary) -> Error:
+	if revision >= MAX_ID: return ERR_OUT_OF_MEMORY
+	var unchanged_land := _refresh_record_proofs(city)
 	var error := _cached_record_error(city,value)
 	if not error.is_empty(): return ERR_INVALID_DATA
 	var r := value.duplicate(true)
@@ -257,6 +308,16 @@ func put(city: City, value: Dictionary) -> Error:
 	for module in r.modules: module.key = StringName(module.key)
 	var id: int = r.id
 	var old: Dictionary = _records.get(id,{})
+	# Input has passed the original bounded schema and land validation. Exact
+	# equality also guards every retained record, including numeric type changes.
+	if not old.is_empty() and unchanged_land and _canonical_matches():
+		var signature := r.duplicate()
+		for field in ["failed_months","last_month","revision"]: signature[field] = old[field]
+		if signature == old:
+			if old.revision == MAX_ID: return ERR_OUT_OF_MEMORY
+			r.revision = old.revision+1
+			_publish_counter_update(r,old)
+			return OK
 	if old.is_empty():
 		if id < _next_id or id >= MAX_ID: return ERR_OUT_OF_MEMORY
 	else:
@@ -267,6 +328,9 @@ func put(city: City, value: Dictionary) -> Error:
 			if r.stock_units.get(i,0) > old.stock_units.get(i,0): return ERR_INVALID_DATA
 		if old.revision == MAX_ID: return ERR_OUT_OF_MEMORY
 		r.revision = old.revision + 1
+	# records() assumes canonical integer keys when looking up each record.
+	for key in _records:
+		if typeof(key) != TYPE_INT or key != _records[key].get("id",0): return ERR_INVALID_DATA
 	var candidates := records()
 	for i in range(candidates.size()-1,-1,-1):
 		if candidates[i].id == id: candidates.remove_at(i)
@@ -288,11 +352,49 @@ func put(city: City, value: Dictionary) -> Error:
 		# Legacy corner bytes distinguish adjacent rectangular lots.
 		if r.mode != &"legacy": city.zone.put(p.x,p.y,Zones.AGR_LOW)
 	revision += 1
+	# The transaction just proved every retained record and only changed this
+	# parcel's legal occupancy. Refresh after those writes, retaining the proofs.
+	_record_proofs[id] = var_to_bytes(r)
+	_remember_proof_layers(city)
+	_capture_canonical_proof()
 	var neighbor_ids := neighbors.keys()
 	neighbor_ids.sort()
 	changed.emit({"revision":revision,"ids":[id],"old_bounds":old_bounds,
 		"new_bounds":bounds(r.members),"neighbor_ids":neighbor_ids})
 	return OK
+
+
+## Only a globally validated store may establish this proof. Variant encoding
+## detaches nested packed members as well as ordinary dictionaries and arrays.
+func _capture_canonical_proof() -> void:
+	_canonical_proof = bytes_to_var(var_to_bytes(_records))
+	_canonical_proven = true
+
+
+## Native equality is type-strict for the validated numeric/member domain.
+## Dictionary field-key aliases and ordering are legal under the same schema.
+func _canonical_matches() -> bool:
+	return _canonical_proven and _canonical_proof == _records
+
+
+## Counter-only changes keep all proven occupancy bytes and geometry intact.
+## Publish the same revision and neighbor notification as an ordinary put.
+func _publish_counter_update(r: Dictionary, old: Dictionary) -> void:
+	var neighbors := {}
+	for i in r.members:
+		var p := tile(i)
+		for step in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+			var neighbor := id_at(p+step)
+			if neighbor != 0 and neighbor != r.id: neighbors[neighbor] = true
+	_records[r.id] = r
+	_next_id = maxi(_next_id,r.id+1)
+	revision += 1
+	_record_proofs[r.id] = var_to_bytes(r)
+	_canonical_proof[r.id] = bytes_to_var(var_to_bytes(r))
+	var neighbor_ids := neighbors.keys()
+	neighbor_ids.sort()
+	changed.emit({"revision":revision,"ids":[r.id],"old_bounds":bounds(old.members),
+		"new_bounds":bounds(r.members),"neighbor_ids":neighbor_ids})
 
 
 ## Managed destruction proves ID/revision/ownership feasibility before source
@@ -449,6 +551,10 @@ func _cut(city: City, cells: PackedInt32Array, explicit: bool, service_validator
 	_owners = staged._owners
 	_next_id = staged._next_id
 	_layout_proofs = staged._layout_proofs
+	_record_proofs.clear()
+	_proof_layers.clear()
+	_canonical_proof.clear()
+	_canonical_proven = false
 	city.building.data = detached.building.data
 	city.zone.data = detached.zone.data
 	city.flags.data = detached.flags.data
@@ -597,12 +703,17 @@ func adopt_legacy(city: City, lots: Array[Dictionary]) -> Error:
 		added.append(r)
 		next += 1
 	if added.is_empty(): return OK
+	if revision >= MAX_ID: return ERR_OUT_OF_MEMORY
 	if not validate(city,candidates).ok: return ERR_INVALID_DATA
 	for r in added:
 		_records[r.id] = r
 		for i in r.members: _owners[i] = r.id
 	_next_id = next
 	revision += 1
+	_record_proofs.clear()
+	_proof_layers.clear()
+	_canonical_proof.clear()
+	_canonical_proven = false
 	var ids: Array = []
 	var box := Rect2i()
 	for r in added:
@@ -615,7 +726,7 @@ func adopt_legacy(city: City, lots: Array[Dictionary]) -> Error:
 
 ## Ordinary legacy demolition predates parcel-aware topology. Forget a damaged
 ## whole legacy square without touching the replacement layers or other records.
-func discard_invalid_legacy(city: City) -> void:
+func discard_invalid_legacy(city: City) -> Error:
 	var removed: Array[int] = []
 	var box := Rect2i()
 	for r in records():
@@ -625,6 +736,7 @@ func discard_invalid_legacy(city: City) -> void:
 			var p := tile(i)
 			if city.building.data[i] != r.legacy_code or city.zone_kind_at(p.x,p.y) != Zones.AGR_LOW: intact = false
 		if intact: continue
+		if revision >= MAX_ID: return ERR_OUT_OF_MEMORY
 		removed.append(r.id)
 		var b := bounds(r.members)
 		box = box.merge(b) if box.has_area() else b
@@ -634,3 +746,8 @@ func discard_invalid_legacy(city: City) -> void:
 	if not removed.is_empty():
 		revision += 1
 		changed.emit({"revision":revision,"ids":removed,"old_bounds":box,"new_bounds":Rect2i(),"neighbor_ids":[]})
+	_record_proofs.clear()
+	_proof_layers.clear()
+	_canonical_proof.clear()
+	_canonical_proven = false
+	return OK

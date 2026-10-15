@@ -78,3 +78,20 @@ static func project(ctx: SimContext, record: Dictionary = {}, proposals: Array[D
 	else:
 		for i in city.flags.data.size(): city.flags.data[i] &= ~TileFlags.WATERED
 	return city
+
+
+## Necessary source capability only. Never reject using stale supply or power
+## flags: candidate conduction may power a pump, and any tower keeps the full
+## storage/refill allocation path. Established previews never generate output.
+static func has_established_water_source(ctx: SimContext) -> bool:
+	if (ctx.system(&"water") as WaterSystem) == null: return false
+	var city := ctx.city
+	if city.building.data.has(Buildings.WATER_TOWER): return true
+	for anchor: Vector2i in city.facilities:
+		if not city.in_bounds(anchor.x,anchor.y): continue
+		var id := city.building_at(anchor.x,anchor.y)
+		if id not in [Buildings.WATER_PUMP,Buildings.DESALINATION]: continue
+		if not UtilityParams.is_anchor_tile(city.building.data,city.zone.data,AgriculturalParcels.cell(anchor)): continue
+		var facility: Dictionary = city.facilities[anchor]
+		if facility.get("key",&"") == Buildings.key(id) and int(facility.get("output",0)) > 0: return true
+	return false

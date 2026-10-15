@@ -106,3 +106,11 @@ are not expected to read the new occupancy codes and parcel records. Monthly
 histories use the standard 100-year retention. Rendering and controls do not
 perform a render-time census;
 Inspect refreshes on selection and completed map/day updates.
+
+## Validation and revision safety
+
+Repeated lifecycle counter updates reuse validation only while the complete canonical records, ownership and relevant city layers match validated snapshots. Legal dictionary field-key aliases and insertion-order differences remain equivalent; other raw edits force full validation again. Module searches reuse rotated bounds while preserving the original half-metre search and yaw order.
+
+A nonempty service trial can be rejected before detached allocation when no established water source can exist. Any water tower or matching positive-output pump or desalination facility retains the complete allocator; current supply flags alone never prove that a trial will fail. Logical development attempts and their limits are unchanged.
+
+Store and record revisions stay within their saved integer limits. Before monthly writes, agriculture reserves capacity for both aging and dormancy, development, repair and adoption. Near exhaustion it refuses the phase with an explicit recovery error before advancing counters, random streams or source data. Some final representable revisions remain reserved. Inconsistent owner maps and canonical record keys are rejected before an update can publish.

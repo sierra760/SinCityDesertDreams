@@ -19,6 +19,7 @@ static var _authored: Dictionary = {}
 const LAYOUT_CACHE_LIMIT := 32
 static var _layouts: Array[Dictionary] = []
 static var _compilations := 0
+static var _box_evaluations := 0
 
 static func layout_inputs(record: Dictionary, modules: Array = []) -> Array:
 	var units := 0
@@ -156,6 +157,7 @@ static func _rotate(p: Vector2,yaw: int) -> Vector2:
 	return p
 
 static func _box(module: Dictionary,field: String) -> Dictionary:
+	_box_evaluations += 1
 	var spec: Dictionary = _modules().modules[String(module.key)]
 	var b: Array = spec[field]
 	var lo := Vector2(INF,INF)
@@ -189,12 +191,24 @@ static func _fits(module: Dictionary,cells: Dictionary,placed: Array) -> bool:
 		if b[0]<c[2]+.2 and b[2]>c[0]-.2 and b[1]<c[3]+.2 and b[3]>c[1]-.2: return false
 	return true
 
+## The search uses fixed rotated bounds translated on the same lattice. Keep
+## the general _fits predicate above for validating arbitrary retained poses.
+static func _fits_bounds(b: Array,cells: Dictionary,placed_bounds: Array) -> bool:
+	for z in range(floori((b[1]-.2)/TILE),floori((b[3]+.2-.000001)/TILE)+1):
+		for x in range(floori((b[0]-.2)/TILE),floori((b[2]+.2-.000001)/TILE)+1):
+			if not cells.has(Vector2i(x,z)): return false
+	for c: Array in placed_bounds:
+		if b[0]<c[2]+.2 and b[2]>c[0]-.2 and b[1]<c[3]+.2 and b[3]>c[1]-.2: return false
+	return true
+
+
 static func _required(record: Dictionary) -> Array:
 	return [&"shade_shelter",&"water_trough"] if record.archetype in [&"cattle_range",&"sheep_pasture"] else [&"farm_shed"]
 
 static func _placement(record: Dictionary,previous: Array,fill: bool) -> Dictionary:
 	var cells := _mask(record)
 	var placed: Array = []
+	var placed_bounds: Array = []
 	var keys := {}
 	for module: Variant in previous:
 		var valid := _valid_pose(module)
@@ -203,10 +217,15 @@ static func _placement(record: Dictionary,previous: Array,fill: bool) -> Diction
 			if not fill: return {"ok":false,"modules":placed}
 			continue
 		placed.append(module.duplicate(true));keys[String(module.key)]=true
+		if fill: placed_bounds.append(_box(module,"placement_bounds").bounds)
 	for key: StringName in _required(record):
 		if keys.has(String(key)): continue
 		if not fill: return {"ok":false,"modules":placed}
 		var found := false
+		var rotated: Array = []
+		for yaw in 4:
+			var b: Array = _box({"key":key,"at":Vector3.ZERO,"yaw":yaw},"placement_bounds").bounds
+			rotated.append([Vector2(b[0],b[1]),Vector2(b[2],b[3])])
 		# Globally row-major half-metre lattice, then four canonical yaws.
 		var box: Array = _pen(record,[],[]).bounds
 		for z in range(ceili(box[1]*2),floori(box[3]*2)+1):
@@ -214,10 +233,17 @@ static func _placement(record: Dictionary,previous: Array,fill: bool) -> Diction
 			for x in range(ceili(box[0]*2),floori(box[2]*2)+1):
 				if found: break
 				if not cells.has(Vector2i(floori(x*.5/TILE),floori(z*.5/TILE))): continue
+				var position := Vector2(x*.5,z*.5)
 				for yaw in 4:
-					var candidate := {"key":key,"at":Vector3(x*.5,GROUND,z*.5),"yaw":yaw}
-					if _fits(candidate,cells,placed):
-						placed.append(candidate);keys[String(key)]=true;found=true
+					# Vector addition retains _box's component rounding before the
+					# exact same clearance and covered-cell predicates are applied.
+					var low: Vector2 = rotated[yaw][0]+position
+					var high: Vector2 = rotated[yaw][1]+position
+					var bounds := [low.x,low.y,high.x,high.y]
+					if _fits_bounds(bounds,cells,placed_bounds):
+						var candidate := {"key":key,"at":Vector3(x*.5,GROUND,z*.5),"yaw":yaw}
+						placed.append(candidate);placed_bounds.append(bounds)
+						keys[String(key)]=true;found=true
 						break
 		if not found: return {"ok":false,"modules":placed}
 	return {"ok":true,"modules":placed}
