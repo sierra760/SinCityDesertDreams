@@ -460,7 +460,7 @@
       "body_radius": 2.44,
       "turn_margin": 0.2,
       "scale": 0.0625,
-      "model_sha256": "218fc127fb250e04247669619dc3162d7f69e028173442b32173b97fc5788b45"
+      "model_sha256": "c58b96c10d5da84c20dde540093242b1a974f648a66e981f402f54ad3fbf36b9"
     },
     "sheep_pasture": {
       "units": "metres",
@@ -670,7 +670,7 @@
       "body_radius": 1.54,
       "turn_margin": 0.2,
       "scale": 0.0625,
-      "model_sha256": "b0f3c35e3d6186f46ac3472886f43dd6c51088778d2f35109e0fee774946e299"
+      "model_sha256": "b33f9b574a28ff42c8f50c2989bb506acba4b9ce7bf980695f7b50741f96f8a7"
     },
     "dairy": {
       "units": "metres",
@@ -891,7 +891,7 @@
       "body_radius": 2.44,
       "turn_margin": 0.2,
       "scale": 0.0625,
-      "model_sha256": "1c6eadb264174eb6cc70bba5a93fef4b3c366d9fd661d715adee4540286d29de"
+      "model_sha256": "6113aca4263fbfceefafd9e7b693e28f15b247fcda98f8eebaf30860a6302669"
     },
     "feedlot": {
       "units": "metres",
@@ -1304,7 +1304,7 @@
       "body_radius": 2.44,
       "turn_margin": 0.2,
       "scale": 0.0625,
-      "model_sha256": "77730bcab201af22731f6d92ecdf060c05c13532bc4573907a39ff7f6f3d130b"
+      "model_sha256": "7f383a3a4276aa3131dfa9f938896c77d45640ae03243ec385581b3fa3863555"
     }
   }
 }

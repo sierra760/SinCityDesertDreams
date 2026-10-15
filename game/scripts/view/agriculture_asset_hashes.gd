@@ -6,10 +6,10 @@ const HASHES := {
   "res://assets/agriculture/beef_cattle.glb": "de635f2fa311589edb4562d52df1b630727b0d258433d08a229449c3ebbc9ee6",
   "res://assets/agriculture/dairy_cattle.glb": "47be3802c6dfc62f251f60535ec0d238f2bb48a4a2ab54c73e001f3b5e33eb45",
   "res://assets/agriculture/sheep.glb": "9f809456756fe1aa5002b75696b04630b97128b780187f91c84398abcbeec1d6",
-  "res://assets/desert-dreams-3d/269-blender.glb": "218fc127fb250e04247669619dc3162d7f69e028173442b32173b97fc5788b45",
-  "res://assets/desert-dreams-3d/270-blender.glb": "b0f3c35e3d6186f46ac3472886f43dd6c51088778d2f35109e0fee774946e299",
-  "res://assets/desert-dreams-3d/273-blender.glb": "1c6eadb264174eb6cc70bba5a93fef4b3c366d9fd661d715adee4540286d29de",
-  "res://assets/desert-dreams-3d/274-blender.glb": "77730bcab201af22731f6d92ecdf060c05c13532bc4573907a39ff7f6f3d130b"
+  "res://assets/desert-dreams-3d/269-blender.glb": "c58b96c10d5da84c20dde540093242b1a974f648a66e981f402f54ad3fbf36b9",
+  "res://assets/desert-dreams-3d/270-blender.glb": "b33f9b574a28ff42c8f50c2989bb506acba4b9ce7bf980695f7b50741f96f8a7",
+  "res://assets/desert-dreams-3d/273-blender.glb": "6113aca4263fbfceefafd9e7b693e28f15b247fcda98f8eebaf30860a6302669",
+  "res://assets/desert-dreams-3d/274-blender.glb": "7f383a3a4276aa3131dfa9f938896c77d45640ae03243ec385581b3fa3863555"
 }
 const RADII := {
   "beef_cattle": 2.44,

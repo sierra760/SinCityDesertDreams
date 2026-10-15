@@ -117,11 +117,11 @@ Four independent monthly series are appended to the existing roster:
 | --- | --- |
 | `demand_agricultural` | Independent agricultural demand, −999…999 |
 | `agricultural_jobs` | Active farm jobs |
-| `agricultural_lots` | Active farm lots, one per footprint anchor |
+| `agricultural_lots` | Active farms and parcels, one per canonical parcel or older lot |
 | `taxes_agricultural` | Year-to-date agricultural tax ledger dollars |
 
-Graphs labels these Agricultural demand, Agricultural jobs, Active farm lots
-and Agricultural taxes, using the stable deep olive `#71884a` even when other
+Graphs labels these Agricultural demand, Agricultural jobs, Active farms and
+parcels, and Agricultural taxes, using the stable deep olive `#71884a` even when other
 series are selected. They follow the same monthly sampling, history retention
 and saved-history rules as the other series. The A bar reads the cheap scalar
 `CityStats.demand_agricultural`; it never runs a farm census while drawing.

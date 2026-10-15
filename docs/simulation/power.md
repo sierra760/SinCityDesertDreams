@@ -172,4 +172,6 @@ and standalone power lines. Distribution requires a full tile load; farm
 activation and recovery require full service across the footprint. The
 read-only current-capacity preview uses established plant output and cannot
 change generation, fuel, facility records, city funds or RNG. Inspect shows
-requested total units and full-footprint supply. See [Agriculture](agriculture.md).
+requested total units across actual members and complete supply. Low-density
+parcel cells and prepared/dormant cells have zero power load and no outage
+marker. See [Agriculture](agriculture.md).

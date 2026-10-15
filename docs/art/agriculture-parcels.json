@@ -1,0 +1,637 @@
+{
+  "schema_version": 1,
+  "units": "metres",
+  "up": "+Y",
+  "forward": "+Z",
+  "scale": 0.0625,
+  "generator": "tools/model_art/agricultural_parcels.py",
+  "provenance": "Original procedural farm geometry and packed original surface swatches; no imported meshes or artwork.",
+  "modules": {
+    "farm_shed": {
+      "nominal_size": [
+        10,
+        3.5,
+        7
+      ],
+      "placement_bounds": [
+        -5.25,
+        0,
+        -3.75,
+        5.25,
+        4.6,
+        3.75
+      ],
+      "collision_bounds": [
+        -5.25,
+        0,
+        -3.75,
+        5.25,
+        4.6,
+        3.75
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [
+        "vegetables",
+        "alfalfa",
+        "grain"
+      ],
+      "placement": "structure",
+      "path": "res://assets/agriculture/parcel-kit/farm_shed.glb",
+      "model_sha256": "f925edd5e2219e5dbbea088c45af0d4ccbddc31dba820882cbdd7330b5e8ac64",
+      "triangles": 740,
+      "materials": [
+        "farm_cream",
+        "farm_dark",
+        "farm_metal",
+        "farm_red",
+        "farm_roof",
+        "farm_wood"
+      ],
+      "bounds_metres": [
+        [
+          -5.25,
+          0.0,
+          -3.75
+        ],
+        [
+          5.25,
+          4.599999904632568,
+          3.75
+        ]
+      ],
+      "collider_count": 1
+    },
+    "shade_shelter": {
+      "nominal_size": [
+        8,
+        3.2,
+        5
+      ],
+      "placement_bounds": [
+        -4,
+        0,
+        -2.62,
+        4,
+        3.2,
+        2.5
+      ],
+      "collision_bounds": [
+        -4,
+        0,
+        -2.62,
+        4,
+        3.2,
+        2.5
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [
+        "cattle_range",
+        "sheep_pasture"
+      ],
+      "placement": "structure",
+      "path": "res://assets/agriculture/parcel-kit/shade_shelter.glb",
+      "model_sha256": "83f8504ceaadca485608a91983d97c7a89680f4c22bfb238d5ac4ea2c2f2fa30",
+      "triangles": 168,
+      "materials": [
+        "farm_cream",
+        "farm_metal",
+        "farm_roof",
+        "farm_wood"
+      ],
+      "bounds_metres": [
+        [
+          -4.0,
+          4.76837147544984e-09,
+          -2.559999942779541
+        ],
+        [
+          4.0,
+          3.200000047683716,
+          2.5
+        ]
+      ],
+      "collider_count": 1
+    },
+    "water_trough": {
+      "nominal_size": [
+        3,
+        0.7,
+        1.2
+      ],
+      "placement_bounds": [
+        -1.5,
+        0,
+        -0.6,
+        1.5,
+        0.7,
+        0.6
+      ],
+      "collision_bounds": [
+        -1.5,
+        0,
+        -0.6,
+        1.5,
+        0.7,
+        0.6
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [
+        "cattle_range",
+        "sheep_pasture"
+      ],
+      "placement": "structure",
+      "path": "res://assets/agriculture/parcel-kit/water_trough.glb",
+      "model_sha256": "f27ca0e9cd9f389807cbe44c7bacafe0f9170b53c2fdc94ba8753826e1026e2d",
+      "triangles": 72,
+      "materials": [
+        "farm_concrete",
+        "farm_water"
+      ],
+      "bounds_metres": [
+        [
+          -1.5,
+          0.0,
+          -0.6000000238418579
+        ],
+        [
+          1.5,
+          0.699999988079071,
+          0.6000000238418579
+        ]
+      ],
+      "collider_count": 1
+    },
+    "water_tank": {
+      "nominal_size": [
+        2,
+        3,
+        2
+      ],
+      "placement_bounds": [
+        -1,
+        0,
+        -1,
+        1,
+        3,
+        1
+      ],
+      "collision_bounds": [
+        -1,
+        0,
+        -1,
+        1,
+        3,
+        1
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "structure",
+      "path": "res://assets/agriculture/parcel-kit/water_tank.glb",
+      "model_sha256": "829bedbc2e3fb82bae81861412954883852ba6e97beb2986988a581788e595f4",
+      "triangles": 392,
+      "materials": [
+        "farm_concrete",
+        "farm_dark",
+        "farm_metal"
+      ],
+      "bounds_metres": [
+        [
+          -1.0,
+          0.0,
+          -1.0
+        ],
+        [
+          1.0,
+          2.924999952316284,
+          1.0
+        ]
+      ],
+      "collider_count": 1
+    },
+    "grain_bin": {
+      "nominal_size": [
+        3,
+        4,
+        3
+      ],
+      "placement_bounds": [
+        -1.5,
+        0,
+        -1.5,
+        1.5,
+        4,
+        1.5
+      ],
+      "collision_bounds": [
+        -1.5,
+        0,
+        -1.5,
+        1.5,
+        4,
+        1.5
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "structure",
+      "path": "res://assets/agriculture/parcel-kit/grain_bin.glb",
+      "model_sha256": "702621aead1a9750bafc7395074ce27b7171d608477d493f45c33d2a44f83a0e",
+      "triangles": 930,
+      "materials": [
+        "farm_dark",
+        "farm_metal",
+        "farm_roof"
+      ],
+      "bounds_metres": [
+        [
+          -1.5,
+          0.0,
+          -1.5
+        ],
+        [
+          1.5,
+          4.0,
+          1.5
+        ]
+      ],
+      "collider_count": 1
+    },
+    "hay_bale": {
+      "nominal_size": [
+        1.5,
+        1,
+        1
+      ],
+      "placement_bounds": [
+        -0.75,
+        0,
+        -0.5,
+        0.75,
+        1,
+        0.5
+      ],
+      "collision_bounds": [
+        -0.75,
+        0,
+        -0.5,
+        0.75,
+        1,
+        0.5
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "structure",
+      "path": "res://assets/agriculture/parcel-kit/hay_bale.glb",
+      "model_sha256": "ca5b6da2aab2a31c3aa6df91268e2356b9b90912148d5b0c5af7b9272f82b2e4",
+      "triangles": 84,
+      "materials": [
+        "farm_hay",
+        "farm_wood"
+      ],
+      "bounds_metres": [
+        [
+          -0.75,
+          0.0,
+          -0.5
+        ],
+        [
+          0.75,
+          1.0,
+          0.5
+        ]
+      ],
+      "collider_count": 1
+    },
+    "vegetable_strip": {
+      "nominal_size": [
+        1,
+        0.45,
+        1
+      ],
+      "placement_bounds": [
+        -0.5,
+        0,
+        -0.5,
+        0.5,
+        0.45,
+        0.5
+      ],
+      "collision_bounds": [
+        -0.5,
+        0,
+        -0.5,
+        0.5,
+        0.45,
+        0.5
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "procedural",
+      "path": "res://assets/agriculture/parcel-kit/vegetable_strip.glb",
+      "model_sha256": "f799c6cfdc05c327edabecd1a338d45f0ee1a7a083088bb861a4de8ded629424",
+      "triangles": 88,
+      "materials": [
+        "farm_cream",
+        "farm_dark",
+        "farm_leaf_light",
+        "farm_soil"
+      ],
+      "bounds_metres": [
+        [
+          -0.5,
+          4.76837147544984e-09,
+          -0.5
+        ],
+        [
+          0.5,
+          0.44999998807907104,
+          0.5
+        ]
+      ],
+      "collider_count": 1
+    },
+    "alfalfa_strip": {
+      "nominal_size": [
+        1,
+        0.5,
+        1
+      ],
+      "placement_bounds": [
+        -0.5,
+        0,
+        -0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "collision_bounds": [
+        -0.5,
+        0,
+        -0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "procedural",
+      "path": "res://assets/agriculture/parcel-kit/alfalfa_strip.glb",
+      "model_sha256": "6e8914fc29466ff37cef97c88b77e46ab91b35c571740ef706d45ad4dd4e26d0",
+      "triangles": 40,
+      "materials": [
+        "farm_dark",
+        "farm_leaf_light",
+        "farm_soil"
+      ],
+      "bounds_metres": [
+        [
+          -0.5,
+          4.76837147544984e-09,
+          -0.5
+        ],
+        [
+          0.5,
+          0.5,
+          0.5
+        ]
+      ],
+      "collider_count": 1
+    },
+    "grain_strip": {
+      "nominal_size": [
+        1,
+        1.1,
+        1
+      ],
+      "placement_bounds": [
+        -0.5,
+        0,
+        -0.5,
+        0.5,
+        1.1,
+        0.5
+      ],
+      "collision_bounds": [
+        -0.5,
+        0,
+        -0.5,
+        0.5,
+        1.1,
+        0.5
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "procedural",
+      "path": "res://assets/agriculture/parcel-kit/grain_strip.glb",
+      "model_sha256": "477bf0a93b48959642ec5f25d19bcc7279060c8666b471673beab190599aac30",
+      "triangles": 44,
+      "materials": [
+        "farm_dark",
+        "farm_grain",
+        "farm_hay",
+        "farm_soil"
+      ],
+      "bounds_metres": [
+        [
+          -0.5,
+          4.76837147544984e-09,
+          -0.5
+        ],
+        [
+          0.5,
+          1.100000023841858,
+          0.5
+        ]
+      ],
+      "collider_count": 1
+    },
+    "fence_post": {
+      "nominal_size": [
+        0.16,
+        1.65,
+        0.16
+      ],
+      "placement_bounds": [
+        -0.08,
+        0,
+        -0.08,
+        0.08,
+        1.65,
+        0.08
+      ],
+      "collision_bounds": [
+        -0.08,
+        0,
+        -0.08,
+        0.08,
+        1.65,
+        0.08
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "procedural",
+      "path": "res://assets/agriculture/parcel-kit/fence_post.glb",
+      "model_sha256": "4ef53db975cafa1a7541b59fe254e81401ad258ffa84eb11ece8db3565d56b3d",
+      "triangles": 24,
+      "materials": [
+        "farm_cream",
+        "farm_wood"
+      ],
+      "bounds_metres": [
+        [
+          -0.07999999821186066,
+          0.0,
+          -0.07999999821186066
+        ],
+        [
+          0.07999999821186066,
+          1.649999976158142,
+          0.07999999821186066
+        ]
+      ],
+      "collider_count": 1
+    },
+    "fence_rail": {
+      "nominal_size": [
+        1,
+        1.65,
+        0.16
+      ],
+      "placement_bounds": [
+        -0.5,
+        0,
+        -0.08,
+        0.5,
+        1.65,
+        0.08
+      ],
+      "collision_bounds": [
+        -0.5,
+        0,
+        -0.08,
+        0.5,
+        1.65,
+        0.08
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "procedural",
+      "path": "res://assets/agriculture/parcel-kit/fence_rail.glb",
+      "model_sha256": "9cc3fed313f776935b4671590a5bfc0873f92f9dcc5f8bdcded7bcacc8a57884",
+      "triangles": 108,
+      "materials": [
+        "farm_cream",
+        "farm_metal",
+        "farm_wood"
+      ],
+      "bounds_metres": [
+        [
+          -0.5,
+          4.76837147544984e-09,
+          -0.07999999821186066
+        ],
+        [
+          0.5,
+          1.649999976158142,
+          0.07999999821186066
+        ]
+      ],
+      "collider_count": 1
+    },
+    "fence_gate": {
+      "nominal_size": [
+        3,
+        1.65,
+        0.16
+      ],
+      "placement_bounds": [
+        -1.5,
+        0,
+        -0.08,
+        1.5,
+        1.65,
+        0.08
+      ],
+      "collision_bounds": [
+        -1.5,
+        0,
+        -0.08,
+        1.5,
+        1.65,
+        0.08
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "required_for": [],
+      "placement": "procedural",
+      "path": "res://assets/agriculture/parcel-kit/fence_gate.glb",
+      "model_sha256": "fa9c3c85c13403c7513c2859a8e07f17d752ec6f07fcab633e939618235eedb4",
+      "triangles": 160,
+      "materials": [
+        "farm_cream",
+        "farm_dark",
+        "farm_metal",
+        "farm_wood"
+      ],
+      "bounds_metres": [
+        [
+          -1.5,
+          4.76837147544984e-09,
+          -0.07999999821186066
+        ],
+        [
+          1.5,
+          1.649999976158142,
+          0.07999999821186066
+        ]
+      ],
+      "collider_count": 1
+    }
+  }
+}

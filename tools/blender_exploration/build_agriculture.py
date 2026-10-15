@@ -11,6 +11,7 @@ import json
 import math
 from pathlib import Path
 import random
+import re
 import sys
 import bpy
 from mathutils import Vector
@@ -97,14 +98,18 @@ def barn(a,x,z,w=10,d=7,h=3.5,finish='red'):
     for xx in (x-w/2+.1,x+w/2-.1):
         for zz in (z-d/2-.06,z+d/2+.06):
             box(a,'cream',(xx,h/2+.12,zz),(.16,h,.12))
-    box(a,'cream',(x,1.35,z+d/2+.06),(2.9,2.5,.14))
-    box(a,'wood',(x,1.3,z+d/2+.15),(2.55,2.35,.06))
+    detail_scale=min(1,(h+.12-.15-.1)/2.5)
+    box(a,'cream',(x,.1+1.25*detail_scale,z+d/2+.06),(2.9,2.5*detail_scale,.14))
+    box(a,'wood',(x,.125+1.175*detail_scale,z+d/2+.15),(2.55,2.35*detail_scale,.06))
+    g.rod(a,'cream',(x-1.2,.18,z+d/2+.2),(x+1.2,.18+2.27*detail_scale,z+d/2+.2),.045)
+    window_height=min(1.4,h-.45)
+    window_top=min(2.9,h+.12-.15)
+    window_center=window_top-window_height/2
     for sign in (-1,1):
-        g.rod(a,'cream',(x-1.2,.18,z+d/2+.2),(x+1.2,2.45,z+d/2+.2),.045)
-        box(a,'cream',(x+sign*w/2,2.2,z),(.1,1.3,1.7))
-        box(a,'dark',(x+sign*(w/2+.06),2.2,z),(.06,1.05,1.45))
-    box(a,'cream',(x,2.2,z-d/2-.08),(1.9,1.4,.1))
-    box(a,'dark',(x,2.2,z-d/2-.15),(1.65,1.15,.04))
+        box(a,'cream',(x+sign*w/2,window_center,z),(.1,window_height-.1,1.7))
+        box(a,'dark',(x+sign*(w/2+.06),window_center,z),(.06,window_height-.35,1.45))
+    box(a,'cream',(x,window_center,z-d/2-.08),(1.9,window_height,.1))
+    box(a,'dark',(x,window_center,z-d/2-.15),(1.65,window_height-.25,.04))
 
 
 def tuft(a,x,z,h=.55,finish='leaf',radius=.3,y=.14):
@@ -228,9 +233,13 @@ def hoop_house(a,x,z,w,d,shade=False):
 
 def fence(a,definition):
     p,q=definition['a'],definition['b']
-    length=math.dist(p,q);n=max(1,math.ceil(length/2.6));h=definition['height'];thickness=definition['thickness']
+    length=math.dist(p,q);n=1 if definition.get('end_posts_only') else max(1,math.ceil(length/2.6));h=definition['height'];thickness=definition['thickness']
+    if not hasattr(a,'fence_posts'):a.fence_posts=set()
     for i in range(n+1):
         t=i/n;x=p[0]+(q[0]-p[0])*t;z=p[1]+(q[1]-p[1])*t
+        post=(round(x,6),round(z,6),h,thickness)
+        if post in a.fence_posts:continue
+        a.fence_posts.add(post)
         box(a,'wood',(x,.12+h/2,z),(thickness,h,thickness))
         box(a,'cream',(x,h+.13,z),(.18,.06,.18))
     woven=definition.get('style')=='woven_wire'
@@ -409,12 +418,23 @@ def main():
     parser=argparse.ArgumentParser()
     group=parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--lots',action='store_true');group.add_argument('--animals',action='store_true')
+    group.add_argument('--parcel-kit',action='store_true')
+    parser.add_argument('--only',nargs='+',help='Only these lot codes or module keys; preserve every other asset byte')
     args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
+    if args.parcel_kit:
+        from model_art.agricultural_parcels import build_kit
+        build_kit(ROOT,g,sys.modules[__name__],args.only)
+        return
     if args.animals:
         from model_art.livestock import build_animals
         build_animals(ROOT,g)
         return
-    rows=lot_definitions();catalog_path=DEST/'catalog.json';land_path=DEST/'landscaping.json'
+    rows=lot_definitions()
+    if args.only:
+        requested=set(args.only)
+        rows=[row for row in rows if str(row['code']) in requested]
+        assert {str(row['code']) for row in rows}==requested,'unknown selective lot code'
+    catalog_path=DEST/'catalog.json';land_path=DEST/'landscaping.json'
     catalog=json.loads(catalog_path.read_text());land=json.loads(land_path.read_text())
     previous=json.loads(PROVENANCE.read_text()) if PROVENANCE.exists() else {'lots':[]}
     owned={r['code']:r['key'] for r in previous['lots']}
@@ -428,11 +448,36 @@ def main():
     for row in rows:
         entry,record=export(row,build(row));entries.append(entry);records.append(record)
         print('FARM_EXPORTED',row['code'],row['key'],entry['triangles'],flush=True)
-    catalog['entries']=[e for e in catalog['entries'] if e['code'] not in codes]+entries
-    land['entries']=[e for e in land['entries'] if e['code'] not in codes]+[dict(code=e['code'],glb_sha256=e['glb_sha256'],palms=[]) for e in entries]
+    replacement={e['code']:e for e in entries}
+    catalog['entries']=[replacement.get(e['code'],e) for e in catalog['entries']]
+    catalog['entries'] += [e for e in entries if not any(old['code']==e['code'] for old in catalog['entries'])]
+    land_replacement={e['code']:dict(code=e['code'],glb_sha256=e['glb_sha256'],palms=[]) for e in entries}
+    land['entries']=[land_replacement.get(e['code'],e) for e in land['entries']]
+    land['entries'] += [e for code,e in land_replacement.items() if not any(old['code']==code for old in land['entries'])]
     catalog_path.write_text(json.dumps(catalog,indent=2)+'\n');land_path.write_text(json.dumps(land,indent=2)+'\n')
+    replacements={row['code']:row for row in records}
+    records=[replacements.get(row['code'],row) for row in previous['lots']]+[row for row in records if row['code'] not in owned]
     previous.update(version=1,meters_per_tile=16,scale=1/16,axes='+Y up / +Z front',lots=records)
     PROVENANCE.write_text(json.dumps(previous,indent=2)+'\n')
+    # A selective static export also refreshes only its existing identity pins;
+    # animal rigs, radii, navigation, enclosure shapes and other assets retain bytes.
+    enclosure_path=ROOT/'game/assets/agriculture/enclosures.json'
+    if enclosure_path.exists():
+        data=json.loads(enclosure_path.read_text())
+        changed={e['path']:e['glb_sha256'] for e in entries}
+        for profile in data['profiles'].values():
+            if profile['model'] in changed:profile['model_sha256']=changed[profile['model']]
+        enclosure_path.write_text(json.dumps(data,indent=2)+'\n')
+        pins_path=ROOT/'game/scripts/view/agriculture_asset_hashes.gd'
+        if pins_path.exists():
+            pins=pins_path.read_text();start=pins.index('const HASHES := ')+len('const HASHES := ');end=pins.index('\nconst RADII',start)
+            hashes={v['model']:v['model_sha256'] for v in list(data['species'].values())+list(data['profiles'].values())}
+            pins_path.write_text(pins[:start]+json.dumps(hashes,indent=2)+pins[end:])
+        geometry_path=ROOT/'game/scripts/core/agricultural_parcel_geometry.gd'
+        if geometry_path.exists():
+            geometry=geometry_path.read_text()
+            geometry=re.sub('const ENCLOSURE_SHA256 := "[^"]+"','const ENCLOSURE_SHA256 := "'+hashlib.sha256(enclosure_path.read_bytes()).hexdigest()+'"',geometry)
+            geometry_path.write_text(geometry)
     print('AGRICULTURE_LOTS_COMPLETE',len(entries),flush=True)
 
 if __name__=='__main__':main()

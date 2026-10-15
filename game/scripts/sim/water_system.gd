@@ -337,7 +337,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 	for t in _tower_tiles:
 		if (flags[t] & TileFlags.WATERED) != 0:
 			stored += Params.TOWER_UNITS_PER_TILE
-	var unwatered := _count_unserved(bld, flags)
+	var unwatered := _count_unserved(city, bld, flags)
 	_treatment_adequate = treatment_plants * Params.TREATMENT_COVERAGE >= consumed
 	_consumed = consumed
 	ctx.stats.water_capacity = total_capacity
@@ -407,7 +407,7 @@ func _summarize_saved(city: City, stats: CityStats) -> void:
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			i += 1
-	var unwatered := _count_unserved(bld, flags)
+	var unwatered := _count_unserved(city, bld, flags)
 	var facilities: Array = []
 	for a in city.facilities:
 		var rec: Dictionary = city.facilities[a]
@@ -449,11 +449,20 @@ func _flood(seed: int, flags: PackedByteArray, tail: int) -> int:
 
 
 ## Legacy consumers with no watered tile; agriculture requires the full footprint.
-func _count_unserved(bld: PackedInt32Array, flags: PackedByteArray) -> int:
+func _count_unserved(city: City, bld: PackedInt32Array, flags: PackedByteArray) -> int:
 	var widths := Params.footprint_width_table()
 	var heights := Params.footprint_height_table()
 	var unserved := 0
+	var parcels := {}
 	for a in _consumers:
+		var owner := city.agricultural_parcels.id_at(AgriculturalParcels.tile(a))
+		if owner != 0:
+			if parcels.has(owner): continue
+			parcels[owner] = true
+			var record := city.agricultural_parcels.record(owner)
+			if not AgriculturalParcelService.all_members_served(city,record.members,TileFlags.WATERED):
+				unserved += 1
+			continue
 		var id := bld[a]
 		var w := widths[id]
 		var h := heights[id]

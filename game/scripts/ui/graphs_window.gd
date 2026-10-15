@@ -33,7 +33,7 @@ const SERIES_LABELS := {
 	&"tourists": "Tourists", &"tourist_occupancy": "Tourist occupancy (%)",
 	&"taxes_occupancy": "Monthly occupancy tax accrued ($)",
 	&"taxes_gaming": "Monthly gaming tax accrued ($)",
-	&"agricultural_jobs": "Agricultural jobs", &"agricultural_lots": "Active farm lots",
+	&"agricultural_jobs": "Agricultural jobs", &"agricultural_lots": "Active farms and parcels",
 	&"demand_agricultural": "Agricultural demand", &"taxes_agricultural": "Agricultural taxes",
 }
 

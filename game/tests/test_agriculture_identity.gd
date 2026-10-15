@@ -385,7 +385,7 @@ func test_ids_are_append_only() -> void:
 	check_eq(Zones.AGR_HIGH, 11)
 	check_eq(Buildings.Category.AGRICULTURAL, 22)
 	check_eq(Buildings.id_of(&"ag_vegetables"), 266)
-	check_eq(Buildings.COUNT, 282)
+	check_eq(Buildings.COUNT, 289)
 	check_eq(Tools.Kind.ZONE_AGR_LOW, 81)
 	check_eq(Tools.Kind.ZONE_AGR_HIGH, 82)
 

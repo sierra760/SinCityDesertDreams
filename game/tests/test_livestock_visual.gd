@@ -119,3 +119,28 @@ func test_repeated_frozen_state_and_invalid_delta_preserve_every_pose() -> void:
 		var invalid:=state.duplicate(true);invalid[field]=NAN;a.apply_state(invalid,.05)
 		for i:int in before.size():check_eq(skeleton.get_bone_pose(i),before[i],"invalid state cannot inject bad pose")
 	a.free()
+
+
+func test_generated_motion_drives_actual_skeleton_without_changing_rest_or_ground() -> void:
+	var fixture := preload("res://tests/helpers/agricultural_parcel_fixture.gd")
+	var catalog := AgricultureAssetCatalog.new();check_eq(catalog.load_manifest("res://assets/agriculture/enclosures.json"),OK)
+	for key: StringName in [&"cattle_range",&"sheep_pasture"]:
+		var record := fixture.record(1,fixture.expanded(fixture.ring()),key,&"active")
+		var profile: Dictionary = AgriculturalParcelGeometry.plan(record).profile
+		var motion := LivestockMotion.new();motion.configure(profile,12)
+		check_eq(motion.states().size(),12)
+		var animal := LivestockVisual.new();animal.configure(profile.species,12,catalog);root.add_child(animal)
+		var skeleton := rig(animal);check(skeleton!=null)
+		var rests := [];var initial := []
+		for i in skeleton.get_bone_count(): rests.append(skeleton.get_bone_rest(i));initial.append(skeleton.get_bone_pose(i))
+		var changed := false
+		for tick in 600:
+			motion.advance(.05);var state: Dictionary = motion.states()[0]
+			animal.apply_state(state,0)
+			check_eq(animal.position,state.position)
+			for i in skeleton.get_bone_count():
+				check_eq(skeleton.get_bone_rest(i),rests[i])
+				changed = changed or skeleton.get_bone_pose(i)!=initial[i]
+			if tick%100==0: check_ge(lowest_skinned(animal),-.002,"generated ground offset does not sink the skin")
+		check(changed,"generated motion reaches actual rig poses")
+		animal.free()

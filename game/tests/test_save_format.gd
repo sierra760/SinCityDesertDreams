@@ -501,3 +501,12 @@ func _write_damaged_snapshot(path: String, city: City, snapshot: Dictionary) -> 
 	var doc := {"format": SaveFormat.FORMAT, "version": SaveFormat.VERSION,
 		"stage": SaveFormat.STAGE_PLAY, "city": SaveFormat.encode_city(city), "snapshot": snapshot}
 	check_eq(SaveFormat._write_replacement(path, JSON.stringify(doc).to_utf8_buffer()), OK)
+
+func test_parcel_references_rejected_before_save_replacement() -> void:
+	var city := flat_city()
+	var path := DIR.path_join("parcel-references.sc2d")
+	check_eq(SaveFormat.save(path,city),OK)
+	var original := FileAccess.get_file_as_bytes(path)
+	for ids in [[1],[1.5],[true],[2147483648]]:
+		check_eq(SaveFormat.save(path,city,{"systems":{"agriculture":{"schema":2,"parcel_ids":ids}}}),ERR_INVALID_DATA)
+		check_eq(FileAccess.get_file_as_bytes(path),original)

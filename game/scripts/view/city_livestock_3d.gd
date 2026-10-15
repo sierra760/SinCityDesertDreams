@@ -8,12 +8,14 @@ const DETAIL_LIMIT := 96
 const NEAR_TILES := 8.0
 const FAR_TILES := 32.0
 var buildings: CityBuildings3D
+var agriculture: CityAgriculture3D
 var _city: City
 var _catalog := AgricultureAssetCatalog.new()
 var _herds: Dictionary = {}
 var _static_geometry: Dictionary = {}
 var _source: AgricultureSystem
 var _source_dirty := true
+var _source_revision := -1
 var _source_buildings := PackedInt32Array()
 var _source_zones := PackedByteArray()
 var _source_lots: Array[Dictionary] = []
@@ -35,6 +37,7 @@ func clear() -> void:
 	_herds.clear()
 	_source = null
 	_source_dirty = true
+	_source_revision = -1
 	_source_buildings = PackedInt32Array()
 	_source_zones = PackedByteArray()
 	_source_lots.clear()
@@ -49,9 +52,11 @@ func sync_source(source: AgricultureSystem) -> void:
 	if source == null or _city == null:
 		if _source != null or not _herds.is_empty(): clear()
 		return
-	if source != _source or _source_dirty or _source_buildings != _city.building.data or _source_zones != _city.zone.data:
+	if source != _source or _source_dirty or _source_revision != _city.agricultural_parcels.revision or _source_buildings != _city.building.data or _source_zones != _city.zone.data:
 		_source = source
+		if is_instance_valid(agriculture): agriculture.flush_changes()
 		_source_lots = source.current_lots()
+		_source_revision = _city.agricultural_parcels.revision
 		_source_buildings = _city.building.data.duplicate()
 		_source_zones = _city.zone.data.duplicate()
 		_source_dirty = false
@@ -59,9 +64,9 @@ func sync_source(source: AgricultureSystem) -> void:
 	else:
 		# Keep immediate removal independent of motion, visibility and pause.
 		# This visits only known stock footprints, never all 16,384 city cells.
-		for anchor: Vector2i in _herds.keys():
-			var herd: Dictionary = _herds[anchor]
-			if not _valid_footprint(herd.rect,herd.code): _remove(anchor)
+		for key: String in _herds.keys():
+			var herd: Dictionary = _herds[key]
+			if herd.parcel_id == 0 and not _valid_footprint(herd.rect,herd.code): _remove(key)
 
 func detailed_animal_count() -> int:
 	var total := 0
@@ -77,25 +82,51 @@ func sync_lots(lots: Array[Dictionary]) -> void:
 			var anchor: Vector2i = lot.anchor
 			var code: int = lot.building_id
 			var rect: Rect2i = lot.rect
-			if not _valid_footprint(rect, code): continue
-			var signature := str([code, rect, lot.archetype])
-			if _herds.has(anchor) and _herds[anchor].signature != signature: _remove(anchor)
-			if not _herds.has(anchor):
-				var profile := _catalog.profile(lot.archetype)
-				if profile.is_empty(): continue
-				var count := 0
-				for pen: Dictionary in profile.pens: count += pen.spawns.size()
-				if count <= 0 or count > 12: continue
-				_herds[anchor] = {"signature":signature,"profile":profile,"count":count,
-					"seed":anchor.y * City.WIDTH + anchor.x + code * 65536,
-					"root":null,"motion":null,"detail":0,"rect":rect,"code":code,
-					"transform":Transform3D.IDENTITY}
-			var herd: Dictionary = _herds[anchor]
-			herd.transform = _lot_transform(anchor, rect, code)
-			if is_instance_valid(herd.root): herd.root.transform = herd.transform
-			retained[anchor] = true
-	for anchor: Vector2i in _herds.keys():
-		if not retained.has(anchor): _remove(anchor)
+			var parcel_id: int = lot.get("parcel_id",0)
+			var key := String(lot.get("source_key","legacy:%d:%d" % [anchor.x,anchor.y]))
+			var record := _city.agricultural_parcels.record(parcel_id) if parcel_id != 0 else {}
+			var profile: Dictionary
+			var at: Transform3D
+			var signature: String
+			var seed_value: int
+			if parcel_id != 0:
+				if record.is_empty() or record.state != &"active" or record.revision != lot.revision: continue
+				# The retained static consumer owns the exact profile and transform.
+				# Only standalone consumers plan without that retained presentation.
+				var actual := agriculture.record_for_parcel(parcel_id) if is_instance_valid(agriculture) else {}
+				if is_instance_valid(agriculture):
+					if actual.is_empty() or actual.revision != record.revision: continue
+					profile = actual.layout.profile
+					at = actual.transform
+				else:
+					profile = AgriculturalParcelGeometry.plan(record).profile
+					at = CityAgriculture3D.parcel_transform(_city,record)
+				signature = str([AgriculturalParcelGeometry.presentation_inputs(record),at,code])
+				seed_value = record.layout_seed ^ int(record.id)
+			else:
+				if not _valid_footprint(rect,code): continue
+				profile = _catalog.profile(lot.archetype)
+				at = _lot_transform(anchor,rect,code)
+				signature = str([code,rect,lot.archetype])
+				seed_value = anchor.y*City.WIDTH+anchor.x+code*65536
+			if profile.is_empty(): continue
+			var count := 0
+			for pen: Dictionary in profile.pens: count += pen.spawns.size()
+			if count <= 0 or count > 12: continue
+			if _herds.has(key) and _herds[key].signature != signature: _remove(key)
+			if not _herds.has(key):
+				_herds[key] = {"signature":signature,"profile":profile,"count":count,
+					"seed":seed_value,"root":null,"motion":null,"detail":0,"rect":rect,"code":code,
+					"source_key":key,"parcel_id":parcel_id,"revision":record.get("revision",0),
+					"generated":record.get("mode") == &"generated","origin":record.get("origin_index",0),
+					"transform":at}
+			var herd: Dictionary = _herds[key]
+			herd.revision = record.get("revision",0)
+			herd.transform = at
+			if is_instance_valid(herd.root): herd.root.transform = at
+			retained[key] = true
+	for key: String in _herds.keys():
+		if not retained.has(key): _remove(key)
 
 func _valid_footprint(rect: Rect2i, code: int) -> bool:
 	if not Buildings.is_agricultural(code): return false
@@ -122,36 +153,43 @@ func advance(delta: float, camera: Camera3D, paused: bool, player_world: Vector3
 	# distance ordering in that case, without asking the engine for planes.
 	if viewport != null and viewport.get_visible_rect().size.x > 0 and viewport.get_visible_rect().size.y > 0 and camera.get_world_3d() != null:
 		frustum = camera.get_frustum()
-	for anchor: Vector2i in _herds:
-		var herd: Dictionary = _herds[anchor]
-		var origin: Vector3 = herd.transform.origin
+	for key: String in _herds:
+		var herd: Dictionary = _herds[key]
+		var origin: Vector3 = global_transform * herd.transform.origin
 		var focus := camera.global_position
 		if camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
 			var direction := -camera.global_basis.z
 			if absf(direction.y) > .00001:
 				focus += direction * ((origin.y-focus.y)/direction.y)
-		var distance := Vector2(focus.x-origin.x,focus.z-origin.z).length()
 		var bounds := _herd_bounds(herd)
+		var distance := Vector2(focus.x-origin.x,focus.z-origin.z).length()
+		if herd.generated:
+			# A saved lattice origin can lie far outside surviving members.
+			# Bands use the nearest extent of the actual transformed footprint.
+			var box := AABB(bounds[0],Vector3.ZERO)
+			for corner in bounds: box = box.expand(corner)
+			var closest := Vector2(clampf(focus.x,box.position.x,box.end.x),clampf(focus.z,box.position.z,box.end.z))
+			distance = Vector2(focus.x,focus.z).distance_to(closest)
 		var pixels := _projected_pixels(camera,origin,bounds)
 		var detail := 0 if distance > FAR_TILES or pixels < 2.0 else (2 if distance <= NEAR_TILES else 1)
-		ordered.append({"anchor":anchor,"distance":distance,"detail":detail,"visible":_intersects_frustum(bounds,frustum)})
+		ordered.append({"key":key,"anchor":herd.rect.position,"distance":distance,"detail":detail,"visible":_intersects_frustum(bounds,frustum)})
 	ordered.sort_custom(func(a:Dictionary,b:Dictionary)->bool:
 		if a.visible != b.visible: return a.visible
 		if not is_equal_approx(a.distance,b.distance): return a.distance < b.distance
 		return a.anchor.y < b.anchor.y if a.anchor.y != b.anchor.y else a.anchor.x < b.anchor.x)
 	var remaining := DETAIL_LIMIT
 	for item: Dictionary in ordered:
-		var herd: Dictionary = _herds[item.anchor]
+		var herd: Dictionary = _herds[item.key]
 		if item.detail == 2:
 			if herd.count <= remaining: remaining -= herd.count
 			else: item.detail = 1
 	# Release every downgraded rig first: even during camera moves, allocation
 	# never temporarily exceeds the budget while a new near herd is promoted.
 	for item: Dictionary in ordered:
-		var herd: Dictionary = _herds[item.anchor]
+		var herd: Dictionary = _herds[item.key]
 		if herd.detail != item.detail: _release_representation(herd)
 	for item: Dictionary in ordered:
-		var herd: Dictionary = _herds[item.anchor]
+		var herd: Dictionary = _herds[item.key]
 		if item.detail != herd.detail: _represent(herd,item.detail)
 		if herd.detail != 2 or paused or not is_visible_in_tree(): continue
 		var local_player: Vector3 = herd.transform.affine_inverse()*player_world if player_world.is_finite() else Vector3.INF
@@ -163,6 +201,12 @@ func _herd_bounds(herd: Dictionary) -> PackedVector3Array:
 	# The entire canonical footprint conservatively encloses every assigned pen.
 	# The articulated body reach also pads the vertical extent for every pose.
 	var half: Vector2 = Vector2(herd.rect.size) * 8.0
+	var minimum := -half
+	var maximum := half
+	if herd.generated:
+		var origin := AgriculturalParcels.tile(herd.origin)
+		minimum = Vector2(herd.rect.position-origin)*16.0
+		maximum = Vector2(herd.rect.end-origin)*16.0
 	var reach: float = herd.profile.body_radius
 	var low := 0.0
 	var high := reach * 2.0
@@ -171,9 +215,9 @@ func _herd_bounds(herd: Dictionary) -> PackedVector3Array:
 		high = maxf(high,pen.ground_y+reach*2.0)
 	var points := PackedVector3Array()
 	var at: Transform3D = global_transform * herd.transform
-	for x: float in [-half.x,half.x]:
+	for x: float in [minimum.x,maximum.x]:
 		for y: float in [low,high]:
-			for z: float in [-half.y,half.y]: points.append(at*Vector3(x,y,z))
+			for z: float in [minimum.y,maximum.y]: points.append(at*Vector3(x,y,z))
 	return points
 
 func _intersects_frustum(points: PackedVector3Array, planes: Array[Plane]) -> bool:
@@ -198,6 +242,8 @@ func _projected_pixels(camera: Camera3D, point: Vector3, bounds: PackedVector3Ar
 		if camera.keep_aspect == Camera3D.KEEP_WIDTH: extent *= viewport_size.y / maxf(viewport_size.x,1.0)
 		return viewport_size.y / maxf(extent,0.001) / 16.0
 	var depth := -camera.to_local(point).z
+	# Use the nearest visible depth, including extensions away from the origin.
+	for corner: Vector3 in bounds: depth = minf(depth,-camera.to_local(corner).z)
 	if depth <= camera.near:
 		# Centre depth alone cannot reject a lot straddling the near plane.
 		var farthest := depth
@@ -218,7 +264,7 @@ func _represent(herd: Dictionary, detail: int) -> void:
 	holder.transform = herd.transform
 	if detail == 2:
 		# Re-entry deliberately reconstructs private cosmetic state from the
-		# canonical anchor seed. Far herds retain neither rigs nor path graphs.
+		# saved private seed. Far herds retain neither rigs nor path graphs.
 		var motion := LivestockMotion.new()
 		motion.configure(herd.profile,herd.seed)
 		herd.motion = motion
@@ -269,9 +315,9 @@ func _release_representation(herd: Dictionary) -> void:
 	herd.motion = null
 	herd.detail = 0
 
-func _remove(anchor: Vector2i) -> void:
-	_release_representation(_herds[anchor])
-	_herds.erase(anchor)
+func _remove(key: String) -> void:
+	_release_representation(_herds[key])
+	_herds.erase(key)
 
 
 func _exit_tree() -> void:

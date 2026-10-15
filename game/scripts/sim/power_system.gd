@@ -106,7 +106,7 @@ func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
 		usage = mini(100, _consumed * 100 / total_capacity)
 	_summary = {"capacity": total_capacity, "demand": total_demand, "consumed": _consumed,
 		"usage_percent": usage, "shortage": _shortage,
-		"unpowered_buildings": _count_unserved(bld, flags), "plants": plants}
+		"unpowered_buildings": _count_unserved(city, bld, flags), "plants": plants}
 
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
@@ -363,7 +363,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 	city.flags.data = flags
 
 	# Reporting (rule 7).
-	var unpowered := _count_unserved(bld, flags)
+	var unpowered := _count_unserved(city, bld, flags)
 	ctx.stats.power_capacity = total_capacity
 	ctx.stats.power_demand = total_demand
 	ctx.stats.unpowered_buildings = unpowered
@@ -405,11 +405,20 @@ func _flood(seed: int, flags: PackedByteArray, tail: int) -> int:
 
 
 ## Legacy consumers with no powered tile; agriculture requires the full footprint.
-func _count_unserved(bld: PackedInt32Array, flags: PackedByteArray) -> int:
+func _count_unserved(city: City, bld: PackedInt32Array, flags: PackedByteArray) -> int:
 	var widths := Params.footprint_width_table()
 	var heights := Params.footprint_height_table()
 	var unserved := 0
+	var parcels := {}
 	for a in _consumers:
+		var owner := city.agricultural_parcels.id_at(AgriculturalParcels.tile(a))
+		if owner != 0:
+			if parcels.has(owner): continue
+			parcels[owner] = true
+			var record := city.agricultural_parcels.record(owner)
+			if not AgriculturalParcelService.all_members_served(city,record.members,TileFlags.POWERED):
+				unserved += 1
+			continue
 		var id := bld[a]
 		var w := widths[id]
 		var h := heights[id]

@@ -11,6 +11,10 @@ import re
 
 FENCE_THICKNESS = .16
 TURN_MARGIN = .2
+# Occupancy cells compose parcels; they are not independent authored lot models.
+PARCEL_CELL_KEYS = frozenset("ag_cell_" + key for key in (
+    "vegetables", "alfalfa", "grain", "cattle_range", "sheep_pasture", "prepared", "dormant"
+))
 
 ROOT = Path(__file__).resolve().parents[2]
 # side, jobs, water/tile, power/tile, livestock/lot, species, pollution
@@ -73,7 +77,7 @@ def enclosure(key):
 
 
 def lot_definitions(root=ROOT):
-    rows = [r for r in building_roster(root) if r['category']=='AGRICULTURAL']
+    rows = [r for r in building_roster(root) if r['category']=='AGRICULTURAL' and r['key'] not in PARCEL_CELL_KEYS]
     expected={'ag_'+k for k in ROSTER}|{f'ag_{state}_{n}x{n}' for state in ('prepared','dormant') for n in (1,2,3)}
     assert {r['key'] for r in rows} == expected, 'agricultural roster identity coverage'
     assert runtime_values(root) == ROSTER, 'runtime/authoring roster mismatch'

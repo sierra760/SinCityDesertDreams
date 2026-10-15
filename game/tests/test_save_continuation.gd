@@ -184,3 +184,27 @@ func test_a_legacy_save_without_a_head_count_is_settled_on_load() -> void:
 	check_gt(b.stats.population, 0, "a save from before the flag gets its residents at once")
 	a.free()
 	b.free()
+
+func test_legacy_pasture_lifecycle_is_saved_once() -> void:
+	var city := flat_city()
+	city.stamp_building(70,20,AgricultureParams.building_id(&"cattle_range"),Zones.AGR_LOW)
+	var sim := make_simulation(city,1827)
+	var ag := sim.get_system(&"agriculture")
+	var records: Array[Dictionary] = ag.call("current_parcels")
+	check_eq(records.size(),1)
+	if records.size() == 1:
+		var r := records[0]
+		r.failed_months = 2
+		r.last_month = 7
+		check_eq(city.agricultural_parcels.put(city,r),OK)
+		check_eq(ag.save().lots,[])
+		check_eq(ag.save().parcel_ids,[r.id])
+		var path := DIR.path_join("legacy-parcel.sc2d")
+		check_eq(SaveFormat.save(path,city,sim.snapshot()),OK)
+		var restored := _sim_from(path)
+		check_eq(restored.city.agricultural_parcels.to_dict(),city.agricultural_parcels.to_dict())
+		check_eq(restored.get_system(&"agriculture").jobs(),ag.jobs())
+		check_eq(restored.stats.agricultural_jobs,sim.stats.agricultural_jobs)
+		check_eq(restored.stats.jobs,sim.stats.jobs)
+		restored.free()
+	sim.free()

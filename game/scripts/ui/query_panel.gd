@@ -226,8 +226,17 @@ static func describe(city: City, sim: Simulation, at: Vector2i, underground_laye
 				out["#Agriculture"] = ""
 				out["Agricultural state"] = String(farm.state).capitalize()
 				out["Agricultural density"] = "High" if zone_kind == Zones.AGR_HIGH else "Low"
-				if farm.archetype != &"": out["Farm type"] = String(farm.archetype).replace("_", " ").capitalize()
-				out["Agricultural jobs"] = int(farm.jobs)
+				if farm.archetype != &"":
+					out["Farm type"] = String(farm.archetype).replace("_", " ").capitalize()
+					if zone_kind == Zones.AGR_LOW:
+						out["Parcel kind"] = "Pasture" if farm.archetype in [&"cattle_range", &"sheep_pasture"] else "Field"
+				if int(farm.get("members_count",0)) > 0:
+					out["Parcel area"] = "%d tiles" % int(farm.members_count)
+					if farm.get("mode", &"") == &"legacy":
+						out["Original footprint"] = "%d×%d" % [farm.rect.size.x, farm.rect.size.y]
+				out["Agricultural jobs"] = int(farm.assigned_jobs)
+				if farm.archetype in [&"cattle_range", &"sheep_pasture", &"dairy", &"feedlot"]:
+					out["Livestock"] = int(farm.stock_count)
 				out["Water requested"] = int(farm.water_required)
 				out["Water supply"] = "Fully supplied" if bool(farm.water_supplied) else "Not fully supplied"
 				out["Power requested"] = int(farm.power_required)

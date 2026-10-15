@@ -35,6 +35,7 @@ var world: Node3D
 var camera: Camera3D
 var chunks: Node3D
 var buildings: CityBuildings3D
+var agriculture: CityAgriculture3D
 var networks: CityNetworks3D
 var mesh_batches: MeshBatcher
 var cursor: Node3D
@@ -164,6 +165,10 @@ func _ready() -> void:
 	buildings.name = "Buildings"
 	buildings.set_meta("batch_domain", &"buildings")
 	world.add_child(buildings)
+	agriculture = CityAgriculture3D.new()
+	agriculture.name = "Agriculture"
+	agriculture.set_meta("batch_domain", &"buildings")
+	world.add_child(agriculture)
 	networks = CityNetworks3D.new()
 	networks.name = "Networks"
 	networks.set_meta("batch_domain", &"networks")
@@ -171,6 +176,8 @@ func _ready() -> void:
 	mesh_batches = MeshBatcher.new()
 	mesh_batches.name = "StaticMeshBatches"
 	world.add_child(mesh_batches)
+	agriculture.changed_regions.connect(_agriculture_changed)
+	agriculture.bind_city(city,catalog)
 	cursor = Node3D.new()
 	world.add_child(cursor)
 	query_feedback = CityQueryFeedback3D.new()
@@ -185,6 +192,7 @@ func _ready() -> void:
 	livestock = CityLivestock3D.new()
 	livestock.name = "CityLivestock"
 	livestock.buildings = buildings
+	livestock.agriculture = agriculture
 	world.add_child(livestock)
 	livestock.bind_city(city)
 	geometry_rebuilt.connect(func(_revision: int) -> void: livestock.invalidate_source())
@@ -255,6 +263,7 @@ func bind_city(value: City) -> void:
 		if water_style != null: water_style.update_city(value)
 		if buildings != null: buildings.rebind_station_names(value)
 	clear_cursor()
+	if agriculture != null: agriculture.bind_city(value,catalog)
 	if livestock != null:
 		livestock.bind_city(value)
 	if traffic != null:
@@ -348,6 +357,7 @@ func refresh(force_full: bool = false) -> void:
 	var terrain_us := Time.get_ticks_usec()-terrain_started
 	var lots_started := Time.get_ticks_usec()
 	var lot_regions := buildings.update_regions(city, catalog, _lot_regions, [] if full else _previous_geometry_state, _geometry_state)
+	agriculture.update_regions(_lot_regions)
 	var lots_us := Time.get_ticks_usec()-lots_started
 	var networks_started := Time.get_ticks_usec()
 	var network_regions := networks.update_regions(city, regions, CHUNK_SIZE)
@@ -363,9 +373,9 @@ func refresh(force_full: bool = false) -> void:
 	batch_regions.append_array(lot_regions)
 	var batches_started := Time.get_ticks_usec()
 	if full:
-		mesh_batches.rebuild([buildings, networks])
+		mesh_batches.rebuild([buildings, agriculture, networks])
 	else:
-		mesh_batches.update_regions([buildings, networks], batch_regions)
+		mesh_batches.update_regions([buildings, agriculture, networks], batch_regions)
 	var batches_us := Time.get_ticks_usec()-batches_started
 	_apply_analytics_visibility()
 	_update_notice()
@@ -1235,6 +1245,8 @@ func _apply_analytics_visibility() -> void:
 	var surface_visible := not _underground and _overlay_kind == &""
 	if buildings != null:
 		buildings.visible = surface_visible
+	if agriculture != null:
+		agriculture.visible = surface_visible
 	if networks != null:
 		networks.visible = surface_visible
 	if mesh_batches != null:
@@ -1262,3 +1274,12 @@ func set_water_animation(on: bool) -> void:
 func set_tile_grid_visible(on: bool) -> void:
 	tile_grid_visible = on
 	water_style.material.set_shader_parameter("tile_grid_enabled", on)
+
+
+## Store revisions can change composition without changing any tile code.
+func _agriculture_changed(regions: Array[Rect2i]) -> void:
+	if mesh_batches == null: return
+	mesh_batches.update_regions([buildings,agriculture,networks],regions)
+	_apply_analytics_visibility()
+	_geometry_revision += 1
+	geometry_rebuilt.emit(_geometry_revision)

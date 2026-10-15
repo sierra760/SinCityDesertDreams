@@ -56,7 +56,17 @@ func states() -> Array[Dictionary]:
 	return result
 
 func _graph(pen:Dictionary)->AStar2D:
-	var graph:=AStar2D.new();var cells:Dictionary={};var b:Array=pen["navigation_bounds"]
+	var graph := AStar2D.new()
+	if pen.get("kind") == "parcel":
+		# Geometry already compiled the selected connected clearance component.
+		# Consume its bounded deterministic lattice once per detailed admission.
+		var nodes: Array = pen.get("navigation_nodes",[])
+		var edges: Array = pen.get("navigation_edges",[])
+		if nodes.size()>4096 or edges.size()>8192: return graph
+		for i in nodes.size(): graph.add_point(i,Vector2(nodes[i][0],nodes[i][1]))
+		for edge: Array in edges: graph.connect_points(edge[0],edge[1])
+		return graph
+	var cells: Dictionary = {};var b: Array = pen["navigation_bounds"]
 	for z:int in range(ceili(b[1]),floori(b[3])+1):
 		for x:int in range(ceili(b[0]),floori(b[2])+1):
 			var point:=Vector2(x,z)

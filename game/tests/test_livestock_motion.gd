@@ -115,3 +115,104 @@ func test_individual_preferred_speeds_drive_displacement_and_distance_gait() -> 
 			check(is_equal_approx(gait_delta,4.8*moved+.18*.05),"gait follows real displacement")
 	check_gt(observed.size(),1,"multiple individual preferred speeds actually drive walking")
 	check_eq(m.states(),twin.states());check_eq(randi(),expected_global);check_eq(ctx.rng.state(),shared)
+
+
+const F := preload("res://tests/helpers/agricultural_parcel_fixture.gd")
+func test_generated_compiled_graph_reused_and_hole_sweep_forbidden() -> void:
+	var record := F.record(1,F.expanded(F.ring()),&"cattle_range",&"active")
+	var profile: Dictionary = AgriculturalParcelGeometry.plan(record).profile
+	check(not profile.is_empty())
+	if profile.is_empty(): return
+	var pen: Dictionary = profile.pens[0]
+	var motion := LivestockMotion.new();motion.configure(profile,41)
+	var graph: AStar2D = motion.get("_graphs")[0]
+	check_eq(graph.get_point_count(),pen.navigation_nodes.size(),"consume the bounded compiled two-metre graph")
+	for i in pen.navigation_nodes.size():
+		check_eq(graph.get_point_position(i),Vector2(pen.navigation_nodes[i][0],pen.navigation_nodes[i][1]))
+	check(graph.get_point_count()<=4096)
+	var radius: float = profile.body_radius+profile.turn_margin
+	# The centre 2x2 hole spans local [32,64] in both axes.
+	var a := Vector2(24,48);var b := Vector2(72,48)
+	check(catalog.navigation_clear(a,pen,radius));check(catalog.navigation_clear(b,pen,radius))
+	check(not catalog.navigation_segment(a,b,pen,radius),"clear endpoints cannot cross the real hole")
+
+func test_generated_l_u_ring_neck_stock_twins_and_swept_interpolation() -> void:
+	for members in [F.expanded(F.l_shape()),F.expanded(F.u_shape()),F.expanded(F.ring()),F.expanded(F.dumbbell())]:
+		for stock in [0,1,12]:
+			var record := F.record(1,members,&"sheep_pasture")
+			var remaining: int = stock*9
+			for index in record.stock_units:
+				record.stock_units[index] = mini(10,remaining);remaining -= record.stock_units[index]
+			var profile: Dictionary = AgriculturalParcelGeometry.plan(record).profile
+			var a := LivestockMotion.new();var b := LivestockMotion.new()
+			a.configure(profile,711);b.configure(profile,711)
+			check_eq(a.states().size(),stock)
+			var initial := a.states()
+			for invalid: float in [NAN,INF,-INF,-1.0,0.0]: a.advance(invalid)
+			check_eq(a.states(),initial)
+			if stock==0: continue
+			var previous := a.states();var moved := false
+			var radius: float = profile.body_radius+profile.turn_margin
+			for step in 600:
+				var player: Vector3 = previous[0].position+Vector3(.8,0,.8) if step%50<10 else Vector3.INF
+				var delta := 1e100 if step%79==0 else .05
+				a.advance(delta,player);b.advance(delta,player)
+				var states := a.states();check_eq(states,b.states(),"exact private-seed twin evolution")
+				for i in states.size():
+					var old: Vector3 = previous[i].position;var now: Vector3 = states[i].position
+					moved = moved or old.distance_to(now)>.001
+					check(catalog.navigation_segment(Vector2(old.x,old.z),Vector2(now.x,now.z),profile.pens[0],radius),"swept articulated extent remains inside concavity")
+					check(old.distance_to(now)<=1.2*.25+.0001)
+					check(states[i].preferred_speed>=.84 and states[i].preferred_speed<=1.2)
+					for t: float in [0.0,.25,.5,.75,1.0]:
+						var p := old.lerp(now,t)
+						check(catalog.navigation_clear(Vector2(p.x,p.z),profile.pens[0],radius))
+						for j in i:
+							var q: Vector3 = previous[j].position.lerp(states[j].position,t)
+							check(p.distance_to(q)>=2*profile.body_radius-.001)
+				previous = states
+			check(moved,"nonvacuous motion on each shape and stock")
+
+func test_generated_routes_walk_every_concave_hole_corner() -> void:
+	var record := F.record(1,F.expanded(F.ring()),&"sheep_pasture",&"active")
+	var base: Dictionary = AgriculturalParcelGeometry.plan(record).profile
+	for pair in [[Vector2(28,40),Vector2(40,28)],[Vector2(56,28),Vector2(68,40)],[Vector2(68,56),Vector2(56,68)],[Vector2(40,68),Vector2(28,56)]]:
+		var profile := base.duplicate(true);var a: Vector2 = pair[0];var b: Vector2 = pair[1]
+		var pen: Dictionary = profile.pens[0]
+		pen.spawns=[[a.x,a.y]];pen.feed_targets=[[b.x,b.y]];pen.drink_targets=[[a.x,a.y]]
+		var radius: float = profile.body_radius+profile.turn_margin
+		check(catalog.navigation_clear(a,pen,radius));check(catalog.navigation_clear(b,pen,radius))
+		check(not catalog.navigation_segment(a,b,pen,radius),"diagonal shortcut clips concave corner")
+		var controller := LivestockMotion.new();controller.configure(profile,4)
+		var reached := false;var previous: Vector3 = controller.states()[0].position
+		for step in 600:
+			controller.advance(.05)
+			var now: Vector3 = controller.states()[0].position
+			check(catalog.navigation_segment(Vector2(previous.x,previous.z),Vector2(now.x,now.z),pen,radius))
+			reached = reached or Vector2(now.x,now.z).distance_to(b)<.1
+			previous = now
+		check(reached,"bounded graph routing walks around each of the four real hole corners")
+
+func test_generated_player_produces_a_meaningful_yield() -> void:
+	var record := F.record(1,F.square(4),&"sheep_pasture")
+	var profile: Dictionary = AgriculturalParcelGeometry.plan(record).profile
+	var a := LivestockMotion.new();var control := LivestockMotion.new()
+	a.configure(profile,711);control.configure(profile,711)
+	for i in 100: a.advance(.05);control.advance(.05)
+	var player: Vector3 = a.states()[0].position+Vector3(.8,0,.8)
+	for tick in 20:
+		# Check the actual fixed-step start, before injecting the player. Render
+		# interpolation deliberately lags a previously committed simulation step.
+		var before: Array = a.get("_animals").duplicate(true)
+		a.advance(.05,player);control.advance(.05)
+		var after: Array = a.get("_animals")
+		for i in before.size():
+			var start := Vector2(before[i].position.x,before[i].position.z)
+			var end := Vector2(after[i].position.x,after[i].position.z)
+			var p := Vector2(player.x,player.z)
+			var clearance: float = profile.body_radius+profile.turn_margin+LivestockMotion.PLAYER_RADIUS
+			if start.distance_to(p)<clearance:
+				check(end.distance_to(p)>=start.distance_to(p)-.00001,"injected overlap never moves closer")
+			else:
+				check(Geometry2D.get_closest_point_to_segment(p,start,end).distance_to(p)>=clearance-.00001,"generated sweep never enters player clearance")
+	check_ne(a.states(),control.states(),"nearby player changes generated behavior")

@@ -226,10 +226,10 @@ func _same(a: Variant,b: Variant) -> bool:
 
 ## Pure shared clearance contract, in authored metres, for cosmetic navigation.
 func navigation_clear(point: Vector2, pen: Dictionary, radius: float) -> bool:
-	return _clear(point, pen, radius)
+	return AgriculturalParcelGeometry.navigation_clear(point,pen,radius) if pen.get("kind")=="parcel" else _clear(point, pen, radius)
 
 func navigation_segment(from: Vector2, to: Vector2, pen: Dictionary, radius: float) -> bool:
-	return _segment(from, to, pen, radius)
+	return AgriculturalParcelGeometry.navigation_segment(from,to,pen,radius) if pen.get("kind")=="parcel" else _segment(from, to, pen, radius)
 
 func animal_profile(species: StringName) -> Dictionary:
 	return _species.get(String(species), {}).duplicate(true)

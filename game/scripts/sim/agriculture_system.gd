@@ -21,21 +21,97 @@ var _demand_month := -1
 var _phase_months: Array[int] = [-1, -1]
 var _service_map: City
 var _projection_count := 0
+var _migration_error: Error = OK
+var _repair_error := ""
+var _counts := {"actions":0,"evaluations":0,"admissions":0,"eligible_cells":0}
+
+func work_counts() -> Dictionary:
+	return _counts.duplicate()
+
+func parcel_jobs() -> Dictionary:
+	return AgriculturalParcelCapacity.allocate(current_parcels()).by_id
 
 func _init() -> void:
 	key = &"agriculture"
 
 func setup(ctx: SimContext) -> void:
+	_migration_error = OK
+	_repair_error = ""
 	_ctx = ctx
 	_rng = SimRng.from_saved_seed(ctx.rng.seed_value() ^ SEED_SALT)
 	_reconcile()
 	_publish()
 
+func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
+	_ctx = ctx
+	self.load(data)
+
 func networks_changed(ctx: SimContext, _rect: Rect2i) -> void:
 	_ctx = ctx
 	_service_map = null
-	_reconcile()
-	_publish()
+	if _reconcile() == OK: _publish()
+
+## Mutation adapter: topology and all lifecycle state publish together, after
+## detached service validation. No live utility rerolls or getters repair maps.
+func repair_parcels(cells: PackedInt32Array) -> Dictionary:
+	if _ctx == null: return {"ok":false,"error":"Agriculture is not initialized."}
+	if _migration_error != OK: return {"ok":false,"error":_repair_error if not _repair_error.is_empty() else "Agriculture recovery is blocked."}
+	var change := _ctx.city.agricultural_parcels.repair_changed_cells(_ctx.city,cells,_cut_services)
+	if not change.get("ok",false):
+		_repair_error = String(change.get("error","Parcel repair failed."))
+		_migration_error = ERR_INVALID_DATA
+		return change
+	var dirty := AgriculturalParcels.change_bounds(change,_ctx.city.agricultural_parcels)
+	if dirty.has_area():
+		_service_map = null
+		_ctx.events.mark_dirty(dirty)
+	return change
+
+
+func _cut_services(candidate: City, eligible: Array[int]) -> Array:
+	var ctx := SimContext.new()
+	ctx.city = candidate
+	ctx.systems = _ctx.systems.duplicate()
+	var retained: Array = eligible.duplicate()
+	# Every pass drops an unserved candidate. Bound this edit work to two
+	# projections; unstable allocation falls back to preparation, never healing.
+	for attempt in 2:
+		var supplied := AgriculturalParcelService.project(ctx)
+		var failed: Array = []
+		for id: int in retained:
+			var r := candidate.agricultural_parcels.record(id)
+			if not AgriculturalParcelService.summary(ctx,r,supplied).blocked_reason.is_empty(): failed.append(id)
+		if failed.is_empty(): return retained
+		for id: int in failed:
+			retained.erase(id)
+			var r := candidate.agricultural_parcels.record(id)
+			r.state = &"prepared"
+			if candidate.agricultural_parcels.put(candidate,r) != OK: return []
+		if retained.is_empty(): return []
+	return []
+
+## A failed migration is terminal until an explicit setup/load retries it.
+## No secondary low-lot authority or monthly advancement is allowed meanwhile.
+func migration_error() -> Error:
+	return _migration_error
+
+## A raw edit cannot be undone here. Expose the reason and use the existing
+## failed-recovery/save guard until explicit setup/load retries recovery.
+func repair_error() -> String:
+	return _repair_error
+
+## Native save/load preflight shares the real recovery path on detached data.
+## Empty system registry avoids host/cache references, and saved-seed creation
+## does not consume the city's or the global RNG.
+static func validate_legacy_migration(city: City, data: Dictionary) -> Error:
+	var ctx := SimContext.new()
+	ctx.city = city.duplicate_city()
+	ctx.rng = SimRng.from_saved_seed(0)
+	ctx.stats = CityStats.new()
+	var system := AgricultureSystem.new()
+	system._ctx = ctx
+	system._restore(data)
+	return system.migration_error()
 
 func raw_demand() -> int:
 	return _raw
@@ -44,11 +120,11 @@ func projection_count() -> int:
 	return _projection_count
 
 func jobs() -> int:
-	_reconcile()
+	_reconcile(false)
 	return _jobs()
 
 func _jobs() -> int:
-	var total := 0
+	var total: int = AgriculturalParcelCapacity.allocate(current_parcels()).jobs
 	for lot: Dictionary in _lots.values():
 		if lot.state == &"active": total += Params.jobs_of(lot.building_id)
 	return total
@@ -57,34 +133,80 @@ func assessed_value() -> int:
 	return jobs() * Params.ASSESSMENT_PER_JOB
 
 func current_lots() -> Array[Dictionary]:
-	_reconcile()
+	_reconcile(false)
 	var result: Array[Dictionary] = []
-	for lot: Dictionary in _lots.values(): result.append(lot.duplicate(true))
+	for lot: Dictionary in _lots.values():
+		var view := lot.duplicate(true)
+		var members := PackedInt32Array()
+		for y in range(lot.rect.position.y,lot.rect.end.y):
+			for x in range(lot.rect.position.x,lot.rect.end.x): members.append(y*City.WIDTH+x)
+		view.merge({"source_key":StringName("legacy:%d:%d" % [lot.anchor.x,lot.anchor.y]),
+			"parcel_id":0,"members":members,"mode":&"legacy","origin":lot.anchor,"revision":0})
+		result.append(view)
+	for r in current_parcels(): result.append(_parcel_lot(r))
 	return result
+
+func current_parcels() -> Array[Dictionary]:
+	return _ctx.city.agricultural_parcels.records() if _ctx != null else []
+
+func _parcel_lot(r: Dictionary) -> Dictionary:
+	var rect := AgriculturalParcels.bounds(r.members)
+	return {"parcel_id":r.id,"anchor":rect.position,"archetype":r.archetype,"state":r.state,
+		"building_id":AgriculturalParcels._code(r),"zone_kind":Zones.AGR_LOW,"rect":rect,
+		"failed_months":r.failed_months,"last_month":r.last_month,"mode":r.mode,"phase":r.phase,
+		"source_key":StringName("parcel:%d" % r.id),"members":r.members.duplicate(),
+		"origin":AgriculturalParcels.tile(r.origin_index),"revision":r.revision}
+
+func _persist_lot(lot: Dictionary) -> void:
+	if not lot.has("parcel_id"): return
+	var r := _ctx.city.agricultural_parcels.record(lot.parcel_id)
+	if r.is_empty(): return
+	if r.state == lot.state and r.failed_months == lot.failed_months and r.last_month == lot.last_month: return
+	r.state = lot.state
+	if r.mode == &"legacy": r.legacy_code = lot.building_id
+	r.failed_months = lot.failed_months
+	r.last_month = lot.last_month
+	var error := _ctx.city.agricultural_parcels.put(_ctx.city,r)
+	assert(error == OK, "Canonical parcel lifecycle update failed.")
 
 func inspect_tile(tile: Vector2i) -> Dictionary:
 	if _ctx == null or not _ctx.city.in_bounds(tile.x, tile.y): return {}
-	_reconcile()
+	_reconcile(false)
 	var city := _ctx.city
 	var kind := city.zone_kind_at(tile.x, tile.y)
 	if not Zones.is_agricultural(kind): return {}
 	var anchor := city.anchor_of(tile.x, tile.y)
-	if not _lots.has(anchor):
+	var owned := city.agricultural_parcels.record(city.agricultural_parcels.id_at(tile))
+	if not _lots.has(anchor) and owned.is_empty():
 		var rect := Rect2i(tile, Vector2i.ONE)
 		var reason := _land_reason(rect, kind)
 		if reason.is_empty() and not ZoneSystem.has_access(city, rect): reason = "Needs road or station access within three tiles."
 		if reason.is_empty() and _emergency(): reason = "Development waits until the emergency ends."
 		if reason.is_empty(): reason = "Waiting for positive agricultural demand." if _raw <= 0 else "Waiting for monthly preparation."
 		return {"anchor": tile, "archetype": &"", "state": &"zoned", "building_id": city.building_at(tile.x, tile.y),
-			"rect": rect, "failed_months": 0, "blocked_reason": reason, "jobs": 0,
+			"rect": rect, "parcel_id": 0, "members_count": 0, "mode": &"zoned", "failed_months": 0,
+			"blocked_reason": reason, "jobs": 0, "assigned_jobs": 0, "stock_count": 0,
 			"water_required": 0, "water_supplied": false, "power_required": 0, "power_supplied": true}
-	var lot: Dictionary = _lots[anchor].duplicate(true)
+	var lot: Dictionary = _parcel_lot(owned) if not owned.is_empty() else _lots[anchor].duplicate(true)
 	_service_map = null
 	var service := _service(lot)
 	lot.merge(service, true)
+	if not owned.is_empty() and owned.state != &"active" and owned.archetype in [&"cattle_range", &"sheep_pasture"]:
+		var layout := AgriculturalParcelGeometry.plan(owned)
+		if not layout.ok: lot.blocked_reason = layout.error
 	if lot.blocked_reason.is_empty() and (_raw < 0 or (_raw == 0 and lot.state != &"active")):
 		lot.blocked_reason = "Waiting for positive agricultural demand."
-	lot["jobs"] = Params.jobs_of(lot.building_id) if lot.state == &"active" else 0
+	lot["jobs"] = parcel_jobs().get(lot.parcel_id,0) if lot.has("parcel_id") else (Params.jobs_of(lot.building_id) if lot.state == &"active" else 0)
+	lot["parcel_id"] = int(lot.get("parcel_id",0))
+	lot["mode"] = lot.get("mode",&"legacy")
+	lot["assigned_jobs"] = lot.jobs
+	lot["members_count"] = owned.members.size() if not owned.is_empty() else lot.rect.get_area()
+	lot["stock_count"] = 0
+	if lot.state == &"active" and lot.archetype in [&"cattle_range", &"sheep_pasture", &"dairy", &"feedlot"]:
+		if not owned.is_empty():
+			lot["stock_count"] = AgriculturalParcelGeometry.max_safe_stock(owned,AgriculturalParcelGeometry.plan(owned))
+		else:
+			lot["stock_count"] = int(Params.ROSTER[lot.archetype][4])
 	return lot
 
 func monthly(ctx: SimContext, phase: int = 0) -> void:
@@ -92,103 +214,217 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 	_ctx = ctx
 	@warning_ignore("integer_division")
 	var month := ctx.clock.day / GameClock.DAYS_PER_MONTH
+	if _reconcile() != OK: return
 	if _phase_months[phase] == month: return
-	_reconcile()
 	if _demand_month != month:
 		_update_demand()
 		_demand_month = month
 	_phase_months[phase] = month
 	_projection_count = 0
+	_counts = {"actions":0,"evaluations":0,"admissions":0,"eligible_cells":0}
 	_service_map = null
+	var grow := AgriculturalParcelGrowth.new()
+	var disasters := ctx.system(&"disasters")
+	var fires: Array = disasters.call("fires") if disasters != null and disasters.has_method("fires") else []
+	grow.prepare(ctx.city,fires)
+	_counts.eligible_cells = grow.eligible_cells
 	var x0 := 0 if phase == 0 else City.HALF
 	var x1 := City.HALF if phase == 0 else City.WIDTH
 	var touched := {}
 	var dirty := Rect2i()
 	var before_building := ctx.city.building.data.duplicate()
 	var waiting: Array[Dictionary] = []
+	var extending: Array[Dictionary] = []
 	var declining: Array[Dictionary] = []
-	var activated := {}
-	# All existing active lots evaluate the same allocation before this batch
-	# changes loads. This avoids a new whole-city projection per dormant farm.
-	for lot: Dictionary in _lots.values():
-		if lot.anchor.x < x0 or lot.anchor.x >= x1 or lot.last_month == month or _protected(lot.rect): continue
+	var proposals: Array[Dictionary] = []
+	var lifecycle: Array[Dictionary] = []
+	for lot: Dictionary in _lots.values(): lifecycle.append(lot)
+	for r in current_parcels(): lifecycle.append(_parcel_lot(r))
+	# Evaluate every existing active load against a single unchanged allocation.
+	for lot in lifecycle:
+		var lot_phase: int = lot.get("phase",0 if lot.anchor.x < City.HALF else 1)
+		if lot_phase != phase or lot.last_month == month: continue
+		if lot.has("members"):
+			var protected := false
+			for i in lot.members:
+				if (ctx.city.flags.data[i] & TileFlags.LANDMARK) != 0: protected = true;break
+			if protected: continue
+		elif _protected(lot.rect): continue
+		lot.last_month = month
 		if lot.state != &"active":
 			waiting.append(lot)
-			continue
-		lot.last_month = month
-		var service := _service(lot)
-		lot.failed_months = 0 if service.blocked_reason.is_empty() and _raw >= 0 else mini(Params.FAILURE_MONTHS, int(lot.failed_months) + 1)
-		if lot.failed_months >= Params.FAILURE_MONTHS: declining.append(lot)
+		else:
+			var service := _service(lot)
+			lot.failed_months = 0 if service.blocked_reason.is_empty() and _raw >= 0 else mini(Params.FAILURE_MONTHS,int(lot.failed_months)+1)
+			if lot.failed_months >= Params.FAILURE_MONTHS: declining.append(lot)
+			elif lot.get("mode",&"legacy") != &"legacy" and lot.failed_months == 0:
+				extending.append(lot)
+		_persist_lot(lot)
 	for lot in declining:
-		_change(lot, &"dormant", month)
-		dirty = _merge(dirty, lot.rect)
-		_touch(touched, lot.rect)
-	# Random start prevents permanently starving later anchors when many plots
-	# await service. This draw belongs only to the saved agricultural RNG.
-	if _raw > 0 and not waiting.is_empty():
-		var first := _rng.below(waiting.size()) if waiting.size() > DEVELOPMENT_BUDGET else 0
-		for offset in mini(waiting.size(), DEVELOPMENT_BUDGET):
-			var lot: Dictionary = waiting[(first + offset) % waiting.size()]
-			lot.last_month = month
-			if not _service(lot).blocked_reason.is_empty(): continue
-			activated[lot.anchor] = {"state": lot.state, "failed_months": lot.failed_months}
-			_change(lot, &"active", month)
-			dirty = _merge(dirty, lot.rect)
-			_touch(touched, lot.rect)
-	var attempts := 0
-	if _raw > 0:
-		for y in range(Params.EDGE_MARGIN, City.HEIGHT - Params.EDGE_MARGIN):
-			for x in range(maxi(x0, Params.EDGE_MARGIN), mini(x1, City.WIDTH - Params.EDGE_MARGIN)):
-				if attempts >= DEVELOPMENT_BUDGET: break
-				var at := Vector2i(x, y)
-				var kind := ctx.city.zone_kind_at(x, y)
-				if not Zones.is_agricultural(kind) or touched.has(at): continue
-				var old: Dictionary = _lots.get(ctx.city.anchor_of(x, y), {})
-				if not old.is_empty() and (old.anchor != at or old.rect.size.x >= 3 or old.failed_months > 0 or old.state == &"dormant"): continue
-				var choices := Params.archetypes(kind == Zones.AGR_HIGH)
-				# Random cyclic roster order makes each size and archetype reachable.
-				var first := _rng.below(choices.size())
-				for offset in choices.size():
-					var archetype: StringName = choices[(first + offset) % choices.size()]
-					var side: int = Params.ROSTER[archetype][0]
-					var rect := Rect2i(at, Vector2i(side, side))
-					if not _candidate(rect, kind, touched): continue
-					attempts += 1
-					for covered in _lots.keys():
-						if rect.encloses(_lots[covered].rect): _lots.erase(covered)
-					var lot := _record(at, archetype, &"prepared", kind)
-					_lots[at] = lot
-					_change(lot, &"prepared", month)
-					dirty = _merge(dirty, rect)
-					_touch(touched, rect)
-					break
-	# Whole-load skipping is non-monotonic: a rollback can make an earlier
-	# consumer fit and displace another newly active farm. Re-project after
-	# removals until retained activations are all served in that exact state.
-	# Each failed pass removes at least one of at most DEVELOPMENT_BUDGET lots.
-	for _validation in activated.size():
-		var final_service := _project()
-		var failed: Array[Vector2i] = []
-		for at in activated:
-			var lot: Dictionary = _lots[at]
-			var id := Params.building_id(lot.archetype)
-			if not _all_served(final_service, lot.rect, TileFlags.WATERED) or (Params.power_load(id) > 0 and not _all_served(final_service, lot.rect, TileFlags.POWERED)):
-				failed.append(at)
+		_change(lot,&"dormant",month)
+		dirty = _merge(dirty,lot.rect)
+		_touch(touched,lot.rect)
+	# Reserve one action for formation and, when present, one for extensions.
+	# Failed waiting service checks must not monopolize the shared phase budget.
+	if _raw > 0 and not _emergency():
+		var waiting_budget := DEVELOPMENT_BUDGET - (2 if not extending.is_empty() else 1)
+		var first := (month*waiting_budget)%waiting.size() if not waiting.is_empty() else 0
+		for offset in mini(waiting.size(),waiting_budget):
+			var lot: Dictionary = waiting[(first+offset)%waiting.size()]
+			_counts.actions += 1
+			var value := _activation(lot)
+			if value.is_empty() and lot.get("mode",&"legacy") != &"legacy":
+				var remnant := ctx.city.agricultural_parcels.record(lot.parcel_id)
+				if AgriculturalParcelService.land_reason(ctx.city,remnant).is_empty() and AgriculturalParcelService.has_access(ctx.city,remnant.members):
+					var recovery := grow.extension(ctx.city,remnant,_rng)
+					_count_shape(recovery)
+					if recovery.ok and ctx.city.agricultural_parcels.put(ctx.city,recovery.record) == OK:
+						# Recovery may need several passes. Waiting acreage retains
+						# its state/history/tokens; only a safe supplied final plan
+						# enters the existing joint active-allocation transaction.
+						grow.reserve(recovery.record.members)
+						dirty = _merge(dirty,AgriculturalParcels.bounds(recovery.record.members))
+						value = _activation(_parcel_lot(recovery.record))
+			if value.is_empty(): continue
+			var trial := proposals.duplicate()
+			trial.append(value)
+			var projected := _project_values(trial)
+			if _proposal_served(value,projected): proposals.append(value)
+		for offset in extending.size():
+			if _counts.actions >= DEVELOPMENT_BUDGET - 1: break
+			# The saved month rotates first choice without drawing shared RNG.
+			var lot: Dictionary = extending[(month+offset)%extending.size()]
+			var current := ctx.city.agricultural_parcels.record(lot.parcel_id)
+			if current.members.size() >= current.target_area: continue
+			_counts.actions += 1
+			var extended := grow.extension(ctx.city,current,_rng)
+			_count_shape(extended)
+			if not extended.ok: continue
+			var trial := proposals.duplicate()
+			trial.append(extended.record)
+			if _proposal_served(extended.record,_project_values(trial)): proposals.append(extended.record)
+	# Reserve proposed extension members without publishing their occupancy.
+	for value in proposals:
+		if value.has("members"): grow.reserve(value.members)
+		else: _touch(touched,value.rect)
+	# New preparation needs access but may precede water/power availability.
+	if _raw > 0 and not _emergency():
+		# Alternate density priority so a low-density scan cannot consume the
+		# last preparation action every month ahead of high-density land.
+		var kinds := [Zones.AGR_LOW,Zones.AGR_HIGH] if month%2 == 0 else [Zones.AGR_HIGH,Zones.AGR_LOW]
+		for preferred_kind in kinds:
+			for y in range(Params.EDGE_MARGIN,City.HEIGHT-Params.EDGE_MARGIN):
+				if _counts.actions >= DEVELOPMENT_BUDGET: break
+				for x in range(maxi(x0,Params.EDGE_MARGIN),mini(x1,City.WIDTH-Params.EDGE_MARGIN)):
+					if _counts.actions >= DEVELOPMENT_BUDGET: break
+					var at := Vector2i(x,y)
+					var kind := ctx.city.zone_kind_at(x,y)
+					if kind != preferred_kind: continue
+					if kind == Zones.AGR_LOW:
+						if not grow.eligible(at): continue
+						if not AgriculturalParcelService.has_access(ctx.city,PackedInt32Array([y*128+x])): continue
+						_counts.actions += 1
+						var archetype: StringName = Params.LOW_ARCHETYPES[_rng.below(Params.LOW_ARCHETYPES.size())]
+						var shape := grow.candidate(ctx.city,at,archetype,0,_rng)
+						_count_shape(shape)
+						if not shape.ok: continue
+						var parcel := _new_parcel(shape,archetype,at,month)
+						if parcel.is_empty(): continue
+						if ctx.city.agricultural_parcels.put(ctx.city,parcel) == OK:
+							dirty = _merge(dirty,AgriculturalParcels.bounds(parcel.members))
+						continue
+					if kind != Zones.AGR_HIGH or touched.has(at): continue
+					var old: Dictionary = _lots.get(ctx.city.anchor_of(x,y),{})
+					if not old.is_empty() and (old.anchor != at or old.rect.size.x >= 3 or old.failed_months > 0 or old.state == &"dormant"): continue
+					var choices := Params.archetypes(true)
+					var first := _rng.below(choices.size())
+					for offset in choices.size():
+						var archetype: StringName = choices[(first+offset)%choices.size()]
+						var side: int = Params.ROSTER[archetype][0]
+						var rect := Rect2i(at,Vector2i(side,side))
+						if not _candidate(rect,kind,touched): continue
+						_counts.actions += 1
+						for covered in _lots.keys():
+							if rect.encloses(_lots[covered].rect): _lots.erase(covered)
+						var lot := _record(at,archetype,&"prepared",kind)
+						_lots[at] = lot
+						_change(lot,&"prepared",month)
+						dirty = _merge(dirty,rect)
+						_touch(touched,rect)
+						break
+	# Validate the complete proposed allocation before publishing any acreage.
+	# Removing a proposal can displace another consumer; every failed pass drops
+	# at least one of the sixteen candidates. Original active farms stay intact.
+	for _validation in proposals.size():
+		var final_service := _project_values(proposals)
+		var failed: Array[int] = []
+		for i in proposals.size():
+			if not _proposal_served(proposals[i],final_service): failed.append(i)
 		if failed.is_empty(): break
-		for at in failed:
-			var lot: Dictionary = _lots[at]
-			_change(lot, activated[at].state, month)
-			lot.failed_months = activated[at].failed_months
-			activated.erase(at)
-		if activated.is_empty(): break
+		failed.reverse()
+		for i in failed: proposals.remove_at(i)
+		if proposals.is_empty(): break
+	for value in proposals:
+		if value.has("members"):
+			if ctx.city.agricultural_parcels.put(ctx.city,value) != OK: continue
+			dirty = _merge(dirty,AgriculturalParcels.bounds(value.members))
+		else:
+			_change(value,&"active",month)
+			_touch(touched,value.rect)
+			dirty = _merge(dirty,value.rect)
 	if dirty.has_area() and ctx.city.building.data != before_building:
 		var power := ctx.system(&"power") as PowerSystem
 		var water := ctx.system(&"water") as WaterSystem
-		if power != null: power.reallocate_established(ctx, dirty)
-		if water != null: water.reallocate_established(ctx, dirty)
+		if power != null: power.reallocate_established(ctx,dirty)
+		if water != null: water.reallocate_established(ctx,dirty)
 		ctx.events.mark_dirty(dirty)
 	_service_map = null
+	_reconcile()
 	_publish()
+
+func _count_shape(shape: Dictionary) -> void:
+	_counts.evaluations += shape.evaluations
+	_counts.admissions += shape.admissions
+
+func _new_parcel(shape: Dictionary, archetype: StringName, at: Vector2i, month: int) -> Dictionary:
+	var id := _ctx.city.agricultural_parcels.available_id()
+	if id == 0: return {}
+	var first := AgriculturalParcels.cell(at)
+	var value := {"id":id,"members":shape.members,"identity_index":first,"origin_index":first,
+		"phase":0 if at.x < City.HALF else 1,"archetype":archetype,"state":&"prepared",
+		"mode":shape.mode,"legacy_code":Params.building_id(archetype) if shape.mode == &"square" else 0,
+		"layout_seed":_rng.state(),"target_area":shape.target_area,"height":_ctx.city.ground_height(at.x,at.y),
+		"modules":[],"stock_units":AgriculturalParcelParams.stock_units(archetype,shape.members),
+		"failed_months":0,"last_month":month,"revision":1}
+	var layout := AgriculturalParcelGeometry.plan(value)
+	if not layout.ok: return {}
+	value.modules = layout.modules
+	return value
+
+func _activation(lot: Dictionary) -> Dictionary:
+	if not lot.has("parcel_id"):
+		if not _land_reason(lot.rect,lot.zone_kind).is_empty() or not ZoneSystem.has_access(_ctx.city,lot.rect): return {}
+		return lot
+	var r := _ctx.city.agricultural_parcels.record(lot.parcel_id)
+	if not AgriculturalParcelService.land_reason(_ctx.city,r).is_empty() or not AgriculturalParcelService.has_access(_ctx.city,r.members): return {}
+	var layout := AgriculturalParcelGeometry.plan(r,r.modules)
+	if not layout.ok: return {}
+	r.modules = layout.modules
+	r.state = &"active"
+	r.failed_months = 0
+	if r.mode == &"legacy": r.legacy_code = Params.building_id(r.archetype)
+	return r
+
+func _proposal_served(value: Dictionary, supplied: City) -> bool:
+	if supplied == null: return false
+	if value.has("members"):
+		return AgriculturalParcelService.summary(_ctx,value,supplied).blocked_reason.is_empty()
+	var id := Params.building_id(value.archetype)
+	return _all_served(supplied,value.rect,TileFlags.WATERED) and (Params.power_load(id) == 0 or (_ctx.system(&"power") != null and _all_served(supplied,value.rect,TileFlags.POWERED)))
+
+func _project_values(values: Array[Dictionary]) -> City:
+	_projection_count += 1
+	return AgriculturalParcelService.project(_ctx,{},values)
 
 func _update_demand() -> void:
 	var links := 0
@@ -201,7 +437,7 @@ func _update_demand() -> void:
 	_raw = clampi(_raw + change, -Params.DEMAND_RAW_LIMIT, Params.DEMAND_RAW_LIMIT)
 
 func _publish() -> void:
-	if _ctx == null: return
+	if _ctx == null or _migration_error != OK: return
 	@warning_ignore("integer_division")
 	_ctx.stats.demand_agricultural = _raw * Params.DEMAND_DISPLAY_LIMIT / Params.DEMAND_RAW_LIMIT
 	var previous_jobs := _ctx.stats.agricultural_jobs
@@ -210,7 +446,7 @@ func _publish() -> void:
 	# stats.jobs. Replace only that share, preserving the latest nonfarm census
 	# through growth, network notifications and saved-census restore ordering.
 	_ctx.stats.jobs += _ctx.stats.agricultural_jobs - previous_jobs
-	_ctx.stats.agricultural_lots = 0
+	_ctx.stats.agricultural_lots = AgriculturalParcelCapacity.allocate(current_parcels()).active_count
 	for lot: Dictionary in _lots.values():
 		if lot.state == &"active": _ctx.stats.agricultural_lots += 1
 
@@ -226,7 +462,10 @@ func _change(lot: Dictionary, state: StringName, month: int) -> void:
 	lot.building_id = Params.building_id(lot.archetype) if state == &"active" else Params.state_id(state, lot.rect.size.x)
 	lot.last_month = month
 	if state != &"dormant": lot.failed_months = 0
-	_ctx.city.stamp_building(lot.anchor.x, lot.anchor.y, lot.building_id, lot.zone_kind)
+	if lot.has("parcel_id"):
+		_persist_lot(lot)
+	else:
+		_ctx.city.stamp_building(lot.anchor.x, lot.anchor.y, lot.building_id, lot.zone_kind)
 	_service_map = null
 
 func _candidate(rect: Rect2i, kind: int, touched: Dictionary) -> bool:
@@ -235,7 +474,7 @@ func _candidate(rect: Rect2i, kind: int, touched: Dictionary) -> bool:
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			var at := Vector2i(x, y)
-			if touched.has(at): return false
+			if touched.has(at) or _ctx.city.agricultural_parcels.id_at(at) != 0: return false
 			var id := _ctx.city.building_at(x, y)
 			if Buildings.is_agricultural(id):
 				var old: Dictionary = _lots.get(_ctx.city.anchor_of(x, y), {})
@@ -274,28 +513,19 @@ func _land_reason(rect: Rect2i, kind: int) -> String:
 ## events, facilities, storage, statistics, source generation or either RNG.
 func _project(lot: Dictionary = {}) -> City:
 	_projection_count += 1
-	var city := _ctx.city.duplicate_city()
-	city.imported_power_links = _ctx.city.imported_power_links.duplicate()
-	if not lot.is_empty(): city.stamp_building(lot.anchor.x, lot.anchor.y, Params.building_id(lot.archetype), lot.zone_kind)
-	var ctx := SimContext.new()
-	ctx.city = city
-	ctx.stats = CityStats.new()
-	ctx.events = CityEvents.new()
-	var power := _ctx.system(&"power") as PowerSystem
-	var water := _ctx.system(&"water") as WaterSystem
-	var full := Rect2i(0, 0, City.WIDTH, City.HEIGHT)
-	if power != null:
-		var detached := PowerSystem.new()
-		detached.copy_supply_policy(power)
-		detached.reallocate_established(ctx, full)
-	if water != null:
-		var detached := WaterSystem.new()
-		detached.reallocate_established(ctx, full)
-	else:
-		for i in city.flags.data.size(): city.flags.data[i] &= ~TileFlags.WATERED
-	return city
+	return AgriculturalParcelService.project(_ctx,lot)
 
 func _service(lot: Dictionary) -> Dictionary:
+	if lot.has("parcel_id"):
+		var r := _ctx.city.agricultural_parcels.record(lot.parcel_id)
+		var supplied: City
+		if r.state == &"active":
+			if _service_map == null: _service_map = _project()
+			supplied = _service_map
+		else:
+			var active := _activation(lot)
+			if not active.is_empty(): supplied = _project(active)
+		return AgriculturalParcelService.summary(_ctx,r,supplied)
 	var id := Params.building_id(lot.archetype)
 	var rect: Rect2i = lot.rect
 	var water_load := Params.water_load(id)
@@ -332,15 +562,18 @@ static func _touch(touched: Dictionary, rect: Rect2i) -> void:
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x): touched[Vector2i(x, y)] = true
 
-## Validate current footprints before every census/query/mutation. No layer writes.
-func _reconcile() -> void:
-	if _ctx == null: return
+## Read-only census rebuilds adapters; mutation hooks first repair ownership.
+func _reconcile(mutate: bool = true) -> Error:
+	if _migration_error != OK: return _migration_error
+	if _ctx == null: return OK
 	var city := _ctx.city
+	if mutate:
+		if not repair_parcels(PackedInt32Array()).get("ok",false): return _migration_error
 	var valid := {}
 	for y in City.HEIGHT:
 		for x in City.WIDTH:
 			var id := city.building_at(x, y)
-			if not Buildings.is_agricultural(id): continue
+			if not Buildings.is_agricultural(id) or id >= AgriculturalParcelParams.ACTIVE_CODES[&"vegetables"] or city.agricultural_parcels.id_at(Vector2i(x,y)) != 0: continue
 			var kind := city.zone_kind_at(x, y)
 			if not Zones.is_agricultural(kind): continue
 			var at := Vector2i(x, y)
@@ -374,19 +607,36 @@ func _reconcile() -> void:
 				lot.failed_months = clampi(int(old.get("failed_months", 0)), 0, Params.FAILURE_MONTHS)
 				lot.last_month = int(old.get("last_month", -1))
 			valid[at] = lot
+	var low: Array[Dictionary] = []
+	for at in valid:
+		if valid[at].zone_kind == Zones.AGR_LOW: low.append(valid[at])
+	if mutate: _migration_error = city.agricultural_parcels.adopt_legacy(city,low)
+	# Failed adoption is explicit; low records never become a second authority.
+	for lot in low: valid.erase(lot.anchor)
 	_lots = valid
+	return _migration_error
 
 func save() -> Dictionary:
-	_reconcile()
+	_reconcile(false)
 	var records: Array = []
 	for lot: Dictionary in _lots.values():
 		records.append({"x": lot.anchor.x, "y": lot.anchor.y, "archetype": String(lot.archetype),
 			"state": String(lot.state), "building_id": lot.building_id, "zone_kind": lot.zone_kind,
 			"failed_months": lot.failed_months, "last_month": lot.last_month})
-	return {"raw_demand": _raw, "rng_seed": str(_rng.seed_value()), "rng_state": str(_rng.state()),
+	var ids: Array[int] = []
+	for r in current_parcels(): ids.append(r.id)
+	var snapshot := {"schema":2,"parcel_ids":ids,"raw_demand": _raw, "rng_seed": str(_rng.seed_value()), "rng_state": str(_rng.state()),
 		"demand_month": _demand_month, "phase_months": _phase_months.duplicate(), "lots": records}
+	if _migration_error != OK: snapshot["migration_error"] = _migration_error
+	return snapshot
 
 func load(data: Dictionary) -> void:
+	_restore(data)
+	_publish()
+
+func _restore(data: Dictionary) -> void:
+	_migration_error = OK
+	_repair_error = ""
 	_lots.clear()
 	var seed_value := (_ctx.rng.seed_value() ^ SEED_SALT) if _ctx != null else 0
 	_rng = SimRng.from_saved_seed(_saved_int(data.get("rng_seed"), seed_value))
@@ -415,10 +665,11 @@ func load(data: Dictionary) -> void:
 			_lots[at] = lot
 	_service_map = null
 	_reconcile()
-	_publish()
 
 static func _saved_int(value: Variant, fallback: int) -> int:
 	if value is int: return value
-	if value is float and is_finite(value) and value == floor(value): return int(value)
-	if value is String and value.is_valid_int(): return int(value)
+	if value is float and is_finite(value) and value == floor(value) and absf(value) <= 9007199254740991.0: return int(value)
+	if value is String:
+		var parsed := AgriculturalParcels._seed(value)
+		if parsed.ok: return parsed.value
 	return fallback

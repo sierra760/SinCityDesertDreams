@@ -132,6 +132,11 @@ def validate_lot(record,entry,gltf,binary):
         for bounds,count in Counter(bounds_key(b) for b in required).items():
             assert physical[bounds]>=count, label+': enclosure geometry/manifest mismatch'
 
+    from check_agriculture_parcels import unique_visible_triangles, validate_shed_details
+    unique_visible_triangles(gltf,binary)
+    shed={267:(-10,12,7,5,2.8),268:(11,-10,6,6,2.5),273:(-6,-12,26,13,4.8),275:(9,8,8,8,3.2),279:(4.7,5,4,3,2.1),280:(12.7,13,4,3,2.1),281:(20.7,21,4,3,2.1)}
+    if record['code'] in shed:validate_shed_details(gltf,binary,*shed[record['code']])
+
 
 def check():
     records=load_records();expected=lot_definitions(ROOT)
@@ -150,6 +155,8 @@ def check():
             assert setting in sidecar, f'{code}: import policy'
         profiles=[r for r in plantings if r['code']==code]
         assert len(profiles)==1 and profiles[0]['glb_sha256']==record['glb_sha256'] and profiles[0]['palms']==[], f'{code}: landscaping provenance'
+    from check_agriculture_parcels import check as check_parcel_kit
+    assert check_parcel_kit()==12, "modular farm kit coverage"
     return len(records),check_animals()
 
 

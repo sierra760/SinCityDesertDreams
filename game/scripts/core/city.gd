@@ -63,6 +63,9 @@ var growth := Grid8.new(QUARTER, QUARTER)
 ## at least "key" (building key) and "built_day"; systems add their own fields.
 var facilities: Dictionary = {}
 
+## Exact agricultural ownership is separate from ordinary rectangular anchors.
+var agricultural_parcels: AgriculturalParcels = AgriculturalParcels.new()
+
 ## Shared-vertex terrain lattice used by the terrain editor; may be null for
 ## imported cities until the terrain module rebuilds it.
 var terrain_surface = null
@@ -320,7 +323,16 @@ func stamp_building(x: int, y: int, id: int, zone_kind: int = -1) -> Vector2i:
 
 
 ## Clear a footprint back to open ground, keeping the zone kind.
+func remove_agricultural_cells(cells: PackedInt32Array) -> Dictionary:
+	return agricultural_parcels.remove_cells(self,cells)
+
+
 func clear_footprint(x: int, y: int) -> Rect2i:
+	var parcel := agricultural_parcels.record(agricultural_parcels.id_at(Vector2i(x,y)))
+	if not parcel.is_empty():
+		var selected: PackedInt32Array = parcel.members if parcel.mode == &"legacy" else PackedInt32Array([y*WIDTH+x])
+		remove_agricultural_cells(selected)
+		return AgriculturalParcels.bounds(selected)
 	var a := anchor_of(x, y)
 	var id := building.at(a.x, a.y)
 	var s := Buildings.size(id)
@@ -459,6 +471,7 @@ func duplicate_city() -> City:
 	c.density = density.duplicate_grid()
 	c.growth = growth.duplicate_grid()
 	c.facilities = facilities.duplicate(true)
+	c.agricultural_parcels = agricultural_parcels.duplicate_store()
 	c.terrain_origin = terrain_origin
 	c.terrain_surface = terrain_surface
 	c.flood_overlay = flood_overlay.duplicate()

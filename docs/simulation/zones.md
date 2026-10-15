@@ -307,6 +307,12 @@ Agriculture (`Zones.AGR_HIGH`, 11, $5/tile) use a separate
 phases on days 5 and 6. Its active jobs contribute to housing demand and the
 shared employment total; they do not become industrial capacity.
 
+Connected low-density agricultural zoning admits several automatic fields and
+pastures. Each parcel owns exact member cells, so an empty corner inside its
+bounds remains available to other land uses. New low-density cells can be
+removed individually; intact older square farms keep their whole-lot edit
+behavior. High-density farm buildings retain their compact footprints.
+
 The status bar adds an independent A demand bar. Budget offers its own
 Agriculture tax row, and Inspect reports live farm state, density, requested
 utility loads, full-footprint supply and the current development reason.

@@ -143,7 +143,7 @@ const ARCOLOGY_BODDY := 262
 const ARCOLOGY_WOOLIER := 263
 const ARCOLOGY_STOCKGROWERS := 264
 const ARCOLOGY_FREMONT := 265
-const COUNT := 282
+const COUNT := 289
 
 ## [key, name, width, height, category, cost]
 const _ROSTER := [
@@ -430,6 +430,13 @@ const _ROSTER := [
 	[&"ag_dormant_1x1", "Dormant Agricultural Lot", 1, 1, Category.AGRICULTURAL, 0],
 	[&"ag_dormant_2x2", "Dormant Agricultural Lot", 2, 2, Category.AGRICULTURAL, 0],
 	[&"ag_dormant_3x3", "Dormant Agricultural Lot", 3, 3, Category.AGRICULTURAL, 0],
+	[&"ag_cell_vegetables", "Irrigated Vegetables", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_cell_alfalfa", "Alfalfa and Hay", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_cell_grain", "Grain Field", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_cell_cattle_range", "Cattle Range", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_cell_sheep_pasture", "Sheep Pasture", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_cell_prepared", "Prepared Agricultural Plot", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_cell_dormant", "Dormant Agricultural Lot", 1, 1, Category.AGRICULTURAL, 0],
 ]
 
 static var _by_key: Dictionary = {}
@@ -485,6 +492,10 @@ static func is_multi_tile(id: int) -> bool:
 static func is_zone_building(id: int) -> bool:
 	var c := category(id)
 	return c == Category.RESIDENTIAL or c == Category.COMMERCIAL or c == Category.INDUSTRIAL
+
+
+static func is_agricultural_cell(id: int) -> bool:
+	return id >= 282 and id <= 288
 
 
 static func is_agricultural(id: int) -> bool:

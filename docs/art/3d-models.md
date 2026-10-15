@@ -189,3 +189,27 @@ Farm import sidecars use `gltf/embedded_image_handling=2` (Embed as Basis
 Universal), keeping the small original swatches in the imported scene and avoiding
 extracted sibling PNGs. Historical models retain their existing import policy.
 The Godot farm test checks actual imported textures are built-in and repeat.
+
+### Modular agricultural parcels
+
+Twelve original metre-space modules in `game/assets/agriculture/parcel-kit/` reuse
+the farm surface palette and authoring helpers: shed, shade shelter, trough, tank,
+grain bin, bale, three one-metre crop strips, post, rail and closed service gate.
+`game/assets/agriculture/parcel_modules.json` is the shared placement, collision,
+origin, model identity and triangle contract. Models export +Y up/+Z front at
+metre scale; the renderer applies 1/16 once. The shed retains 10×7m walls and a
+3.5m eave within its 4.6m roof envelope. Collision encloses each module's full
+physical reach. Crop runs repeat the one-metre units without stretching a lot.
+Generated parcels use only their saved member cells. Crop rows, structure
+positions, fences, collision and animal clearance follow the same footprint;
+concave edges and interior holes are open space. Shared pasture boundaries
+have one fence owner so removing a neighbor leaves the surviving pen closed.
+Original square farm models keep their authored scale and enclosure.
+
+Build only this kit with Blender's `--background --python
+tools/blender_exploration/build_agriculture.py -- --parcel-kit` command. The
+exclusive switch does not rebuild the sixteen existing farm lots or three
+livestock models. Public provenance is in `docs/art/agriculture-parcels.json`;
+`python3 tools/check_agriculture_parcels.py` validates the actual exported
+vertices, complete collision shells, triangle budgets, packed resources and
+identity without authoring source files.

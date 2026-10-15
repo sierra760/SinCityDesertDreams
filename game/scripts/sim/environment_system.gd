@@ -216,6 +216,8 @@ func _scan_tiles(ctx: SimContext) -> void:
 	var dev_x := 0
 	var dev_y := 0
 	var dev_count := 0
+	var parcel_block_units := PackedInt32Array()
+	parcel_block_units.resize(BLOCK_COUNT)
 	var i := 0
 	for y in H:
 		var b := (y >> 1) * BLOCKS
@@ -230,7 +232,8 @@ func _scan_tiles(ctx: SimContext) -> void:
 				dev_y += y
 				dev_count += 1
 			if id != Buildings.NONE:
-				# Farm emissions are specified per lot, not per acreage tile.
+				# Legacy farm emissions are specified per lot, not per acreage tile.
+				# Flexible crop members are gathered below in exact units per block.
 				if not Buildings.is_agricultural(id) or UtilityParams.is_anchor_tile(bld, zn, i):
 					_block_emission[bi] += emission[id]
 				if _port_tbl[id] != 0:
@@ -266,6 +269,14 @@ func _scan_tiles(ctx: SimContext) -> void:
 				score += Params.AMENITY_WATERED
 			_amenity[q + (x >> 2)] += score
 			i += 1
+	var parcel_units := AgriculturalParcelCapacity.emission_units(city.agricultural_parcels.records())
+	for index: int in parcel_units:
+		@warning_ignore("integer_division")
+		var bi := (index / W / 2) * BLOCKS + (index % W / 2)
+		parcel_block_units[bi] += int(parcel_units[index])
+	for bi in BLOCK_COUNT:
+		@warning_ignore("integer_division")
+		_block_emission[bi] += parcel_block_units[bi] / AgriculturalParcelParams.AREA_DENOMINATOR
 	var developed := 0
 	for bi in BLOCK_COUNT:
 		developed += _developed[bi]
@@ -315,6 +326,7 @@ func _add_arcology_load(ctx: SimContext) -> void:
 
 ## Pollution emitted by one tile of a building, before absorption.
 static func emission_of(id: int, controls: bool) -> int:
+	if Buildings.is_agricultural_cell(id): return 0
 	if Buildings.is_agricultural(id):
 		return AgricultureParams.pollution_of(id)
 	if id == Buildings.CONTAMINATION:

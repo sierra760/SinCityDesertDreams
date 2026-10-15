@@ -96,3 +96,35 @@ def test_checker_rejects_damaged_real_livestock(damage,diagnostic):
             for p in m['primitives']:p['attributes'].pop('WEIGHTS_0',None)
     assert hasattr(c,'validate_animal'), 'missing actual exported skin verification'
     with pytest.raises(AssertionError,match=diagnostic):c.validate_animal('beef_cattle',record,gltf,binary)
+
+
+def test_all_farm_visible_authored_triangles_are_unique():
+    c = checker()
+    from collections import Counter
+    from check_agriculture_parcels import _nodes
+    for record in c.load_records():
+        doc, binary = c.read_glb(c.ASSETS / f"{record['code']}-blender.glb")
+        counts = Counter()
+        for primitive, points in _nodes(doc, binary, False):
+            indices = [row[0] for row in c.accessor_values(doc, binary, primitive['indices'])]
+            for i in range(0, len(indices), 3):
+                vertices = tuple(sorted(tuple(round(x, 5) for x in points[j]) for j in indices[i:i+3]))
+                counts[(primitive['material'], vertices)] += 1
+        assert all(n == 1 for n in counts.values()), record['key'] + ': coincident authored triangles'
+
+
+@pytest.mark.parametrize('code,x,z,width,depth,height', [(268,11,-10,6,6,2.5), (279,4.7,5,4,3,2.1), (280,12.7,13,4,3,2.1), (281,20.7,21,4,3,2.1)])
+def test_short_shed_window_and_door_trim_clear_eaves(code,x,z,width,depth,height):
+    c = checker()
+    from check_agriculture_parcels import _nodes
+    doc, binary = c.read_glb(c.ASSETS / f'{code}-blender.glb')
+    found = 0
+    for primitive, points in _nodes(doc,binary,False):
+        if doc['materials'][primitive['material']]['name'] != 'farm_cream': continue
+        # Side-window outer planes are unique to the trim, 5cm outside the wall.
+        for sign in (-1,1):
+            side = [v for v in points if abs(v[0]-(x+sign*width/2+sign*.05))<1e-4 and abs(v[2]-z)<=.851]
+            assert side, 'missing side window trim'
+            assert max(v[1] for v in side) <= height+.12-.15+1e-4, 'window trim crosses eave'
+            found += 1
+    assert found == 2

@@ -92,7 +92,7 @@ func load_manifest(path: String) -> Error:
 
 ## Instantiate a transformed model with isolated exterior collision shells.
 func instantiate_model(code: int) -> Node3D:
-	if not entries.has(code):
+	if Buildings.is_agricultural_cell(code) or not entries.has(code):
 		return null
 	var scene: PackedScene = null
 	if runtime_compilation_enabled:

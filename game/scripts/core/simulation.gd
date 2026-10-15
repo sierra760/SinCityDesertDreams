@@ -148,6 +148,8 @@ func setup(new_city: City, seed_value: int = -1, restored_stats: CityStats = nul
 	for s in systems:
 		if s is PowerSystem and saved_systems.has("power"):
 			(s as PowerSystem).setup_from_save(_ctx, saved_systems["power"])
+		elif s is AgricultureSystem and not restored_snapshot.is_empty():
+			(s as AgricultureSystem).setup_from_save(_ctx,saved_systems.get("agriculture",{}))
 		else:
 			s.setup(_ctx)
 	_last_population = -1

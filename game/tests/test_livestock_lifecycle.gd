@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC
 # SPDX-License-Identifier: GPL-3.0-or-later
 extends "res://tests/exploration/async_test_case.gd"
+const F := preload("res://tests/helpers/agricultural_parcel_fixture.gd")
 const LAYER := "res://scripts/view/city_livestock_3d.gd"
 var herds: Node3D
 var camera: Camera3D
@@ -38,15 +39,15 @@ func test_close_elevated_orthographic_camera_animates_and_pause_drops_time()->vo
 	if not ready_layer():return
 	add_lot(Vector2i(20,20));herds.sync_lots(lots);herds.advance(.05,camera,false)
 	check_eq(herds.detailed_animal_count(),12,"ground focus, not elevated camera distance")
-	var herd:Dictionary=herds.get("_herds")[Vector2i(20,20)]
-	var before:Array=herd.motion.states()
+	var herd:Dictionary=F.herd_at(herds,"legacy:20:20")
+	var before:Array=herd.states
 	for i:int in 10:herds.advance(3600,camera,true)
-	check_eq(herd.motion.states(),before)
+	check_eq(F.herd_at(herds,"legacy:20:20").states,before)
 	herds.advance(.05,camera,false)
-	check_ne(herd.motion.states(),before)
+	check_ne(F.herd_at(herds,"legacy:20:20").states,before)
 	var reference:=LivestockMotion.new();reference.configure(herd.profile,herd.seed)
 	reference.advance(.05);reference.advance(.05)
-	check_eq(herd.motion.states(),reference.states(),"paused time never reaches motion")
+	check_eq(F.herd_at(herds,"legacy:20:20").states,reference.states(),"paused time never reaches motion")
 func test_many_ranches_bound_actual_skeletons_and_whole_herds()->void:
 	if not ready_layer():return
 	for y:int in range(3,60,3):
@@ -55,9 +56,9 @@ func test_many_ranches_bound_actual_skeletons_and_whole_herds()->void:
 	check_eq(herds.detailed_animal_count(),96)
 	check_eq(rigs(herds),96,"actual independent rigs, not only a counter")
 	var motions:=0
-	for herd:Dictionary in herds.get("_herds").values():
-		if herd.motion!=null:motions+=1
-		if herd.detail==2:check_eq(herd.root.get_child_count(),12)
+	for herd:Dictionary in F.herd_snapshot(herds):
+		if herd.has_motion:motions+=1
+		if herd.detail==2:check_eq(herd.children,12)
 	check_eq(motions,8,"distant herds do not retain motion graphs")
 	check_eq(lots.size(),361,"rendering never changes census")
 	print("RESOURCE EVIDENCE: %d herds; %d skeletons; %d motion controllers" % [lots.size(),rigs(herds),motions] + "")
@@ -80,12 +81,12 @@ func test_late_sources_rebuild_and_camera_turns_preserve_identity()->void:
 	if not ready_layer():return
 	herds.sync_lots(empty_lots);herds.advance(.05,camera,false);check_eq(rigs(herds),0)
 	add_lot(Vector2i(20,20));herds.sync_lots(lots);herds.advance(.05,camera,false)
-	var herd:Dictionary=herds.get("_herds")[Vector2i(20,20)]
-	var id:int=herd.root.get_instance_id();var at:Transform3D=herd.root.transform
+	var herd:Dictionary=F.herd_at(herds,"legacy:20:20")
+	var id:int=herd.root_id;var at:Transform3D=herd.root_transform
 	for turn:int in 4:
 		point_camera(Vector3(21.5,CityGeometry3D.HEIGHT*4,21.5),turn*PI/2)
 		herds.sync_lots(lots);herds.advance(.05,camera,true)
-		check_eq(herd.root.get_instance_id(),id);check_eq(herd.root.transform,at)
+		check_eq(F.herd_at(herds,"legacy:20:20").root_id,id);check_eq(F.herd_at(herds,"legacy:20:20").root_transform,at)
 		check_eq(lots[0].anchor,Vector2i(20,20))
 func test_static_distance_tiny_cull_and_repeat_promotions()->void:
 	if not ready_layer():return
@@ -94,9 +95,9 @@ func test_static_distance_tiny_cull_and_repeat_promotions()->void:
 		point_camera(Vector3(21.5,CityGeometry3D.HEIGHT*4,21.5));herds.advance(.05,camera,i%2==0);check_eq(rigs(herds),12)
 		point_camera(Vector3(33.5,CityGeometry3D.HEIGHT*4,21.5));camera.size=16;herds.advance(.05,camera,false)
 		check_eq(rigs(herds),0);check_eq(herds.detailed_animal_count(),0)
-		var herd:Dictionary=herds.get("_herds")[Vector2i(20,20)]
-		check_eq(herd.detail,1);check(herd.motion==null)
-		check_gt(herd.root.get_child_count(),0,"cheap static instances exist")
+		var herd:Dictionary=F.herd_at(herds,"legacy:20:20")
+		check_eq(herd.detail,1);check(not herd.has_motion)
+		check_gt(herd.children,0,"cheap static instances exist")
 		point_camera(Vector3(70,CityGeometry3D.HEIGHT*4,21.5));herds.advance(.05,camera,false)
 		check_eq(herds.get_child_count(),0,"over 32 tiles allocates no animals")
 		point_camera(Vector3(21.5,CityGeometry3D.HEIGHT*4,21.5));camera.size=1000;herds.advance(.05,camera,false)
@@ -141,20 +142,20 @@ func test_actual_host_city_explore_pause_modal_and_table_clocks()->void:
 	check(not host.livestock_paused(),"active Explore advances while construction paused")
 	add_lot(Vector2i(20,20));herds.sync_lots(lots)
 	herds.advance(.05,camera,host.livestock_paused())
-	var herd:Dictionary=herds.get("_herds")[Vector2i(20,20)]
-	var before:Array=herd.motion.states()
+	var herd:Dictionary=F.herd_at(herds,"legacy:20:20")
+	var before:Array=herd.states
 	host.exploration.set("_suspended",true)
 	check(host.livestock_paused());herds.advance(1000,camera,host.livestock_paused())
-	check_eq(herd.motion.states(),before)
+	check_eq(F.herd_at(herds,"legacy:20:20").states,before)
 	host.exploration.set("_suspended",false)
 	host.blocked=true
 	check(host.livestock_paused());herds.advance(1000,camera,host.livestock_paused())
 	host.blocked=false;host.table=true
 	check(host.livestock_paused());herds.advance(1000,camera,host.livestock_paused())
-	check_eq(herd.motion.states(),before)
+	check_eq(F.herd_at(herds,"legacy:20:20").states,before)
 	host.table=false
 	herds.advance(.05,camera,host.livestock_paused())
-	check_ne(herd.motion.states(),before)
+	check_ne(F.herd_at(herds,"legacy:20:20").states,before)
 	host.exploration.set("_active",false);check(host.livestock_paused())
 	host.exploration.free();host.sim.free();host.free()
 
@@ -165,16 +166,16 @@ func test_actual_imported_compiled_farm_transform_and_rebuild_retention()->void:
 	var view:=CityView3D.new();root.add_child(view);view.bind_city(city);view.set_active(true)
 	var layer:Node3D=view.get("livestock")
 	layer.sync_lots(lots);layer.advance(.05,camera,true)
-	var herd:Dictionary=layer.get("_herds")[Vector2i(20,20)]
+	var herd:Dictionary=F.herd_at(layer,"legacy:20:20")
 	var imported:Transform3D=view.buildings.authored_lot_transform(Vector2i(20,20),lots[0].building_id)
-	check_eq(herd.root.transform,imported)
+	check_eq(herd.root_transform,imported)
 	check(imported.basis.get_scale().is_equal_approx(Vector3.ONE/16.0),"exactly one metre-to-tile scale")
 	check_eq(imported.origin.y,CityBuildings3D.base_height(city,lots[0].rect,lots[0].building_id))
 	check(view.catalog.runtime_scenes.get([lots[0].building_id,true]) is PackedScene,"farm still uses runtime compilation")
-	var id:int=herd.root.get_instance_id()
+	var id:int=herd.root_id
 	for i:int in 3:
 		view.refresh();layer.sync_lots(lots);layer.advance(.05,camera,true)
-		check_eq(herd.root.get_instance_id(),id)
+		check_eq(F.herd_at(layer,"legacy:20:20").root_id,id)
 		check_eq(rigs(view.buildings),0);check_eq(rigs(view.mesh_batches),0)
 		check_eq(rigs(layer),12)
 	view.free()
@@ -228,7 +229,7 @@ func test_unchanged_empty_and_many_ranch_frames_do_not_repeat_full_census() -> v
 		for x: int in range(3,60,3): stamp_stock(city,Vector2i(x,y))
 	herds.sync_source(source)
 	check_eq(source.census_calls,2,"raw late additions trigger one complete census")
-	check_eq(herds.get("_herds").size(),361)
+	check_eq(F.herd_snapshot(herds).size(),361)
 	for i: int in 120: herds.sync_source(source)
 	check_eq(source.census_calls,2,"unchanged many-ranch frames do not scan/copy the census")
 
@@ -262,7 +263,7 @@ func test_cached_source_detects_raw_layers_paused_removal_and_replacement() -> v
 	herds.sync_source(later_source)
 	check_eq(later_source.census_calls,1,"producer replacement invalidates identical packed layers")
 	herds.sync_source(null)
-	check_eq(herds.get("_herds").size(),0)
+	check_eq(F.herd_snapshot(herds).size(),0)
 
 func test_source_events_reconcile_once_and_geometry_rebuild_refreshes_transform() -> void:
 	if not ready_layer(): return
@@ -297,24 +298,24 @@ func test_perspective_visible_whole_herd_priority_at_cap() -> void:
 	herds.sync_lots(lots);herds.advance(.05,camera,true)
 	check_eq(herds.detailed_animal_count(),96)
 	check_eq(rigs(herds),96)
-	var all:Dictionary=herds.get("_herds")
+
 	# Nine lots intersect the frustum: the last of three 7.5-tile ties is
 	# legitimately static under the stable distance/anchor order and 96 cap.
-	check_eq(all[Vector2i(63,70)].detail,1,"stable anchor order resolves the nine-visible-herd overflow")
-	check_eq(all[Vector2i(57,64)].detail,1,"nearer wholly offscreen herd releases its detailed slots")
-	check_eq(all[Vector2i(60,64)].detail,2,"partial edge herd competes as visible even with centre offscreen")
-	check_eq(all[Vector2i(66,64)].detail,2)
-	check_eq(all[Vector2i(57,67)].detail,2);check_eq(all[Vector2i(69,67)].detail,2)
+	check_eq(F.herd_at(herds,"legacy:63:70").detail,1,"stable anchor order resolves the nine-visible-herd overflow")
+	check_eq(F.herd_at(herds,"legacy:57:64").detail,1,"nearer wholly offscreen herd releases its detailed slots")
+	check_eq(F.herd_at(herds,"legacy:60:64").detail,2,"partial edge herd competes as visible even with centre offscreen")
+	check_eq(F.herd_at(herds,"legacy:66:64").detail,2)
+	check_eq(F.herd_at(herds,"legacy:57:67").detail,2);check_eq(F.herd_at(herds,"legacy:69:67").detail,2)
 	camera.position.z=64.1
 	herds.advance(.05,camera,true)
-	check_eq(all[Vector2i(63,70)].detail,2,"visible central herd promoted once nearer than the edge ties")
-	check(not camera.is_position_in_frustum(all[Vector2i(57,64)].transform.origin))
-	check_eq(all[Vector2i(69,64)].detail,1,"distance/anchor tie order applies after visible priority")
-	var at:Transform3D=all[Vector2i(63,70)].transform
+	check_eq(F.herd_at(herds,"legacy:63:70").detail,2,"visible central herd promoted once nearer than the edge ties")
+	check(not camera.is_position_in_frustum(F.herd_at(herds,"legacy:57:64").transform.origin))
+	check_eq(F.herd_at(herds,"legacy:69:64").detail,1,"distance/anchor tie order applies after visible priority")
+	var at:Transform3D=F.herd_at(herds,"legacy:63:70").transform
 	camera.look_at(Vector3(54.5,.6,64));herds.advance(.05,camera,true)
-	check(rigs(herds)<=96);check_eq(all[Vector2i(63,70)].transform,at)
+	check(rigs(herds)<=96);check_eq(F.herd_at(herds,"legacy:63:70").transform,at)
 	camera.look_at(Vector3(64.5,.6,74));herds.advance(.05,camera,true)
-	check_eq(all[Vector2i(63,70)].detail,2)
+	check_eq(F.herd_at(herds,"legacy:63:70").detail,2)
 
 func test_frustum_edge_intersection_and_camera_inside_lot_keep_detail() -> void:
 	if not ready_layer(): return
@@ -322,14 +323,14 @@ func test_frustum_edge_intersection_and_camera_inside_lot_keep_detail() -> void:
 	camera.position=Vector3(64.5,.1,64);camera.look_at(Vector3(64.5,.1,74))
 	# Centre is outside the side plane; the lot's near right edge is visible.
 	add_lot(Vector2i(60,64));herds.sync_lots(lots)
-	var herd:Dictionary=herds.get("_herds")[Vector2i(60,64)]
+	var herd:Dictionary=F.herd_at(herds,"legacy:60:64")
 	check(not camera.is_position_in_frustum(herd.transform.origin))
 	check(camera.is_position_in_frustum(Vector3(62.9,.1,66.9)))
-	herds.advance(.05,camera,true);check_eq(herd.detail,2)
+	herds.advance(.05,camera,true);check_eq(F.herd_at(herds,"legacy:60:64").detail,2)
 	# Centre behind camera, while a broad part of the enclosure remains ahead.
 	camera.position=Vector3(61.5,.1,66);camera.look_at(Vector3(61.5,.1,76))
-	herds.advance(.05,camera,true);check_eq(herd.detail,2,"near plane intersection must not cull from centre depth")
+	herds.advance(.05,camera,true);check_eq(F.herd_at(herds,"legacy:60:64").detail,2,"near plane intersection must not cull from centre depth")
 	camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=6
 	point_camera(Vector3(61.5,herd.transform.origin.y,65.5))
-	herds.advance(.05,camera,true);check_eq(herd.detail,2)
+	herds.advance(.05,camera,true);check_eq(F.herd_at(herds,"legacy:60:64").detail,2)
 	check_eq(rigs(herds),12)

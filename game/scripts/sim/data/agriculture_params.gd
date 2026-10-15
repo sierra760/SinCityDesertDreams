@@ -56,6 +56,8 @@ static func building_id(key: StringName) -> int:
 
 
 static func archetype_for_id(id: int) -> StringName:
+	if Buildings.is_agricultural_cell(id):
+		return AgriculturalParcelParams.archetype_for_id(id)
 	if not Buildings.is_agricultural(id):
 		return &""
 	var key := StringName(String(Buildings.key(id)).trim_prefix("ag_"))
@@ -90,5 +92,6 @@ static func state_id(state: StringName, side: int) -> int:
 
 
 static func _value(id: int, column: int) -> int:
+	if Buildings.is_agricultural_cell(id) and column == 1: return 0
 	var key := archetype_for_id(id)
 	return int(ROSTER[key][column]) if ROSTER.has(key) else 0

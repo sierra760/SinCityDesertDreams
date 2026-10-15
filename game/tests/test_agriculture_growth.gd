@@ -46,9 +46,11 @@ func test_preparation_precedes_service() -> void:
 	shared = f.ctx.rng.state()
 	month(f)
 	check_eq(f.ag.inspect_tile(Vector2i(14, 10)).state, &"active")
-	check_eq(f.ag.jobs(), 4)
+	var formed: Dictionary = f.ag.current_parcels()[0]
+	var expected_jobs: int = AgriculturalParcelParams.JOB_UNITS_PER_TILE[formed.archetype] * formed.members.size() / 36
+	check_eq(f.ag.jobs(), expected_jobs)
 	check_eq(f.ctx.stats.agricultural_lots, 1)
-	check_eq(f.ag.assessed_value(), 400)
+	check_eq(f.ag.assessed_value(), expected_jobs * 100)
 	check_eq(f.ctx.rng.state(), shared, "growth refresh never rerolls solar")
 	f.ctx.systems.clear()
 
@@ -115,6 +117,7 @@ func test_recovery_and_density_stability() -> void:
 	month(f)
 	supply(f)
 	month(f)
+	var original_archetype: StringName = f.ag.inspect_tile(Vector2i(14,10)).archetype
 	f.city.clear_footprint(15, 10)
 	for i in 3: month(f)
 	supply(f)
@@ -123,7 +126,7 @@ func test_recovery_and_density_stability() -> void:
 	var lot: Dictionary = f.ag.inspect_tile(Vector2i(14, 10))
 	check_eq(lot.state, &"active")
 	check_eq(lot.failed_months, 0)
-	check_eq(lot.archetype, &"vegetables")
+	check_eq(lot.archetype, original_archetype)
 	check_eq(f.ctx.rng.state(), shared)
 	f.ctx.systems.clear()
 
@@ -135,10 +138,11 @@ func test_no_partial_or_sloped_lots() -> void:
 	month(f)
 	check_eq(f.city.building_at(14, 10), Buildings.NONE)
 	for lot in f.ag.current_lots():
-		var rect: Rect2i = lot.rect
-		for y in range(rect.position.y, rect.end.y):
-			for x in range(rect.position.x, rect.end.x):
-				check_eq(f.city.anchor_of(x, y), lot.anchor)
+		for i in lot.members:
+			var at := AgriculturalParcels.tile(i)
+			check(f.city.is_flat(at.x,at.y))
+			check_eq(f.city.agricultural_parcels.id_at(at),lot.parcel_id)
+			check_eq(f.city.anchor_of(at.x,at.y),at,"new occupancy IDs are single-cell anchors")
 	f.ctx.systems.clear()
 
 func test_cached_refresh_preserves_towers_and_rng() -> void:
@@ -213,10 +217,10 @@ func test_demand_is_independent_monthly_and_tax_sensitive() -> void:
 	f.ctx.systems.clear()
 
 func test_whole_footprint_consolidation_and_no_partial_replacement() -> void:
-	var f := fixture(Zones.AGR_LOW, 3)
+	var f := fixture(Zones.AGR_HIGH, 3)
 	if f.is_empty(): return
 	for y in range(10, 13):
-		for x in range(14, 17): f.city.stamp_building(x, y, AgricultureParams.state_id(&"prepared", 1), Zones.AGR_LOW)
+		for x in range(14, 17): f.city.stamp_building(x, y, AgricultureParams.state_id(&"prepared", 1), Zones.AGR_HIGH)
 	f.ag.networks_changed(f.ctx, Rect2i(14, 10, 3, 3))
 	var larger := false
 	for i in 12:
@@ -270,6 +274,15 @@ func test_creation_does_not_reroll_and_empty_month_does_not_refresh() -> void:
 	check_eq(f.ctx.rng.state(), shared)
 	check_eq(f.city.facility(Vector2i(10, 10)).capacity, solar)
 	check_eq(f.city.facility(Vector2i(9, 10)).capacity, wind)
+	f.ctx.systems.clear()
+
+func test_empty_month_after_legacy_clear_does_not_refresh() -> void:
+	var f := fixture()
+	f.city.stamp_building(14,10,AgricultureParams.state_id(&"prepared",1),Zones.AGR_LOW)
+	f.ag.networks_changed(f.ctx,Rect2i(14,10,1,1))
+	check_eq(f.ag.current_parcels()[0].mode,&"legacy")
+	supply(f)
+	month(f)
 	f.city.clear_footprint(14, 10)
 	f.city.zone.put(14, 10, 0)
 	var before := utility_snapshot(f)
@@ -331,10 +344,11 @@ func test_emergency_and_protection_refuse_automatic_development() -> void:
 	month(f)
 	supply(f)
 	month(f)
+	var protected_code: int = f.city.building_at(14,10)
 	f.city.set_flag(14, 10, TileFlags.LANDMARK, true)
 	f.city.clear_footprint(15, 10)
 	for i in 3: month(f)
-	check_eq(f.city.building_at(14, 10), AgricultureParams.building_id(&"vegetables"), "protected building is not automatically replaced")
+	check_eq(f.city.building_at(14, 10), protected_code, "protected building is not automatically replaced")
 	f.ctx.systems.clear()
 
 func test_detached_preflight_matches_uncoupled_utility_apis() -> void:
@@ -415,3 +429,26 @@ func test_rollback_revalidates_non_monotonic_whole_load_allocation() -> void:
 	check_eq(retained, 1, "final service checks cover a retained newly active multi-tile footprint")
 	check_eq(ctx.rng.state(), shared)
 	ctx.systems.clear()
+
+func test_legacy_low_square_preserves_codes_capacity_and_failure_lifecycle() -> void:
+	var f := fixture()
+	f.city.stamp_building(14,10,AgricultureParams.state_id(&"prepared",1),Zones.AGR_LOW)
+	f.ag.networks_changed(f.ctx,Rect2i(14,10,1,1))
+	check_eq(f.ag.current_parcels()[0].mode,&"legacy")
+	month(f)
+	check_eq(f.city.building_at(14,10),AgricultureParams.state_id(&"prepared",1))
+	supply(f)
+	month(f)
+	check_eq(f.city.building_at(14,10),AgricultureParams.building_id(&"vegetables"))
+	check_eq(f.ag.jobs(),4)
+	check_eq(f.ag.assessed_value(),400)
+	check_eq(f.ag.inspect_tile(Vector2i(14,10)).water_required,3)
+	check_eq(f.ag.inspect_tile(Vector2i(14,10)).power_required,0)
+	f.city.clear_footprint(15,10)
+	for failed in range(1,4):
+		month(f)
+		check_eq(f.ag.inspect_tile(Vector2i(14,10)).failed_months,failed)
+		check_eq(f.city.building_at(14,10),AgricultureParams.building_id(&"vegetables") if failed<3 else AgricultureParams.state_id(&"dormant",1))
+	check_eq(f.ag.jobs(),0)
+	check_eq(f.ag.current_parcels()[0].members,PackedInt32Array([10*128+14]))
+	f.ctx.systems.clear()

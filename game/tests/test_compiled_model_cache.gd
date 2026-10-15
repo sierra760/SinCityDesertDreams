@@ -162,3 +162,11 @@ func test_agriculture_uses_memory_compilation_and_ignores_persistent_entries() -
 		check_eq(FileAccess.get_sha256(path),digest,"farm policy neither reads nor rewrites old cache")
 		current.free();DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	check_eq(count,16,"all developed, prepared and dormant farm models covered")
+
+func test_parcel_cells_never_request_a_whole_lot_scene_or_cache() -> void:
+	var catalog := Catalog.new()
+	catalog.load_manifest(Catalog.ROOT+"catalog.json")
+	for code in range(AgriculturalParcelParams.ACTIVE_CODES[&"vegetables"],AgriculturalParcelParams.DORMANT+1):
+		check(catalog.instantiate_model(code)==null,"cell marker has no whole-building model")
+	check(catalog.scenes.is_empty() and catalog.runtime_scenes.is_empty(),"no cell scene/cache lookup")
+	check_eq(catalog.compiled_cache_misses,0)

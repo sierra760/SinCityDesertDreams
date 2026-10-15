@@ -240,3 +240,12 @@ func test_mixed_opaque_proxy_and_transparent_fallback_shadow_geometry() -> void:
 	actual.remove_child(glass);glass.free()
 	check_ne(shadow_triangles(actual),expected,"deleted fallback is detected")
 	source.free();actual.free()
+
+func test_generated_parcel_cells_are_dispatched_outside_whole_lot_compilation() -> void:
+	var city := flat_city()
+	var fixture := preload("res://tests/helpers/agricultural_parcel_fixture.gd")
+	var record := fixture.record(1,fixture.ring(),&"grain",&"active")
+	fixture.zone(city,record.members)
+	check_eq(city.agricultural_parcels.put(city,record),OK)
+	check(CityBuildings3D.collect(city).is_empty(),"full collection excludes cell proxies")
+	check(CityBuildings3D.collect_regions(city,[Rect2i(20,20,3,3)]).is_empty(),"regional collection excludes cell proxies")

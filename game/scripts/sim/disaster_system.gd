@@ -726,21 +726,42 @@ func _shake(ctx: SimContext, center: Vector2i) -> void:
 ## cone one level per ring and every tile the cone touches is cleared.
 func _raise_cone(ctx: SimContext, vent: Vector2i) -> void:
 	var city := ctx.city
-	var peak := clampi(city.ground_height(vent.x, vent.y) + DisasterParams.VOLCANO_RISE, 0, City.ALT_MASK)
-	var changed: Array[Vector2i]
-	if city.terrain_surface is TerrainSurface:
-		changed = _raise_lattice_cone(city, city.terrain_surface as TerrainSurface, vent, peak)
-	else:
-		changed = Builder.set_ground_height(city, vent.x, vent.y, peak)
-	var rect := Rect2i(vent, Vector2i.ONE)
+	var peak := clampi(city.ground_height(vent.x,vent.y)+DisasterParams.VOLCANO_RISE,0,City.ALT_MASK)
+	var before := city.duplicate_city()
+	before.imported_power_links=city.imported_power_links.duplicate()
+	if city.terrain_surface is TerrainSurface: before.terrain_surface=city.terrain_surface.duplicate_surface()
+	var candidate := before.duplicate_city()
+	if before.terrain_surface is TerrainSurface: candidate.terrain_surface=before.terrain_surface.duplicate_surface()
+	var proposed := _cone_tiles(candidate,vent,peak)
+	var cells := PackedInt32Array()
+	for p in proposed: cells.append(AgriculturalParcels.cell(p))
+	if not _preflight_agriculture(ctx,cells,candidate): return
+	var fires_before := _fires.duplicate()
+	var active_before := _active.duplicate(true)
+	var changed := _cone_tiles(city,vent,peak)
+	var rect := Rect2i(vent,Vector2i.ONE)
 	for p in changed:
-		rect = rect.expand(p)
-		var id := city.building_at(p.x, p.y)
-		if id == Buildings.NONE or city.is_water(p.x, p.y):
-			continue
-		_wreck(ctx, p.x, p.y, false)
-		city.building.put(p.x, p.y, Buildings.NONE)
+		rect=rect.expand(p)
+		var id := city.building_at(p.x,p.y)
+		if id == Buildings.NONE or city.is_water(p.x,p.y): continue
+		_wreck(ctx,p.x,p.y,false,false)
+		city.building.put(p.x,p.y,Buildings.NONE)
+	var change := _repair_agriculture(ctx,PackedInt32Array())
+	if not change.get("ok",false):
+		city.terrain=before.terrain;city.altitude=before.altitude;city.terrain_surface=before.terrain_surface
+		city.building=before.building;city.zone=before.zone;city.flags=before.flags
+		city.facilities=before.facilities;city.imported_power_links=before.imported_power_links
+		_fires=fires_before;_active=active_before
+		return
+	var repaired := AgriculturalParcels.change_bounds(change,city.agricultural_parcels)
+	if repaired.has_area(): rect=rect.merge(repaired)
 	ctx.events.mark_dirty(rect)
+
+
+static func _cone_tiles(city: City, vent: Vector2i, peak: int) -> Array[Vector2i]:
+	if city.terrain_surface is TerrainSurface:
+		return _raise_lattice_cone(city,city.terrain_surface as TerrainSurface,vent,peak)
+	return Builder.set_ground_height(city,vent.x,vent.y,peak)
 
 
 ## Raise the vent on a city's ground lattice, the editable truth its 3D ground
@@ -1210,7 +1231,7 @@ func _contaminate(ctx: SimContext, t: Vector2i, hot_days: int) -> void:
 		return
 	var id := city.building_at(t.x, t.y)
 	if id != Buildings.NONE and not Buildings.is_rubble(id):
-		_wreck(ctx, t.x, t.y, false)
+		if _wreck(ctx, t.x, t.y, false) == 0: return
 	city.building.put(t.x, t.y, Buildings.CONTAMINATION)
 	city.set_flag(t.x, t.y, SERVICE_BITS, false)
 	_fires.erase(t)
@@ -1269,28 +1290,65 @@ func _drain_tile(ctx: SimContext, t: Vector2i) -> void:
 
 ## Clear the footprint under (x, y) and leave rubble on its dry tiles.
 ## Returns the number of tiles cleared.
-func _wreck(ctx: SimContext, x: int, y: int, rubble: bool = true) -> int:
+func _wreck(ctx: SimContext, x: int, y: int, rubble: bool = true, reconcile: bool = true) -> int:
 	var city := ctx.city
-	if not city.in_bounds(x, y):
-		return 0
+	if not city.in_bounds(x, y): return 0
 	var id := city.building_at(x, y)
-	if id == Buildings.NONE or Buildings.is_rubble(id):
-		return 0
-	var rect := city.clear_footprint(x, y)
+	if id == Buildings.NONE or Buildings.is_rubble(id): return 0
+	var parcel := city.agricultural_parcels.record(city.agricultural_parcels.id_at(Vector2i(x,y)))
+	var owned := not parcel.is_empty()
+	var cells := PackedInt32Array([y*City.WIDTH+x])
+	if owned and parcel.mode == &"legacy": cells = parcel.members
+	if reconcile and not _preflight_agriculture(ctx,cells): return 0
+	# Only owned damage needs rollback: ordinary structures retain their old
+	# path. The store itself publishes nothing when validation fails.
+	var old_building := city.building.data
+	var old_flags := city.flags.data
+	var old_zone := city.zone.data
+	var random_state := ctx.rng.state()
+	var rect := AgriculturalParcels.bounds(cells) if owned else city.clear_footprint(x,y)
 	var n := 0
-	for ty in range(rect.position.y, rect.end.y):
-		for tx in range(rect.position.x, rect.end.x):
-			if not city.in_bounds(tx, ty):
-				continue
+	for ty in range(rect.position.y,rect.end.y):
+		for tx in range(rect.position.x,rect.end.x):
+			if not city.in_bounds(tx,ty): continue
 			n += 1
-			_fires.erase(Vector2i(tx, ty))
-			city.set_flag(tx, ty, SERVICE_BITS, false)
-			if rubble and not city.is_water(tx, ty):
-				city.building.put(tx, ty, Buildings.RUBBLE_1 + ctx.rng.below(4))
-	ctx.events.mark_dirty(rect)
-	if not _active.is_empty():
-		_active["wrecked"] = int(_active["wrecked"]) + n
+			city.set_flag(tx,ty,SERVICE_BITS,false)
+			if owned:
+				city.building.put(tx,ty,Buildings.NONE)
+				var kind := city.zone_kind_at(tx,ty)
+				city.zone.put(tx,ty,Zones.make(kind,Zones.ALL_CORNERS if kind != Zones.NONE else 0))
+			if rubble and not city.is_water(tx,ty): city.building.put(tx,ty,Buildings.RUBBLE_1+ctx.rng.below(4))
+	if owned and reconcile:
+		var change := _repair_agriculture(ctx,cells)
+		if not change.get("ok",false):
+			city.building.data=old_building;city.flags.data=old_flags;city.zone.data=old_zone
+			ctx.rng.set_state(random_state)
+			return 0
+		var dirty := AgriculturalParcels.change_bounds(change,city.agricultural_parcels)
+		if dirty.has_area(): rect=rect.merge(dirty)
+	# No disaster state or events publish until ownership repair succeeds.
+	var removed := AgriculturalParcels.bounds(cells) if owned else rect
+	for ty in range(removed.position.y,removed.end.y):
+		for tx in range(removed.position.x,removed.end.x): _fires.erase(Vector2i(tx,ty))
+	if reconcile: ctx.events.mark_dirty(rect)
+	if not _active.is_empty(): _active["wrecked"] = int(_active["wrecked"])+n
 	return n
+
+
+func _preflight_agriculture(ctx: SimContext, cells: PackedInt32Array, candidate: City = null) -> bool:
+	var city := candidate if candidate != null else ctx.city
+	var owned := false
+	for i in cells:
+		if city.agricultural_parcels.id_at(AgriculturalParcels.tile(i)) != 0: owned=true;break
+	if not owned: return true
+	var ag := ctx.system(&"agriculture") as AgricultureSystem
+	if ag != null and ag.migration_error() != OK: return false
+	return city.agricultural_parcels.preflight_removal(city,cells).get("ok",false)
+
+
+func _repair_agriculture(ctx: SimContext, cells: PackedInt32Array) -> Dictionary:
+	var ag := ctx.system(&"agriculture") as AgricultureSystem
+	return ag.repair_parcels(cells) if ag != null else ctx.city.agricultural_parcels.repair_changed_cells(ctx.city,cells)
 
 
 ## Wind damage: trees are blown away, everything else becomes rubble.

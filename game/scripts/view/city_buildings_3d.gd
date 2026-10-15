@@ -39,7 +39,7 @@ static func collect(city: City) -> Array[Dictionary]:
 		var row := y * City.WIDTH
 		for x: int in City.WIDTH:
 			var code := bld[row + x]
-			if code < Buildings.RES_1X1_FIRST:
+			if code < Buildings.RES_1X1_FIRST or Buildings.is_agricultural_cell(code) or (Buildings.is_agricultural(code) and city.agricultural_parcels.id_at(Vector2i(x,y)) != 0):
 				continue
 			# A single-cell code is its own anchor, as footprint_anchor answers first.
 			var anchor := Vector2i(x, y) if sizes[code] == 0x0101 else City.footprint_anchor(bld, zn, x, y)
@@ -47,7 +47,7 @@ static func collect(city: City) -> Array[Dictionary]:
 			if seen.has(key):
 				continue
 			seen[key] = true
-			records.append({"code": code, "footprint": Rect2i(anchor, Buildings.size(code)), "anchor": anchor})
+			records.append(_collected_record(code,Rect2i(anchor,Buildings.size(code)),anchor))
 	return records
 
 
@@ -96,16 +96,24 @@ static func collect_regions(city: City, regions: Array[Rect2i], region_index: Re
 		for interval: Vector2i in intervals:
 			for x: int in range(maxi(interval.x,next),interval.y):
 				var code := bld[row+x]
-				if code < Buildings.RES_1X1_FIRST: continue
+				if code < Buildings.RES_1X1_FIRST or Buildings.is_agricultural_cell(code) or (Buildings.is_agricultural(code) and city.agricultural_parcels.id_at(Vector2i(x,y)) != 0): continue
 				var anchor := Vector2i(x,y) if sizes[code] == 0x0101 else City.footprint_anchor(bld,zn,x,y)
 				var rect := Rect2i(anchor,Buildings.size(code))
 				if not query.intersects(rect.grow(2)): continue
 				var key := Vector3i(anchor.x,anchor.y,code)
 				if seen.has(key): continue
 				seen[key] = true
-				records.append({"code":code,"footprint":rect,"anchor":anchor})
+				records.append(_collected_record(code,rect,anchor))
 			next = maxi(next,interval.y)
 	return records
+
+
+## Ordinary farms use anchor coordinates; canonical farms have parcel IDs in
+## CityAgriculture3D. Keep this producer identical for full/regional discovery.
+static func _collected_record(code: int,rect: Rect2i,anchor: Vector2i) -> Dictionary:
+	var record := {"code":code,"footprint":rect,"anchor":anchor}
+	if Buildings.is_agricultural(code): record["source_key"] = "legacy:%d:%d"%[anchor.x,anchor.y]
+	return record
 
 
 ## Remove all projected buildings.
@@ -342,6 +350,7 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 	model.set_meta("code", code)
 	model.set_meta("cell", record.anchor)
 	model.set_meta("lot_key", _record_key(record))
+	if record.has("source_key"): model.set_meta("source_key",record.source_key)
 	# A projected lot never changes after this call; replacement makes a new node.
 	model.set_meta("batch_immutable", true)
 	add_child(model)

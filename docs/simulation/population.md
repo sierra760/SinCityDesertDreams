@@ -336,9 +336,12 @@ headline scores and approval live in `CityStats` and are saved with it.
 
 ## Agricultural employment
 
-Active farms add their archetype's jobs once to `CityStats.jobs`, alongside
+Active farms add their assigned jobs once to `CityStats.jobs`, alongside
 ordinary commercial/industrial, port and reward employment. Prepared and
 dormant plots contribute zero jobs. Farm jobs can attract housing demand and
 serve commute destinations; they do not add residential population or
 industrial-sector capacity. Both census paths replace the agricultural share
-rather than adding it again on repeated sampling. See [Agriculture](agriculture.md).
+rather than adding it again on repeated sampling. New parcels calculate exact
+job units from member area, then share whole jobs deterministically across
+active parcel IDs. A commute destination is an actual member tile with a
+positive job assignment. See [Agriculture](agriculture.md).

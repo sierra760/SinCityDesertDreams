@@ -33,6 +33,7 @@ const DY: Array[int] = [-1, 0, 1, 0]
 var _surface := PackedByteArray()
 var _origin := PackedByteArray()
 var _destination := PackedByteArray()
+var _parcel_destination := PackedByteArray()
 
 ## Search buffers, indexed by state = mode * TILES + tile. A state is valid
 ## for the current trip when its stamp equals `_serial`.
@@ -68,6 +69,7 @@ func _init() -> void:
 	_surface.resize(Buildings.COUNT)
 	_origin.resize(Buildings.COUNT)
 	_destination.resize(Buildings.COUNT)
+	_parcel_destination.resize(TILES)
 	for id in Buildings.COUNT:
 		_surface[id] = TransportParams.surface_class(id)
 		_origin[id] = 1 if TransportParams.is_origin(id) else 0
@@ -231,6 +233,17 @@ func _bind(city: City) -> void:
 	_buildings = city.building.data
 	_underground = city.underground.data
 	_altitude = city.altitude.data
+	_parcel_destination.fill(0)
+	var records := city.agricultural_parcels.records()
+	var allocation := AgriculturalParcelCapacity.allocate(records)
+	var members_by_id := {}
+	for record in records: members_by_id[record.id] = record.members
+	for destination in AgriculturalParcelCapacity.destinations(records,allocation):
+		# Every usable frontage aliases this one allocated parcel destination.
+		# These route flags carry no capacity; jobs remain in allocation.by_id.
+		var members: PackedInt32Array = members_by_id.get(destination.parcel_id,PackedInt32Array())
+		for member in members:
+			if _has_destination_entrance(member): _parcel_destination[member] = 1
 
 
 func _unbind() -> void:
@@ -360,6 +373,17 @@ func _entrance_at(x: int, y: int) -> int:
 	return -1
 
 
+## The destination itself is a member; the neighboring surface is a route
+## entrance under the same road/station policy used for origin lots.
+func _has_destination_entrance(index: int) -> bool:
+	@warning_ignore("integer_division")
+	var y := index / WIDTH
+	var x := index - y * WIDTH
+	for d in 4:
+		if _entrance_at(x + DX[d],y + DY[d]) >= 0: return true
+	return false
+
+
 func _push(parent: int, mode: int, tile: int, cost: int) -> void:
 	if cost > _budget:
 		return
@@ -419,7 +443,7 @@ func _search(start: int) -> int:
 				var nt := ny * WIDTH + nx
 				var nid := _buildings[nt]
 				var ncls := _surface[nid]
-				if _destination[nid] != 0 and (mode == MODE_CAR or mode == MODE_BUS or mode == MODE_STATION):
+				if (_destination[nid] != 0 or _parcel_destination[nt] != 0) and (mode == MODE_CAR or mode == MODE_BUS or mode == MODE_STATION):
 					_arrival_tile = nt
 					bucket.clear()
 					return s

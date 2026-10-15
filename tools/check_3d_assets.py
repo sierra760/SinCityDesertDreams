@@ -13,7 +13,7 @@ import math
 import re
 import struct
 
-from model_art.agriculture import building_roster
+from model_art.agriculture import building_roster, PARCEL_CELL_KEYS
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,7 +39,7 @@ def check() -> tuple[int, int]:
             assert 'mipmaps/generate=true' in path.with_suffix(path.suffix+'.import').read_text(), f'{name}: mipmaps'
             shared_images[name] = row
     roster = building_roster(ROOT)
-    expected_codes = [row["code"] for row in roster if row["code"] >= 112]
+    expected_codes = [row["code"] for row in roster if row["code"] >= 112 and row["key"] not in PARCEL_CELL_KEYS]
     farm_codes = {row["code"] for row in roster if row["category"] == "AGRICULTURAL"}
     assert sorted(e["code"] for e in entries) == expected_codes, "coverage or duplicate code"
     total_bytes = 0

@@ -108,6 +108,14 @@ func apply(tool: int, from: Vector2i, to: Vector2i = Vector2i(-1, -1), options: 
 		return plan
 	var ops: Array = plan["ops"]
 	var touched := _commit(ops)
+	var cells := PackedInt32Array()
+	for p in touched: cells.append(AgriculturalParcels.cell(p))
+	var agriculture := sim.get_system(&"agriculture") as AgricultureSystem if sim != null else null
+	var parcel_change := agriculture.repair_parcels(cells) if agriculture != null else city.agricultural_parcels.repair_changed_cells(city,cells)
+	var parcel_bounds := AgriculturalParcels.change_bounds(parcel_change,city.agricultural_parcels)
+	if parcel_bounds.has_area():
+		touched.append(parcel_bounds.position)
+		touched.append(parcel_bounds.end-Vector2i.ONE)
 	city.funds -= int(plan["cost"])
 	var rect: Rect2i = plan["rect"]
 	if not touched.is_empty():
@@ -271,7 +279,28 @@ func _plan(tool: int, from: Vector2i, to: Vector2i, options: Dictionary = {}) ->
 	if bool(plan["ok"]) and int(plan["cost"]) > city.funds:
 		plan["ok"] = false
 		plan["reason"] = REASON_FUNDS
+	if bool(plan["ok"]):
+		var refusal := _parcel_edit_refusal(plan)
+		if not refusal.is_empty():
+			plan["ok"] = false
+			plan["reason"] = refusal
 	return plan
+
+
+## Before charging or touching source layers, prove topology can commit (IDs,
+## revisions and complete ownership). Ordinary tools keep their existing plan.
+func _parcel_edit_refusal(plan: Dictionary) -> String:
+	var has_owner := false
+	for p: Vector2i in plan.tiles:
+		if city.agricultural_parcels.id_at(p) != 0: has_owner = true;break
+	if not has_owner: return ""
+	var detached := city.duplicate_city()
+	var builder := Builder.new(detached,CityStats.new())
+	var touched := builder._commit(plan.ops)
+	var cells := PackedInt32Array()
+	for p in touched: cells.append(AgriculturalParcels.cell(p))
+	var change := detached.agricultural_parcels.repair_changed_cells(detached,cells)
+	return String(change.get("error","")) if not change.get("ok",false) else ""
 
 
 func _fail(reason: String, tiles: Array[Vector2i] = []) -> Dictionary:
@@ -450,6 +479,12 @@ const _BRIDGE_STYLE_COST := {
 }
 
 
+func _flexible_network_cell(p: Vector2i, family: int) -> bool:
+	if family not in [NetworkShapes.Family.ROAD,NetworkShapes.Family.RAIL]: return false
+	var parcel := city.agricultural_parcels.record(city.agricultural_parcels.id_at(p))
+	return not parcel.is_empty() and parcel.mode != &"legacy"
+
+
 func _plan_network(family: int, price: int, from: Vector2i, to: Vector2i, options: Dictionary = {}) -> Dictionary:
 	var path := _line(from, to)
 	var tiles: Array[Vector2i] = []
@@ -541,7 +576,7 @@ func _plan_network(family: int, price: int, from: Vector2i, to: Vector2i, option
 			cost += price
 			i += 1
 			continue
-		if not _clearable(id):
+		if not _clearable(id) and not _flexible_network_cell(p,family):
 			stop_reason = "blocked by %s" % Buildings.display_name(id)
 			break
 		var slope := _slope(p)
@@ -597,7 +632,7 @@ func _landing_refusal(family: int, bank: Vector2i, axis: int) -> String:
 		return "protected land"
 	if border_edge(bank) >= 0 and NEIGHBOR_LINK_COST.has(family):
 		return REASON_LIMIT
-	if not _clearable(id):
+	if not _clearable(id) and not _flexible_network_cell(bank,family):
 		return "the far bank is blocked"
 	if not city.is_flat(bank.x, bank.y) and not _slope_fits(_slope(bank), axis):
 		return "the slope runs across the path"

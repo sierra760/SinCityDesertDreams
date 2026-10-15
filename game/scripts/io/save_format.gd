@@ -79,6 +79,10 @@ static func save(path: String, city: City, sim_snapshot: Dictionary = {}, stage:
 		return ERR_INVALID_DATA
 	if validate_snapshot(sim_snapshot) != "" or TourismSaveCodec.problem(sim_snapshot, city) != "":
 		return ERR_INVALID_DATA
+
+	if not AgriculturalParcels.validate(city,city.agricultural_parcels.records()).ok or not AgriculturalParcels.coverage(city,city.agricultural_parcels):
+		return ERR_INVALID_DATA
+	if not _parcel_references_valid(sim_snapshot,city) or not _parcel_migration_valid(sim_snapshot,city): return ERR_INVALID_DATA
 	var dir := path.get_base_dir()
 	if dir != "" and not DirAccess.dir_exists_absolute(dir):
 		var made := DirAccess.make_dir_recursive_absolute(dir)
@@ -278,6 +282,12 @@ static func load(path: String) -> Dictionary:
 	result["topology"] = decoded.get("topology", null)
 	var snap: Variant = doc.get("snapshot", {})
 	result["snapshot"] = snap if typeof(snap) == TYPE_DICTIONARY else {}
+	if not _parcel_references_valid(result["snapshot"],result["city"]):
+		result["city"] = null
+		result["topology"] = null
+		result["error"] = MESSAGE_DAMAGED
+		result["detail"] = "Invalid agricultural parcel references."
+		return result
 	if stage == STAGE_PLAY:
 		var problem := validate_snapshot(result["snapshot"])
 		if problem == "":
@@ -289,6 +299,12 @@ static func load(path: String) -> Dictionary:
 			result["error"] = MESSAGE_DAMAGED
 			result["detail"] = problem
 			return result
+	if not _parcel_migration_valid(result["snapshot"],result["city"]):
+		result["city"] = null
+		result["topology"] = null
+		result["error"] = MESSAGE_DAMAGED
+		result["detail"] = "Agricultural legacy migration failed."
+		return result
 	result["stage"] = stage
 	var generator: Variant = doc.get("generator", {})
 	result["generator"] = generator if typeof(generator) == TYPE_DICTIONARY else {}
@@ -733,6 +749,7 @@ static func encode_city(city: City) -> Dictionary:
 		"facilities": facilities,
 		"signs": signs,
 		"street_naming": _encode_street_naming(city.street_naming),
+		"agricultural_parcels": city.agricultural_parcels.to_dict(),
 	}
 	var origin := RealWorldManifest.sanitize_origin(city.terrain_origin)
 	if not origin.is_empty(): doc["terrain_origin"] = origin
@@ -861,6 +878,9 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 		if verts.size() != VERTEX_BYTES:
 			return {"city": null, "error": "Save has damaged terrain vertices."}
 		city.terrain_surface = TerrainSurface.from_city(city, verts)
+	var parcels := AgriculturalParcels.decode(doc.get("agricultural_parcels"),city)
+	if not parcels.ok: return {"city":null,"error":parcels.error}
+	city.agricultural_parcels = parcels.store
 	city.street_naming = decoded_naming.metadata
 	# Drop memberships and station names that no longer match the loaded
 	# streets. The host installs the station allocator before it binds or
@@ -989,3 +1009,29 @@ static func _json_safe(value: Variant) -> Variant:
 			return [value.x, value.y]
 		_:
 			return value
+
+
+static func _parcel_references_valid(snapshot: Dictionary, city: City) -> bool:
+	var systems: Variant = snapshot.get("systems",{})
+	if typeof(systems) != TYPE_DICTIONARY: return true
+	var ag: Variant = systems.get("agriculture",{})
+	if typeof(ag) != TYPE_DICTIONARY: return true
+	if ag.get("migration_error",OK) != OK: return false
+	if not ag.has("schema"): return true
+	if not AgriculturalParcels._integer(ag.schema,2,2): return false
+	var ids: Variant = ag.get("parcel_ids")
+	if typeof(ids) != TYPE_ARRAY or ids.size() > City.WIDTH*City.HEIGHT: return false
+	var seen := {}
+	for id in ids:
+		if not AgriculturalParcels._integer(id,1,AgriculturalParcels.MAX_ID) or seen.has(int(id)) or city.agricultural_parcels.record(int(id)).is_empty(): return false
+		seen[int(id)] = true
+	return seen.size() == city.agricultural_parcels.records().size()
+
+
+## Accept historical absent/malformed snapshots only as this boundary already
+## permits; load's shared shape validator rejects malformed play snapshots first.
+static func _parcel_migration_valid(snapshot: Dictionary, city: City) -> bool:
+	var systems: Variant = snapshot.get("systems",{})
+	var data: Variant = systems.get("agriculture",{}) if typeof(systems) == TYPE_DICTIONARY else {}
+	if typeof(data) != TYPE_DICTIONARY: data = {}
+	return AgricultureSystem.validate_legacy_migration(city,data) == OK

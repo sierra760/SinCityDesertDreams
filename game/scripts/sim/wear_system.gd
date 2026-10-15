@@ -240,11 +240,11 @@ func _lose(ctx: SimContext, cat: int, tile: int) -> void:
 	var name := String(TransportParams.CATEGORY_KEYS[cat])
 	match cat:
 		TransportParams.ROADS, TransportParams.TUNNELS:
-			_to_rubble(ctx, x, y)
+			if not _to_rubble(ctx, x, y): return
 			_losses[cat] += 1
 			ctx.events.report(&"road_decay", {"x": x, "y": y, "category": name}, 1)
 		TransportParams.RAIL:
-			_to_rubble(ctx, x, y)
+			if not _to_rubble(ctx, x, y): return
 			_losses[cat] += 1
 			ctx.events.report(&"rail_decay", {"x": x, "y": y, "category": name}, 1)
 		TransportParams.HIGHWAYS:
@@ -265,13 +265,27 @@ func _lose(ctx: SimContext, cat: int, tile: int) -> void:
 	_scan_valid = false
 
 
-func _to_rubble(ctx: SimContext, x: int, y: int) -> void:
-	if _city.is_water(x, y):
-		_city.building.put(x, y, Buildings.NONE)
-	else:
-		_city.building.put(x, y, Buildings.RUBBLE_1 + ctx.rng.below(Buildings.RUBBLE_4 - Buildings.RUBBLE_1 + 1))
-	_city.flags.set_bits(x, y, TileFlags.CONDUCTS_POWER | TileFlags.POWERED, false)
-	ctx.events.mark_tile(x, y)
+func _to_rubble(ctx: SimContext, x: int, y: int) -> bool:
+	var cells := PackedInt32Array([y*City.WIDTH+x])
+	var ag := ctx.system(&"agriculture") as AgricultureSystem
+	if _city.agricultural_parcels.id_at(Vector2i(x,y)) != 0:
+		if ag != null and ag.migration_error() != OK: return false
+		if not _city.agricultural_parcels.preflight_removal(_city,cells).get("ok",false): return false
+	var building := _city.building.at(x,y)
+	var flags := _city.flags.at(x,y)
+	var random_state := ctx.rng.state()
+	if _city.is_water(x,y): _city.building.put(x,y,Buildings.NONE)
+	else: _city.building.put(x,y,Buildings.RUBBLE_1+ctx.rng.below(Buildings.RUBBLE_4-Buildings.RUBBLE_1+1))
+	_city.flags.set_bits(x,y,TileFlags.CONDUCTS_POWER|TileFlags.POWERED,false)
+	var change := ag.repair_parcels(cells) if ag != null else _city.agricultural_parcels.repair_changed_cells(_city,cells)
+	if not change.get("ok",false):
+		_city.building.put(x,y,building);_city.flags.put(x,y,flags)
+		ctx.rng.set_state(random_state)
+		return false
+	var dirty := AgriculturalParcels.change_bounds(change,_city.agricultural_parcels)
+	if dirty.has_area(): ctx.events.mark_dirty(dirty)
+	ctx.events.mark_tile(x,y)
+	return true
 
 
 ## Remove every highway tile in the 2×2 block anchored at (x, y). Returns the
@@ -282,8 +296,7 @@ func _lose_highway_block(ctx: SimContext, x: int, y: int) -> int:
 		for dx in 2:
 			var id := _city.building.at(x + dx, y + dy)
 			if _category[id] == TransportParams.HIGHWAYS and _losable[id] != 0:
-				_to_rubble(ctx, x + dx, y + dy)
-				lost += 1
+				if _to_rubble(ctx, x + dx, y + dy): lost += 1
 	return lost
 
 

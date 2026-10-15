@@ -78,14 +78,19 @@ func test_uninterrupted_matches_restored_at_each_phase() -> void:
 
 func test_native_save_and_scheduled_phases_round_trip() -> void:
 	var c := flat_city()
-	c.zone.put(14, 10, Zones.make(Zones.AGR_LOW))
+	for y in range(10,13):
+		for x in range(14,17): c.zone.put(x,y,Zones.make(Zones.AGR_LOW))
 	c.building.put(14, 9, Buildings.ROAD_FIRST)
 	var a := make_simulation(c, 1827)
 	a.stats.disasters_enabled = false
 	a.advance_days(5)
 	var ag := a.get_system(&"agriculture")
 	check(ag != null)
-	check_eq(ag.call("inspect_tile", Vector2i(14, 10)).state, &"prepared")
+	var parcels: Array[Dictionary] = ag.current_parcels()
+	check_gt(parcels.size(),0,"normal scheduled growth forms an actual parcel")
+	if not parcels.is_empty():
+		check(parcels[0].mode in [&"generated",&"square"])
+		check_eq(ag.inspect_tile(AgriculturalParcels.tile(parcels[0].members[0])).state,&"prepared")
 	var path := "user://agriculture-mid-month.sc2d"
 	check_eq(SaveFormat.save(path, c, a.snapshot()), OK)
 	var result := SaveFormat.load(path)
@@ -97,10 +102,11 @@ func test_native_save_and_scheduled_phases_round_trip() -> void:
 		b.restore(result.snapshot)
 		check_eq(b.get_system(&"agriculture").save(), ag.save())
 		check_eq(b.rng.state(), a.rng.state())
-		for i in 30:
+		for i in 60:
 			a.advance_day()
 			b.advance_day()
 			check_eq(b.get_system(&"agriculture").save(), ag.save())
+			check_eq(b.city.agricultural_parcels.to_dict(), a.city.agricultural_parcels.to_dict())
 			check_eq(b.city.building.data, a.city.building.data)
 			check_eq(b.rng.state(), a.rng.state())
 		b.free()

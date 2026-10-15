@@ -161,8 +161,9 @@ rather than the ordinary one-unit load. Vegetables, alfalfa, dairy and market
 gardens draw 3 units/tile; greenhouse, nursery and feedlot draw 2; grain,
 cattle range and sheep pasture draw 1. Prepared and dormant plots draw zero.
 Distribution requires the whole per-tile load before marking a tile supplied.
-Activation and recovery require every tile in the proposed farm footprint to
+Activation and recovery require every actual member tile in the proposed farm to
 receive its full load, using a detached current-capacity allocation. This
 preview consumes no live storage, weather draw or city funds. Inspect reports
-the requested footprint total and whether the whole footprint is supplied.
+the requested member total and whether every member is supplied. Empty holes
+inside a parcel's bounds draw no agricultural water.
 See [Agriculture](agriculture.md) for the load table and lifecycle.

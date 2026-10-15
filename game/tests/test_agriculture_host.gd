@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 extends "res://tests/exploration/async_test_case.gd"
 const Fixture := preload("res://tests/helpers/host_fixture.gd")
+const ParcelFixture := preload("res://tests/helpers/agricultural_parcel_fixture.gd")
 var host: GameHost
 
 func before_each() -> void:
@@ -88,7 +89,10 @@ func test_tool_zoning_services_growth_tax_save_loss_recovery_demolition() -> voi
 	check_gt(recovered,0,"real pump restoration reactivates lots")
 	host.sim.advance_days(GameClock.DAYS_PER_YEAR-host.sim.clock.day)
 	check_gt(host.sim.stats.last_year_ledger.get(&"taxes_agricultural",0),0,"actual annual settlement retains agricultural tax income")
-	for lot in ag.current_lots(): paint(Tools.Kind.BULLDOZE,lot.anchor)
+	for lot in ag.current_lots():
+		if lot.parcel_id != 0 and lot.mode != &"legacy":
+			for i in lot.members: paint(Tools.Kind.BULLDOZE,AgriculturalParcels.tile(i))
+		else: paint(Tools.Kind.BULLDOZE,lot.anchor)
 	check_eq(ag.current_lots().size(),0,"host demolition invalidates all lots")
 
 func test_canonical_ranch_rotations_paused_explore_removal_detail_and_city_replacement() -> void:
@@ -106,18 +110,21 @@ func test_canonical_ranch_rotations_paused_explore_removal_detail_and_city_repla
 	var layer := view.livestock
 	layer.sync_source(ag)
 	layer.advance(.05,view.camera,true)
-	check_eq(layer._herds.size(),3,"host presents cattle, sheep and feedlot lots")
+	check_eq(ParcelFixture.herd_snapshot(layer).size(),3,"host presents cattle, sheep and feedlot lots")
 	check_gt(layer.detailed_animal_count(),0)
-	var herd: Dictionary = layer._herds[Vector2i(40,40)]
-	var initial: Transform3D = herd.root.transform
-	var root_id: int = herd.root.get_instance_id()
+	var herd := ParcelFixture.herd_at(layer,"legacy:40:40")
+	check(not herd.is_empty())
+	if herd.is_empty(): return
+	var initial: Transform3D = herd.root_transform
+	var root_id: int = herd.root_id
 	var saved: Dictionary = ag.save()
 	for turn in 4:
 		view.set_camera_state(Vector3(43,4*CityGeometry3D.HEIGHT,41.5),turn,10)
 		await Fixture.settle(self,2)
 		check_eq(ag.save(),saved,"view rotation leaves canonical records unchanged")
-		check_eq(herd.root.transform,initial)
-		check_eq(herd.root.get_instance_id(),root_id)
+		herd = ParcelFixture.herd_at(layer,"legacy:40:40")
+		check_eq(herd.root_transform,initial)
+		check_eq(herd.root_id,root_id)
 		check_eq(saved.lots[0].x,40)
 		check_eq(saved.lots[0].y,40)
 	view.set_camera_state(Vector3(41.5,4*CityGeometry3D.HEIGHT,44),0,10)
@@ -129,10 +136,10 @@ func test_canonical_ranch_rotations_paused_explore_removal_detail_and_city_repla
 	var result := host.builder.apply(Tools.Kind.BULLDOZE,Vector2i(40,40))
 	check(result.applied,"builder demolition while Explore paused")
 	await Fixture.settle(self,3)
-	check(not layer._herds.has(Vector2i(40,40)),"paused host removes demolished feedlot")
+	check(ParcelFixture.herd_at(layer,"legacy:40:40").is_empty(),"paused host removes demolished feedlot")
 	view.set_render_options("low",50)
 	await Fixture.settle(self,3)
-	check(not layer._herds.has(Vector2i(40,40)),"detail change cannot resurrect herd")
+	check(ParcelFixture.herd_at(layer,"legacy:40:40").is_empty(),"detail change cannot resurrect herd")
 	host.begin_city(flat_city(),{},456,null)
 	await Fixture.settle(self,3)
 	check_eq(layer.get_child_count(),0,"city replacement frees every old animal root")
