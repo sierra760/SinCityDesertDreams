@@ -3081,6 +3081,326 @@
       "source_kind": "authored_blender",
       "glb_sha256": "80affec8cbb00b087bd2e1783126db9a38174c02f919314b2ad8a92ca2c41d3d",
       "meters_per_tile": 16
+    },
+    {
+      "code": 266,
+      "path": "res://assets/desert-dreams-3d/266-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.10781250149011612,
+      "footprint": [
+        1,
+        1
+      ],
+      "triangles": 4648,
+      "source_kind": "authored_blender",
+      "glb_sha256": "aa83acb6fff4a64b73b0e55946ff2b7442c21f99c000850fc512b98629a81b70",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 267,
+      "path": "res://assets/desert-dreams-3d/267-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.282268226146698,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 7884,
+      "source_kind": "authored_blender",
+      "glb_sha256": "2a15ac76814e64f768a43986db6dbb67cbc6b7e24bfca32a4044e74cd4dbfc77",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 268,
+      "path": "res://assets/desert-dreams-3d/268-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.38874998688697815,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 10310,
+      "source_kind": "authored_blender",
+      "glb_sha256": "36598a822ff8ebc6d2f6fc193cf3d9a1f71170827b4a91fa4c6b3663f735353b",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 269,
+      "path": "res://assets/desert-dreams-3d/269-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.27914321422576904,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 3500,
+      "source_kind": "authored_blender",
+      "glb_sha256": "218fc127fb250e04247669619dc3162d7f69e028173442b32173b97fc5788b45",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 270,
+      "path": "res://assets/desert-dreams-3d/270-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.25414323806762695,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 7208,
+      "source_kind": "authored_blender",
+      "glb_sha256": "b0f3c35e3d6186f46ac3472886f43dd6c51088778d2f35109e0fee774946e299",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 271,
+      "path": "res://assets/desert-dreams-3d/271-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.24351823329925537,
+      "footprint": [
+        1,
+        1
+      ],
+      "triangles": 2636,
+      "source_kind": "authored_blender",
+      "glb_sha256": "bc88d8deea59bf85d5d2793b0347141604c8b9dc8e09ee5ed69c10657bd60de7",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 272,
+      "path": "res://assets/desert-dreams-3d/272-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.21466509997844696,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 13538,
+      "source_kind": "authored_blender",
+      "glb_sha256": "4d975a6111bd173e193f7851afea9a51c18407975f8049732ac75cfc1f350ba7",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 273,
+      "path": "res://assets/desert-dreams-3d/273-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.4390624761581421,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 3916,
+      "source_kind": "authored_blender",
+      "glb_sha256": "1c6eadb264174eb6cc70bba5a93fef4b3c366d9fd661d715adee4540286d29de",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 274,
+      "path": "res://assets/desert-dreams-3d/274-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.27914321422576904,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 4220,
+      "source_kind": "authored_blender",
+      "glb_sha256": "77730bcab201af22731f6d92ecdf060c05c13532bc4573907a39ff7f6f3d130b",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 275,
+      "path": "res://assets/desert-dreams-3d/275-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.3072682321071625,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 11820,
+      "source_kind": "authored_blender",
+      "glb_sha256": "d1e8d43dae67327a9312b41d7abc42eb8c12b573f8f8e04642f91b63652f9156",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 276,
+      "path": "res://assets/desert-dreams-3d/276-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.051249999552965164,
+      "footprint": [
+        1,
+        1
+      ],
+      "triangles": 464,
+      "source_kind": "authored_blender",
+      "glb_sha256": "50de44e2bf63348f609582e2478f7e11de23208e7b6a0141c8e476547cfcd5be",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 277,
+      "path": "res://assets/desert-dreams-3d/277-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.051249999552965164,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 608,
+      "source_kind": "authored_blender",
+      "glb_sha256": "24942e48880b8e5ad429a7f1f658f34d61058ec5c7aecffb99302295d5070dfa",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 278,
+      "path": "res://assets/desert-dreams-3d/278-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.051249999552965164,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 752,
+      "source_kind": "authored_blender",
+      "glb_sha256": "feafbe7e9aa720c86e15bf4e31ddaf1bc3176244ec92551c3e199f60d5de78be",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 279,
+      "path": "res://assets/desert-dreams-3d/279-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.23851823806762695,
+      "footprint": [
+        1,
+        1
+      ],
+      "triangles": 1132,
+      "source_kind": "authored_blender",
+      "glb_sha256": "bacdbc15153a5a26892226caf944d50000ab2d2597fc168880a41ea3e9bf5c9b",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 280,
+      "path": "res://assets/desert-dreams-3d/280-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.23851823806762695,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 3100,
+      "source_kind": "authored_blender",
+      "glb_sha256": "c663ce3ddbd5fb114beb07d3691fb7f000bfcad524382aae5826f77d1d31e30a",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 281,
+      "path": "res://assets/desert-dreams-3d/281-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.23851823806762695,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 6604,
+      "source_kind": "authored_blender",
+      "glb_sha256": "30679474e110cec28846fc9c86b94e764a1d12e08d2f35972acc2c34c43c43d4",
+      "meters_per_tile": 16
     }
   ]
 }

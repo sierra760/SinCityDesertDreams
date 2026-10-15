@@ -334,6 +334,9 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 	if not missing_model:
 		preload("res://scripts/view/city_lot_support_3d.gd").add_to(model,city,code,
 			str(code)+":"+str(catalog.entries[code]))
+	# Retain the authored metre transform before the compiler removes meshes.
+	if Buildings.is_agricultural(code) and not missing_model:
+		model.set_meta("authored_transform", model.transform * (model.get_child(0) as Node3D).transform)
 	model.set_meta("batch_region", rect)
 	model.set_meta("missing_model", missing_model)
 	model.set_meta("code", code)
@@ -652,3 +655,12 @@ func _placeholder(size: Vector2i, height: float) -> Node3D:
 	roof.material_override = CityGeometry3D.material(Color(0.98, 0.65, 0.23))
 	model.add_child(roof)
 	return model
+
+
+## Dynamic agriculture actors follow the exact imported lot placement.
+## This metadata survives mesh compilation and regional/static rebuilds.
+func authored_lot_transform(anchor: Vector2i, code: int) -> Variant:
+	for model: Node3D in _lots_meeting([Rect2i(anchor,Vector2i.ONE)]):
+		if model.get_meta("cell",Vector2i(-1,-1)) == anchor and model.get_meta("code",-1) == code:
+			return model.get_meta("authored_transform",null)
+	return null

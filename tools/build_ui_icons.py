@@ -22,7 +22,7 @@ def zone_colors():
     source = (OUT.parents[2] / 'scripts/core/zones.gd').read_text()
     colors = dict(re.findall(r'^const COLOR_(\w+) := Color\("([0-9a-f]{6})"\)$', source, re.M))
     required = {'RES_LOW', 'RES_HIGH', 'COM_LOW', 'COM_HIGH', 'IND_LOW', 'IND_HIGH',
-                'MILITARY', 'AIRPORT', 'SEAPORT'}
+                'MILITARY', 'AIRPORT', 'SEAPORT', 'AGR_LOW', 'AGR_HIGH'}
     if not required <= colors.keys():
         raise ValueError('Missing canonical zone color tokens in zones.gd')
     return {key: '#' + colors[key] for key in required}
@@ -108,6 +108,12 @@ def build():
     icons['zone_com_high'] = tower(12, 22, 20, 32, zones['COM_HIGH']) + tower(31, 9, 23, 45, zones['COM_HIGH']) + path('M43 5 V9', stroke=GOLD)
     icons['zone_ind_low'] = path('M10 53 V31 L23 21 V31 L38 21 V53Z', zones['IND_LOW']) + rect(39, 13, 12, 40, zones['IND_LOW']) + path('M17 42 H30', stroke=PAPER)
     icons['zone_ind_high'] = path('M9 53 V32 L24 23 V32 L38 23 V53Z', zones['IND_HIGH']) + rect(39, 11, 8, 42, zones['IND_HIGH']) + rect(50, 7, 7, 46, zones['IND_HIGH']) + path('M16 41 H30 M16 48 H30', stroke=PAPER, width=3)
+    icons['zone_agr_low'] = (path('M8 53 L21 35 H55 L43 53Z', zones['AGR_LOW'])
+        + path('M20 49 L28 39 M32 49 L40 39 M44 46 L49 39', stroke=PAPER, width=3)
+        + path('M28 34 V20 M28 27 C16 28 15 18 17 14 C26 15 29 19 28 27 M28 23 C28 14 34 11 41 12 C41 20 36 24 28 23', zones['AGR_LOW'], width=3))
+    icons['zone_agr_high'] = (path('M9 53 V27 L24 12 H43 L55 27 V53Z', zones['AGR_HIGH'])
+        + path('M24 12 L37 27 V53 M9 27 H55 M24 29 V51 M47 29 V51', width=3)
+        + path('M15 45 V36 M15 40 L12 37 M15 42 L18 39 M30 45 V36 M30 40 L27 37 M30 42 L33 39 M42 45 V36 M42 40 L39 37 M42 42 L45 39', stroke=PAPER, width=2))
     icons['airport'] = path('M29 8 H35 L38 26 55 36 V42 L37 37 36 48 43 52 V56 L32 53 21 56 V52 L28 48 27 37 9 42 V36 L26 26Z', zones['AIRPORT'], INK, 3)
     icons['seaport'] = path('M9 35 H55 L47 47 H18Z', zones['SEAPORT']) + rect(23, 21, 21, 14, zones['AIRPORT']) + path('M32 10 V21 M17 27 V35') + waves(53)
     icons['trees'] = tree()

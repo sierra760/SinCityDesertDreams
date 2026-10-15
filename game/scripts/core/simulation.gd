@@ -27,8 +27,8 @@ signal speed_changed(speed: int)
 const SCHEDULE := {
 	1: [&"power"],
 	3: [&"water"],
-	5: [&"zones"],
-	6: [&"zones"],
+	5: [&"zones", &"agriculture"],
+	6: [&"zones", &"agriculture"],
 	8: [&"transport"],
 	10: [&"environment"],
 	12: [&"services"],
@@ -45,6 +45,7 @@ const SCHEDULE := {
 const SYSTEM_SCRIPTS := [
 	"res://scripts/sim/power_system.gd",
 	"res://scripts/sim/water_system.gd",
+	"res://scripts/sim/agriculture_system.gd",
 	"res://scripts/sim/zone_system.gd",
 	"res://scripts/sim/transport_system.gd",
 	"res://scripts/sim/environment_system.gd",
@@ -387,6 +388,8 @@ func restore(data: Dictionary) -> void:
 	for s in systems:
 		if sys.has(String(s.key)):
 			s.load(sys[String(s.key)])
+		elif s.key == &"agriculture":
+			s.load({})
 	set_speed(int(data.get("speed", GameClock.Speed.PAUSED)))
 	_emit_scalars()
 

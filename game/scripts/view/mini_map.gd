@@ -198,6 +198,8 @@ static func tile_color(city: City, x: int, y: int) -> Color:
 			return Zones.COLORS[zone_kind] if Zones.is_commercial(zone_kind) else COLOR_COMMERCIAL
 		Buildings.Category.INDUSTRIAL:
 			return Zones.COLORS[zone_kind] if Zones.is_industrial(zone_kind) else COLOR_INDUSTRIAL
+		Buildings.Category.AGRICULTURAL:
+			return Zones.COLORS[zone_kind] if Zones.is_agricultural(zone_kind) else Zones.COLOR_AGR_LOW
 		Buildings.Category.PORT:
 			return Zones.COLORS[zone_kind] if Zones.is_port(zone_kind) or zone_kind == Zones.MILITARY else Zones.COLOR_AIRPORT
 		Buildings.Category.MILITARY: return Zones.COLOR_MILITARY

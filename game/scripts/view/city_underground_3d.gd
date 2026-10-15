@@ -89,7 +89,8 @@ func refresh() -> void:
 			var service_color := PIPE_WET if city.is_watered(x,y) else PIPE_DRY
 			if lot:
 				_lot(cell, LOT_WET if city.is_watered(x,y) else LOT_DRY, faces, colors)
-				# Developed lots conduct on every side, even without an explicit
+				# Developed and prepared agricultural lots conduct on every side,
+				# even without an explicit
 				# pipe. Draw those connections independently of the stored XUND.
 				var lot_mask := _water_neighbors(cell)
 				if not decoded.pipe_above: lot_mask |= int(decoded.pipe_mask)

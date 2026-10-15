@@ -21,6 +21,7 @@ const N := W * H
 
 ## Result of the last distribution, for the UI.
 var _summary: Dictionary = {}
+var _has_supply_state := false
 var _shortage := false
 var _consumed := 0
 var _treatment_adequate := true
@@ -73,6 +74,13 @@ func networks_changed(ctx: SimContext, rect: Rect2i) -> void:
 	_distribute(ctx)
 
 
+## Reallocate established sources and current storage without another storage
+## tick. Only normal monthly/construction distribution drains/refills towers.
+func reallocate_established(ctx: SimContext, rect: Rect2i) -> void:
+	_refresh_conduction(ctx.city, rect)
+	_distribute(ctx, true)
+
+
 func save() -> Dictionary:
 	return {"shortage": _shortage, "consumed": _consumed, "treatment_adequate": _treatment_adequate}
 
@@ -122,6 +130,13 @@ func treatment_adequate() -> bool:
 
 func usage_percent() -> int:
 	return int(_summary.get("usage_percent", 100))
+
+
+## Predict full replacement service using the last established source outputs.
+## This does not generate power, sample weather, drain towers or mutate City.
+func can_supply_lot(city: City, rect: Rect2i, load_per_tile: int) -> bool:
+	if load_per_tile == 0: return true
+	return _has_supply_state and Params.can_supply_lot(city, rect, load_per_tile, true)
 
 
 # ── Conduction flags ─────────────────────────────────────────────────────
@@ -201,7 +216,8 @@ func _desalination_output(city: City, anchor: Vector2i, id: int) -> int:
 
 # ── Distribution ─────────────────────────────────────────────────────────
 
-func _distribute(ctx: SimContext) -> void:
+func _distribute(ctx: SimContext, established: bool = false) -> void:
+	_has_supply_state = true
 	var city := ctx.city
 	var flags := city.flags.data
 	var bld := city.building.data
@@ -209,7 +225,7 @@ func _distribute(ctx: SimContext) -> void:
 	var draws := Params.draws_water_table()
 	var facility_tbl := Params.water_facility_table()
 	var multi := Params.multi_tile_table()
-	var rain := Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
+	var rain := Params.DEFAULT_RAIN if established else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
 
 	# One pass over the map: drop last month's service (tower tiles keep their
 	# WATERED bit, it is their contents), total the load, record facilities and
@@ -235,25 +251,28 @@ func _distribute(ctx: SimContext) -> void:
 				i += 1
 				continue
 			if draws[id] != 0:
-				total_demand += Params.LOAD_PER_TILE
+				total_demand += Params.water_load(id)
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			elif facility_tbl[id] != 0 and (multi[id] == 0 or Params.is_anchor_tile(bld, zn, i)):
 				var a := Vector2i(x, y)
-				var rec := _register_facility(city, a, id)
+				var rec := city.facility(a) if established else _register_facility(city, a, id)
 				match id:
 					Buildings.WATER_PUMP, Buildings.DESALINATION:
 						var units := 0
 						if (flags[i] & TileFlags.POWERED) != 0:
-							units = _pump_output(city, a, rain) if id == Buildings.WATER_PUMP \
-								else _desalination_output(city, a, id)
+							if established:
+								if rec.get("key", &"") == Buildings.key(id):
+									units = maxi(0, int(rec.get("output", 0)))
+							else:
+								units = _pump_output(city, a, rain) if id == Buildings.WATER_PUMP else _desalination_output(city, a, id)
 						_output[i] = units
-						rec["output"] = units
+						if not established: rec["output"] = units
 						_seeds.append(x * H + y)
 					Buildings.WATER_TREATMENT:
 						treatment_plants += 1
 			i += 1
-	_drop_stale_facilities(city)
+	if not established: _drop_stale_facilities(city)
 
 	# Networks (rules 4 to 6): sources and full towers seed the fill of their
 	# network once, column by column.
@@ -285,12 +304,13 @@ func _distribute(ctx: SimContext) -> void:
 				storage += Params.TOWER_UNITS_PER_TILE
 				if (flags[t] & TileFlags.WATERED) != 0:
 					capacity += Params.TOWER_UNITS_PER_TILE
-					flags[t] &= ~TileFlags.WATERED
+					if not established: flags[t] &= ~TileFlags.WATERED
 			elif facility_tbl[id] != 0:
 				capacity += _output[t]
 			elif draws[id] != 0:
-				demand += Params.LOAD_PER_TILE
-		var served := mini(demand, capacity)
+				demand += Params.water_load(id)
+		var allocation := Params.allocate_network(_queue.slice(start, tail), bld, mini(demand, capacity), true)
+		var served: int = allocation.consumed
 		if demand > capacity:
 			short = true
 		total_capacity += capacity
@@ -298,21 +318,18 @@ func _distribute(ctx: SimContext) -> void:
 		@warning_ignore("integer_division")
 		var refill := (mini(capacity - served, storage) + Params.TOWER_UNITS_PER_TILE / 2) \
 			/ Params.TOWER_UNITS_PER_TILE
-		var remaining := served
 		for q in range(start, tail):
 			var t := _queue[q]
 			var id := bld[t]
 			if id == Buildings.WATER_TOWER:
-				if refill > 0 and (flags[t] & TileFlags.POWERED) != 0:
+				if not established and refill > 0 and (flags[t] & TileFlags.POWERED) != 0:
 					flags[t] |= TileFlags.WATERED
 					refill -= 1
 			elif facility_tbl[id] != 0:
 				if (flags[t] & TileFlags.POWERED) != 0:
 					flags[t] |= TileFlags.WATERED
-			elif remaining > 0:
+			elif allocation.supplied[q - start] != 0:
 				flags[t] |= TileFlags.WATERED
-				if draws[id] != 0:
-					remaining -= Params.LOAD_PER_TILE
 	city.flags.data = flags
 
 	# Reporting (rules 7 and 8).
@@ -346,7 +363,7 @@ func _distribute(ctx: SimContext) -> void:
 				for dx in s.x:
 					if (flags[(anchor.y + dy) * W + anchor.x + dx] & TileFlags.WATERED) != 0:
 						tower_units += Params.TOWER_UNITS_PER_TILE
-			rec["stored"] = tower_units
+			if not established: rec["stored"] = tower_units
 		facilities.append({"anchor": anchor, "key": rec.get("key", &""),
 			"name": Buildings.display_name(id), "output": int(rec.get("output", 0)),
 			"stored": tower_units,
@@ -367,6 +384,7 @@ func _distribute(ctx: SimContext) -> void:
 ## records without serving, draining or refilling anything. load() then puts
 ## back the saved totals, which the last pass computed before later growth.
 func _summarize_saved(city: City, stats: CityStats) -> void:
+	_has_supply_state = true
 	var flags := city.flags.data
 	var bld := city.building.data
 	var zn := city.zone.data
@@ -385,7 +403,7 @@ func _summarize_saved(city: City, stats: CityStats) -> void:
 				if (flags[i] & TileFlags.WATERED) != 0:
 					stored += Params.TOWER_UNITS_PER_TILE
 			elif id != Buildings.NONE and draws[id] != 0:
-				total_demand += Params.LOAD_PER_TILE
+				total_demand += Params.water_load(id)
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			i += 1
@@ -422,42 +440,15 @@ func _summarize_saved(city: City, stats: CityStats) -> void:
 ## north, west, south, east. Appends the tiles reached to `_queue` from
 ## `tail` on, in fill order, and returns the new tail.
 func _flood(seed: int, flags: PackedByteArray, tail: int) -> int:
-	var head := tail
-	_queue[tail] = seed
-	tail += 1
-	_visited[seed] = 1
-	while head < tail:
-		var i := _queue[head]
-		head += 1
-		var x := i % W
-		if i >= W:
-			var j := i - W
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_WATER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
-		if x > 0:
-			var j := i - 1
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_WATER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
-		if i + W < N:
-			var j := i + W
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_WATER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
-		if x + 1 < W:
-			var j := i + 1
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_WATER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
+	var tiles := Params.flood_tiles(seed, flags, TileFlags.CONDUCTS_WATER, _visited)
+	for t in tiles:
+		_visited[t] = 1
+		_queue[tail] = t
+		tail += 1
 	return tail
 
 
-## Consumer buildings with no watered tile in their footprint.
+## Legacy consumers with no watered tile; agriculture requires the full footprint.
 func _count_unserved(bld: PackedInt32Array, flags: PackedByteArray) -> int:
 	var widths := Params.footprint_width_table()
 	var heights := Params.footprint_height_table()
@@ -466,12 +457,15 @@ func _count_unserved(bld: PackedInt32Array, flags: PackedByteArray) -> int:
 		var id := bld[a]
 		var w := widths[id]
 		var h := heights[id]
-		var served := false
+		var agricultural := Buildings.is_agricultural(id)
+		var served := agricultural
 		var row := a
 		for _dy in h:
 			for dx in w:
 				var t := row + dx
-				if t < N and (flags[t] & TileFlags.WATERED) != 0:
+				if agricultural:
+					if t >= N or (flags[t] & TileFlags.WATERED) == 0: served = false
+				elif t < N and (flags[t] & TileFlags.WATERED) != 0:
 					served = true
 			row += W
 		if not served:

@@ -296,6 +296,7 @@ func _build_dialogs() -> void:
 
 func _connect_simulation() -> void:
 	sim.map_changed.connect(func(_rect: Rect2i) -> void:
+		presentation.invalidate_livestock_source()
 		if street_topology.is_bound_to(sim.city):
 			street_naming_service.reconcile(_rect)
 			street_names.structural_changed()
@@ -1353,6 +1354,10 @@ func _process(delta: float) -> void:
 			presentation.refresh_query_pointer_hover()
 		sync_3d_cursor()
 	sync_query_feedback()
+	var agriculture := sim.get_system(&"agriculture") as AgricultureSystem
+	var player_world := Vector3.INF
+	if is_exploring() and is_instance_valid(exploration.occupied): player_world = exploration.occupied.global_position
+	presentation.sync_livestock(delta,agriculture,livestock_paused(),player_world)
 	presentation.sync_actors(delta, entity_records.gather(), sim.get_system(&"transport"),
 		sim.speed == GameClock.Speed.PAUSED, bool(preferences.get("vehicles", true)))
 
@@ -1403,3 +1408,10 @@ func _mods_changed() -> void:
 	exploration.mod_packs = mod_registry.active_packs()
 	if exploration.mod_service != null: exploration.mod_service.configure_packs(exploration.mod_packs)
 	prefs.set_value("explore_enabled_mods",mod_registry.enabled_ids())
+
+
+## Explore owns an active world clock even while construction is paused.
+func livestock_paused() -> bool:
+	if is_exploring():
+		return exploration.is_suspended() or is_explore_input_blocked() or is_casino_open()
+	return sim.speed == GameClock.Speed.PAUSED or is_input_blocked()

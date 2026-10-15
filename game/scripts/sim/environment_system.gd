@@ -174,7 +174,7 @@ func _build_tables() -> void:
 ## A building alone makes its tile developed: anything other than open
 ## ground, rubble, trees, parks or a power line.
 static func _building_is_developed(id: int) -> bool:
-	if id == Buildings.NONE or Buildings.is_rubble(id):
+	if id == Buildings.NONE or Buildings.is_rubble(id) or Buildings.is_agricultural(id):
 		return false
 	var cat := Buildings.category(id)
 	return cat != Buildings.Category.TREE and cat != Buildings.Category.POWER_LINE
@@ -183,7 +183,7 @@ static func _building_is_developed(id: int) -> bool:
 ## A tile counts as developed when it is zoned or carries anything other than
 ## open ground, rubble, trees, parks or a power line.
 static func is_developed_tile(city: City, x: int, y: int) -> bool:
-	if Zones.kind(city.zone.at(x, y)) != Zones.NONE:
+	if Zones.kind(city.zone.at(x, y)) != Zones.NONE and not Zones.is_agricultural(city.zone_kind_at(x, y)):
 		return true
 	return _building_is_developed(city.building.at(x, y))
 
@@ -224,13 +224,15 @@ func _scan_tiles(ctx: SimContext) -> void:
 			var id := bld[i]
 			var kind := zn[i] & Zones.KIND_MASK
 			var bi := b + (x >> 1)
-			if kind != Zones.NONE or _developed_tbl[id] != 0:
+			if (kind != Zones.NONE and not Zones.is_agricultural(kind)) or _developed_tbl[id] != 0:
 				_developed[bi] = 1
 				dev_x += x
 				dev_y += y
 				dev_count += 1
 			if id != Buildings.NONE:
-				_block_emission[bi] += emission[id]
+				# Farm emissions are specified per lot, not per acreage tile.
+				if not Buildings.is_agricultural(id) or UtilityParams.is_anchor_tile(bld, zn, i):
+					_block_emission[bi] += emission[id]
 				if _port_tbl[id] != 0:
 					var pk := _port_kind(kind, _port_tbl[id])
 					_block_emission[bi] += int(PortParams.POLLUTION_PER_TILE.get(pk, 0))
@@ -313,6 +315,8 @@ func _add_arcology_load(ctx: SimContext) -> void:
 
 ## Pollution emitted by one tile of a building, before absorption.
 static func emission_of(id: int, controls: bool) -> int:
+	if Buildings.is_agricultural(id):
+		return AgricultureParams.pollution_of(id)
 	if id == Buildings.CONTAMINATION:
 		return Params.CONTAMINATION_EMISSION
 	var cat := Buildings.category(id)

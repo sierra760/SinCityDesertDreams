@@ -114,6 +114,10 @@ func _sample(ctx: SimContext) -> void:
 	st.record(&"demand_residential", st.demand.x, keep)
 	st.record(&"demand_commercial", st.demand.y, keep)
 	st.record(&"demand_industrial", st.demand.z, keep)
+	st.record(&"demand_agricultural", st.demand_agricultural, keep)
+	st.record(&"agricultural_jobs", st.agricultural_jobs, keep)
+	st.record(&"agricultural_lots", st.agricultural_lots, keep)
+	st.record(&"taxes_agricultural", int(st.ledger.get(&"taxes_agricultural", 0)), keep)
 	var transport := ctx.system(&"transport")
 	var riders := 0
 	if transport != null and transport.has_method("monthly_ridership"):

@@ -21,8 +21,10 @@ const N := W * H
 
 ## Result of the last distribution, for the UI.
 var _summary: Dictionary = {}
+var _has_supply_state := false
 var _shortage := false
 var _consumed := 0
+var _conservation := false
 
 ## Scratch buffers reused by every pass.
 ## Tiles supplied by the plant anchored at each tile, 0 elsewhere.
@@ -57,6 +59,8 @@ func setup(ctx: SimContext) -> void:
 ## continues through ordinary setup instead.
 func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
 	self.load(data)
+	_has_supply_state = true
+	_conservation = bool(ctx.stats.ordinances.get(Params.CONSERVATION_ORDINANCE, false))
 	var city := ctx.city
 	var bld := city.building.data
 	var flags := city.flags.data
@@ -75,7 +79,7 @@ func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
 			var i := y * W + x
 			var id := bld[i]
 			if draws[id] != 0:
-				total_demand += Params.LOAD_PER_TILE
+				total_demand += Params.power_load(id)
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			elif plant_tbl[id] != 0:
@@ -113,6 +117,17 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 func networks_changed(ctx: SimContext, rect: Rect2i) -> void:
 	_refresh_conduction(ctx.city, rect)
 	_distribute(ctx)
+
+
+## Redistribute existing generation after private development. No weather or RNG.
+func reallocate_established(ctx: SimContext, rect: Rect2i) -> void:
+	_refresh_conduction(ctx.city, rect)
+	_distribute(ctx, true)
+
+
+## Detached projection instances inherit the established conservation policy.
+func copy_supply_policy(other: PowerSystem) -> void:
+	_conservation = other._conservation
 
 
 func yearly(ctx: SimContext) -> void:
@@ -154,6 +169,13 @@ func plant_capacity(anchor: Vector2i) -> int:
 		if p.get("anchor", Vector2i(-1, -1)) == anchor:
 			return int(p.get("capacity", 0))
 	return 0
+
+
+## Predict full replacement service using the last established source outputs.
+## This does not generate power, sample weather, drain towers or mutate City.
+func can_supply_lot(city: City, rect: Rect2i, load_per_tile: int) -> bool:
+	if load_per_tile == 0: return true
+	return _has_supply_state and Params.can_supply_lot(city, rect, load_per_tile, false, _conservation)
 
 
 # ── Conduction flags ─────────────────────────────────────────────────────
@@ -240,7 +262,8 @@ func _generation_of(ctx: SimContext, anchor: Vector2i, id: int, rain: int, wind:
 
 # ── Distribution ─────────────────────────────────────────────────────────
 
-func _distribute(ctx: SimContext) -> void:
+func _distribute(ctx: SimContext, established: bool = false) -> void:
+	_has_supply_state = true
 	var city := ctx.city
 	var flags := city.flags.data
 	var bld := city.building.data
@@ -248,9 +271,10 @@ func _distribute(ctx: SimContext) -> void:
 	var plant_tbl := Params.power_plant_table()
 	var draws := Params.draws_power_table()
 	var multi := Params.multi_tile_table()
-	var rain := Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
-	var wind := Params.weather(ctx, &"wind_speed", Params.DEFAULT_WIND)
-	var conservation := bool(ctx.stats.ordinances.get(Params.CONSERVATION_ORDINANCE, false))
+	var rain := Params.DEFAULT_RAIN if established else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
+	var wind := Params.DEFAULT_WIND if established else Params.weather(ctx, &"wind_speed", Params.DEFAULT_WIND)
+	if not established:
+		_conservation = bool(ctx.stats.ordinances.get(Params.CONSERVATION_ORDINANCE, false))
 
 	# One pass over the map: drop last month's supply, total the load (rule 2)
 	# and collect plant tiles, plant anchors and consumer anchors.
@@ -267,16 +291,16 @@ func _distribute(ctx: SimContext) -> void:
 			var id := bld[i]
 			if id != Buildings.NONE:
 				if draws[id] != 0:
-					total_demand += Params.LOAD_PER_TILE
+					total_demand += Params.power_load(id)
 					if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 						_consumers.append(i)
 				elif plant_tbl[id] != 0:
 					_plant_tiles.append(x * H + y)
 					if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 						_plant_anchors.append(x * H + y)
-						_register_plant(city, Vector2i(x, y), id)
+						if not established: _register_plant(city, Vector2i(x, y), id)
 			i += 1
-	_drop_stale_plants(city)
+	if not established: _drop_stale_plants(city)
 
 	# Generation per plant anchor (rule 3), column by column so random draws
 	# happen in a fixed order.
@@ -287,11 +311,16 @@ func _distribute(ctx: SimContext) -> void:
 		@warning_ignore("integer_division")
 		var a := Vector2i(k / H, k % H)
 		var ai := a.y * W + a.x
-		var g := _generation_of(ctx, a, bld[ai], rain, wind)
+		var rec: Dictionary = city.facility(a)
+		var g := 0
+		if established:
+			if rec.get("key", &"") == Buildings.key(bld[ai]):
+				g = maxi(0, int(rec.get("capacity", 0)))
+		else:
+			g = _generation_of(ctx, a, bld[ai], rain, wind)
 		_generation[ai] = g
 		total_capacity += g
-		var rec: Dictionary = city.facility(a)
-		if not rec.is_empty():
+		if not established and not rec.is_empty():
 			rec["capacity"] = g
 
 	# Networks (rules 4 to 6): each plant seeds the fill of its network once.
@@ -315,23 +344,22 @@ func _distribute(ctx: SimContext) -> void:
 			if plant_tbl[id] != 0:
 				capacity += _generation[t]
 			elif draws[id] != 0:
-				demand += Params.LOAD_PER_TILE
+				demand += Params.power_load(id)
 		var budget := capacity
-		if conservation:
+		if _conservation:
 			@warning_ignore("integer_division")
 			budget += capacity / Params.CONSERVATION_BONUS_DIVISOR
 		if demand > budget:
 			short = true
-		consumed += mini(demand, budget)
+		var allocation := Params.allocate_network(_queue.slice(start, tail), bld, budget, false)
+		consumed += int(allocation.consumed)
 		for q in range(start, tail):
 			var t := _queue[q]
 			var id := bld[t]
 			if plant_tbl[id] != 0:
 				flags[t] |= TileFlags.POWERED
-			elif budget > 0:
+			elif allocation.supplied[q - start] != 0:
 				flags[t] |= TileFlags.POWERED
-				if draws[id] != 0:
-					budget -= Params.LOAD_PER_TILE
 	city.flags.data = flags
 
 	# Reporting (rule 7).
@@ -368,42 +396,15 @@ func _distribute(ctx: SimContext) -> void:
 ## west, south, east. Appends the tiles reached to `_queue` from `tail` on,
 ## in fill order, and returns the new tail.
 func _flood(seed: int, flags: PackedByteArray, tail: int) -> int:
-	var head := tail
-	_queue[tail] = seed
-	tail += 1
-	_visited[seed] = 1
-	while head < tail:
-		var i := _queue[head]
-		head += 1
-		var x := i % W
-		if i >= W:
-			var j := i - W
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_POWER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
-		if x > 0:
-			var j := i - 1
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_POWER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
-		if i + W < N:
-			var j := i + W
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_POWER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
-		if x + 1 < W:
-			var j := i + 1
-			if _visited[j] == 0 and (flags[j] & TileFlags.CONDUCTS_POWER) != 0:
-				_visited[j] = 1
-				_queue[tail] = j
-				tail += 1
+	var tiles := Params.flood_tiles(seed, flags, TileFlags.CONDUCTS_POWER, _visited)
+	for t in tiles:
+		_visited[t] = 1
+		_queue[tail] = t
+		tail += 1
 	return tail
 
 
-## Consumer buildings with no powered tile in their footprint.
+## Legacy consumers with no powered tile; agriculture requires the full footprint.
 func _count_unserved(bld: PackedInt32Array, flags: PackedByteArray) -> int:
 	var widths := Params.footprint_width_table()
 	var heights := Params.footprint_height_table()
@@ -412,12 +413,15 @@ func _count_unserved(bld: PackedInt32Array, flags: PackedByteArray) -> int:
 		var id := bld[a]
 		var w := widths[id]
 		var h := heights[id]
-		var served := false
+		var agricultural := Buildings.is_agricultural(id)
+		var served := agricultural
 		var row := a
 		for _dy in h:
 			for dx in w:
 				var t := row + dx
-				if t < N and (flags[t] & TileFlags.POWERED) != 0:
+				if agricultural:
+					if t >= N or (flags[t] & TileFlags.POWERED) == 0: served = false
+				elif t < N and (flags[t] & TileFlags.POWERED) != 0:
 					served = true
 			row += W
 		if not served:

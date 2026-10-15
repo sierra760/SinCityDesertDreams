@@ -11,7 +11,7 @@ extends SimSystem
 ## Accounts this system books itself. Other systems may add their own keys
 ## (the neighbor system writes &"neighbor_trade"); settlement reads them all.
 const OWN_KEYS: Array[StringName] = [&"taxes_residential", &"taxes_commercial",
-	&"taxes_industrial", &"transit_fares", &"ordinance_income", &"ordinance_cost",
+	&"taxes_industrial", &"taxes_agricultural", &"transit_fares", &"ordinance_income", &"ordinance_cost",
 	&"police", &"fire", &"health", &"education", &"transport", &"bond_interest", &"other"]
 
 ## Twelfths of a yearly cent; the ledger shows this divided by 1200.
@@ -372,6 +372,12 @@ func _yearly_cents(ctx: SimContext) -> Dictionary:
 		&"bond_interest": 0,
 		&"other": 0,
 	}
+	var agriculture := ctx.system(&"agriculture")
+	var agricultural_value := 0
+	if agriculture != null and agriculture.has_method("assessed_value"):
+		agricultural_value = int(agriculture.call("assessed_value"))
+	out[&"taxes_agricultural"] = agricultural_value * clampi(stats.tax_agricultural,
+		AgricultureParams.TAX_MIN, AgricultureParams.TAX_MAX)
 	var services: Dictionary = survey["services"]
 	for building_key in BudgetParams.SERVICE_UPKEEP:
 		var count := int(services.get(building_key, 0))
@@ -464,12 +470,16 @@ func _city_value(city: City) -> int:
 	for y in City.HEIGHT:
 		for x in City.WIDTH:
 			var id := city.building.at(x, y)
-			if id == Buildings.NONE or Buildings.is_zone_building(id):
+			if id == Buildings.NONE or Buildings.is_zone_building(id) or Buildings.is_agricultural(id):
 				continue
 			if Buildings.is_network(id):
 				value += Buildings.cost(id)
 			elif Buildings.is_developed(id) and _is_anchor(city, x, y, id):
 				value += Buildings.cost(id)
+	if _ctx != null:
+		var agriculture := _ctx.system(&"agriculture")
+		if agriculture != null and agriculture.has_method("assessed_value"):
+			value += int(agriculture.call("assessed_value"))
 	return value
 
 

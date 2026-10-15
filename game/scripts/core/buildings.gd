@@ -13,7 +13,7 @@ extends RefCounted
 
 enum Category { NONE, RUBBLE, TREE, POWER_LINE, ROAD, RAIL, HIGHWAY, BRIDGE, TUNNEL,
 	RESIDENTIAL, COMMERCIAL, INDUSTRIAL, CONSTRUCTION, ABANDONED, PLANT, CIVIC,
-	UTILITY, TRANSIT, PORT, MILITARY, REWARD, ARCOLOGY }
+	UTILITY, TRANSIT, PORT, MILITARY, REWARD, ARCOLOGY, AGRICULTURAL }
 
 ## Well-known ids used directly by systems.
 const NONE := 0
@@ -143,7 +143,7 @@ const ARCOLOGY_BODDY := 262
 const ARCOLOGY_WOOLIER := 263
 const ARCOLOGY_STOCKGROWERS := 264
 const ARCOLOGY_FREMONT := 265
-const COUNT := 266
+const COUNT := 282
 
 ## [key, name, width, height, category, cost]
 const _ROSTER := [
@@ -414,6 +414,22 @@ const _ROSTER := [
 	[&"arcology_stockgrowers", "Stockgrowers", 3, 3, Category.ARCOLOGY, 30000],
 	[&"arcology_fremont", "Fremont Palace", 3, 3, Category.ARCOLOGY, 45000],
 
+	[&"ag_vegetables", "Irrigated Vegetables", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_alfalfa", "Alfalfa and Hay", 2, 2, Category.AGRICULTURAL, 0],
+	[&"ag_grain", "Grain Field", 2, 2, Category.AGRICULTURAL, 0],
+	[&"ag_cattle_range", "Cattle Range", 3, 3, Category.AGRICULTURAL, 0],
+	[&"ag_sheep_pasture", "Sheep Pasture", 3, 3, Category.AGRICULTURAL, 0],
+	[&"ag_greenhouse", "Vegetable Greenhouse", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_nursery", "Nursery Houses", 2, 2, Category.AGRICULTURAL, 0],
+	[&"ag_dairy", "Dairy", 3, 3, Category.AGRICULTURAL, 0],
+	[&"ag_feedlot", "Cattle Feedlot", 3, 3, Category.AGRICULTURAL, 0],
+	[&"ag_market_garden", "Intensive Market Garden", 2, 2, Category.AGRICULTURAL, 0],
+	[&"ag_prepared_1x1", "Prepared Agricultural Plot", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_prepared_2x2", "Prepared Agricultural Plot", 2, 2, Category.AGRICULTURAL, 0],
+	[&"ag_prepared_3x3", "Prepared Agricultural Plot", 3, 3, Category.AGRICULTURAL, 0],
+	[&"ag_dormant_1x1", "Dormant Agricultural Lot", 1, 1, Category.AGRICULTURAL, 0],
+	[&"ag_dormant_2x2", "Dormant Agricultural Lot", 2, 2, Category.AGRICULTURAL, 0],
+	[&"ag_dormant_3x3", "Dormant Agricultural Lot", 3, 3, Category.AGRICULTURAL, 0],
 ]
 
 static var _by_key: Dictionary = {}
@@ -465,15 +481,20 @@ static func is_multi_tile(id: int) -> bool:
 	return s.x > 1 or s.y > 1
 
 
+## RCI-only helper; agriculture has its own census and growth stages.
 static func is_zone_building(id: int) -> bool:
 	var c := category(id)
 	return c == Category.RESIDENTIAL or c == Category.COMMERCIAL or c == Category.INDUSTRIAL
 
 
+static func is_agricultural(id: int) -> bool:
+	return category(id) == Category.AGRICULTURAL
+
+
 static func is_developed(id: int) -> bool:
 	return is_zone_building(id) or category(id) in [Category.PLANT, Category.CIVIC,
 		Category.UTILITY, Category.TRANSIT, Category.PORT, Category.MILITARY,
-		Category.REWARD, Category.ARCOLOGY]
+		Category.REWARD, Category.ARCOLOGY, Category.AGRICULTURAL]
 
 
 static func is_network(id: int) -> bool:

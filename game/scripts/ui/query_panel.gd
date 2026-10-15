@@ -56,6 +56,7 @@ func _build() -> void:
 	title_label = UIFactory.make_label("Inspect", UITheme.FONT_TITLE, UITheme.TITLE_TEXT)
 	title_label.add_theme_font_override("font", UITheme.DISPLAY_FONT)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	bar_row.add_child(title_label)
 	close_button = UIFactory.make_title_close_button("Close inspector [Escape]")
 	close_button.pressed.connect(close)
@@ -106,6 +107,7 @@ func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
 		rows.remove_child(child)
 		child.queue_free()
 	title_label.text = String(info.get("Building", "Inspect"))
+	title_label.tooltip_text = title_label.text
 	for key in info:
 		var value: Variant = info[key]
 		if String(key).begins_with("_"):
@@ -197,6 +199,22 @@ static func describe(city: City, sim: Simulation, at: Vector2i, underground_laye
 			out["Jobs"] = jobs
 			if zones.has_method("stage_of"):
 				out["Development stage"] = int(zones.call("stage_of", id))
+	# Inspect only on selection or completed source updates; no render-time census.
+	if sim != null and Zones.is_agricultural(zone_kind):
+		var agriculture := sim.get_system(&"agriculture") as AgricultureSystem
+		if agriculture != null:
+			var farm := agriculture.inspect_tile(at)
+			if not farm.is_empty():
+				out["#Agriculture"] = ""
+				out["Agricultural state"] = String(farm.state).capitalize()
+				out["Agricultural density"] = "High" if zone_kind == Zones.AGR_HIGH else "Low"
+				if farm.archetype != &"": out["Farm type"] = String(farm.archetype).replace("_", " ").capitalize()
+				out["Agricultural jobs"] = int(farm.jobs)
+				out["Water requested"] = int(farm.water_required)
+				out["Water supply"] = "Fully supplied" if bool(farm.water_supplied) else "Not fully supplied"
+				out["Power requested"] = int(farm.power_required)
+				out["Power supply"] = "Fully supplied" if bool(farm.power_supplied) else "Not fully supplied"
+				out["Development reason"] = String(farm.blocked_reason) if not String(farm.blocked_reason).is_empty() else "All development requirements met."
 	var record := city.facility(anchor)
 	var station := id in [Buildings.RAIL_STATION,Buildings.SUBWAY_STATION]
 	var resort := ResortThemes.key_for_building(id)

@@ -15,13 +15,15 @@ from a particular jurisdiction's map.
 | Dense Commercial | Deep red | `#ba4548` |
 | Light Industrial | Lavender | `#b99bd8` |
 | Dense Industrial | Purple | `#8054a6` |
+| Low-density Agriculture | Light olive | `#b7c985` |
+| High-density Agriculture | Deep olive | `#71884a` |
 | Military | Muted pink | `#d99bae` |
 | Airport | Light gray | `#acb2b8` |
 | Seaport | Slate gray | `#747c84` |
 
 `Zones` owns the palette. Bare zoned ground (including ground beneath standalone
 power lines), the zoning overlay and legend, and both Build and Explore maps
-derive their colors from it. Developed residential, commercial and industrial
+derive their colors from it. Developed agricultural, residential, commercial and industrial
 map tiles retain their zone's density shade; buildings without matching zoning
 fall back to the corresponding light shade. Transport symbols retain their
 existing map colors, including roads through military land.
@@ -35,9 +37,12 @@ The SVG icon authoring tool reads the same literal hex constants from
 `game/scripts/core/zones.gd`. Run `python3 tools/build_ui_icons.py` after changing
 the palette. Icon shapes, outlines and text labels continue to identify the
 tools alongside their colors. Demand meters use residential yellow, commercial
-red and industrial purple. Residential/commercial/industrial graph series and
+red, industrial purple and agricultural deep olive. Residential/commercial/industrial graph series and
 their demand histories use the darker family shades for legible lines against
-the ivory plot; their colors remain stable when other series are selected.
+the ivory plot; their colors remain stable when other series are selected. Agricultural demand,
+jobs, active lots and tax histories use deep olive. Agriculture adds two zone
+IDs after the existing roster and independent controls; the established RCI
+and transportation colors retain their exact values.
 
 The colors are a visual convention; zone IDs, city bytes, growth rules, costs,
 and saved cities do not change.

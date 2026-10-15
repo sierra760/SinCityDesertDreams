@@ -115,6 +115,9 @@ func sync_power(layers: Dictionary = {}) -> void:
 			# Bridges carry electricity but do not need an outage warning.
 			if Buildings.category(code) == Buildings.Category.BRIDGE:
 				continue
+			# Conductive farm plots with no electrical load cannot have an outage.
+			if Buildings.is_agricultural(code) and UtilityParams.power_load(code) == 0:
+				continue
 			var anchor := city.anchor_of(i % City.WIDTH, i / City.WIDTH)
 			if seen.has(anchor):
 				continue

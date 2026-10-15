@@ -181,6 +181,11 @@ func _run_census(ctx: SimContext) -> void:
 	var ports := ctx.system(&"ports")
 	if ports != null and ports.has_method("jobs"):
 		jobs += int(ports.call("jobs"))
+	var agriculture := ctx.system(&"agriculture")
+	if agriculture != null and agriculture.has_method("jobs"):
+		var agricultural_jobs := int(agriculture.call("jobs"))
+		jobs += agricultural_jobs
+		ctx.stats.agricultural_jobs = agricultural_jobs
 	ctx.stats.jobs = jobs
 
 
@@ -691,11 +696,13 @@ func load(data: Dictionary) -> void:
 			if _uncounted(ctx.stats):
 				var counted := _census.duplicate()
 				var jobs := ctx.stats.jobs
+				var agricultural_jobs := ctx.stats.agricultural_jobs
 				_run_census(ctx)
 				if residents() <= 0:
 					# Nobody to count: leave the saved figures exactly as they were.
 					_census = counted
 					ctx.stats.jobs = jobs
+					ctx.stats.agricultural_jobs = agricultural_jobs
 				_settle_city(ctx)
 			_settled = true
 		if ctx.city.status < 0 or ctx.city.status >= PopulationParams.STATUS_NAMES.size():

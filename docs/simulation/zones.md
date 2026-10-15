@@ -297,3 +297,16 @@ Snapshots without the news counters load with zero totals. Saved counters are
 restored exactly; the next western phase resets both for the new month.
 
 Everything else is recomputed from the map at the next pass.
+
+## Agricultural land
+
+Low-density Agriculture (`Zones.AGR_LOW`, 10, $2/tile) and high-density
+Agriculture (`Zones.AGR_HIGH`, 11, $5/tile) use a separate
+[AgricultureSystem](agriculture.md). The RCI family tables and saved
+`Vector3i` demand retain three components. Agriculture runs after the RCI
+phases on days 5 and 6. Its active jobs contribute to housing demand and the
+shared employment total; they do not become industrial capacity.
+
+The status bar adds an independent A demand bar. Budget offers its own
+Agriculture tax row, and Inspect reports live farm state, density, requested
+utility loads, full-footprint supply and the current development reason.

@@ -12,6 +12,10 @@ extends RefCounted
 # ── Demand and population ────────────────────────────────────────────────
 ## Residential, commercial and industrial demand, each in [-999, 999].
 var demand := Vector3i.ZERO
+## Independent agricultural demand, displayed in [-999, 999].
+var demand_agricultural := 0
+var agricultural_jobs := 0
+var agricultural_lots := 0
 var population := 0            ## ordinary residents (arcologies excluded)
 var arcology_population := 0
 ## Twenty cohorts of five years each.
@@ -44,6 +48,7 @@ var unemployment := 0
 var tax_residential := 7
 var tax_commercial := 7
 var tax_industrial := 7
+var tax_agricultural := 7
 ## Per-sector industrial tax rates, indexed like IndustrySectors.
 var sector_taxes := PackedInt32Array([7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7])
 ## Funding percentages 0..100.
@@ -161,6 +166,8 @@ func from_dict(data: Dictionary) -> void:
 					arr.append(item)
 			_:
 				set(p.name, v)
+
+	tax_agricultural = clampi(tax_agricultural, AgricultureParams.TAX_MIN, AgricultureParams.TAX_MAX)
 
 
 ## Whether a saved JSON value can stand in for a field holding `current`.

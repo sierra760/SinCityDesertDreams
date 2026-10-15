@@ -167,3 +167,25 @@ grain sheet, and prompt/material provenance. Editable building masters are retai
 
 These models and textures are licensed under CC BY-NC-SA 4.0, not the GPL;
 see the [licensing scope](../../LICENSING.md).
+
+### Original agricultural lots
+
+The sixteen agricultural models follow the live `Buildings` roster: ten working
+farm archetypes and prepared/dormant plots at 1×1, 2×2 and 3×3. They are original
+procedural Blender geometry with packed original surface swatches, 16 metres per
+tile, +Y up/+Z front and a single runtime scale of 1/16. Each visible lot remains
+below 20,000 triangles and has a grounded collision support. Greenhouses contain
+real growing benches behind translucent glazing. Static farms contain no animals.
+
+`tools/blender_exploration/build_agriculture.py --lots` builds only these models;
+it resolves numeric IDs from the current roster and refuses occupied identities.
+`docs/art/agriculture.json` records matching bounds, hashes, utility/job values,
+triangle counts and stock enclosures. `tools/model_art/agriculture.py` is the shared
+serializable definition of closed fences, fixed gates, shelter and water/feed
+obstacles; livestock navigation consumes the same geometry in a subsequent step.
+`tools/check_agriculture_assets.py` checks actual GLB geometry against that contract.
+
+Farm import sidecars use `gltf/embedded_image_handling=2` (Embed as Basis
+Universal), keeping the small original swatches in the imported scene and avoiding
+extracted sibling PNGs. Historical models retain their existing import policy.
+The Godot farm test checks actual imported textures are built-in and repeat.

@@ -19,6 +19,8 @@ const ZONE_SERIES_COLORS := {
 	&"residents": Zones.COLOR_RES_HIGH, &"demand_residential": Zones.COLOR_RES_HIGH,
 	&"commercial": Zones.COLOR_COM_HIGH, &"demand_commercial": Zones.COLOR_COM_HIGH,
 	&"industrial": Zones.COLOR_IND_HIGH, &"demand_industrial": Zones.COLOR_IND_HIGH,
+	&"agricultural_jobs": Zones.COLOR_AGR_HIGH, &"agricultural_lots": Zones.COLOR_AGR_HIGH,
+	&"demand_agricultural": Zones.COLOR_AGR_HIGH, &"taxes_agricultural": Zones.COLOR_AGR_HIGH,
 }
 const SERIES_LABELS := {
 	&"population": "Population", &"residents": "Residential", &"commercial": "Commercial",
@@ -28,6 +30,8 @@ const SERIES_LABELS := {
 	&"education": "Education", &"demand_residential": "Residential demand",
 	&"demand_commercial": "Commercial demand", &"demand_industrial": "Industrial demand",
 	&"transit_riders": "Transit riders",
+	&"agricultural_jobs": "Agricultural jobs", &"agricultural_lots": "Active farm lots",
+	&"demand_agricultural": "Agricultural demand", &"taxes_agricultural": "Agricultural taxes",
 }
 
 var _sim: Simulation
@@ -120,7 +124,7 @@ class GraphCanvas extends Control:
 
 	## A value as the axis and end labels print it: dollars for Funds.
 	static func value_text(name: StringName, value: int) -> String:
-		if name == &"money":
+		if name in [&"money", &"taxes_agricultural"]:
 			return NoticeLines.money(value)
 		return UIFactory.commafy_signed(value)
 
@@ -347,7 +351,8 @@ func _build() -> void:
 
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Keep the plot at its readable natural height beside the taller series picker.
+	right.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var range_row := UIFactory.WrappingActions.new()
 	var span := UIFactory.make_label("Span")
 	# Before entering the tree, inherited theme lookup still uses the engine font.

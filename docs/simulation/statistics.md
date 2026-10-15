@@ -104,3 +104,21 @@ Read on the sampling day:
 `save()` returns `{"samples": int, "status_lines": [String], "last_status": int}`.
 The series themselves are part of `CityStats.history`, which the city save
 already carries. `load()` restores the three fields and tolerates missing ones.
+
+## Agricultural history and controls
+
+Four independent monthly series are appended to the existing roster:
+
+| Series | Sample |
+| --- | --- |
+| `demand_agricultural` | Independent agricultural demand, −999…999 |
+| `agricultural_jobs` | Active farm jobs |
+| `agricultural_lots` | Active farm lots, one per footprint anchor |
+| `taxes_agricultural` | Year-to-date agricultural tax ledger dollars |
+
+Graphs labels these Agricultural demand, Agricultural jobs, Active farm lots
+and Agricultural taxes, using the stable deep olive `#71884a` even when other
+series are selected. They follow the same monthly sampling, history retention
+and saved-history rules as the other series. The A bar reads the cheap scalar
+`CityStats.demand_agricultural`; it never runs a farm census while drawing.
+RCI demand and its saved array retain three components.

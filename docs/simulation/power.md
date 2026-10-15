@@ -86,7 +86,8 @@ still apply. Zoned line tiles can develop into buildings through normal growth.
    ordinary roads remain nonconductive. In that flag layer, bit `0x80` marks a
    conductor and `0x40` marks a powered tile.
 2. **Consumers.** Every tile of a developed lot that is not a power plant
-   draws `LOAD_PER_TILE` units. A 3×3 office block therefore draws nine units
+   draws `LOAD_PER_TILE` units, except agricultural lots, which use their
+   archetype load (see Agricultural power below). A 3×3 office draws nine units
    and a 1×1 house draws one. Lines and crossings draw nothing.
 3. **Generation.** Each plant anchor contributes the generation for its kind:
    - Fixed plants: `PLANT_OUTPUT[key]` (coal, gas, oil, nuclear, microwave,
@@ -109,9 +110,10 @@ still apply. Zoned line tiles can develop into buildings through normal growth.
    when the energy conservation ordinance is on. Its demand is the sum of its
    consumers' loads.
 6. **Distribution.** Walk the network in fill order. Plant tiles are always
-   powered and cost nothing. Every other tile is powered while the budget is
-   positive; a consumer tile spends `LOAD_PER_TILE` from the budget, a conduit
-   tile spends nothing. When the budget runs out the remaining tiles stay dark.
+   powered and cost nothing. A consumer tile is powered only when the remaining
+   budget covers its complete `UtilityParams.power_load(id)`; serving it spends
+   that full load. Zero-load conduit tiles spend nothing and remain powered
+   while the network has positive remaining budget.
    A network whose demand exceeds its budget is short; consumers on it beyond
    the budget brown out in fill order, farthest from the seed last.
 7. **Reporting.** Capacity and demand are summed over the whole map (rules 3
@@ -159,3 +161,15 @@ still apply. Zoned line tiles can develop into buildings through normal growth.
 `save()` returns `{"shortage": bool, "consumed": int}`. Plant ages live in
 `city.facilities` and the service bits in the `flags` layer, both saved with
 the city.
+
+## Agricultural power
+
+Agriculture uses `UtilityParams.power_load(id)` per active footprint tile.
+Every low-density archetype draws zero power. High-density greenhouse draws
+2 units/tile; nursery, dairy, feedlot and market garden draw 1. Prepared and
+dormant plots draw zero. Agricultural ground remains olive beneath the lot
+and standalone power lines. Distribution requires a full tile load; farm
+activation and recovery require full service across the footprint. The
+read-only current-capacity preview uses established plant output and cannot
+change generation, fuel, facility records, city funds or RNG. Inspect shows
+requested total units and full-footprint supply. See [Agriculture](agriculture.md).

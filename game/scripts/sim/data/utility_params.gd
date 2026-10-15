@@ -198,11 +198,47 @@ static func conducts_water_building(id: int) -> bool:
 
 
 static func draws_power(id: int) -> bool:
-	return is_lot(id) and not Buildings.is_power_plant(id)
+	return power_load(id) > 0
 
 
 static func draws_water(id: int) -> bool:
-	return is_lot(id) and not is_water_facility(id)
+	return water_load(id) > 0
+
+
+## Preserve the historic one-unit load for every pre-agriculture consumer.
+static func water_load(id: int) -> int:
+	if Buildings.is_agricultural(id):
+		return AgricultureParams.water_load(id)
+	return LOAD_PER_TILE if is_lot(id) and not is_water_facility(id) else 0
+
+
+static func power_load(id: int) -> int:
+	if Buildings.is_agricultural(id):
+		return AgricultureParams.power_load(id)
+	return LOAD_PER_TILE if is_lot(id) and not Buildings.is_power_plant(id) else 0
+
+
+## Pure allocation in flood order, shared by distribution and lot preflight.
+## A consumer tile is supplied only when its entire load fits. Free conduits
+## retain the legacy rule that service reaches them while budget remains.
+static func allocate_network(tiles: PackedInt32Array, bld: PackedInt32Array,
+		budget: int, water: bool, rect: Rect2i = Rect2i(), replacement: int = -1) -> Dictionary:
+	var supplied := PackedByteArray()
+	supplied.resize(tiles.size())
+	var consumed := 0
+	for q in tiles.size():
+		var t := tiles[q]
+		var units := water_load(bld[t]) if water else power_load(bld[t])
+		@warning_ignore("integer_division")
+		if replacement >= 0 and rect.has_point(Vector2i(t % City.WIDTH, t / City.WIDTH)):
+			units = replacement
+		if units > 0 and budget >= units:
+			supplied[q] = 1
+			budget -= units
+			consumed += units
+		elif units == 0 and budget > 0:
+			supplied[q] = 1
+	return {"supplied": supplied, "consumed": consumed, "remaining": budget}
 
 
 static func ages(building_key: StringName) -> bool:
@@ -339,3 +375,94 @@ static func is_anchor_tile(bld: PackedInt32Array, zn: PackedByteArray, i: int) -
 	@warning_ignore("integer_division")
 	var y := i / City.WIDTH
 	return City.is_footprint_anchor(bld, zn, x, y)
+
+
+## Read-only projection of the current established source outputs and storage.
+## Source generation and weather are deliberately never sampled here.
+static func can_supply_lot(city: City, rect: Rect2i, load_per_tile: int,
+		water: bool, conservation: bool = false) -> bool:
+	if load_per_tile == 0: return true
+	if load_per_tile < 0 or not rect.has_area() or rect.intersection(Rect2i(0, 0, City.WIDTH, City.HEIGHT)) != rect:
+		return false
+	var n := City.WIDTH * City.HEIGHT
+	var bld := city.building.data
+	var flags := city.flags.data.duplicate()
+	var outputs := PackedInt32Array()
+	outputs.resize(n)
+	var seeds := PackedInt32Array()
+	var bit := TileFlags.CONDUCTS_WATER if water else TileFlags.CONDUCTS_POWER
+	var conduct := conducts_water_table() if water else conducts_power_table()
+	var open := open_ground_table()
+	var served := 0
+	for x in City.WIDTH:
+		for y in City.HEIGHT:
+			var t := y * City.WIDTH + x
+			var id := bld[t]
+			var cell := Vector2i(x, y)
+			var carries := conduct[id] != 0 or rect.has_point(cell)
+			if water:
+				carries = carries or conducts_water_code(city.underground.data[t])
+			else:
+				var signature := Vector2i(id, city.zone.data[t] & Zones.KIND_MASK)
+				carries = carries or (open[id] != 0 and signature.y != 0) \
+					or city.imported_power_links.get(t, Vector2i(-1, -1)) == signature
+			if carries: flags[t] |= bit
+			else: flags[t] &= ~bit
+			if water and id == Buildings.WATER_TOWER:
+				if (flags[t] & TileFlags.WATERED) != 0: seeds.append(t)
+			elif (water and id in [Buildings.WATER_PUMP, Buildings.DESALINATION]) \
+					or (not water and Buildings.is_power_plant(id)):
+				if not water: seeds.append(t)
+				if not is_anchor_tile(bld, city.zone.data, t): continue
+				var rec := city.facility(cell)
+				if rec.get("key", &"") != Buildings.key(id): continue
+				if water and (flags[t] & TileFlags.POWERED) == 0: continue
+				outputs[t] = maxi(0, int(rec.get("output" if water else "capacity", 0)))
+				if water and outputs[t] > 0: seeds.append(t)
+	var visited := PackedByteArray()
+	visited.resize(n)
+	for seed in seeds:
+		if visited[seed] != 0 or (flags[seed] & bit) == 0: continue
+		var tiles := flood_tiles(seed, flags, bit, visited)
+		# Packed arrays are values; publish the visited component explicitly.
+		for t in tiles: visited[t] = 1
+		var capacity := 0
+		var demand := 0
+		for t in tiles:
+			capacity += outputs[t]
+			if water and bld[t] == Buildings.WATER_TOWER and (flags[t] & TileFlags.WATERED) != 0:
+				capacity += TOWER_UNITS_PER_TILE
+			@warning_ignore("integer_division")
+			var cell := Vector2i(t % City.WIDTH, t / City.WIDTH)
+			demand += load_per_tile if rect.has_point(cell) else (water_load(bld[t]) if water else power_load(bld[t]))
+		if not water and conservation:
+			@warning_ignore("integer_division")
+			capacity += capacity / CONSERVATION_BONUS_DIVISOR
+		var allocation := allocate_network(tiles, bld, mini(demand, capacity) if water else capacity, water, rect, load_per_tile)
+		for q in tiles.size():
+			var t := tiles[q]
+			@warning_ignore("integer_division")
+			if rect.has_point(Vector2i(t % City.WIDTH, t / City.WIDTH)) and allocation.supplied[q] != 0:
+				served += 1
+	return served == rect.get_area()
+
+
+## Exact north/west/south/east order used by both live network fills and previews.
+static func flood_tiles(seed: int, flags: PackedByteArray, bit: int,
+		visited: PackedByteArray) -> PackedInt32Array:
+	var marks := visited.duplicate()
+	var tiles := PackedInt32Array([seed])
+	marks[seed] = 1
+	var head := 0
+	while head < tiles.size():
+		var t := tiles[head]
+		head += 1
+		var x := t % City.WIDTH
+		for j in [t - City.WIDTH if t >= City.WIDTH else -1,
+			t - 1 if x > 0 else -1,
+			t + City.WIDTH if t + City.WIDTH < flags.size() else -1,
+			t + 1 if x + 1 < City.WIDTH else -1]:
+			if j >= 0 and marks[j] == 0 and (flags[j] & bit) != 0:
+				marks[j] = 1
+				tiles.append(j)
+	return tiles

@@ -38,12 +38,18 @@ func same_members(a: Array, b: Array) -> bool:
 		if index < 0: return false
 		remaining.remove_at(index)
 	return true
-func shadow_triangles(node: Node, proxies: bool) -> Dictionary:
+## Include opaque proxies and retained direct casters (for example glazing).
+## Compiled visible surfaces have shadows OFF and must not be counted twice.
+func shadow_triangles(node: Node) -> Dictionary:
 	var result := {}
 	for instance: MeshInstance3D in meshes(node):
+		if instance.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF: continue
 		var mesh: Mesh = instance.mesh
-		if proxies:
-			if instance.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY: continue
+		var at := instance.transform
+		var ancestor := instance.get_parent()
+		while ancestor != node and ancestor != null:
+			if ancestor is Node3D: at = ancestor.transform * at
+			ancestor = ancestor.get_parent()
 		for surface: int in mesh.get_surface_count():
 			var arrays := mesh.surface_get_arrays(surface)
 			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -51,7 +57,7 @@ func shadow_triangles(node: Node, proxies: bool) -> Dictionary:
 			if indices.is_empty():
 				for i: int in vertices.size(): indices.append(i)
 			for i: int in range(0, indices.size(), 3):
-				var triangle := PackedVector3Array([vertices[indices[i]], vertices[indices[i+1]], vertices[indices[i+2]]])
+				var triangle := PackedVector3Array([at * vertices[indices[i]], at * vertices[indices[i+1]], at * vertices[indices[i+2]]])
 				result[triangle] = int(result.get(triangle, 0)) + 1
 	return result
 func bounds(node: Node) -> AABB:
@@ -179,7 +185,7 @@ func test_compiled_models_preserve_surfaces_lods_and_shadows() -> void:
 		check(same_members(signature(original), signature(actual)), "model %d exact raw vertex/index/normal/UV/color/LOD/material surfaces" % code)
 		check(same_members(shadows(original), shadows(actual)), "model %d exact shadow surfaces and shadow LODs" % code)
 		check(bounds(original).is_equal_approx(bounds(actual)), "model %d compiled culling bound is original union" % code)
-		check(shadow_triangles(original, false) == shadow_triangles(actual, true), "model %d opaque shadow proxy preserves every original oriented triangle" % code)
+		check(shadow_triangles(original) == shadow_triangles(actual), "model %d all shadow casters preserve every original oriented triangle" % code)
 		check(physics(original) == physics(actual), "model %d imported physical hierarchy, transforms and shared shapes" % code)
 		var again := catalog.instantiate_model(code)
 		var first_meshes := meshes(actual)
@@ -195,3 +201,42 @@ func test_compiled_models_preserve_surfaces_lods_and_shadows() -> void:
 	check(catalog.load_manifest("user://missing-runtime-catalog.json") == ERR_FILE_NOT_FOUND and catalog.runtime_scenes.is_empty(), "catalog reload invalidates compiled cache")
 	print("Catalog mesh instances: %d -> %d" % [original_count, runtime_count])
 	check(original_count > 2000 and runtime_count < 400, "catalog compilation cuts mesh node inventory by at least 80 percent")
+
+
+func test_mixed_opaque_proxy_and_transparent_fallback_shadow_geometry() -> void:
+	var source := Node3D.new()
+	for i: int in 3:
+		var instance := MeshInstance3D.new()
+		instance.name = "Glass" if i == 2 else "Opaque%d" % i
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,BoxMesh.new().surface_get_arrays(0))
+		var material := StandardMaterial3D.new()
+		if i == 2:
+			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			material.albedo_color = Color(1,1,1,.4)
+			instance.position.x = 2
+		mesh.surface_set_material(0,material)
+		instance.mesh = mesh
+		source.add_child(instance)
+	var expected := shadow_triangles(source)
+	var glass_mesh: Mesh = source.get_node("Glass").mesh
+	var packed := Compiler.compile(source,true)
+	var actual := packed.instantiate()
+	check_eq(shadow_triangles(actual),expected,"opaque proxies plus unchanged transparent direct casters")
+	var glass := actual.get_node("Glass") as MeshInstance3D
+	check(glass.mesh == glass_mesh,"unsupported glazing retains the exact shared mesh")
+	check_eq(glass.cast_shadow,GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	check_ne(shadow_triangles(actual),expected,"disabled fallback is detected")
+	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var proxy: MeshInstance3D
+	for instance: MeshInstance3D in meshes(actual):
+		if instance.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY: proxy = instance; break
+	check(proxy != null,"opaque geometry is compiled to a shadow proxy")
+	if proxy != null:
+		proxy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		check_ne(shadow_triangles(actual),expected,"missing opaque proxy is detected")
+		proxy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	actual.remove_child(glass);glass.free()
+	check_ne(shadow_triangles(actual),expected,"deleted fallback is detected")
+	source.free();actual.free()

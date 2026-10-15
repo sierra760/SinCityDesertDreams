@@ -28,6 +28,7 @@ enum Kind {
 	PLANT_TREE,
 	ARCOLOGY_FIX, ARCOLOGY_ALIBI, ARCOLOGY_VELVET, ARCOLOGY_AFTERGLOW, ARCOLOGY_LAST, ARCOLOGY_DUST,
 	ARCOLOGY_BODDY, ARCOLOGY_WOOLIER, ARCOLOGY_STOCKGROWERS, ARCOLOGY_FREMONT,
+	ZONE_AGR_LOW, ZONE_AGR_HIGH,
 }
 
 ## How the pointer drives a tool. RECT tools cover the dragged area; GLOBAL
@@ -65,6 +66,8 @@ const _TABLE := {
 	Kind.ZONE_COM_HIGH: ["Dense Commercial", 10, NO_BUILDING, Zones.COM_HIGH, Vector2i.ONE, &"zone_com_high", Mode.RECT, Group.ZONE],
 	Kind.ZONE_IND_LOW: ["Light Industrial", 5, NO_BUILDING, Zones.IND_LOW, Vector2i.ONE, &"zone_ind_low", Mode.RECT, Group.ZONE],
 	Kind.ZONE_IND_HIGH: ["Dense Industrial", 10, NO_BUILDING, Zones.IND_HIGH, Vector2i.ONE, &"zone_ind_high", Mode.RECT, Group.ZONE],
+	Kind.ZONE_AGR_LOW: ["Low-density Agriculture", 2, NO_BUILDING, Zones.AGR_LOW, Vector2i.ONE, &"zone_agr_low", Mode.RECT, Group.ZONE],
+	Kind.ZONE_AGR_HIGH: ["High-density Agriculture", 5, NO_BUILDING, Zones.AGR_HIGH, Vector2i.ONE, &"zone_agr_high", Mode.RECT, Group.ZONE],
 	Kind.AIRPORT: ["Airport", 250, NO_BUILDING, Zones.AIRPORT, Vector2i.ONE, &"airport", Mode.RECT, Group.TRANSIT],
 	Kind.SEAPORT: ["Seaport", 150, NO_BUILDING, Zones.SEAPORT, Vector2i.ONE, &"seaport", Mode.RECT, Group.TRANSIT],
 	Kind.TREES: ["Trees", 3, Buildings.TREES_1, -1, Vector2i.ONE, &"trees", Mode.LINE, Group.NATURE],

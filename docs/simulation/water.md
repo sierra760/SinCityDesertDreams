@@ -69,7 +69,8 @@ the construction tools follow when they lay pipes and subways.
    layers whenever the system runs.
 2. **Consumers.** Every tile of a developed lot draws `LOAD_PER_TILE` units,
    except the four water facilities (pump, tower, treatment, desalination),
-   which draw nothing. Power plants do consume water. Pipes draw nothing.
+   which draw nothing. Agriculture uses its archetype load (see Agricultural
+   irrigation below). Power plants do consume water. Pipes draw nothing.
 3. **Sources.** A source only runs when its anchor tile is `POWERED`.
    - Pump: `WATER_TABLE_FACTOR * water_table + floor(rain / RAIN_DIVISOR)`
      plus `FRESH_NEIGHBOR_YIELD` for every fresh (non-salt) water tile among
@@ -95,7 +96,7 @@ the construction tools follow when they lay pipes and subways.
 6. **Distribution.** Capacity is sources plus released storage; consumed is
    `min(demand, capacity)`. Walk the network in fill order: source and
    treatment tiles are watered when powered; every other tile is watered while
-   consumed units remain, a consumer tile spending `LOAD_PER_TILE`, a pipe or
+   enough units remain for the full `UtilityParams.water_load(id)`, a pipe or
    conduit spending nothing. Consumers past the budget stay dry, farthest from
    the seed last.
 7. **Treatment.** The city's consumption counts as treated when
@@ -152,3 +153,16 @@ Codes 1–15 and 31–34 conduct water. `UtilityParams` exposes `is_pipe`,
 Tower contents live in the `flags` layer and facility records in the city,
 both saved with the city. Capacity, demand, unserved buildings and storage
 are read back from the saved `CityStats`.
+
+## Agricultural irrigation
+
+Agriculture uses `UtilityParams.water_load(id)` per active footprint tile,
+rather than the ordinary one-unit load. Vegetables, alfalfa, dairy and market
+gardens draw 3 units/tile; greenhouse, nursery and feedlot draw 2; grain,
+cattle range and sheep pasture draw 1. Prepared and dormant plots draw zero.
+Distribution requires the whole per-tile load before marking a tile supplied.
+Activation and recovery require every tile in the proposed farm footprint to
+receive its full load, using a detached current-capacity allocation. This
+preview consumes no live storage, weather draw or city funds. Inspect reports
+the requested footprint total and whether the whole footprint is supplied.
+See [Agriculture](agriculture.md) for the load table and lifecycle.

@@ -374,3 +374,15 @@ func _street_mouse_event(event: InputEvent) -> bool:
 		_mark_handled()
 		return true
 	return false
+
+
+## City and Explore advance the same actors; the host supplies the active clock.
+func sync_livestock(delta: float, source: AgricultureSystem, paused: bool, player_world: Vector3 = Vector3.INF) -> void:
+	if view == null or view.livestock == null: return
+	view.livestock.sync_source(source)
+	var camera: Camera3D = view.exploration_camera() if is_instance_valid(view.exploration_camera()) else view.camera
+	view.livestock.advance(delta,camera,paused,player_world)
+
+
+func invalidate_livestock_source() -> void:
+	if view != null and view.livestock != null: view.livestock.invalidate_source()

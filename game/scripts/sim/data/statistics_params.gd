@@ -28,4 +28,5 @@ const SERIES: Array[StringName] = [
 	&"power_percent", &"water_percent", &"unemployment", &"health", &"education",
 	&"demand_residential", &"demand_commercial", &"demand_industrial",
 	&"transit_riders",
+	&"demand_agricultural", &"agricultural_jobs", &"agricultural_lots", &"taxes_agricultural",
 ]

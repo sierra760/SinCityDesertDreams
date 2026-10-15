@@ -111,7 +111,8 @@ static func is_origin(id: int) -> bool:
 ## Lots that trips arrive at.
 static func is_destination(id: int) -> bool:
 	var c := Buildings.category(id)
-	return c == Buildings.Category.COMMERCIAL or c == Buildings.Category.INDUSTRIAL
+	return c == Buildings.Category.COMMERCIAL or c == Buildings.Category.INDUSTRIAL \
+		or (c == Buildings.Category.AGRICULTURAL and AgricultureParams.jobs_of(id) > 0)
 
 
 ## Weight of one trip: the side of the lot's footprint.

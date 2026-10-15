@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## The bottom status bar: active tool, funds, date, population, the three
+## The bottom status bar: active tool, funds, date, population, the RCI and agricultural
 ## demand bars, simulation speed and the current alerts.
 class_name StatusBar
 extends PanelContainer
@@ -104,30 +104,39 @@ func _sync_phone_summary() -> void:
 	_details_button.tooltip_text = alert_label.text if not alert_label.text.is_empty() else "Tool, population, demand and simulation speed"
 
 
-## Three bars, one per zone family, growing up for positive demand and down
+## Four bars, one per zone family, growing up for positive demand and down
 ## for negative demand around a shared baseline.
 class DemandMeter:
 	extends Control
 	var demand := Vector3i.ZERO
+	var agricultural_demand := 0
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(60,28)
+		custom_minimum_size = Vector2(80,28)
 		mouse_filter = Control.MOUSE_FILTER_STOP
-		tooltip_text = "Residential, commercial and industrial demand"
+		_update_tooltip()
 
 	func set_demand(value: Vector3i) -> void:
 		demand = value
-		tooltip_text = "Demand: Residential %d · Commercial %d · Industrial %d\nPositive: room to grow. Negative: excess capacity." % [value.x,value.y,value.z]
+		_update_tooltip()
 		queue_redraw()
 
+	func set_agricultural_demand(value: int) -> void:
+		agricultural_demand = clampi(value, -DEMAND_LIMIT, DEMAND_LIMIT)
+		_update_tooltip()
+		queue_redraw()
+
+	func _update_tooltip() -> void:
+		tooltip_text = "Demand: Residential %d · Commercial %d · Industrial %d · Agriculture %d\nPositive: room to grow. Negative: excess capacity." % [demand.x,demand.y,demand.z,agricultural_demand]
+
 	func _draw() -> void:
-		var colors: Array[Color] = [UITheme.ZONE_R, UITheme.ZONE_C, UITheme.ZONE_I]
-		var values: Array[int] = [demand.x, demand.y, demand.z]
+		var colors: Array[Color] = [UITheme.ZONE_R, UITheme.ZONE_C, UITheme.ZONE_I, Zones.COLOR_AGR_HIGH]
+		var values: Array[int] = [demand.x, demand.y, demand.z, agricultural_demand]
 		var mid := size.y / 2.0
 		var half := mid - 1.0
-		var bar_w := size.x / 3.0 - 4.0
+		var bar_w := size.x / 4.0 - 4.0
 		draw_line(Vector2(0, mid), Vector2(size.x, mid), UITheme.BEVEL_DARK, 1.0)
-		for i in 3:
+		for i in 4:
 			var x := i * (bar_w + 4.0) + 2.0
 			var h := clampf(float(values[i]) / float(DEMAND_LIMIT), -1.0, 1.0) * half
 			var rect := Rect2(x, mid - maxf(h, 0.0), bar_w, absf(h))
@@ -176,9 +185,9 @@ func _build() -> void:
 	date_label = _cell(_metrics_row,"—",0)
 	population_label = _cell(_metrics_row,"Pop: 0",0)
 	population_label.tooltip_text = "Total city population"
-	_metrics_row.add_child(UIFactory.make_label("R / C / I",UITheme.FONT_SMALL))
+	_metrics_row.add_child(UIFactory.make_label("R / C / I / A",UITheme.FONT_SMALL))
 	demand_meter = DemandMeter.new()
-	demand_meter.custom_minimum_size = Vector2(60,28)
+	demand_meter.custom_minimum_size = Vector2(80,28)
 	_metrics_row.add_child(demand_meter)
 	speed_label = _cell(_metrics_row,"Paused",0)
 	emergency_button = UIFactory.make_button("Go to emergency")
@@ -246,6 +255,11 @@ func set_demand(demand: Vector3i) -> void:
 	demand_meter.set_demand(demand)
 
 
+## Independent scalar: saved RCI demand remains three components.
+func set_agricultural_demand(value: int) -> void:
+	demand_meter.set_agricultural_demand(value)
+
+
 func set_speed(speed: int) -> void:
 	var editing_hint := "Found City to start the simulation clock."
 	speed_label.text = "Stopped" if _editing else String(GameClock.SPEED_NAMES.get(speed, "Paused"))
@@ -283,6 +297,7 @@ func show_editing(city_name: String) -> void:
 	# No earlier city's summary while the land is shaped.
 	population_label.tooltip_text = "The city's name. Found the city to start its clock and treasury."
 	set_demand(Vector3i.ZERO)
+	set_agricultural_demand(0)
 	set_speed(GameClock.Speed.PAUSED)
 	set_alerts(PackedStringArray())
 	_sync_phone_summary()
@@ -299,6 +314,7 @@ func refresh(sim: Simulation) -> void:
 	set_date(sim.date_text())
 	set_population(sim.stats.total_population())
 	set_demand(sim.stats.demand)
+	set_agricultural_demand(sim.stats.demand_agricultural)
 	var statistics := sim.get_system(&"statistics")
 	if statistics != null and statistics.has_method("status_lines"):
 		# Built from the city as it is now, so it never contradicts the bar.

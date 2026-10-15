@@ -26,6 +26,10 @@ static func capacities(use_native_zones: bool) -> PackedInt32Array:
 		_fallback_capacity.resize(Buildings.COUNT)
 		_zone_capacity.resize(Buildings.COUNT)
 		for id: int in Buildings.COUNT:
+			if Buildings.is_agricultural(id):
+				_fallback_capacity[id] = AgricultureParams.jobs_of(id)
+				_zone_capacity[id] = _fallback_capacity[id]
+				continue
 			_fallback_capacity[id] = PopulationParams.lot_capacity(id)
 			var capacity := ZoneParams.population_of(id)
 			_zone_capacity[id] = capacity if capacity > 0 else _fallback_capacity[id]

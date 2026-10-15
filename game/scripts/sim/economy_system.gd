@@ -51,7 +51,7 @@ func _init() -> void:
 				_assessment[id] = EconomyParams.LOT_VALUE[mini(edge, EconomyParams.LOT_VALUE.size() - 1)]
 			Buildings.Category.ABANDONED:
 				_assessment[id] = EconomyParams.LOT_VALUE[mini(edge, EconomyParams.LOT_VALUE.size() - 1)] / EconomyParams.ABANDONED_VALUE_DIVISOR
-			Buildings.Category.CONSTRUCTION, Buildings.Category.RUBBLE, Buildings.Category.NONE:
+			Buildings.Category.CONSTRUCTION, Buildings.Category.RUBBLE, Buildings.Category.NONE, Buildings.Category.AGRICULTURAL:
 				pass
 			Buildings.Category.REWARD:
 				_assessment[id] = EconomyParams.LANDMARK_VALUE
@@ -482,6 +482,9 @@ func _assess_city(ctx: SimContext) -> void:
 		if id == Buildings.NONE or (multi[id] and not (zones[i] & Zones.CORNER_NW)):
 			continue
 		value += _assessment[id]
+	var agriculture := ctx.system(&"agriculture")
+	if agriculture != null and agriculture.has_method("assessed_value"):
+		value += int(agriculture.call("assessed_value"))
 	_city_value = value
 	ctx.stats.city_value = value
 

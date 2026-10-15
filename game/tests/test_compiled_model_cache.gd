@@ -45,7 +45,10 @@ func test_cached_scene_equals_fresh_compilation_and_skips_the_compiler() -> void
 	var fresh := Catalog.new()
 	fresh.compiled_cache_enabled = false
 	check_eq(fresh.load_manifest(Catalog.ROOT + "catalog.json"), OK, "catalog loads")
-	var codes: Array = fresh.entries.keys()
+
+	# Persistent-cache equality samples remain on disk-cache eligible models.
+	# Embedded farm textures have their own complete sixteen-model test below.
+	var codes: Array = fresh.entries.keys().filter(func(code: int) -> bool: return not Buildings.is_agricultural(code))
 	codes.sort()
 	var sample: Array = [codes[0], codes[codes.size() / 2], codes[-1]]
 	var writer := Catalog.new()
@@ -122,3 +125,40 @@ func test_mobile_cache_lives_in_the_os_cache_directory() -> void:
 	check_eq(Catalog.cache_dir_for(true, ""), Catalog.COMPILED_CACHE_DIR, "an unavailable cache directory keeps the existing location")
 	if not OS.has_feature("ios") and not OS.has_feature("android"):
 		check_eq(Catalog.compiled_cache_dir(), Catalog.COMPILED_CACHE_DIR, "this desktop run uses user://")
+
+
+func test_agriculture_uses_memory_compilation_and_ignores_persistent_entries() -> void:
+	var catalog := Catalog.new()
+	catalog.load_manifest(Catalog.ROOT + "catalog.json")
+	var count := 0
+	for code: int in catalog.entries:
+		if not Buildings.is_agricultural(code): continue
+		count += 1
+		var path := catalog.compiled_cache_path(code,true)
+		if FileAccess.file_exists(path): DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+		var first := catalog.instantiate_model(code)
+		check(first != null)
+		check(catalog.runtime_scenes.get([code,true]) is PackedScene,"farms still compile")
+		check(not FileAccess.file_exists(path),"farm compilation does not persist nonserializable embedded textures")
+		var second := catalog.instantiate_model(code)
+		var a := first.find_children("*","MeshInstance3D",true,false)
+		var b := second.find_children("*","MeshInstance3D",true,false)
+		check(a.size()>0 and a.size()==b.size())
+		if not a.is_empty() and not b.is_empty(): check(a[0].mesh==b[0].mesh,"repeated lots share the in-memory compiled mesh")
+		first.free();second.free()
+		# A valid but obsolete entry must not even be handed to ResourceLoader.
+		# It represents previously written farm caches whose embedded buffers
+		# cannot restore on a native renderer. No malformed-load error is needed.
+		var obsolete := Node3D.new();obsolete.name="ObsoleteFarmCache"
+		var packed := PackedScene.new();packed.pack(obsolete);obsolete.free()
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(Catalog.compiled_cache_dir()))
+		ResourceSaver.save(packed,path)
+		var digest := FileAccess.get_sha256(path)
+		var reader := Catalog.new();reader.load_manifest(Catalog.ROOT+"catalog.json")
+		var current := reader.instantiate_model(code)
+		check_ne(current.get_child(0).name,&"ObsoleteFarmCache","existing farm disk entries are ignored")
+		check_eq(reader.compiled_cache_hits,0)
+		check_eq(reader.compiled_cache_misses,1)
+		check_eq(FileAccess.get_sha256(path),digest,"farm policy neither reads nor rewrites old cache")
+		current.free();DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	check_eq(count,16,"all developed, prepared and dormant farm models covered")

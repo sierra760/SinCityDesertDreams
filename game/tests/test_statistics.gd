@@ -28,7 +28,9 @@ func test_key_and_names() -> void:
 	var s := make_system(ctx)
 	check_eq(s.key, &"statistics")
 	var names: Array[StringName] = s.names()
-	check_eq(names.size(), 18, "seventeen city series plus transit riders")
+	check_eq(names.size(), 22, "city series, transit riders and four agricultural histories")
+	for agricultural: StringName in [&"demand_agricultural", &"agricultural_jobs", &"agricultural_lots", &"taxes_agricultural"]:
+		check(names.has(agricultural))
 	check_eq(names[0], &"population")
 	check(names.has(&"money"))
 	check(names.has(&"demand_industrial"))

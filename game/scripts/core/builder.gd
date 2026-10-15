@@ -1204,6 +1204,8 @@ func _portal_site(p: Vector2i) -> String:
 
 func _zone_eligible(p: Vector2i) -> bool:
 	var id := city.building_at(p.x, p.y)
+	if Buildings.is_agricultural(id):
+		return false # Demolish the entire occupied footprint before re-zoning.
 	if not city.is_flat(p.x, p.y) or not _dry(p):
 		return false
 	if (id >= Buildings.POWER_LINE_FIRST and not NetworkShapes.is_plain_power(id)) \

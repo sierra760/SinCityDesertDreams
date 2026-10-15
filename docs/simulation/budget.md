@@ -57,7 +57,7 @@ prime rate, and decides when the city is in fiscal crisis or bankrupt.
 ## Rules
 
 1. **Accounts.** The ledger has income accounts `taxes_residential`,
-   `taxes_commercial`, `taxes_industrial`, `transit_fares`,
+   `taxes_commercial`, `taxes_industrial`, `taxes_agricultural`, `transit_fares`,
    `ordinance_income` and `neighbor_trade` (the last is written by the
    neighbor system and may be negative), and expense accounts
    `ordinance_cost`, `police`, `fire`, `health`, `education`, `transport`,
@@ -158,3 +158,16 @@ booked), the year of the last settlement, and the crisis flags
 `stats.ledger`, `stats.last_year_ledger`, `stats.bonds`, `stats.prime_rate`,
 `stats.city_value`, `stats.auto_budget` and `stats.bankrupt` are saved with
 `CityStats`.
+
+## Independent agricultural tax
+
+`CityStats.tax_agricultural` starts at 7%, clamps to 0–20%, and has its own
+Agriculture row in Budget. Changing it leaves the three RCI rates and all
+industry-sector rates alone. Active agricultural jobs assess $100 each;
+prepared and dormant farms assess zero. The annual agricultural tax is
+`active_jobs * 100 * tax_agricultural / 100`, accrued through the existing
+monthly twelfths and year-end settlement rules under `taxes_agricultural`.
+Budget lists this income account independently, and Graphs offers its history.
+The agricultural rate also feeds the existing tax-pressure curve for its own
+demand; it does not replace any RCI tax or demand component.
+See [Agriculture](agriculture.md).

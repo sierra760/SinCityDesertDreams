@@ -12,6 +12,8 @@ import json
 import math
 import re
 import struct
+
+from model_art.agriculture import building_roster
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,11 +38,20 @@ def check() -> tuple[int, int]:
             assert hashlib.sha256(path.read_bytes()).hexdigest() == row['sha256'], f'{name}: shared texture hash'
             assert 'mipmaps/generate=true' in path.with_suffix(path.suffix+'.import').read_text(), f'{name}: mipmaps'
             shared_images[name] = row
-    assert sorted(e["code"] for e in entries) == list(range(112, 266)), "coverage or duplicate code"
+    roster = building_roster(ROOT)
+    expected_codes = [row["code"] for row in roster if row["code"] >= 112]
+    farm_codes = {row["code"] for row in roster if row["category"] == "AGRICULTURAL"}
+    assert sorted(e["code"] for e in entries) == expected_codes, "coverage or duplicate code"
     total_bytes = 0
     for entry in entries:
         code = entry["code"]
-        assert set(entry) == FIELDS, f"{code}: unexpected runtime metadata"
+        expected_fields = FIELDS | ({"lettering"} if "lettering" in entry else set())
+        assert set(entry) == expected_fields, f"{code}: unexpected runtime metadata"
+        if "lettering" in entry:
+            lettering = entry["lettering"]
+            assert isinstance(lettering, dict) and set(lettering) == {"family", "source", "output", "text"}, f"{code}: lettering provenance fields"
+            assert all(isinstance(value, str) and value.strip() for value in lettering.values()), f"{code}: lettering provenance values"
+            assert lettering["output"] == "outlined static mesh; font file not embedded", f"{code}: lettering output policy"
         name = f"{code}-blender.glb"
         assert entry["path"] == f"res://assets/desert-dreams-3d/{name}", f"{code}: asset path"
         assert entry["scale"] == 1 / 16 and entry["meters_per_tile"] == 16, f"{code}: scale"
@@ -65,7 +76,7 @@ def check() -> tuple[int, int]:
         sidecar = (ASSETS / (name + ".import")).read_text()
         for required in (f'source_file="{entry["path"]}"', 'meshes/generate_lods=true',
                          'nodes/use_name_suffixes=true', 'gltf/naming_version=2',
-                         'gltf/embedded_image_handling=1'):
+                         'gltf/embedded_image_handling=%d' % (2 if code in farm_codes else 1)):
             assert required in sidecar, f"{code}: missing import setting {required}"
         if code == 203:
             tail = sidecar.split("_subresources=", 1)[1]

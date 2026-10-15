@@ -249,6 +249,13 @@ func _add_port_jobs(ctx: SimContext) -> void:
 	var ports := ctx.system(&"ports")
 	if ports != null and ports.has_method("jobs"):
 		ctx.stats.jobs += int(ports.call("jobs"))
+	var agriculture := ctx.system(&"agriculture")
+	if agriculture != null and agriculture.has_method("jobs"):
+		var agricultural_jobs := int(agriculture.call("jobs"))
+		ctx.stats.jobs += agricultural_jobs
+		# Keep the included share aligned with this replacement census so a
+		# subsequent agricultural publication replaces it exactly once.
+		ctx.stats.agricultural_jobs = agricultural_jobs
 
 
 # ── Demand ───────────────────────────────────────────────────────────────
@@ -289,8 +296,12 @@ func _update_demand(ctx: SimContext) -> void:
 	if neighbor_sys != null and neighbor_sys.has_method("trade_demand_bonus"):
 		trade_bonus = int(neighbor_sys.call("trade_demand_bonus"))
 
+	var agricultural_job_units := 0.0
+	var agriculture := ctx.system(&"agriculture")
+	if agriculture != null and agriculture.has_method("jobs"):
+		agricultural_job_units = float(agriculture.call("jobs")) / Params.PEOPLE_PER_UNIT
 	@warning_ignore("integer_division")
-	var res_target := minf(maxf(float(Params.RES_TARGET_FLOOR), float(jobs + port_job_units + r / Params.RES_SELF_GROWTH_DIVISOR)),
+	var res_target := minf(maxf(float(Params.RES_TARGET_FLOOR), float(jobs + port_job_units + r / Params.RES_SELF_GROWTH_DIVISOR) + agricultural_job_units),
 		minf(float(c * Params.RES_PER_COMMERCIAL + Params.RES_BASE_TARGET),
 			float((Params.RES_CAP_BASE + recreation) * Params.RES_CAP_STEP)))
 

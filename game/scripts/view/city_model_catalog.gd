@@ -164,7 +164,11 @@ func compiled_cache_path(code: int, shadows: bool) -> String:
 
 
 func _load_compiled(code: int, shadows: bool) -> PackedScene:
-	if not compiled_cache_enabled: return null
+	# Farm GLBs embed PortableCompressedTexture2D resources. Their runtime
+	# compressed buffers are discarded after upload, so serializing a compiled
+	# scene cannot restore those textures on the next native launch. Ignore
+	# old farm cache entries too; runtime_scenes still shares compiled meshes.
+	if not compiled_cache_enabled or Buildings.is_agricultural(code): return null
 	var path := compiled_cache_path(code, shadows)
 	if not FileAccess.file_exists(path): return null
 	# Only a binary resource header is handed to the loader; anything else is a
@@ -181,7 +185,7 @@ func _load_compiled(code: int, shadows: bool) -> PackedScene:
 
 
 func _store_compiled(code: int, shadows: bool, compiled: PackedScene) -> void:
-	if not compiled_cache_enabled: return
+	if not compiled_cache_enabled or Buildings.is_agricultural(code): return
 	var path := compiled_cache_path(code, shadows)
 	var cache_dir := compiled_cache_dir()
 	if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(cache_dir)) != OK: return

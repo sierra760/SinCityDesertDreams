@@ -69,6 +69,8 @@ const CAPTIONS := {
 	Tools.Kind.ZONE_COM_HIGH: "Dense\nshops",
 	Tools.Kind.ZONE_IND_LOW: "Light\nindustry",
 	Tools.Kind.ZONE_IND_HIGH: "Dense\nindustry",
+	Tools.Kind.ZONE_AGR_LOW: "Light\nfarms",
+	Tools.Kind.ZONE_AGR_HIGH: "Dense\nfarms",
 	Tools.Kind.AIRPORT: "Airport",
 	Tools.Kind.SEAPORT: "Seaport",
 	Tools.Kind.TREES: "Trees",

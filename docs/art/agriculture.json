@@ -1,0 +1,1595 @@
+{
+  "lots": [
+    {
+      "code": 266,
+      "key": "ag_vegetables",
+      "name": "Irrigated Vegetables",
+      "footprint": [
+        1,
+        1
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 4,
+      "water": 3,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 1,
+      "enclosure": null,
+      "glb_sha256": "aa83acb6fff4a64b73b0e55946ff2b7442c21f99c000850fc512b98629a81b70",
+      "triangles": 4648,
+      "bounds_metres": [
+        [
+          -7.974999904632568,
+          0.0,
+          -7.974999904632568
+        ],
+        [
+          7.974999904632568,
+          1.725000023841858,
+          7.974999904632568
+        ]
+      ],
+      "collider_count": 2,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 267,
+      "key": "ag_alfalfa",
+      "name": "Alfalfa and Hay",
+      "footprint": [
+        2,
+        2
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 6,
+      "water": 3,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 1,
+      "enclosure": null,
+      "glb_sha256": "2a15ac76814e64f768a43986db6dbb67cbc6b7e24bfca32a4044e74cd4dbfc77",
+      "triangles": 7884,
+      "bounds_metres": [
+        [
+          -15.975000381469727,
+          0.0,
+          -15.975000381469727
+        ],
+        [
+          15.975000381469727,
+          4.516291618347168,
+          15.975000381469727
+        ]
+      ],
+      "collider_count": 2,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 268,
+      "key": "ag_grain",
+      "name": "Grain Field",
+      "footprint": [
+        2,
+        2
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 4,
+      "water": 1,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 1,
+      "enclosure": null,
+      "glb_sha256": "36598a822ff8ebc6d2f6fc193cf3d9a1f71170827b4a91fa4c6b3663f735353b",
+      "triangles": 10310,
+      "bounds_metres": [
+        [
+          -15.975000381469727,
+          0.0,
+          -15.975000381469727
+        ],
+        [
+          15.975000381469727,
+          6.21999979019165,
+          15.975000381469727
+        ]
+      ],
+      "collider_count": 3,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 269,
+      "key": "ag_cattle_range",
+      "name": "Cattle Range",
+      "footprint": [
+        3,
+        3
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 6,
+      "water": 1,
+      "power": 0,
+      "livestock": 8,
+      "species": "beef_cattle",
+      "pollution": 0,
+      "enclosure": {
+        "units": "metres",
+        "ground_y": 0.14,
+        "species": "beef_cattle",
+        "count": 8,
+        "pens": [
+          {
+            "name": "range",
+            "bounds": [
+              -21,
+              -20,
+              21,
+              20
+            ],
+            "count": 8,
+            "ground_y": 0.14,
+            "fences": [
+              {
+                "a": [
+                  -21,
+                  -20
+                ],
+                "b": [
+                  21,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  21,
+                  -20
+                ],
+                "b": [
+                  21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  21,
+                  20
+                ],
+                "b": [
+                  1.5,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  1.5,
+                  20
+                ],
+                "b": [
+                  -1.5,
+                  20
+                ],
+                "gate": true,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -1.5,
+                  20
+                ],
+                "b": [
+                  -21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -21,
+                  20
+                ],
+                "b": [
+                  -21,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              }
+            ],
+            "obstacles": [
+              {
+                "kind": "shelter",
+                "center": [
+                  -12,
+                  1.92,
+                  -15
+                ],
+                "size": [
+                  12,
+                  3.6,
+                  7
+                ],
+                "bounds": [
+                  -18.0,
+                  -18.5,
+                  -6.0,
+                  -11.5
+                ]
+              },
+              {
+                "kind": "trough",
+                "center": [
+                  14,
+                  0.52,
+                  -14
+                ],
+                "size": [
+                  5,
+                  0.8,
+                  1.6
+                ],
+                "bounds": [
+                  11.5,
+                  -14.8,
+                  16.5,
+                  -13.2
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "glb_sha256": "218fc127fb250e04247669619dc3162d7f69e028173442b32173b97fc5788b45",
+      "triangles": 3500,
+      "bounds_metres": [
+        [
+          -23.975000381469727,
+          0.0,
+          -23.975000381469727
+        ],
+        [
+          23.975000381469727,
+          4.466291427612305,
+          23.975000381469727
+        ]
+      ],
+      "collider_count": 14,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 270,
+      "key": "ag_sheep_pasture",
+      "name": "Sheep Pasture",
+      "footprint": [
+        3,
+        3
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 5,
+      "water": 1,
+      "power": 0,
+      "livestock": 10,
+      "species": "sheep",
+      "pollution": 0,
+      "enclosure": {
+        "units": "metres",
+        "ground_y": 0.14,
+        "species": "sheep",
+        "count": 10,
+        "pens": [
+          {
+            "name": "pasture",
+            "bounds": [
+              -21,
+              -20,
+              21,
+              20
+            ],
+            "count": 10,
+            "ground_y": 0.14,
+            "fences": [
+              {
+                "a": [
+                  -21,
+                  -20
+                ],
+                "b": [
+                  21,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "woven_wire"
+              },
+              {
+                "a": [
+                  21,
+                  -20
+                ],
+                "b": [
+                  21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "woven_wire"
+              },
+              {
+                "a": [
+                  21,
+                  20
+                ],
+                "b": [
+                  1.5,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "woven_wire"
+              },
+              {
+                "a": [
+                  1.5,
+                  20
+                ],
+                "b": [
+                  -1.5,
+                  20
+                ],
+                "gate": true,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "woven_wire"
+              },
+              {
+                "a": [
+                  -1.5,
+                  20
+                ],
+                "b": [
+                  -21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "woven_wire"
+              },
+              {
+                "a": [
+                  -21,
+                  20
+                ],
+                "b": [
+                  -21,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "woven_wire"
+              }
+            ],
+            "obstacles": [
+              {
+                "kind": "shelter",
+                "center": [
+                  12,
+                  1.7200000000000002,
+                  -15
+                ],
+                "size": [
+                  12,
+                  3.2,
+                  7
+                ],
+                "bounds": [
+                  6.0,
+                  -18.5,
+                  18.0,
+                  -11.5
+                ]
+              },
+              {
+                "kind": "trough",
+                "center": [
+                  -14,
+                  0.445,
+                  -13
+                ],
+                "size": [
+                  4,
+                  0.65,
+                  1.4
+                ],
+                "bounds": [
+                  -16.0,
+                  -13.7,
+                  -12.0,
+                  -12.3
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "glb_sha256": "b0f3c35e3d6186f46ac3472886f43dd6c51088778d2f35109e0fee774946e299",
+      "triangles": 7208,
+      "bounds_metres": [
+        [
+          -23.975000381469727,
+          0.0,
+          -23.975000381469727
+        ],
+        [
+          23.975000381469727,
+          4.066291809082031,
+          23.975000381469727
+        ]
+      ],
+      "collider_count": 14,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 271,
+      "key": "ag_greenhouse",
+      "name": "Vegetable Greenhouse",
+      "footprint": [
+        1,
+        1
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 10,
+      "water": 2,
+      "power": 2,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "bc88d8deea59bf85d5d2793b0347141604c8b9dc8e09ee5ed69c10657bd60de7",
+      "triangles": 2636,
+      "bounds_metres": [
+        [
+          -7.974999904632568,
+          0.0,
+          -7.974999904632568
+        ],
+        [
+          7.974999904632568,
+          3.896291732788086,
+          7.974999904632568
+        ]
+      ],
+      "collider_count": 3,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 272,
+      "key": "ag_nursery",
+      "name": "Nursery Houses",
+      "footprint": [
+        2,
+        2
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 24,
+      "water": 2,
+      "power": 1,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "4d975a6111bd173e193f7851afea9a51c18407975f8049732ac75cfc1f350ba7",
+      "triangles": 13538,
+      "bounds_metres": [
+        [
+          -15.975000381469727,
+          0.0,
+          -15.975000381469727
+        ],
+        [
+          15.975000381469727,
+          3.4346415996551514,
+          15.975000381469727
+        ]
+      ],
+      "collider_count": 5,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 273,
+      "key": "ag_dairy",
+      "name": "Dairy",
+      "footprint": [
+        3,
+        3
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 40,
+      "water": 3,
+      "power": 1,
+      "livestock": 8,
+      "species": "dairy_cattle",
+      "pollution": 4,
+      "enclosure": {
+        "units": "metres",
+        "ground_y": 0.14,
+        "species": "dairy_cattle",
+        "count": 8,
+        "pens": [
+          {
+            "name": "dairy_yard",
+            "bounds": [
+              -21,
+              -1,
+              21,
+              20
+            ],
+            "count": 8,
+            "ground_y": 0.14,
+            "fences": [
+              {
+                "a": [
+                  -21,
+                  -1
+                ],
+                "b": [
+                  21,
+                  -1
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  21,
+                  -1
+                ],
+                "b": [
+                  21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  21,
+                  20
+                ],
+                "b": [
+                  1.5,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  1.5,
+                  20
+                ],
+                "b": [
+                  -1.5,
+                  20
+                ],
+                "gate": true,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -1.5,
+                  20
+                ],
+                "b": [
+                  -21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -21,
+                  20
+                ],
+                "b": [
+                  -21,
+                  -1
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              }
+            ],
+            "obstacles": [
+              {
+                "kind": "shelter",
+                "center": [
+                  -13,
+                  1.92,
+                  4
+                ],
+                "size": [
+                  12,
+                  3.6,
+                  7
+                ],
+                "bounds": [
+                  -19.0,
+                  0.5,
+                  -7.0,
+                  7.5
+                ]
+              },
+              {
+                "kind": "trough",
+                "center": [
+                  14,
+                  0.52,
+                  4
+                ],
+                "size": [
+                  5,
+                  0.8,
+                  1.6
+                ],
+                "bounds": [
+                  11.5,
+                  3.2,
+                  16.5,
+                  4.8
+                ]
+              },
+              {
+                "kind": "feed_bunk",
+                "center": [
+                  8,
+                  0.52,
+                  17
+                ],
+                "size": [
+                  16,
+                  0.8,
+                  1.5
+                ],
+                "bounds": [
+                  0.0,
+                  16.25,
+                  16.0,
+                  17.75
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "glb_sha256": "1c6eadb264174eb6cc70bba5a93fef4b3c366d9fd661d715adee4540286d29de",
+      "triangles": 3916,
+      "bounds_metres": [
+        [
+          -23.975000381469727,
+          0.0,
+          -23.975000381469727
+        ],
+        [
+          23.975000381469727,
+          7.024999618530273,
+          23.975000381469727
+        ]
+      ],
+      "collider_count": 19,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 274,
+      "key": "ag_feedlot",
+      "name": "Cattle Feedlot",
+      "footprint": [
+        3,
+        3
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 32,
+      "water": 2,
+      "power": 1,
+      "livestock": 12,
+      "species": "beef_cattle",
+      "pollution": 6,
+      "enclosure": {
+        "units": "metres",
+        "ground_y": 0.14,
+        "species": "beef_cattle",
+        "count": 12,
+        "pens": [
+          {
+            "name": "west",
+            "bounds": [
+              -21,
+              -20,
+              -2,
+              20
+            ],
+            "count": 6,
+            "ground_y": 0.14,
+            "fences": [
+              {
+                "a": [
+                  -21,
+                  -20
+                ],
+                "b": [
+                  -2,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -2,
+                  -20
+                ],
+                "b": [
+                  -2,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -2,
+                  20
+                ],
+                "b": [
+                  -10.0,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -10.0,
+                  20
+                ],
+                "b": [
+                  -13.0,
+                  20
+                ],
+                "gate": true,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -13.0,
+                  20
+                ],
+                "b": [
+                  -21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  -21,
+                  20
+                ],
+                "b": [
+                  -21,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              }
+            ],
+            "obstacles": [
+              {
+                "kind": "shelter",
+                "center": [
+                  -11.5,
+                  1.92,
+                  -14
+                ],
+                "size": [
+                  13,
+                  3.6,
+                  7
+                ],
+                "bounds": [
+                  -18.0,
+                  -17.5,
+                  -5.0,
+                  -10.5
+                ]
+              },
+              {
+                "kind": "trough",
+                "center": [
+                  -6,
+                  0.52,
+                  8
+                ],
+                "size": [
+                  4,
+                  0.8,
+                  1.6
+                ],
+                "bounds": [
+                  -8.0,
+                  7.2,
+                  -4.0,
+                  8.8
+                ]
+              },
+              {
+                "kind": "feed_bunk",
+                "center": [
+                  -17,
+                  0.52,
+                  15
+                ],
+                "size": [
+                  5,
+                  0.8,
+                  1.5
+                ],
+                "bounds": [
+                  -19.5,
+                  14.25,
+                  -14.5,
+                  15.75
+                ]
+              }
+            ]
+          },
+          {
+            "name": "east",
+            "bounds": [
+              2,
+              -20,
+              21,
+              20
+            ],
+            "count": 6,
+            "ground_y": 0.14,
+            "fences": [
+              {
+                "a": [
+                  2,
+                  -20
+                ],
+                "b": [
+                  21,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  21,
+                  -20
+                ],
+                "b": [
+                  21,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  21,
+                  20
+                ],
+                "b": [
+                  13.0,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  13.0,
+                  20
+                ],
+                "b": [
+                  10.0,
+                  20
+                ],
+                "gate": true,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  10.0,
+                  20
+                ],
+                "b": [
+                  2,
+                  20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              },
+              {
+                "a": [
+                  2,
+                  20
+                ],
+                "b": [
+                  2,
+                  -20
+                ],
+                "gate": false,
+                "height": 1.65,
+                "thickness": 0.16,
+                "style": "pipe_rail"
+              }
+            ],
+            "obstacles": [
+              {
+                "kind": "shelter",
+                "center": [
+                  11.5,
+                  1.92,
+                  -14
+                ],
+                "size": [
+                  13,
+                  3.6,
+                  7
+                ],
+                "bounds": [
+                  5.0,
+                  -17.5,
+                  18.0,
+                  -10.5
+                ]
+              },
+              {
+                "kind": "trough",
+                "center": [
+                  6,
+                  0.52,
+                  8
+                ],
+                "size": [
+                  4,
+                  0.8,
+                  1.6
+                ],
+                "bounds": [
+                  4.0,
+                  7.2,
+                  8.0,
+                  8.8
+                ]
+              },
+              {
+                "kind": "feed_bunk",
+                "center": [
+                  17,
+                  0.52,
+                  15
+                ],
+                "size": [
+                  5,
+                  0.8,
+                  1.5
+                ],
+                "bounds": [
+                  14.5,
+                  14.25,
+                  19.5,
+                  15.75
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "glb_sha256": "77730bcab201af22731f6d92ecdf060c05c13532bc4573907a39ff7f6f3d130b",
+      "triangles": 4220,
+      "bounds_metres": [
+        [
+          -23.975000381469727,
+          0.0,
+          -23.975000381469727
+        ],
+        [
+          23.975000381469727,
+          4.466291427612305,
+          23.975000381469727
+        ]
+      ],
+      "collider_count": 29,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 275,
+      "key": "ag_market_garden",
+      "name": "Intensive Market Garden",
+      "footprint": [
+        2,
+        2
+      ],
+      "category": "AGRICULTURAL",
+      "state": "active",
+      "jobs": 24,
+      "water": 3,
+      "power": 1,
+      "livestock": 0,
+      "species": "",
+      "pollution": 1,
+      "enclosure": null,
+      "glb_sha256": "d1e8d43dae67327a9312b41d7abc42eb8c12b573f8f8e04642f91b63652f9156",
+      "triangles": 11820,
+      "bounds_metres": [
+        [
+          -15.975000381469727,
+          0.0,
+          -15.975000381469727
+        ],
+        [
+          15.975000381469727,
+          4.9162917137146,
+          15.975000381469727
+        ]
+      ],
+      "collider_count": 4,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 276,
+      "key": "ag_prepared_1x1",
+      "name": "Prepared Agricultural Plot",
+      "footprint": [
+        1,
+        1
+      ],
+      "category": "AGRICULTURAL",
+      "state": "prepared",
+      "jobs": 0,
+      "water": 0,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "50de44e2bf63348f609582e2478f7e11de23208e7b6a0141c8e476547cfcd5be",
+      "triangles": 464,
+      "bounds_metres": [
+        [
+          -7.974999904632568,
+          0.0,
+          -7.974999904632568
+        ],
+        [
+          7.974999904632568,
+          0.8199999928474426,
+          7.974999904632568
+        ]
+      ],
+      "collider_count": 5,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 277,
+      "key": "ag_prepared_2x2",
+      "name": "Prepared Agricultural Plot",
+      "footprint": [
+        2,
+        2
+      ],
+      "category": "AGRICULTURAL",
+      "state": "prepared",
+      "jobs": 0,
+      "water": 0,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "24942e48880b8e5ad429a7f1f658f34d61058ec5c7aecffb99302295d5070dfa",
+      "triangles": 608,
+      "bounds_metres": [
+        [
+          -15.975000381469727,
+          0.0,
+          -15.975000381469727
+        ],
+        [
+          15.975000381469727,
+          0.8199999928474426,
+          15.975000381469727
+        ]
+      ],
+      "collider_count": 5,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 278,
+      "key": "ag_prepared_3x3",
+      "name": "Prepared Agricultural Plot",
+      "footprint": [
+        3,
+        3
+      ],
+      "category": "AGRICULTURAL",
+      "state": "prepared",
+      "jobs": 0,
+      "water": 0,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "feafbe7e9aa720c86e15bf4e31ddaf1bc3176244ec92551c3e199f60d5de78be",
+      "triangles": 752,
+      "bounds_metres": [
+        [
+          -23.975000381469727,
+          0.0,
+          -23.975000381469727
+        ],
+        [
+          23.975000381469727,
+          0.8199999928474426,
+          23.975000381469727
+        ]
+      ],
+      "collider_count": 5,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 279,
+      "key": "ag_dormant_1x1",
+      "name": "Dormant Agricultural Lot",
+      "footprint": [
+        1,
+        1
+      ],
+      "category": "AGRICULTURAL",
+      "state": "dormant",
+      "jobs": 0,
+      "water": 0,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "bacdbc15153a5a26892226caf944d50000ab2d2597fc168880a41ea3e9bf5c9b",
+      "triangles": 1132,
+      "bounds_metres": [
+        [
+          -7.974999904632568,
+          0.0,
+          -7.974999904632568
+        ],
+        [
+          7.974999904632568,
+          3.8162918090820312,
+          7.974999904632568
+        ]
+      ],
+      "collider_count": 6,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 280,
+      "key": "ag_dormant_2x2",
+      "name": "Dormant Agricultural Lot",
+      "footprint": [
+        2,
+        2
+      ],
+      "category": "AGRICULTURAL",
+      "state": "dormant",
+      "jobs": 0,
+      "water": 0,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "c663ce3ddbd5fb114beb07d3691fb7f000bfcad524382aae5826f77d1d31e30a",
+      "triangles": 3100,
+      "bounds_metres": [
+        [
+          -15.975000381469727,
+          0.0,
+          -15.975000381469727
+        ],
+        [
+          15.975000381469727,
+          3.8162918090820312,
+          15.975000381469727
+        ]
+      ],
+      "collider_count": 6,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    },
+    {
+      "code": 281,
+      "key": "ag_dormant_3x3",
+      "name": "Dormant Agricultural Lot",
+      "footprint": [
+        3,
+        3
+      ],
+      "category": "AGRICULTURAL",
+      "state": "dormant",
+      "jobs": 0,
+      "water": 0,
+      "power": 0,
+      "livestock": 0,
+      "species": "",
+      "pollution": 0,
+      "enclosure": null,
+      "glb_sha256": "30679474e110cec28846fc9c86b94e764a1d12e08d2f35972acc2c34c43c43d4",
+      "triangles": 6604,
+      "bounds_metres": [
+        [
+          -23.975000381469727,
+          0.0,
+          -23.975000381469727
+        ],
+        [
+          23.975000381469727,
+          3.8162918090820312,
+          23.975000381469727
+        ]
+      ],
+      "collider_count": 6,
+      "generator": "tools/blender_exploration/build_agriculture.py",
+      "provenance": "Original procedural geometry and original packed surface swatches; no imported meshes or artwork"
+    }
+  ],
+  "version": 1,
+  "meters_per_tile": 16,
+  "scale": 0.0625,
+  "axes": "+Y up / +Z front",
+  "animals": {
+    "beef_cattle": {
+      "model": "res://assets/agriculture/beef_cattle.glb",
+      "model_sha256": "de635f2fa311589edb4562d52df1b630727b0d258433d08a229449c3ebbc9ee6",
+      "scale": 0.0625,
+      "body_radius": 2.44,
+      "turn_margin": 0.2,
+      "bounds_metres": [
+        [
+          -0.5600000023841858,
+          0.0,
+          -1.2560845613479614
+        ],
+        [
+          0.5600000023841858,
+          2.1012260913848877,
+          1.9199999570846558
+        ]
+      ],
+      "triangles": 2280,
+      "bones": [
+        "Root",
+        "Body",
+        "Neck",
+        "Head",
+        "Tail",
+        "FrontLeftUpper",
+        "FrontLeftLower",
+        "FrontRightUpper",
+        "FrontRightLower",
+        "RearLeftUpper",
+        "RearLeftLower",
+        "RearRightUpper",
+        "RearRightLower"
+      ],
+      "pose_limits_degrees": {
+        "Neck": [
+          -12,
+          80
+        ],
+        "Head": [
+          -20,
+          20
+        ],
+        "Tail": [
+          -30,
+          30
+        ],
+        "FrontLeftUpper": [
+          -24,
+          24
+        ],
+        "FrontLeftLower": [
+          -32,
+          0
+        ],
+        "FrontRightUpper": [
+          -24,
+          24
+        ],
+        "FrontRightLower": [
+          -32,
+          0
+        ],
+        "RearLeftUpper": [
+          -24,
+          24
+        ],
+        "RearLeftLower": [
+          -32,
+          0
+        ],
+        "RearRightUpper": [
+          -24,
+          24
+        ],
+        "RearRightLower": [
+          -32,
+          0
+        ]
+      },
+      "ground_y": 0,
+      "forward": "+Z",
+      "up": "+Y",
+      "radius_method": "sum of articulated joint reaches including visible head, ears, hooves and tail; valid for all joint angles"
+    },
+    "dairy_cattle": {
+      "model": "res://assets/agriculture/dairy_cattle.glb",
+      "model_sha256": "47be3802c6dfc62f251f60535ec0d238f2bb48a4a2ab54c73e001f3b5e33eb45",
+      "scale": 0.0625,
+      "body_radius": 2.44,
+      "turn_margin": 0.2,
+      "bounds_metres": [
+        [
+          -0.5299999713897705,
+          0.0,
+          -1.2560845613479614
+        ],
+        [
+          0.5299999713897705,
+          1.9531999826431274,
+          1.9199999570846558
+        ]
+      ],
+      "triangles": 2368,
+      "bones": [
+        "Root",
+        "Body",
+        "Neck",
+        "Head",
+        "Tail",
+        "FrontLeftUpper",
+        "FrontLeftLower",
+        "FrontRightUpper",
+        "FrontRightLower",
+        "RearLeftUpper",
+        "RearLeftLower",
+        "RearRightUpper",
+        "RearRightLower"
+      ],
+      "pose_limits_degrees": {
+        "Neck": [
+          -12,
+          80
+        ],
+        "Head": [
+          -20,
+          20
+        ],
+        "Tail": [
+          -30,
+          30
+        ],
+        "FrontLeftUpper": [
+          -24,
+          24
+        ],
+        "FrontLeftLower": [
+          -32,
+          0
+        ],
+        "FrontRightUpper": [
+          -24,
+          24
+        ],
+        "FrontRightLower": [
+          -32,
+          0
+        ],
+        "RearLeftUpper": [
+          -24,
+          24
+        ],
+        "RearLeftLower": [
+          -32,
+          0
+        ],
+        "RearRightUpper": [
+          -24,
+          24
+        ],
+        "RearRightLower": [
+          -32,
+          0
+        ]
+      },
+      "ground_y": 0,
+      "forward": "+Z",
+      "up": "+Y",
+      "radius_method": "sum of articulated joint reaches including visible head, ears, hooves and tail; valid for all joint angles"
+    },
+    "sheep": {
+      "model": "res://assets/agriculture/sheep.glb",
+      "model_sha256": "9f809456756fe1aa5002b75696b04630b97128b780187f91c84398abcbeec1d6",
+      "scale": 0.0625,
+      "body_radius": 1.54,
+      "turn_margin": 0.2,
+      "bounds_metres": [
+        [
+          -0.3960754871368408,
+          0.0,
+          -1.0141267776489258
+        ],
+        [
+          0.3923211097717285,
+          1.305267572402954,
+          1.3739999532699585
+        ]
+      ],
+      "triangles": 2140,
+      "bones": [
+        "Root",
+        "Body",
+        "Neck",
+        "Head",
+        "Tail",
+        "FrontLeftUpper",
+        "FrontLeftLower",
+        "FrontRightUpper",
+        "FrontRightLower",
+        "RearLeftUpper",
+        "RearLeftLower",
+        "RearRightUpper",
+        "RearRightLower"
+      ],
+      "pose_limits_degrees": {
+        "Neck": [
+          -12,
+          55
+        ],
+        "Head": [
+          -20,
+          20
+        ],
+        "Tail": [
+          -30,
+          30
+        ],
+        "FrontLeftUpper": [
+          -24,
+          24
+        ],
+        "FrontLeftLower": [
+          -32,
+          0
+        ],
+        "FrontRightUpper": [
+          -24,
+          24
+        ],
+        "FrontRightLower": [
+          -32,
+          0
+        ],
+        "RearLeftUpper": [
+          -24,
+          24
+        ],
+        "RearLeftLower": [
+          -32,
+          0
+        ],
+        "RearRightUpper": [
+          -24,
+          24
+        ],
+        "RearRightLower": [
+          -32,
+          0
+        ]
+      },
+      "ground_y": 0,
+      "forward": "+Z",
+      "up": "+Y",
+      "radius_method": "sum of articulated joint reaches including visible head, ears, hooves and tail; valid for all joint angles"
+    }
+  }
+}

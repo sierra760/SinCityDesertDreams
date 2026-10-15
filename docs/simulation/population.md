@@ -332,3 +332,12 @@ scores, the record birth count, the complaint ranking of the last vote, and
 the last census counts and the `settled` flag (rule 11). Head counts,
 headline scores and approval live in `CityStats` and are saved with it.
 `load()` restores everything and tolerates missing keys.
+
+## Agricultural employment
+
+Active farms add their archetype's jobs once to `CityStats.jobs`, alongside
+ordinary commercial/industrial, port and reward employment. Prepared and
+dormant plots contribute zero jobs. Farm jobs can attract housing demand and
+serve commute destinations; they do not add residential population or
+industrial-sector capacity. Both census paths replace the agricultural share
+rather than adding it again on repeated sampling. See [Agriculture](agriculture.md).

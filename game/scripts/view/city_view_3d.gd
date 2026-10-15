@@ -42,6 +42,7 @@ var query_feedback: CityQueryFeedback3D
 ## Candidate on-ramp tiles while the player is asked whether to add one.
 var ramp_highlight: CityRampHighlight3D
 var feedback: CityFeedback3D
+var livestock: CityLivestock3D
 var traffic: CityTraffic3D
 var active := false
 var center := Vector3(64, 0, 64)
@@ -181,6 +182,12 @@ func _ready() -> void:
 	feedback.catalog = catalog
 	world.add_child(feedback)
 	feedback.bind_city(city)
+	livestock = CityLivestock3D.new()
+	livestock.name = "CityLivestock"
+	livestock.buildings = buildings
+	world.add_child(livestock)
+	livestock.bind_city(city)
+	geometry_rebuilt.connect(func(_revision: int) -> void: livestock.invalidate_source())
 	traffic = CityTraffic3D.new()
 	traffic.name = "CityTraffic"
 	world.add_child(traffic)
@@ -248,6 +255,8 @@ func bind_city(value: City) -> void:
 		if water_style != null: water_style.update_city(value)
 		if buildings != null: buildings.rebind_station_names(value)
 	clear_cursor()
+	if livestock != null:
+		livestock.bind_city(value)
 	if traffic != null:
 		traffic.bind_city(value)
 	if feedback != null:
@@ -1231,6 +1240,8 @@ func _apply_analytics_visibility() -> void:
 	if mesh_batches != null:
 		mesh_batches.set_domain_visible(&"buildings", surface_visible)
 		mesh_batches.set_domain_visible(&"networks", surface_visible)
+	if livestock != null:
+		livestock.visible = surface_visible
 	if traffic != null:
 		traffic.visible = surface_visible
 	if feedback != null:

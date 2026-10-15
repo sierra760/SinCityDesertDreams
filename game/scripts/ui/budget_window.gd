@@ -25,6 +25,7 @@ const ACCOUNTS: Array[Array] = [
 	[&"taxes_residential", "Residential taxes"],
 	[&"taxes_commercial", "Commercial taxes"],
 	[&"taxes_industrial", "Industrial taxes"],
+	[&"taxes_agricultural", "Agricultural taxes"],
 	[&"transit_fares", "Transit fares"],
 	[&"ordinance_income", "Ordinance income"],
 	[&"neighbor_trade", "Neighbor trade"],
@@ -143,6 +144,7 @@ func refresh() -> void:
 	_tax_spinners[&"residential"].value = stats.tax_residential
 	_tax_spinners[&"commercial"].value = stats.tax_commercial
 	_tax_spinners[&"industrial"].value = stats.tax_industrial
+	_tax_spinners[&"agricultural"].value = stats.tax_agricultural
 	for service: StringName in _funding_sliders:
 		var pct := stats.funding_of(service)
 		var slider: HSlider = _funding_sliders[service]
@@ -325,7 +327,7 @@ func _build_taxes(parent: VBoxContainer) -> void:
 	grid.has_headers = false
 	grid.headings = ["", "Rate"]
 	grid.add_theme_constant_override("h_separation", UITheme.MARGIN)
-	for entry: Array in [[&"residential", "Residential"], [&"commercial", "Commercial"], [&"industrial", "Industrial"]]:
+	for entry: Array in [[&"residential", "Residential"], [&"commercial", "Commercial"], [&"industrial", "Industrial"], [&"agricultural", "Agriculture"]]:
 		var kind: StringName = entry[0]
 		var caption := UIFactory.make_label(String(entry[1]) + " %")
 		grid.add_child(caption)
@@ -333,6 +335,10 @@ func _build_taxes(parent: VBoxContainer) -> void:
 		spinner.min_value = 0
 		spinner.max_value = TAX_MAX
 		spinner.step = 1
+		if kind == &"agricultural":
+			caption.tooltip_text = "Independent agricultural tax, 0–20%. Active farm jobs assess $100 each; prepared and dormant land earns no tax."
+			caption.mouse_filter = Control.MOUSE_FILTER_PASS
+			spinner.tooltip_text = caption.tooltip_text
 		if kind == &"industrial":
 			caption.tooltip_text = "The share-weighted average of the eleven industry rates (Reports → Industries). Changing it shifts every sector by the same points."
 			caption.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -545,6 +551,7 @@ func _on_tax_changed(value: float, kind: StringName) -> void:
 		&"residential": _sim.stats.tax_residential = rate
 		&"commercial": _sim.stats.tax_commercial = rate
 		&"industrial": _sim.stats.tax_industrial = rate
+		&"agricultural": _sim.stats.tax_agricultural = rate
 	_syncing = true
 	if kind == &"industrial":
 		# The rate is the average of the eleven sector rates: shift them now so
