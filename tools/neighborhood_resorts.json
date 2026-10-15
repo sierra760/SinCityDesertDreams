@@ -1,0 +1,212 @@
+{
+  "resorts": [
+    {
+      "code": 262,
+      "slug": "boddy",
+      "key": "arcology_boddy",
+      "name": "Boddy's",
+      "floor": "The Neighborhood Floor",
+      "signature": "faro",
+      "font": "fontdiner",
+      "voice": "assayer",
+      "chandelier": "chandelier_gaslamp",
+      "footprint": [
+        2,
+        2
+      ],
+      "hall_metres": 24,
+      "ceiling_metres": 6,
+      "vestibule_width": 6,
+      "vestibule_depth": 5,
+      "front": 1.82,
+      "cost": 8000,
+      "minimum": 10,
+      "maximum": 1000,
+      "capacity": 500,
+      "palette": {
+        "stone": "f0dbc3",
+        "metal": "ba7749",
+        "wood": "493429",
+        "glass": "a58c91",
+        "lamp": "ffe9bb",
+        "carpet": "642d38",
+        "felt": "8b4c5a",
+        "accent": "bc7883",
+        "ink": "30261f",
+        "paper": "f7efdc"
+      },
+      "reels": [
+        "Coffee Cup",
+        "Rose Bouquet",
+        "Ceramic Cat",
+        "Table Lamp",
+        "Cherries",
+        "BODDY"
+      ],
+      "games": {
+        "blackjack": "Counter Twenty-One",
+        "roulette": "Neighborhood Roulette",
+        "slots": "Lucky Regular",
+        "money_wheel": "Corner Wheel",
+        "video_poker": "Coffee Break Draw",
+        "faro": "Boddy's Faro"
+      }
+    },
+    {
+      "code": 263,
+      "slug": "woolier",
+      "key": "arcology_woolier",
+      "name": "Woolier Days",
+      "floor": "The Family Table",
+      "signature": "chuck_a_luck",
+      "font": "biorhyme",
+      "voice": "conductor",
+      "chandelier": "chandelier_lantern",
+      "footprint": [
+        2,
+        2
+      ],
+      "hall_metres": 24,
+      "ceiling_metres": 6,
+      "vestibule_width": 6,
+      "vestibule_depth": 5,
+      "front": 1.82,
+      "cost": 16000,
+      "minimum": 15,
+      "maximum": 1500,
+      "capacity": 1200,
+      "palette": {
+        "stone": "ead9bd",
+        "metal": "a77c43",
+        "wood": "5a3427",
+        "glass": "599e7c",
+        "lamp": "ffedbe",
+        "carpet": "81312e",
+        "felt": "487a58",
+        "accent": "cf5844",
+        "ink": "34271f",
+        "paper": "f5ecd4"
+      },
+      "reels": [
+        "Sheep",
+        "Bread Loaf",
+        "Grapes",
+        "Shepherd Crook",
+        "Supper Pot",
+        "WOOLIER"
+      ],
+      "games": {
+        "blackjack": "Family Table Twenty-One",
+        "roulette": "Shepherd Roulette",
+        "slots": "Woolly Luck",
+        "money_wheel": "Harvest Wheel",
+        "video_poker": "Supper Club Draw",
+        "chuck_a_luck": "Shepherd's Chuck-a-Luck"
+      }
+    },
+    {
+      "code": 264,
+      "slug": "stockgrowers",
+      "key": "arcology_stockgrowers",
+      "name": "Stockgrowers",
+      "floor": "The Auction Hall",
+      "signature": "faro",
+      "font": "biorhyme_expanded",
+      "voice": "foreman",
+      "chandelier": "chandelier_lantern",
+      "footprint": [
+        3,
+        3
+      ],
+      "hall_metres": 36,
+      "ceiling_metres": 8,
+      "vestibule_width": 6,
+      "vestibule_depth": 5,
+      "front": 2.82,
+      "cost": 30000,
+      "minimum": 25,
+      "maximum": 2500,
+      "capacity": 3000,
+      "palette": {
+        "stone": "c9b18b",
+        "metal": "ad8b4c",
+        "wood": "573824",
+        "glass": "609284",
+        "lamp": "ffe5ae",
+        "carpet": "5d4934",
+        "felt": "4d745c",
+        "accent": "c39853",
+        "ink": "30291f",
+        "paper": "f2e4c9"
+      },
+      "reels": [
+        "Hereford",
+        "Saddle",
+        "Auction Gavel",
+        "Water Tank",
+        "Hay Bale",
+        "STOCK"
+      ],
+      "games": {
+        "blackjack": "Brand Twenty-One",
+        "roulette": "Roundup Roulette",
+        "slots": "Prize Stock",
+        "money_wheel": "Auction Wheel",
+        "video_poker": "Ranch Hand Draw",
+        "faro": "Stockgrowers Faro"
+      }
+    },
+    {
+      "code": 265,
+      "slug": "fremont",
+      "key": "arcology_fremont",
+      "name": "Fremont Palace",
+      "floor": "The Salvaged Salon",
+      "signature": "baccarat",
+      "font": "fontdiner",
+      "voice": "assayer",
+      "chandelier": "chandelier_gaslamp",
+      "footprint": [
+        3,
+        3
+      ],
+      "hall_metres": 36,
+      "ceiling_metres": 8,
+      "vestibule_width": 6,
+      "vestibule_depth": 5,
+      "front": 2.82,
+      "cost": 45000,
+      "minimum": 40,
+      "maximum": 4000,
+      "capacity": 5000,
+      "palette": {
+        "stone": "e9d2ac",
+        "metal": "c5a34f",
+        "wood": "4a2b30",
+        "glass": "508c84",
+        "lamp": "ffe7af",
+        "carpet": "65263e",
+        "felt": "476e69",
+        "accent": "c88f54",
+        "ink": "322331",
+        "paper": "f8ecd3"
+      },
+      "reels": [
+        "Chandelier",
+        "Crown",
+        "Velvet Chair",
+        "Marble Column",
+        "Neon Star",
+        "PALACE"
+      ],
+      "games": {
+        "blackjack": "Palace Twenty-One",
+        "roulette": "Grand Salon Roulette",
+        "slots": "Secondhand Splendor",
+        "money_wheel": "Crown Wheel",
+        "video_poker": "Salvaged Draw",
+        "baccarat": "Palace Baccarat"
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Resort illustrations
 
-Ten original resort illustration sets. The original four are: Comstock Grand (silver mining), Silver Junction
+Fourteen original resort illustration sets. The original four are: Comstock Grand (silver mining), Silver Junction
 (railroads), Boulder Crown (dam construction and Art Deco), and Desert Orbit
 (Nevada rocket-engine research). Each set has six reel symbols, three fictional
 court portraits, a card back, three paintings and six transparent payout cutouts, plus an actual three-reel cabinet bake
@@ -30,8 +30,8 @@ The Afterglow (`afterglow/`, ivory/mint/orange), Last Resort (`last/`, weathered
 sandstone/bottle-glass/turquoise) and Dust Republic (`dust/`, rust/bone/ultraviolet).
 `tools/build_six_resort_art.py` packages their inspected image sources; the
 cabinet images use the actual animated three-reel renderer. These add 120 PNGs
-while preserving the original resort and store images. There are 200 PNGs for
-the ten resorts, or 220 including Despicable's, plus four shared suit SVGs.
+while preserving the original resort and store images. There are 280 PNGs for
+the fourteen resorts, or 300 including Despicable's, plus four shared suit SVGs.
 The suits are original continuous silhouettes with clean joins; ranks and suit
 marks remain separate from the generated portraits. Face cards leave paper
 between the portrait and both suit marks. Whole-card flip transforms keep all
@@ -52,3 +52,9 @@ face. `tools/build_despicables_art.py` losslessly extracts inspected source
 regions; the common packager invokes it when local store sources are present.
 The original resort images remain unchanged. Sources and exact generation
 records stay local in `assets/casino-art/despicables/`, outside the game package.
+
+The four neighborhood sets are Boddy’s (`boddy/`, cream/burgundy), Woolier Days
+(`woolier/`, green/brick/cream), Stockgrowers (`stockgrowers/`, sage/timber) and
+Fremont Palace (`fremont/`, gold/peacock/plum). Each has twenty original images.
+`tools/build_neighborhood_resort_art.py` packages their atlas images, individual
+card edits and twelve wall paintings. Cabinet faces use the shared reel renderer.

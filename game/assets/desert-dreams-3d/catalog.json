@@ -3001,6 +3001,86 @@
       "source_kind": "authored_blender",
       "glb_sha256": "916ebd92a18e78ecf794da06d14aba2c7a3fc5adec5fa40c2fa1a97d11447d60",
       "meters_per_tile": 16
+    },
+    {
+      "code": 262,
+      "path": "res://assets/desert-dreams-3d/262-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.5256249904632568,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 10140,
+      "source_kind": "authored_blender",
+      "glb_sha256": "661d6c6772be16ec48da23d0c78dce11ce9cc373afcd28773f0df8acbc2aced9",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 263,
+      "path": "res://assets/desert-dreams-3d/263-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.6662499904632568,
+      "footprint": [
+        2,
+        2
+      ],
+      "triangles": 11364,
+      "source_kind": "authored_blender",
+      "glb_sha256": "9e2f0de449e7caf644bb6ebdc07481b739b066ba4e649aee4afe1c1187ec4cd0",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 264,
+      "path": "res://assets/desert-dreams-3d/264-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 0.8109375238418579,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 11808,
+      "source_kind": "authored_blender",
+      "glb_sha256": "4d2bc2924e9c865f594caeb00785bf503afe96bec06d55ce137b33be7efdb56e",
+      "meters_per_tile": 16
+    },
+    {
+      "code": 265,
+      "path": "res://assets/desert-dreams-3d/265-blender.glb",
+      "scale": 0.0625,
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "yaw": 0,
+      "height": 1.106874942779541,
+      "footprint": [
+        3,
+        3
+      ],
+      "triangles": 13624,
+      "source_kind": "authored_blender",
+      "glb_sha256": "80affec8cbb00b087bd2e1783126db9a38174c02f919314b2ad8a92ca2c41d3d",
+      "meters_per_tile": 16
     }
   ]
 }

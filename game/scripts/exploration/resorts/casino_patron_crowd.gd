@@ -26,14 +26,14 @@ func build(plan: Dictionary, seed_value: int) -> void:
 	var bounds: AABB = plan.bounds
 	_floor = Rect2(Vector2(bounds.position.x,bounds.position.z),Vector2(bounds.size.x,bounds.size.z)).grow(-.035)
 	# Visitors stay on the casino floor; the vestibule is kept for arrivals.
-	if plan.key != ResortThemes.STORE_KEY: _floor.end.y = minf(_floor.end.y,21.3/16.0)
+	if plan.key != ResortThemes.STORE_KEY: _floor.end.y = minf(_floor.end.y,float(plan.get("floor_front",21.3/16.0)))
 	for obstacle: Dictionary in plan.obstacles:
 		_boxes.append(Rect2(Vector2(obstacle.center)-Vector2(obstacle.half),Vector2(obstacle.half)*2).grow(RADIUS))
 	for table: Dictionary in plan.tables: _seats.append(Vector2(table.seat.x,table.seat.z))
 	_build_grid()
 	_build_destinations()
 	if _destinations.is_empty(): return
-	var count := 3 if plan.key == ResortThemes.STORE_KEY else 16
+	var count := int(plan.get("patron_count",3 if plan.key == ResortThemes.STORE_KEY else 16))
 	var groups: Dictionary = {}
 	for i: int in _destinations.size():
 		var game: StringName = _destinations[i].game

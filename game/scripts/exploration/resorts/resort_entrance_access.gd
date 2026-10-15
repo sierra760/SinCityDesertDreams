@@ -16,7 +16,9 @@ const HEIGHT_REACH := 1.2
 ## Distance of the threshold from the lot's back edge, toward the front. Desert
 ## Orbit's entrance pods reach further toward the street than the others.
 const FRONT := 3.75
-const FRONT_BY_CODE := {254: 3.87, 256: 3.82, 257: 3.82, 258: 3.82, 259: 3.82, 260: 3.82, 261: 3.82}
+const FRONT_BY_CODE := {254: 3.87, 256: 3.82, 257: 3.82, 258: 3.82, 259: 3.82, 260: 3.82, 261: 3.82, 262: 1.82, 263: 1.82, 264: 2.82, 265: 2.82}
+## Authored porch tops above the rigid model base, converted from metres.
+const PORCH_TOP_BY_CODE := {263: .6/16.0, 264: .6/16.0}
 
 ## True when `anchor` is the anchor of a standing resort of a known code.
 static func exists(city: City, anchor: Vector2i, code: int) -> bool:
@@ -62,10 +64,13 @@ static func threshold(city: City, anchor: Vector2i, code: int = -1) -> Transform
 	var yaw := CityBuildings3D.resort_yaw(city,Rect2i(anchor,size)) if city != null and code != 126 else 0.0
 	var front := Vector2(sin(yaw),cos(yaw))
 	var center := Vector2(size)*.5
-	var distance := .25 if code == 126 else float(FRONT_BY_CODE.get(code,FRONT))-2.0
+	var distance := .25 if code == 126 else float(FRONT_BY_CODE.get(code,FRONT))-float(size.y)*.5
 	var point := Vector2(anchor)+center+front*distance
 	var cell := Vector2i(floori(point.x),floori(point.y))
 	var ground := 0.0
 	if city != null and city.in_bounds(cell.x,cell.y):
 		ground = CityGeometry3D.visible_ground_height(city,cell,point-Vector2(cell))
+	if PORCH_TOP_BY_CODE.has(code):
+		var base := CityBuildings3D.base_height(city,Rect2i(anchor,size),code) if city != null else 0.0
+		ground = maxf(ground,base+float(PORCH_TOP_BY_CODE[code]))
 	return Transform3D(Basis(Vector3.UP,yaw),Vector3(point.x,ground,point.y))

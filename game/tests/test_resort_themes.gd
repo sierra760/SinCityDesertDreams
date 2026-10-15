@@ -9,9 +9,9 @@ const PALETTE_ENTRIES: Array[String] = ["felt", "accent", "wood", "metal", "ston
 const VOICES: Array[StringName] = [&"assayer", &"conductor", &"foreman", &"flight_director"]
 
 
-func test_ten_resorts_map_to_their_buildings() -> void:
-	check_eq(ResortThemes.keys().size(), 10)
-	var codes := {251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit", 256: &"arcology_fix", 257: &"arcology_alibi", 258: &"arcology_velvet", 259: &"arcology_afterglow", 260: &"arcology_last", 261: &"arcology_dust"}
+func test_fourteen_resorts_map_to_their_buildings() -> void:
+	check_eq(ResortThemes.keys().size(), 14)
+	var codes := {251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit", 256: &"arcology_fix", 257: &"arcology_alibi", 258: &"arcology_velvet", 259: &"arcology_afterglow", 260: &"arcology_last", 261: &"arcology_dust", 262: &"arcology_boddy", 263: &"arcology_woolier", 264: &"arcology_stockgrowers", 265: &"arcology_fremont"}
 	for code in codes:
 		check_eq(ResortThemes.key_for_building(code), codes[code])
 		check_eq(ResortThemes.building(codes[code]), code)

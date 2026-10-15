@@ -87,11 +87,11 @@ func test_locked_category_can_explain_from_keyboard_without_selecting() -> void:
 	await _settle()
 	var picked: Array[int] = []
 	toolbar.tool_selected.connect(func(tool: int) -> void: picked.append(tool))
-	var index := toolbar.section_picker.get_item_index(Tools.Group.ARCOLOGY)
+	var index := toolbar.section_picker.get_item_index(Tools.Group.EMERGENCY)
 	toolbar.section_picker.select(index)
 	toolbar.section_picker.item_selected.emit(index)
 	await _settle()
-	var info := toolbar.button_for(Tools.Kind.ARCOLOGY_LAST).get_node("LockInfo") as Button
+	var info := toolbar.button_for(Tools.Kind.DISPATCH_FIRE).get_node("LockInfo") as Button
 	check(info.has_focus(),"an entirely locked category offers keyboard access to its first explanation")
 	for pressed: bool in [true,false]:
 		var key := InputEventKey.new()

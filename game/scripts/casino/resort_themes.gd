@@ -100,7 +100,7 @@ const CLASSIC_RESORTS: Dictionary = {
 }
 
 
-static var RESORTS: Dictionary = CLASSIC_RESORTS.merged(preload("res://scripts/casino/resort_expansion_themes.gd").RESORTS)
+static var RESORTS: Dictionary = CLASSIC_RESORTS.merged(preload("res://scripts/casino/resort_expansion_themes.gd").RESORTS).merged(preload("res://scripts/casino/neighborhood_resort_themes.gd").RESORTS)
 
 ## The early-game convenience-store venue; the four resort keys stay separate.
 const STORE_KEY := &"com_corner_store"

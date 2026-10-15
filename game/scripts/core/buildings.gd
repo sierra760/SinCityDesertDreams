@@ -139,7 +139,11 @@ const ARCOLOGY_VELVET := 258
 const ARCOLOGY_AFTERGLOW := 259
 const ARCOLOGY_LAST := 260
 const ARCOLOGY_DUST := 261
-const COUNT := 262
+const ARCOLOGY_BODDY := 262
+const ARCOLOGY_WOOLIER := 263
+const ARCOLOGY_STOCKGROWERS := 264
+const ARCOLOGY_FREMONT := 265
+const COUNT := 266
 
 ## [key, name, width, height, category, cost]
 const _ROSTER := [
@@ -405,6 +409,10 @@ const _ROSTER := [
 	[&"arcology_afterglow", "The Afterglow", 4, 4, Category.ARCOLOGY, 500000],
 	[&"arcology_last", "Last Resort", 4, 4, Category.ARCOLOGY, 60000],
 	[&"arcology_dust", "Dust Republic", 4, 4, Category.ARCOLOGY, 95000],
+	[&"arcology_boddy", "Boddy's", 2, 2, Category.ARCOLOGY, 8000],
+	[&"arcology_woolier", "Woolier Days", 2, 2, Category.ARCOLOGY, 16000],
+	[&"arcology_stockgrowers", "Stockgrowers", 3, 3, Category.ARCOLOGY, 30000],
+	[&"arcology_fremont", "Fremont Palace", 3, 3, Category.ARCOLOGY, 45000],
 
 ]
 

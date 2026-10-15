@@ -36,7 +36,7 @@ def check() -> tuple[int, int]:
             assert hashlib.sha256(path.read_bytes()).hexdigest() == row['sha256'], f'{name}: shared texture hash'
             assert 'mipmaps/generate=true' in path.with_suffix(path.suffix+'.import').read_text(), f'{name}: mipmaps'
             shared_images[name] = row
-    assert sorted(e["code"] for e in entries) == list(range(112, 262)), "coverage or duplicate code"
+    assert sorted(e["code"] for e in entries) == list(range(112, 266)), "coverage or duplicate code"
     total_bytes = 0
     for entry in entries:
         code = entry["code"]

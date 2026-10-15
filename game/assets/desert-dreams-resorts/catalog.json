@@ -786,6 +786,139 @@
       ],
       "sha256": "a2deb0738fe9049e237bd20833868a94474c47b28b20c5c5846f5cc1d443c05e"
     },
+    "hall_262": {
+      "triangles": 6788,
+      "parts": 11,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_floor",
+        "resort_foliage",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 16,
+      "min_godot": [
+        -12.300000190734863,
+        -0.3199999928474426,
+        -12.300000190734863
+      ],
+      "max_godot": [
+        12.300000190734863,
+        6.319999694824219,
+        17.299999237060547
+      ],
+      "size_godot": [
+        24.600000381469727,
+        6.639999687671661,
+        29.59999942779541
+      ],
+      "sha256": "8469f55eda99b6c1a63170de21df0aafc397176c2d9dac64c7054c297f92182b"
+    },
+    "hall_263": {
+      "triangles": 5268,
+      "parts": 10,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_floor",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 17,
+      "min_godot": [
+        -12.300000190734863,
+        -0.3199999928474426,
+        -12.300000190734863
+      ],
+      "max_godot": [
+        12.300000190734863,
+        6.319999694824219,
+        17.299999237060547
+      ],
+      "size_godot": [
+        24.600000381469727,
+        6.639999687671661,
+        29.59999942779541
+      ],
+      "sha256": "6992a03d79f1845830cddbb38d91334f160f12cd4265e55b3970fbefa76ebf98"
+    },
+    "hall_264": {
+      "triangles": 6656,
+      "parts": 10,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_floor",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 17,
+      "min_godot": [
+        -18.299999237060547,
+        -0.3199999928474426,
+        -18.299999237060547
+      ],
+      "max_godot": [
+        18.299999237060547,
+        8.319999694824219,
+        23.299999237060547
+      ],
+      "size_godot": [
+        36.599998474121094,
+        8.639999687671661,
+        41.599998474121094
+      ],
+      "sha256": "8ee5bf8d22d2238fc8626b083ada5a6880c3ce60aff1f8c76c59263625855d97"
+    },
+    "hall_265": {
+      "triangles": 8928,
+      "parts": 10,
+      "materials": [
+        "resort_carpet",
+        "resort_ceiling",
+        "resort_floor",
+        "resort_glass",
+        "resort_lamp",
+        "resort_metal",
+        "resort_sign",
+        "resort_stone",
+        "resort_wall",
+        "resort_wood"
+      ],
+      "colliders": 17,
+      "min_godot": [
+        -18.299999237060547,
+        -0.3199999928474426,
+        -18.299999237060547
+      ],
+      "max_godot": [
+        18.299999237060547,
+        8.319999694824219,
+        23.299999237060547
+      ],
+      "size_godot": [
+        36.599998474121094,
+        8.639999687671661,
+        41.599998474121094
+      ],
+      "sha256": "5452d007c86576cf7e148d409952be3cd647d0f557b076de9ebb983006756d36"
+    },
     "money_wheel": {
       "triangles": 2756,
       "parts": 7,
@@ -1115,6 +1248,34 @@
       "floor": "The Common Ground",
       "chandelier": "chandelier_starburst",
       "signature": "common_pot_table"
+    },
+    "262": {
+      "model": "hall_262",
+      "resort": "arcology_boddy",
+      "floor": "The Neighborhood Floor",
+      "chandelier": "chandelier_gaslamp",
+      "signature": "faro_table"
+    },
+    "263": {
+      "model": "hall_263",
+      "resort": "arcology_woolier",
+      "floor": "The Family Table",
+      "chandelier": "chandelier_lantern",
+      "signature": "chuck_a_luck_cage"
+    },
+    "264": {
+      "model": "hall_264",
+      "resort": "arcology_stockgrowers",
+      "floor": "The Auction Hall",
+      "chandelier": "chandelier_lantern",
+      "signature": "faro_table"
+    },
+    "265": {
+      "model": "hall_265",
+      "resort": "arcology_fremont",
+      "floor": "The Salvaged Salon",
+      "chandelier": "chandelier_gaslamp",
+      "signature": "baccarat_table"
     }
   },
   "stores": {

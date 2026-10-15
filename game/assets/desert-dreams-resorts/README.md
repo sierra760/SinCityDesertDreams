@@ -1,9 +1,9 @@
 # Gaming resort casino floors
 
-Runtime models for the walkable casino floors of the ten gaming resorts
-(building codes 251–254 and 256–261), used only by Explore mode.
+Runtime models for the walkable casino floors of the fourteen gaming resorts
+(building codes 251–254 and 256–265), used only by Explore mode.
 
-- `hall_251.glb` … `hall_254.glb` and `hall_256.glb` … `hall_261.glb`: the architecture of each hall (floor,
+- `hall_251.glb` … `hall_254.glb` and `hall_256.glb` … `hall_265.glb`: the architecture of each hall (floor,
   walls, ceiling, vestibule and street doors, cashier cage, bar and back bar,
   signature dais, columns, cornices and coves, sign plates and themed
   centrepieces).
@@ -14,7 +14,7 @@ Runtime models for the walkable casino floors of the ten gaming resorts
 Models are authored in metres with the door toward Godot +Z; the game applies
 the 1/16 tile scale. Materials are named `resort_<finish>`; the game maps each
 onto `scripts/exploration/resorts/resort_finish.gdshader` with the resort's
-palette, so one prop kit serves all ten resorts. Objects whose names end in
+palette, so one prop kit serves all fourteen resorts. Objects whose names end in
 `-colonly` are simplified collision shells. `catalog.json` records triangle
 counts, bounds, materials, shell counts and content hashes; `provenance.json`
 describes the original generator. The six additional halls are authored by
@@ -61,8 +61,8 @@ Despicable's uses `hall_126.glb`, built by
 `tools/blender_exploration/build_despicables_interior.py`, with its record in
 `catalog.json` → `stores`. Its compact floor is exactly half convenience store
 and half slots/video poker. It reuses the machine/stool kit and shared finishes;
-its populated layout, lights and signs are supplied by the game. Together with all ten resort halls, the store and 23 props the package contains
-34 models.
+its populated layout, lights and signs are supplied by the game. Together with all fourteen resort halls, the store and 23 props the package contains
+38 models.
 
 The six original signature games have dedicated geometry: `vault_table`,
 `route_table`, `encore_table`, `forecast_console`, `contract_table` and
@@ -70,3 +70,10 @@ The six original signature games have dedicated geometry: `vault_table`,
 3 ×1.6m signature-table footprint. Regenerate only these props with
 `tools/blender_exploration/build_original_signature_props.py` in Blender;
 the original kit and all hall GLBs remain untouched.
+
+Four compact neighborhood halls (`hall_262` through `hall_265`) are authored
+with `tools/blender_exploration/build_neighborhood_resorts.py`. They use the
+shared prop kit and finish shaders with their own palettes and explicit
+painting positions. Boddy’s and Woolier Days have 24-metre floors; Stockgrowers
+and Fremont Palace have 36-metre floors. Their enclosed vestibules, furniture
+and collision shells follow `neighborhood_resort_layouts.gd`.

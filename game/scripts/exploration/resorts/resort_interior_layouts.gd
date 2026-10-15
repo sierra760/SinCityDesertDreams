@@ -33,7 +33,7 @@ const POCKET_BOUNDS := AABB(Vector3(-HALF,-.02,-HALF),Vector3(HALF*2.0,CEILING+.
 const DOOR_REACH := .16
 const SEAT_REACH := .14
 
-const BUILDINGS := {126: &"com_corner_store", 251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit", 256: &"arcology_fix", 257: &"arcology_alibi", 258: &"arcology_velvet", 259: &"arcology_afterglow", 260: &"arcology_last", 261: &"arcology_dust"}
+const BUILDINGS := {126: &"com_corner_store", 251: &"arcology_comstock", 252: &"arcology_junction", 253: &"arcology_boulder", 254: &"arcology_orbit", 256: &"arcology_fix", 257: &"arcology_alibi", 258: &"arcology_velvet", 259: &"arcology_afterglow", 260: &"arcology_last", 261: &"arcology_dust", 262: &"arcology_boddy", 263: &"arcology_woolier", 264: &"arcology_stockgrowers", 265: &"arcology_fremont"}
 const SIGNATURE_PROPS := {&"faro": "faro_table", &"chuck_a_luck": "chuck_a_luck_cage",
 	&"baccarat": "baccarat_table", &"trajectory": "trajectory_console",
 	&"vault_circuit": "vault_table", &"alibi_route": "route_table", &"velvet_encore": "encore_table", &"afterglow_forecast": "forecast_console", &"last_bank": "contract_table", &"dust_pool": "common_pot_table"}
@@ -46,7 +46,7 @@ const FONTS := {"fontdiner": "res://assets/fonts/fontdiner-swanky/FontdinerSwank
 	"atomic_age": "res://assets/fonts/atomic-age/AtomicAge-Regular.ttf"}
 
 const CHANDELIERS := {&"arcology_comstock": "chandelier_gaslamp", &"arcology_junction": "chandelier_lantern",
-	&"arcology_boulder": "chandelier_turbine", &"arcology_orbit": "chandelier_starburst", &"arcology_fix": "chandelier_turbine", &"arcology_alibi": "chandelier_gaslamp", &"arcology_velvet": "chandelier_gaslamp", &"arcology_afterglow": "chandelier_starburst", &"arcology_last": "chandelier_lantern", &"arcology_dust": "chandelier_starburst"}
+	&"arcology_boulder": "chandelier_turbine", &"arcology_orbit": "chandelier_starburst", &"arcology_fix": "chandelier_turbine", &"arcology_alibi": "chandelier_gaslamp", &"arcology_velvet": "chandelier_gaslamp", &"arcology_afterglow": "chandelier_starburst", &"arcology_last": "chandelier_lantern", &"arcology_dust": "chandelier_starburst", &"arcology_boddy": "chandelier_gaslamp", &"arcology_woolier": "chandelier_lantern", &"arcology_stockgrowers": "chandelier_lantern", &"arcology_fremont": "chandelier_gaslamp"}
 
 ## Pit and bank placements in hall metres: game, table centre, yaw (the
 ## direction the seated player faces is the prop's -Z turned by yaw), seat
@@ -169,6 +169,10 @@ static func layout(key: StringName) -> Dictionary:
 		var store := preload("res://scripts/exploration/resorts/despicables_interior_layout.gd").layout()
 		_cache[key] = store
 		return store
+	if ResortThemes.building(key)>=262:
+		var neighborhood := preload("res://scripts/exploration/resorts/neighborhood_resort_layouts.gd").layout(key)
+		_cache[key] = neighborhood
+		return neighborhood
 	var look := theme(key)
 	if look.is_empty(): return {}
 	var signature: StringName = look.signature

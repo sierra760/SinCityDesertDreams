@@ -24,6 +24,7 @@ var _top: HBoxContainer
 var _money: VBoxContainer
 var _bottom: HBoxContainer
 var _narrow := false
+var _name_font_size := UITheme.FONT_TITLE + 4
 
 
 func _init() -> void:
@@ -43,6 +44,7 @@ func _init() -> void:
 	resort_label.name = "ResortName"
 	resort_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(resort_label)
+	resort_label.resized.connect(_fit_resort_name)
 	place_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	place_label.name = "Place"
 	place_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -112,7 +114,9 @@ func set_leave_enabled(enabled: bool, reason: String = "") -> void:
 ## Narrow headers put the money and the buttons on their own row; short
 ## ones use a smaller name.
 func apply_layout(narrow: bool, short: bool = false) -> void:
-	resort_label.add_theme_font_size_override("font_size", UITheme.FONT_TITLE + (0 if short or narrow else 4))
+	_name_font_size = UITheme.FONT_TITLE + (0 if short or narrow else 4)
+	resort_label.add_theme_font_size_override("font_size",_name_font_size)
+	_fit_resort_name.call_deferred()
 	if narrow == _narrow:
 		return
 	_narrow = narrow
@@ -138,3 +142,19 @@ func apply_layout(narrow: bool, short: bool = false) -> void:
 		net_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	if focused != null and focused.is_visible_in_tree() and not focused.has_focus():
 		focused.grab_focus()
+
+
+## A long single-word name must fit its allotted column without losing letters.
+## Restore the theme size as the column grows; spaced names can still wrap.
+func _fit_resort_name() -> void:
+	if not is_instance_valid(resort_label) or resort_label.size.x<=0: return
+	var font := resort_label.get_theme_font("font")
+	var fitted := _name_font_size
+	while fitted>14:
+		var widest := 0.0
+		for word: String in resort_label.text.split(" "):
+			widest=maxf(widest,font.get_string_size(word,HORIZONTAL_ALIGNMENT_LEFT,-1,fitted).x)
+		if widest<=resort_label.size.x+.1: break
+		fitted-=1
+	if resort_label.get_theme_font_size("font_size")!=fitted:
+		resort_label.add_theme_font_size_override("font_size",fitted)

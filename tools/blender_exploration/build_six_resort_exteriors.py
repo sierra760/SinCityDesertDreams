@@ -114,6 +114,8 @@ def draw_window(a,x,y,z,w,h,side,finish='glass',sill='stone'):
         box(a,'sign',(x,y,z),(.10,h+.25,w+.3))
         box(a,finish,(x+direction*.065,y,z),(.04,h,w))
         box(a,sill,(x+direction*.13,y-h/2-.13,z),(.32,.15,w+.4))
+    decorate=getattr(a,'window_decoration',None)
+    if decorate:decorate(a,x,y,z,w,h,side)
 
 
 def punched(a,x,z,w,d,bottom,top,step=4.2,spacing=4.5,ww=2.1,wh=2.5,finish='glass'):

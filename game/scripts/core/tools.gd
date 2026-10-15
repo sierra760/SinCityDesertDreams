@@ -27,6 +27,7 @@ enum Kind {
 	RAISE_LAND, LOWER_LAND, LEVEL_LAND, PLACE_WATER, FOREST, RAISE_SEA, LOWER_SEA,
 	PLANT_TREE,
 	ARCOLOGY_FIX, ARCOLOGY_ALIBI, ARCOLOGY_VELVET, ARCOLOGY_AFTERGLOW, ARCOLOGY_LAST, ARCOLOGY_DUST,
+	ARCOLOGY_BODDY, ARCOLOGY_WOOLIER, ARCOLOGY_STOCKGROWERS, ARCOLOGY_FREMONT,
 }
 
 ## How the pointer drives a tool. RECT tools cover the dragged area; GLOBAL
@@ -105,6 +106,10 @@ const _TABLE := {
 	Kind.ARCOLOGY_AFTERGLOW: ["The Afterglow", 500000, Buildings.ARCOLOGY_AFTERGLOW, -1, Vector2i(4, 4), &"arcology_afterglow", Mode.POINT, Group.ARCOLOGY],
 	Kind.ARCOLOGY_LAST: ["Last Resort", 60000, Buildings.ARCOLOGY_LAST, -1, Vector2i(4, 4), &"arcology_last", Mode.POINT, Group.ARCOLOGY],
 	Kind.ARCOLOGY_DUST: ["Dust Republic", 95000, Buildings.ARCOLOGY_DUST, -1, Vector2i(4, 4), &"arcology_dust", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_BODDY: ["Boddy's", 8000, Buildings.ARCOLOGY_BODDY, -1, Vector2i(2, 2), &"arcology_boddy", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_WOOLIER: ["Woolier Days", 16000, Buildings.ARCOLOGY_WOOLIER, -1, Vector2i(2, 2), &"arcology_woolier", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_STOCKGROWERS: ["Stockgrowers", 30000, Buildings.ARCOLOGY_STOCKGROWERS, -1, Vector2i(3, 3), &"arcology_stockgrowers", Mode.POINT, Group.ARCOLOGY],
+	Kind.ARCOLOGY_FREMONT: ["Fremont Palace", 45000, Buildings.ARCOLOGY_FREMONT, -1, Vector2i(3, 3), &"arcology_fremont", Mode.POINT, Group.ARCOLOGY],
 	Kind.ARCOLOGY_ORBIT: ["Desert Orbit", 200000, Buildings.ARCOLOGY_ORBIT, -1, Vector2i(4, 4), &"arcology_orbit", Mode.POINT, Group.ARCOLOGY],
 	Kind.REWARD_MAYORS_RESIDENCE: ["Mayor's Residence", 0, Buildings.MAYORS_RESIDENCE, -1, Vector2i(2, 2), &"reward_mayors_residence", Mode.POINT, Group.REWARD],
 	Kind.REWARD_CITY_HALL: ["City Hall", 0, Buildings.CITY_HALL, -1, Vector2i(3, 3), &"reward_city_hall", Mode.POINT, Group.REWARD],

@@ -14,6 +14,8 @@ extends RefCounted
 ## treasury caps it further).
 ## Resort maxima are 100 times their minimum. Expansion stakes follow the
 ## original four cost tiers; upper tiers extend Orbit's cost/limit slope.
+## Neighborhood tiers round Last Resort's cost-scaled minimum up to $5 steps,
+## with a $10 floor so their maxima never fall below Despicable's $1,000.
 const TABLE_LIMITS := {
 	&"com_corner_store": {"minimum": 1, "maximum": 1000},
 	&"arcology_comstock": {"minimum": 100, "maximum": 10000},
@@ -26,6 +28,10 @@ const TABLE_LIMITS := {
 	&"arcology_afterglow": {"minimum": 4000, "maximum": 400000},
 	&"arcology_last": {"minimum": 50, "maximum": 5000},
 	&"arcology_dust": {"minimum": 100, "maximum": 10000},
+	&"arcology_boddy": {"minimum": 10, "maximum": 1000},
+	&"arcology_woolier": {"minimum": 15, "maximum": 1500},
+	&"arcology_stockgrowers": {"minimum": 25, "maximum": 2500},
+	&"arcology_fremont": {"minimum": 40, "maximum": 4000},
 }
 
 ## A month's net, won or lost at one resort, that makes the Dispatch.

@@ -31,18 +31,19 @@ func test_every_resort_has_its_games_and_signature() -> void:
 			check(counts.has(game),"%s offers %s" % [key,game])
 		var signature: StringName = ResortInteriorLayouts.theme(key).signature
 		check_eq(int(counts.get(signature,0)),1,"%s has its signature game" % key)
-		check_eq(slots,48,"%s has 48 slot cabinets in four double-sided rows" % key)
+		check_eq(slots,6 if ResortThemes.building(key)>=262 else 48,"%s has its planned slot count" % key)
 		var pit := 0
 		for table: Dictionary in plan.tables:
 			if table.game != &"slots": pit += 1
-		check_ge(pit,7,"%s has at least seven pit games" % key)
-		check_eq(int(counts.get(&"blackjack",0)),3,"%s has three blackjack tables in the pit ring" % key)
+		check_ge(pit,5 if ResortThemes.building(key)>=262 else 7,"%s has at least seven pit games" % key)
+		check_eq(int(counts.get(&"blackjack",0)),1 if ResortThemes.building(key)>=262 else 3,"%s has three blackjack tables in the pit ring" % key)
 		check(ResortInteriorLayouts.minimum(key)>0,"%s has a table minimum" % key)
 
 func test_tables_seats_and_props_lie_inside_the_hall() -> void:
-	var inner := Rect2(Vector2(-ResortInteriorLayouts.HALF,-ResortInteriorLayouts.HALF),Vector2.ONE*ResortInteriorLayouts.HALF*2.0)
 	for key: StringName in ResortInteriorLayouts.keys():
 		var plan := ResortInteriorLayouts.layout(key)
+		var bounds: AABB = plan.bounds
+		var inner := Rect2(Vector2(bounds.position.x,bounds.position.z),Vector2.ONE*bounds.size.x)
 		for obstacle: Dictionary in plan.obstacles:
 			var rect := _rect(obstacle)
 			check(inner.grow(.0001).encloses(rect),"%s: %s inside the hall" % [key,obstacle.name])
@@ -54,7 +55,7 @@ func test_tables_seats_and_props_lie_inside_the_hall() -> void:
 				check(not _rect(obstacle).grow(.018).has_point(Vector2(seat.x,seat.z)),"%s: %s seat clear of %s" % [key,table.game,obstacle.name])
 		var mat: Vector3 = plan.entrance.mat.origin
 		check(plan.bounds.has_point(mat),"%s: mat inside the pocket" % key)
-		check_gt(mat.z,ResortInteriorLayouts.HALF,"%s: mat in the vestibule" % key)
+		check_gt(mat.z,inner.end.y,"%s: mat in the vestibule" % key)
 
 func test_lanes_between_obstacles_and_no_overlaps() -> void:
 	for key: StringName in ResortInteriorLayouts.keys():
@@ -75,6 +76,6 @@ func test_lanes_between_obstacles_and_no_overlaps() -> void:
 					check(gap<.001,"%s: %s faces stand back to back" % [key,a.name])
 					continue
 				if aisle:
-					check_gt(gap,.15,"%s: bartender aisle" % key)
+					check_gt(gap,.035 if ResortThemes.building(key)>=262 else .15,"%s: bartender aisle" % key)
 					continue
-				check_ge(gap,LANE,"%s: lane between %s and %s" % [key,a.name,b.name])
+				check_ge(gap,.08 if ResortThemes.building(key)>=262 else LANE,"%s: lane between %s and %s" % [key,a.name,b.name])

@@ -47,6 +47,10 @@ const ARCOLOGIES: Dictionary = {
 	&"arcology_afterglow": {"technology": &"arcology_comstock", "year": 2000, "capacity": 45000},
 	&"arcology_last": {"technology": &"arcology_comstock", "year": 2000, "capacity": 35000},
 	&"arcology_dust": {"technology": &"arcology_comstock", "year": 2000, "capacity": 40000},
+	&"arcology_boddy": {"year": 0, "capacity": 500},
+	&"arcology_woolier": {"year": 0, "capacity": 1200},
+	&"arcology_stockgrowers": {"year": 0, "capacity": 3000},
+	&"arcology_fremont": {"year": 0, "capacity": 5000},
 }
 
 ## Condition (desirability) scale: base value and how many map points move it

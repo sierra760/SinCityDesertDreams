@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "game/assets/desert-dreams-resorts"
-HALLS = ["hall_126", "hall_251", "hall_252", "hall_253", "hall_254", "hall_256", "hall_257", "hall_258", "hall_259", "hall_260", "hall_261"]
+HALLS = ["hall_126", "hall_251", "hall_252", "hall_253", "hall_254", "hall_256", "hall_257", "hall_258", "hall_259", "hall_260", "hall_261", "hall_262", "hall_263", "hall_264", "hall_265"]
 PROPS = ["slot_cabinet", "slot_stool", "blackjack_table", "roulette_table", "money_wheel",
          "video_poker_terminal", "faro_table", "chuck_a_luck_cage", "baccarat_table", "trajectory_console",
          "chandelier_gaslamp", "chandelier_lantern", "chandelier_turbine", "chandelier_starburst",
@@ -40,7 +40,7 @@ def check() -> tuple[int, int]:
         assert key in catalog, f"catalog {key}"
     models = catalog["models"]
     assert sorted(models) == sorted(HALLS + PROPS), "model coverage"
-    assert sorted(catalog["halls"]) == ["251", "252", "253", "254", "256", "257", "258", "259", "260", "261"], "hall coverage"
+    assert sorted(catalog["halls"]) == ["251", "252", "253", "254", "256", "257", "258", "259", "260", "261", "262", "263", "264", "265"], "hall coverage"
     stores = catalog.get("stores", {})
     assert set(stores) == {"126"}, "store coverage"
     store = stores["126"]

@@ -3162,6 +3162,1070 @@
       },
       "creation": "Original fictional Nevada casino illustrations",
       "generator": "tools/build_six_resort_art.py"
+    },
+    "boddy": {
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "4f72d114cddfff4dace34fc8ed96130aced7cf0989689210c0debb800d74545f",
+          "content_region": [
+            53,
+            45,
+            250,
+            267
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "b03e4e26514ffd857d3c5fab72be4bef2bab47156764629dd937130060ecbdd4",
+          "content_region": [
+            48,
+            56,
+            265,
+            264
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "62bf06005b6211761d391aa1c555da29f89f14bc3b91794ebb59c03fa3b5600f",
+          "content_region": [
+            90,
+            51,
+            194,
+            271
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "8a9fad80a5c98fd9f8d66462211ae4108e45256dacd4d3370d04c6a7af824bc1",
+          "content_region": [
+            65,
+            43,
+            208,
+            282
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "8ff0dd766fe88ea0d4f791d24bc39b3cc99cf3413ac6683c7c84f258af1d2bbf",
+          "content_region": [
+            62,
+            56,
+            245,
+            244
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "f7d2696d6cc32a90755aa360604027d78b639d103f28913fd9bec103cdafec72",
+          "content_region": [
+            38,
+            31,
+            273,
+            291
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "7f553476b184c897a721ba10c1bb9860588449fd175b07b5d5bc18f4592c1219",
+          "content_region": [
+            46,
+            46,
+            251,
+            265
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "101695342938fb8820dc02c7d1b5d3e26927c92a22f08f7f16fe926b4b7e65ff",
+          "content_region": [
+            41,
+            51,
+            265,
+            266
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "5e72080ecc680c77eca854cb56f92f43b5fa36c3d611daf75569f7123f7b366a",
+          "content_region": [
+            96,
+            39,
+            195,
+            273
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "84807678b2d637dfdd82ec7f49498c6b56e9201b287bb79f1a36ecf40e445dcb",
+          "content_region": [
+            69,
+            31,
+            207,
+            281
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "ea7dc0ae2d4863abd38262aedf24d522ede9430d5398d3048e3a408111c5856a",
+          "content_region": [
+            56,
+            55,
+            247,
+            247
+          ]
+        },
+        "payout-B": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "665756803d91c344e48cd9ac44b421fb9903f1ffbabe26eb40e0d08c6eb1117d",
+          "content_region": [
+            36,
+            32,
+            272,
+            292
+          ]
+        },
+        "court-jack": {
+          "size": [
+            360,
+            360
+          ],
+          "sha256": "aa6f4ff3719af1e2655b101df9c012480f4b55c2e1e8dff9de4e1ceab4b959e0",
+          "content_region": [
+            61,
+            15,
+            271,
+            300
+          ]
+        },
+        "court-queen": {
+          "size": [
+            360,
+            360
+          ],
+          "sha256": "856ba88e7e241d6654e3c5691477785f4cebaa6e6b30eaa2712b62b7c6a8f5d9",
+          "content_region": [
+            56,
+            17,
+            263,
+            298
+          ]
+        },
+        "court-king": {
+          "size": [
+            360,
+            360
+          ],
+          "sha256": "af3c43a6a0bc645c082054579d5083d87eb3f13ed413cd815d09c203b5697eef",
+          "content_region": [
+            57,
+            16,
+            278,
+            298
+          ]
+        },
+        "card-back": {
+          "size": [
+            360,
+            360
+          ],
+          "sha256": "c9ddc70c8d26a1fc02e2c0647c26c087cf7594468f0a6f40d9c4ea4de2cd11bc",
+          "content_region": [
+            95,
+            24,
+            182,
+            275
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "727a6357b62e048385b12ae6228d7ebec0aed55d9111e9b97b323bfe677f55f7",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "18a22a550f648d8307795a2fad0dea726715b848e10238ae499f7298ef67e596",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "067577a13c209865c91aa83456860588de7b5182f0bf3c624f3822035cb0991c",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "77cf4c499b7fd5531653d4a4155f99586514e1227959e27e3b32d09d44ca803a",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "creation": "Original fictional Nevada casino illustrations",
+      "generator": "tools/build_neighborhood_resort_art.py"
+    },
+    "woolier": {
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "d0117d6919350bab84bd10b0916a478374519681ee4c22fa306c4530fb45eba5",
+          "content_region": [
+            46,
+            47,
+            276,
+            275
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "ac29dc84fd779e0d588a68f5d734e2fe0b392eb27a81d22004dd226af12f46c2",
+          "content_region": [
+            19,
+            97,
+            310,
+            215
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "214a5da073acf98375833db0c6c6d36a1e9751676f72a00cedae8afe1e5dcb29",
+          "content_region": [
+            52,
+            53,
+            254,
+            277
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "351812c274153e0775f119b180136922d9fee2153374dde6f5055533732a523f",
+          "content_region": [
+            79,
+            33,
+            194,
+            289
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "233eb365a53a6e930b86b5f50bad13b31509c78b9719123403e3cbc8a622b5e2",
+          "content_region": [
+            35,
+            74,
+            285,
+            221
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "6f98026ea471af7802f41ff24dd22cd6ad43cf35fa0b5c1b971dbd86240b55c8",
+          "content_region": [
+            32,
+            45,
+            282,
+            266
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "c805a8fbfa7fc302cf8706412a075e5c6f9a344c53a8e68cae35516547838eda",
+          "content_region": [
+            46,
+            55,
+            302,
+            276
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "b01572697ae7af21ad3014b7e5561c3e58039ad6e6b4b923f998f7eb5adf04c4",
+          "content_region": [
+            22,
+            98,
+            298,
+            215
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "8d097ba4eb3c42b6d3f8eaa927fa5191564427b599a171f2b1273a5e26a1ea2d",
+          "content_region": [
+            52,
+            44,
+            254,
+            278
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "5919a54f3a52e0abebceddea2e2909c4985c932a150923b1a48ce55ba7957c6c",
+          "content_region": [
+            88,
+            33,
+            194,
+            289
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "139c7382831fa8ba3edf4c252ee4caef27840b4b881dade08366bbbd7675c367",
+          "content_region": [
+            35,
+            82,
+            285,
+            220
+          ]
+        },
+        "payout-B": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "c1b0b32bb75b2bcf972299ce3bde150a58c919a9148c84e5da9e1968acbc060e",
+          "content_region": [
+            22,
+            45,
+            284,
+            265
+          ]
+        },
+        "court-jack": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "dc38dd711fed9da5680b85c909c9c7dbb59210dfa0c86ad63d524ea3e43e087d",
+          "content_region": [
+            71,
+            84,
+            1133,
+            1082
+          ]
+        },
+        "court-queen": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "da555ad9870886f81ca83baf3f3e91331e5dfe4b767a0af65db4ac2140614840",
+          "content_region": [
+            81,
+            77,
+            1125,
+            1112
+          ]
+        },
+        "court-king": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "445f2ab5f048ea9df3d2d39f4d41b287ee1d19aaa8cd4f4d31cbec3468998a1b",
+          "content_region": [
+            26,
+            100,
+            1207,
+            1079
+          ]
+        },
+        "card-back": {
+          "size": [
+            1254,
+            1254
+          ],
+          "sha256": "ee32669989b9c9341e90132dce53d01347b2ce6f1cf724a64f1076f6fba13006",
+          "content_region": [
+            240,
+            81,
+            775,
+            1072
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "5eb86c37d40403fd7612d077ff234d3bf6cab99de8111c649283f768932d3a0d",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "39e5d467c011ef50b5acd64a8f806067c0bf0651b45dcce48e26dd342c300ad5",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "2a980140b0866891b3830e9316fcb7e4aff1ab9f983705f6cf2c88dd09b4063e",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "b587b4b42a8de322a5be36bd822fa26f142ba0dad536ffdbda6d623741f6ea88",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "creation": "Original fictional Nevada casino illustrations",
+      "generator": "tools/build_neighborhood_resort_art.py"
+    },
+    "stockgrowers": {
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            348,
+            348
+          ],
+          "sha256": "e8ed2e49967f1dae1723eef2c82ef755fdc1201e266980920bf9f4ffd00518f5",
+          "content_region": [
+            22,
+            79,
+            312,
+            244
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "4aafc3e069560ad973974dd96937422a02c888ca66dda09fcebd32242da202d8",
+          "content_region": [
+            18,
+            48,
+            303,
+            283
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            358,
+            358
+          ],
+          "sha256": "b67f2f28ac89885ea0d6d60757b60247eb0bdc21af3cb8b1773e51e7ccb4825b",
+          "content_region": [
+            15,
+            68,
+            329,
+            243
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "6272e56b3553708e2c37caeed21963e3818f9ef848b6f22bd95aaf66e9898c59",
+          "content_region": [
+            17,
+            22,
+            301,
+            301
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            348,
+            348
+          ],
+          "sha256": "d6f6b0c94c022fe9da4ad61825aec1109f979e375fc1496d4f93b57b5e8ad1fc",
+          "content_region": [
+            27,
+            86,
+            304,
+            215
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            337,
+            337
+          ],
+          "sha256": "92667d4715faa543acf973960276d94a3c06665324dafd9a63c72446a7749381",
+          "content_region": [
+            45,
+            43,
+            263,
+            258
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            358,
+            358
+          ],
+          "sha256": "38b0d1bdfe410288ebcd0702dcee2ab0e953e4e81c32d10c4d012eba1d8f533c",
+          "content_region": [
+            20,
+            64,
+            324,
+            253
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            339,
+            339
+          ],
+          "sha256": "a41de28fcfcda8119174c745b7da0423fa8e33fdbeef6a7a918f3d57b0706b43",
+          "content_region": [
+            14,
+            34,
+            297,
+            285
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            348,
+            348
+          ],
+          "sha256": "27caf6e4a6c926fc0a500b927c8739e30a9133519a68a8f99d827045c94c6f19",
+          "content_region": [
+            22,
+            64,
+            286,
+            243
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            337,
+            337
+          ],
+          "sha256": "b61a6392c2de0c78e7685283866babda271382967c3c5ad0faf7a323ced3d59f",
+          "content_region": [
+            14,
+            18,
+            308,
+            299
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            358,
+            358
+          ],
+          "sha256": "cbaa99bd0f7e332b95faa18aadb3e7a927298432da3a2e25e0bcc7d4d60cc631",
+          "content_region": [
+            30,
+            96,
+            304,
+            213
+          ]
+        },
+        "payout-B": {
+          "size": [
+            339,
+            339
+          ],
+          "sha256": "ae6871bf570f93fd7bfa26092cda8aa5f68b11f06bee8b0f03728c33a3fefdc1",
+          "content_region": [
+            45,
+            49,
+            250,
+            250
+          ]
+        },
+        "court-jack": {
+          "size": [
+            371,
+            371
+          ],
+          "sha256": "a118be57c7599a3362c4239e92c0b933d1d7d2ea4a4f90cc93de2dc52c3af104",
+          "content_region": [
+            61,
+            16,
+            284,
+            323
+          ]
+        },
+        "court-queen": {
+          "size": [
+            371,
+            371
+          ],
+          "sha256": "711214f10dcfc9c6a3ef475bf2aed1302473920ab82e451a0ab0d78fe2a7fc52",
+          "content_region": [
+            52,
+            23,
+            273,
+            318
+          ]
+        },
+        "court-king": {
+          "size": [
+            371,
+            371
+          ],
+          "sha256": "c5a5d42cd9062ef0cbf305c498d5e6dcd84ef04a3be7b1466d504456269cdce9",
+          "content_region": [
+            35,
+            16,
+            312,
+            325
+          ]
+        },
+        "card-back": {
+          "size": [
+            371,
+            371
+          ],
+          "sha256": "a793a2484866be81e0d2d81ae63dd9f1dd851eeaf5226244013368a69b48c673",
+          "content_region": [
+            75,
+            15,
+            216,
+            313
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "48d0d5b58c29bf280c1c199f3816e5ddec15feaa8f47d54c007d726ad6c24b84",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "047a04c937f27c63537963e3d2caeed63e7ec45e7104af038d67fa883944f51f",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "7c896dd8d72cdbcb8d88a48380331348a4f2b831ba7c2f2de8a43a1fe4305c7c",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "22df70f4ff834de7c3f7ac312bde24d6981040c46569bd7fe318a72dae69277d",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "creation": "Original fictional Nevada casino illustrations",
+      "generator": "tools/build_neighborhood_resort_art.py"
+    },
+    "fremont": {
+      "assets": {
+        "symbol-s1": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "558b6b9b7a77f45dd6f74d0de1de8818f4e742421129210aa7d9895a367cc706",
+          "content_region": [
+            54,
+            22,
+            250,
+            304
+          ]
+        },
+        "symbol-s2": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "6f9cc5c0d5f734e86617a2e05009f0ea1dc794bd771603e936fe276dc4bcbfe5",
+          "content_region": [
+            46,
+            28,
+            259,
+            279
+          ]
+        },
+        "symbol-s3": {
+          "size": [
+            355,
+            355
+          ],
+          "sha256": "ab55700866a5ceccb05d9021fa449b37405bdf95b6d59f91c64a04c61b280f2c",
+          "content_region": [
+            65,
+            50,
+            259,
+            275
+          ]
+        },
+        "symbol-s4": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "b1fe7e45d61d5d65697aafaedee92469a42073ad4d6d2acdeefe5ba7efce6fc0",
+          "content_region": [
+            91,
+            30,
+            154,
+            294
+          ]
+        },
+        "symbol-s5": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "092f1dc98440c1b54bee747f629e7ea374f61c21b44052c4b31c3f7ef669da8d",
+          "content_region": [
+            60,
+            25,
+            235,
+            292
+          ]
+        },
+        "symbol-B": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "abb242d128148c8bc987d1228f29291979afdb05d85a7691bbcab92317178d9c",
+          "content_region": [
+            41,
+            17,
+            267,
+            312
+          ]
+        },
+        "payout-s1": {
+          "size": [
+            355,
+            355
+          ],
+          "sha256": "2b2fbf4b5b9e57dec5f0ae78c0cdacc8a1697a2a8e1fc183ca8c15f4b414f325",
+          "content_region": [
+            41,
+            24,
+            250,
+            304
+          ]
+        },
+        "payout-s2": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "400ee4bc5c79008ff2eb155f1d1c8a6f0dea04e366bc8067e9f0725212337a9f",
+          "content_region": [
+            45,
+            28,
+            258,
+            280
+          ]
+        },
+        "payout-s3": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "be0d22839ba6190788464fc014155c60875e43fcbb53c67b142c6a3fe6849f9b",
+          "content_region": [
+            63,
+            39,
+            259,
+            276
+          ]
+        },
+        "payout-s4": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "c306769c0584e4b2a3f39cf88f2bb3f6bf284623b465713b792a4b67b66e189d",
+          "content_region": [
+            96,
+            26,
+            153,
+            295
+          ]
+        },
+        "payout-s5": {
+          "size": [
+            355,
+            355
+          ],
+          "sha256": "3d2aaacd143cbfb8cdfedef2c8fa9e7c17332aacdd93232ca681fed91fa1e625",
+          "content_region": [
+            61,
+            27,
+            235,
+            292
+          ]
+        },
+        "payout-B": {
+          "size": [
+            345,
+            345
+          ],
+          "sha256": "37bbf7493c3e94bf718c57ab3e2c4b407fd9149e4678dbd7a95d8d66ee377c13",
+          "content_region": [
+            37,
+            16,
+            266,
+            310
+          ]
+        },
+        "court-jack": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "732ab9021e737b2306a31897668ccde7e84fce586c9b2625e1f603828a237d03",
+          "content_region": [
+            49,
+            15,
+            255,
+            302
+          ]
+        },
+        "court-queen": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "8dcd4f3b9ada57280f506955b0b031a86b0cbe5b085166beec9ffabc8978cac4",
+          "content_region": [
+            26,
+            18,
+            301,
+            301
+          ]
+        },
+        "court-king": {
+          "size": [
+            355,
+            355
+          ],
+          "sha256": "557089dfe08e37ad1c61f9e7471d87f7cbf8185ced83f58cdee8afd664771366",
+          "content_region": [
+            33,
+            19,
+            308,
+            303
+          ]
+        },
+        "card-back": {
+          "size": [
+            346,
+            346
+          ],
+          "sha256": "5894d83007124d22b800343bb03e1c13a02b2cc89d2b4bfa2a0add6c0f24da6d",
+          "content_region": [
+            76,
+            18,
+            186,
+            289
+          ]
+        },
+        "mural-history": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "09f86cc10f9fb7051fa4bc5a683a704ac2fc26ef852ff593fabe99a23b487b30",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-industry": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "5553bc839d030b2915cefc25dba6998dcc4aeda89dab76ee78e063a4091e21a7",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "mural-heritage": {
+          "size": [
+            362,
+            362
+          ],
+          "sha256": "4858a4f052fe8dc00e64c37c205b55b322b2a56849ec83a342294ef76bb0e48d",
+          "content_region": [
+            0,
+            0,
+            362,
+            362
+          ]
+        },
+        "cabinet-reels": {
+          "size": [
+            480,
+            280
+          ],
+          "sha256": "c4076b5f86bd938b954f5739e926ff814da5e3dbf21e768b329e0b7133e4d8d0",
+          "content_region": [
+            0,
+            0,
+            480,
+            280
+          ]
+        }
+      },
+      "creation": "Original fictional Nevada casino illustrations",
+      "generator": "tools/build_neighborhood_resort_art.py"
     }
   },
   "refinement_prompts": "assets/casino-art/refinement-prompts.json",

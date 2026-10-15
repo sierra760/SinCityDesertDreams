@@ -44,7 +44,7 @@ func test_floor_art_is_batched_on_the_interior_layer() -> void:
 				check(material != null and material.albedo_texture != null,"real imported bitmap on every surface")
 				var arrays := batch.mesh.surface_get_arrays(index)
 				triangles += (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size()/3
-			check_eq(triangles,198,"all 48 cabinets dressed with full reels and header, plus three paintings")
+			check_eq(triangles,30 if ResortThemes.building(key)>=262 else 198,"every cabinet dressed with reels and header, plus three paintings")
 		world.free()
 
 func test_payouts_keep_transparent_backgrounds_and_subject_bounds() -> void:

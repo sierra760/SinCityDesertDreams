@@ -429,13 +429,13 @@ func test_arcology_availability_by_year() -> void:
 	var rewards := RewardSystem.new()
 	_register(ctx, [rewards])
 	check(not rewards.arcology_available(&"arcology_comstock"), "not before its year")
-	check_eq(rewards.available_arcologies(), [])
+	check_eq(rewards.available_arcologies(), [&"arcology_boddy", &"arcology_woolier", &"arcology_stockgrowers", &"arcology_fremont"])
 	ctx.clock.day = 10 * GameClock.DAYS_PER_YEAR
 	check(rewards.arcology_available(&"arcology_comstock"))
 	check(not rewards.arcology_available(&"arcology_junction"))
 	ctx.stats.inventions[&"arcology_junction"] = 1995
 	check(rewards.arcology_available(&"arcology_junction"), "the economy's invention year wins")
-	check_eq(rewards.available_arcologies(), [&"arcology_comstock", &"arcology_junction", &"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"])
+	check_eq(rewards.available_arcologies(), [&"arcology_comstock", &"arcology_junction", &"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust", &"arcology_boddy", &"arcology_woolier", &"arcology_stockgrowers", &"arcology_fremont"])
 	check(not rewards.arcology_available(&"city_hall"), "only arcology keys")
 	ctx.stats.inventions[&"arcology_comstock"] = 2010
 	for key in [&"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"]:

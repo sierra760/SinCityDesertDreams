@@ -8,7 +8,7 @@
 extends "res://tests/exploration/async_test_case.gd"
 
 const ROOT := "res://assets/desert-dreams-resorts/"
-const CODES := [251,252,253,254,256,257,258,259,260,261]
+const CODES := [251,252,253,254,256,257,258,259,260,261,262,263,264,265]
 const STEP := .1
 const OPEN := ["bar_stool","slot_stool","standard_sign","chandelier_gaslamp","chandelier_lantern",
 	"chandelier_turbine","chandelier_starburst"]
@@ -83,13 +83,13 @@ func test_built_halls_reach_every_seat_within_budgets() -> void:
 		check_between(int(stats.triangles),1000,150000,"%d populated triangle budget" % code)
 		check_between(int(stats.draw_surfaces),1,40,"%d draw surface budget" % code)
 		check_between(int(stats.lights),2,7,"%d fill plus at most six lamps" % code)
-		check_eq(int(stats.slots),48,"%d slot multimesh instances" % code)
+		check_eq(int(stats.slots),6 if code>=262 else 48,"%d slot multimesh instances" % code)
 		var space := world.get_world_3d().direct_space_state
 		var mat: Vector3 = world.mat_transform().origin
 		check(abs(_support(space,world,Vector2(mat.x,mat.z)-Vector2(world.position.x,world.position.z))-world.position.y)<.005,"%d mat stands on the floor" % code)
 		check(_clear(space,mat),"%d mat is clear" % code)
 		# Walkable floor grid at 0.1 tile, joined by unobstructed capsule moves.
-		var bounds: AABB = ResortInteriorLayouts.POCKET_BOUNDS
+		var bounds: AABB = world.plan.bounds
 		var cells := {}
 		var xs := int(bounds.size.x/STEP)
 		var zs := int(bounds.size.z/STEP)

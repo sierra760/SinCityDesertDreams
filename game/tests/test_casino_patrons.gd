@@ -24,7 +24,7 @@ func test_every_casino_has_varied_visible_patrons() -> void:
 		var crowd := _build(key)
 		if crowd == null: return
 		var states: Array = crowd.call("states")
-		check_eq(states.size(),3 if key == ResortThemes.STORE_KEY else 16,"full but bounded population")
+		check_eq(states.size(),int(hall.plan.get("patron_count",3 if key == ResortThemes.STORE_KEY else 16)),"full but bounded population")
 		var variants := {}
 		var playing := 0
 		for state: Dictionary in states:

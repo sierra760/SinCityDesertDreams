@@ -1420,6 +1420,12 @@
       "sha256": "b2fdb363d35312d7c2a3082c6674e134fb646bf63151b97c663739742ed81c72",
       "bytes": 1631187,
       "source_name": "desert-rock (mirrored tile)"
+    },
+    {
+      "path": "surfaces/3d6b142e6dbe994117da51e62d2bb2df4e7d03ea679075d8a815538de41ad62b.jpg",
+      "sha256": "3d6b142e6dbe994117da51e62d2bb2df4e7d03ea679075d8a815538de41ad62b",
+      "bytes": 28497,
+      "source_name": "neighborhood-timber"
     }
   ]
 }

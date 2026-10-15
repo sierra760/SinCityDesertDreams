@@ -51,3 +51,11 @@ game/tests/test_city_overlay_sampler.gd:79
 game/tests/test_city_overlay_sampler.gd:81
 docs/design/zone-colors.md:13
 docs/design/zone-colors.md:15
+
+# Neighborhood resort icon RGB literals and an authored SVG curve.
+tools/build_neighborhood_resort_icons.py:11
+tools/build_neighborhood_resort_icons.py:12
+tools/build_neighborhood_resort_icons.py:13
+# Ikurrina red RGB literal in material authoring and its color checker.
+tools/blender_exploration/build_neighborhood_resorts.py:521
+tools/blender_exploration/check_neighborhood_resorts.py:157

@@ -1,6 +1,6 @@
 # Gaming resorts
 
-Each of the ten Gaming Resorts has a casino floor you can walk into from
+Each of the fourteen Gaming Resorts has a casino floor you can walk into from
 Explore. The mayor plays at its tables with the city treasury: a bet leaves
 the treasury, a win comes back to it, and the Desert Dispatch keeps an eye on
 the mayor's nights out. Play reaches the rest of the city only through the
@@ -29,6 +29,35 @@ New native saves use version 2 and store building IDs in 16 bits. Existing
 version 1 cities remain readable, and classic imports keep their original
 IDs. See [File formats](file-formats.md).
 
+## Neighborhood resorts
+
+Four smaller resorts are available from the founding of a city. They bridge
+Despicable’s machines and Last Resort, with six themed games per venue and
+independent play histories. No additional invention roll is made.
+
+| ID | Resort | Saved key | Lot | Cost | Resident capacity | Limits |
+|---|---|---|---|---:|---:|---|
+| 262 | Boddy’s | `arcology_boddy` | 2 × 2 | $8,000 | 500 | $10–$1,000 |
+| 263 | Woolier Days | `arcology_woolier` | 2 × 2 | $16,000 | 1,200 | $15–$1,500 |
+| 264 | Stockgrowers | `arcology_stockgrowers` | 3 × 3 | $30,000 | 3,000 | $25–$2,500 |
+| 265 | Fremont Palace | `arcology_fremont` | 3 × 3 | $45,000 | 5,000 | $40–$4,000 |
+
+Boddy’s is a Vegas neighborhood gaming tavern, with cream stucco, burgundy
+awnings, flowers and homelike furnishings. Woolier Days is a northern Nevada
+Basque restaurant and boardinghouse; an accurate ikurriña flies out front,
+and its communal dining table shares space with a compact gaming salon.
+Stockgrowers is a northern Nevada ranch hotel built around a former livestock
+auction hall, with timber, galvanized roofing and a stock-water tank.
+Fremont Palace is a downtown Vegas hotel assembled from salvaged grandeur:
+marble columns, a restored crown and an old fountain in the gaming salon.
+
+The two smaller casino floors are 24 × 24 metres; the larger pair are
+36 × 36 metres. They contain six slot cabinets, three video poker terminals,
+one blackjack table, roulette, a money wheel and a signature table. Boddy’s
+and Stockgrowers offer faro, Woolier Days chuck-a-luck and Fremont Palace
+baccarat. Shared rules, treasury protections and background settlement apply.
+Six or eight ambient patrons keep the compact floors and entrances clear.
+
 ## Entering a resort
 
 Build a Gaming Resort, then choose **View → Explore City** and walk up to the
@@ -46,7 +75,7 @@ street. Return to Build works from inside as it does anywhere else.
 Inside, marinas and vehicles do not answer F. If the resort is demolished or
 replaced while you are inside, you are put back outside with a message.
 
-Each casino floor has sixteen other patrons, with varied mid-century clothes.
+Each larger resort floor has sixteen other patrons, with varied mid-century clothes.
 They walk between tables and machines, press buttons, place bets and react
 between rounds. They give you room as you approach, and the player positions
 at every game and the entrance stay clear. Despicable's has three patrons in
@@ -190,6 +219,10 @@ as the resorts; all stores in a city share the Despicable's play history.
 | Resort | Minimum | Maximum |
 | --- | --- | --- |
 | Despicable's | $1 | $1,000 |
+| Boddy’s | $10 | $1,000 |
+| Woolier Days | $15 | $1,500 |
+| Stockgrowers | $25 | $2,500 |
+| Fremont Palace | $40 | $4,000 |
 | Comstock Grand | $100 | $10,000 |
 | Silver Junction | $250 | $25,000 |
 | Boulder Crown | $500 | $50,000 |
@@ -201,10 +234,14 @@ as the resorts; all stores in a city share the Despicable's play history.
 | Last Resort | $50 | $5,000 |
 | Dust Republic | $100 | $10,000 |
 
-The six additions follow the original four's cost progression and 100×
+All fourteen resorts follow the original four's cost progression and 100×
 maximum-to-minimum spread. Above Desert Orbit, each additional $1,000 of
 construction cost adds $10 to the minimum; Alibi fits between Junction and
-Boulder, and the two lower-cost resorts use accessible rounded stakes.
+Boulder, and Last Resort and Dust Republic use accessible rounded stakes.
+The four neighborhood resorts scale from Last Resort’s $60,000 cost / $50
+minimum, rounding up to $5 steps with a $10 minimum floor. This keeps both
+limits at or above Despicable’s $1–$1,000 while leading into Last Resort’s
+$50–$5,000 tier. Despicable’s retains its existing limits.
 
 Every bet comes from the city treasury, and the table's maximum is never more
 than the treasury holds, including blackjack doubles and splits. The treasury
@@ -232,7 +269,7 @@ table says so.
 
 ## Ledger, Inspect and the news
 
-All ten resort designs have separate persisted play histories. The city keeps
+All fourteen resort designs have separate persisted play histories. The city keeps
 a ledger for each resort: rounds played, totals staked and
 returned, the best win and worst loss, and the net for the month and the
 year. It is saved with the city. **Inspect** on a resort lot shows its

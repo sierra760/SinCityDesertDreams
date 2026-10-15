@@ -17,7 +17,7 @@ const FINISHES := {"resort_floor": 0, "resort_carpet": 1, "resort_wall": 2, "res
 	"resort_stone": 4, "resort_wood": 5, "resort_metal": 6, "resort_glass": 7, "resort_felt": 8,
 	"resort_lamp": 9, "resort_sign": 10, "resort_screen": 11, "resort_rubber": 12, "resort_cove": 13,
 	"resort_foliage": 14}
-const VARIANTS := {&"arcology_comstock": 0, &"arcology_junction": 1, &"arcology_boulder": 2, &"arcology_orbit": 3, &"arcology_fix": 0, &"arcology_alibi": 1, &"arcology_velvet": 0, &"arcology_afterglow": 3, &"arcology_last": 1, &"arcology_dust": 3}
+const VARIANTS := {&"arcology_comstock": 0, &"arcology_junction": 1, &"arcology_boulder": 2, &"arcology_orbit": 3, &"arcology_fix": 0, &"arcology_alibi": 1, &"arcology_velvet": 0, &"arcology_afterglow": 3, &"arcology_last": 1, &"arcology_dust": 3, &"arcology_boddy": 0, &"arcology_woolier": 1, &"arcology_stockgrowers": 1, &"arcology_fremont": 0}
 const METRES := 16.0
 const SHADER := preload("res://scripts/exploration/resorts/resort_finish.gdshader")
 ## Authored props that are visual only, never blocking.
