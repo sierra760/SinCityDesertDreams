@@ -14,7 +14,7 @@ func after_each() -> void:
 	_contexts.clear()
 
 ## Behavior tests for the rewards system: milestones, gifts, the military
-## offer, arcology intake and the exodus. The systems are driven directly
+## offer, tourism compatibility and the exodus. The systems are driven directly
 ## through a hand-built context so the checks do not depend on other systems.
 
 const RewardSystem := preload("res://scripts/sim/reward_system.gd")
@@ -38,10 +38,14 @@ func _context(c: City, seed_value: int = 7) -> SimContext:
 
 
 func _register(ctx: SimContext, systems: Array) -> void:
+	var tourism := TourismSystem.new()
+	ctx.systems[&"tourism"] = tourism
+	tourism.setup(ctx)
 	for s in systems:
 		var sys: SimSystem = s
 		sys.setup(ctx)
 		ctx.systems[sys.key] = sys
+	tourism.finish_restore({})
 
 
 ## Run whole days the way the simulation schedules them: daily, then the
@@ -49,6 +53,12 @@ func _register(ctx: SimContext, systems: Array) -> void:
 func _run_days(ctx: SimContext, systems: Array, days: int) -> void:
 	for _i in days:
 		ctx.events.clear()
+		var tourism := ctx.system(&"tourism") as TourismSystem
+		tourism.daily(ctx)
+		if ctx.clock.day_of_month() == 17:
+			tourism.monthly(ctx)
+		if ctx.clock.day_of_month() == 18:
+			tourism.acknowledge_booking(ctx.clock.day / GameClock.DAYS_PER_MONTH)
 		for s in systems:
 			var sys: SimSystem = s
 			sys.daily(ctx)
@@ -86,7 +96,8 @@ func _count_zone(c: City, kind: int) -> int:
 
 
 func _serve(c: City, x: int, y: int) -> void:
-	c.set_flag(x, y, TileFlags.POWERED | TileFlags.WATERED, true)
+	TourismFixture.set_served(c, Vector2i(x, y), true, true)
+	c.stamp_building(x - 1, y, Buildings.ROAD_FIRST)
 
 
 # ── Milestones and gifts ─────────────────────────────────────────────────
@@ -445,7 +456,7 @@ func test_arcology_availability_by_year() -> void:
 		check(rewards.arcology_available(key), "new resort unlocks with Comstock")
 
 
-func test_powered_arcology_fills() -> void:
+func test_powered_resort_fills_with_tourists_only() -> void:
 	var c := flat_city()
 	var ctx := _context(c)
 	var rewards := RewardSystem.new()
@@ -453,25 +464,22 @@ func test_powered_arcology_fills() -> void:
 	c.stamp_building(10, 10, Buildings.ARCOLOGY_COMSTOCK)
 	_serve(c, 10, 10)
 	ctx.stats.population = 100000
-	rewards.networks_changed(ctx, Rect2i(10, 10, 4, 4))
-	var report := rewards.arcology_report()
-	check_eq(report.size(), 1)
-	check_eq(report[0].key, &"arcology_comstock")
-	check_eq(report[0].capacity, 55000)
-	check_eq(report[0].residents, 0, "new arcologies start empty")
-	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
-	report = rewards.arcology_report()
-	var first := int(report[0].residents)
-	check_gt(first, 0, "residents move in after a served year")
-	check_lt(first, 55000 / RewardParams.INTAKE_CAPACITY_SHARE + RewardParams.INTAKE_JITTER, "intake is capped")
-	check_eq(ctx.stats.arcology_population, first)
-	check_gt(int(report[0].condition), 0)
-	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
-	report = rewards.arcology_report()
-	check_gt(int(report[0].residents), first, "and keep coming")
-	check_ge(int(report[0].pollution), 0)
-	var rec := c.facility(Vector2i(10, 10))
-	check_eq(int(rec.residents), int(report[0].residents), "state lives in the facility record")
+	var tourism := ctx.system(&"tourism") as TourismSystem
+	tourism.reconcile_now()
+	check_eq(rewards.arcology_report()[0].tourists, 0)
+	_run_days(ctx, [rewards], GameClock.DAYS_PER_MONTH)
+	var report := rewards.arcology_report()[0]
+	check_gt(report.guests, 0, "monthly guests arrive")
+	check_eq(report.capacity, TourismParams.guest_capacity(&"arcology_comstock"))
+	check_eq(report.residents, report.tourists, "deprecated alias means tourists")
+	check_eq(ctx.stats.arcology_population, 0)
+	check_eq(ctx.stats.total_population(), 100000)
+	check(not c.facility(Vector2i(10, 10)).has("residents"))
+	var previous := tourism.save()
+	var rng_before := ctx.rng.state()
+	rewards.yearly(ctx)
+	check_eq(tourism.save(), previous, "annual reward processing never grows attendance")
+	check_eq(ctx.rng.state(), rng_before, "annual resort growth no longer consumes shared RNG")
 
 
 func test_unpowered_arcology_stays_empty() -> void:
@@ -497,9 +505,8 @@ func test_high_taxes_slow_intake() -> void:
 	c.stamp_building(10, 10, Buildings.ARCOLOGY_ORBIT)
 	_serve(c, 10, 10)
 	ctx.stats.population = 200000
-	ctx.stats.tax_residential = 20
-	ctx.stats.tax_commercial = 20
-	ctx.stats.tax_industrial = 20
+	ctx.stats.tax_occupancy = 20
+	ctx.stats.tax_gaming = 20
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
 	var taxed := int(rewards.arcology_report()[0].residents)
 	var c2 := flat_city()
@@ -511,7 +518,7 @@ func test_high_taxes_slow_intake() -> void:
 	ctx2.stats.population = 200000
 	_run_days(ctx2, [rewards2], GameClock.DAYS_PER_YEAR)
 	var untaxed := int(rewards2.arcology_report()[0].residents)
-	check_lt(taxed, untaxed, "a heavy tax burden deters residents")
+	check_lt(taxed, untaxed, "visitor taxes deter tourists")
 
 
 func test_demolished_arcology_leaves_the_census() -> void:
@@ -523,51 +530,44 @@ func test_demolished_arcology_leaves_the_census() -> void:
 	_serve(c, 10, 10)
 	ctx.stats.population = 100000
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
-	check_gt(ctx.stats.arcology_population, 0)
+	check_gt(ctx.stats.tourists, 0)
 	c.clear_footprint(10, 10)
 	rewards.networks_changed(ctx, Rect2i(10, 10, 4, 4))
-	check_eq(ctx.stats.arcology_population, 0)
+	(ctx.system(&"tourism") as TourismSystem).reconcile_now()
+	check_eq(ctx.stats.tourists, 0)
 	check_eq(rewards.arcology_report().size(), 0)
 
 
-func test_exodus_launches_the_orbit_fleet() -> void:
+func test_orbit_departure_preserves_resident_population_and_refund() -> void:
 	var c := flat_city()
 	c.founded_year = RewardParams.LAUNCH_YEAR
+	for i in RewardParams.LAUNCH_COUNT:
+		var a := Vector2i((i % 25) * 5, (i / 25) * 5)
+		c.stamp_building(a.x, a.y, Buildings.ARCOLOGY_ORBIT)
+		TourismFixture.set_served(c, a, true, true)
+		c.stamp_building(a.x + 4, a.y, Buildings.ROAD_FIRST)
+		if i < 10:
+			c.add_facility(a, {"key": &"arcology_orbit", "residents": 1000})
+	c.stamp_building(100, 100, Buildings.ARCOLOGY_COMSTOCK)
 	var ctx := _context(c)
+	ctx.stats.population = 1234
 	var rewards := RewardSystem.new()
 	_register(ctx, [rewards])
-	var placed := 0
-	var y := 0
-	while placed < RewardParams.LAUNCH_COUNT:
-		for x in range(0, City.WIDTH - 3, 4):
-			if placed >= RewardParams.LAUNCH_COUNT:
-				break
-			c.stamp_building(x, y, Buildings.ARCOLOGY_ORBIT)
-			placed += 1
-		y += 4
-	c.stamp_building(100, 100, Buildings.ARCOLOGY_COMSTOCK)
-	rewards.networks_changed(ctx, Rect2i(0, 0, City.WIDTH, City.HEIGHT))
-	var inhabited := 0
-	for anchor in c.facilities:
-		var rec: Dictionary = c.facilities[anchor]
-		if rec.key == &"arcology_orbit" and inhabited < 10:
-			rec["residents"] = 1000
-			inhabited += 1
-	rewards.networks_changed(ctx, Rect2i())
-	check_eq(ctx.stats.arcology_population, 10000)
+	check_eq(ctx.stats.tourists, 10000)
 	var funds_before := c.funds
-	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
-	var exodus := 0
-	for notice in _notices:
-		if notice.kind == &"exodus":
-			exodus += 1
-			check_eq(int(notice.payload.resorts), RewardParams.LAUNCH_COUNT)
-			check_eq(int(notice.payload.residents), 10000)
-	check_eq(exodus, 1, "one exodus notice")
-	check_eq(c.building.count(Buildings.ARCOLOGY_ORBIT), 0, "the fleet is gone")
-	check(Buildings.is_rubble(c.building_at(0, 0)), "launch sites are rubble")
-	check_eq(c.building_at(100, 100), Buildings.ARCOLOGY_COMSTOCK, "other designs stay")
-	check_eq(c.funds, funds_before + 10 * RewardParams.LAUNCH_REFUND, "compensation for inhabited arcologies")
+	rewards.yearly(ctx)
+	check_eq(ctx.events.notices.size(), 1)
+	var notice: Dictionary = ctx.events.notices[0]
+	check_eq(notice.kind, &"exodus")
+	check_eq(notice.payload.resorts, RewardParams.LAUNCH_COUNT)
+	check_eq(notice.payload.tourists, 10000)
+	check_eq(notice.payload.residents, 10000, "event compatibility alias preserved")
+	check_eq(c.building.count(Buildings.ARCOLOGY_ORBIT), 0)
+	check(Buildings.is_rubble(c.building_at(0, 0)))
+	check_eq(c.building_at(100, 100), Buildings.ARCOLOGY_COMSTOCK)
+	check_eq(c.funds, funds_before + 10 * RewardParams.LAUNCH_REFUND)
+	check_eq(ctx.stats.population, 1234)
+	check_eq(ctx.stats.tourists, 0)
 	check_eq(ctx.stats.arcology_population, 0)
 	check_eq(rewards.arcology_report().size(), 1)
 
@@ -604,41 +604,51 @@ func test_save_load_round_trip() -> void:
 	check(rewards.accept_military())
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
 	rewards.mark_built(&"city_hall")
+	var tourism_saved := ctx.system(&"tourism").save()
 	var saved := rewards.save()
 	var text := JSON.stringify(saved)
 	var parsed: Dictionary = JSON.parse_string(text)
 	var c2 := c.duplicate_city()
-	c2.facilities.clear()
 	var ctx2 := _context(c2)
 	ctx2.stats.from_dict(ctx.stats.to_dict())
 	ctx2.clock.day = ctx.clock.day
 	var restored := RewardSystem.new()
 	_register(ctx2, [restored])
 	restored.load(parsed)
+	# This rewards-only clock explicitly acknowledges every completed period in
+	# _run_days; restoration must include that booking identity as well.
+	check_eq((ctx2.system(&"tourism") as TourismSystem).finish_restore({"systems": {
+		"tourism": tourism_saved, "budget": {"tourism_booked_month": tourism_saved.last_month}}}), OK)
 	check_eq(restored.available(), rewards.available())
 	check_eq(restored.military_offer(), rewards.military_offer())
 	check_eq(restored.military_kind(), &"army")
 	check_eq(restored.arcology_report(), rewards.arcology_report())
 	check_eq(ctx2.stats.arcology_population, ctx.stats.arcology_population)
-	check_gt(ctx2.stats.arcology_population, 0)
+	check_gt(ctx2.stats.tourists, 0)
 	_run_days(ctx2, [restored], 6 * GameClock.DAYS_PER_MONTH)
 	check_eq(_offers(&"military_base"), 1, "restored state does not repeat the offer")
 
 
-func test_all_six_new_resorts_join_population_reports() -> void:
+func test_all_six_new_resorts_join_tourist_reports() -> void:
 	var city := flat_city()
 	var ctx := _context(city)
 	var rewards := RewardSystem.new()
 	_register(ctx, [rewards])
-	var capacities := [35000, 30000, 30000, 45000, 35000, 40000]
+	var capacities := [3200, 1400, 2200, 5000, 600, 950]
 	for i in 6:
-		city.stamp_building(12 + i * 4, 12, 256 + i)
-		_serve(city, 12 + i * 4, 12)
+		city.stamp_building(12 + i * 5, 12, 256 + i)
+		_serve(city, 12 + i * 5, 12)
 	ctx.stats.population = 200000
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
 	var reports := rewards.arcology_report()
 	check_eq(reports.size(), 6)
 	for i in mini(6, reports.size()):
 		check_eq(reports[i].capacity, capacities[i])
-		check_gt(reports[i].residents, 0, "served new resorts admit residents")
-	check_gt(ctx.stats.arcology_population, 0)
+		check_gt(reports[i].residents, 0, "served new resorts admit tourists")
+	check_gt(ctx.stats.tourists, 0)
+
+func test_orbit_departure_copy_describes_tourists() -> void:
+	var notice := NoticeLines.render(&"exodus", {"tourists": 42, "residents": 42}, "Test City", "Mayor", 2250)
+	check(String(notice.body).contains("42 tourists"))
+	for headline: String in NewsStories.STORIES[&"resort_launch"].headlines:
+		check(not headline.to_lower().contains("resident"), "departure headline describes tourists")

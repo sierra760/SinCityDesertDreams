@@ -35,7 +35,7 @@ const NOTICES: Dictionary = {
 	},
 	&"exodus": {
 		"title": "The Gaming Resorts Leave",
-		"body": "The gaming resorts of {city} have sealed their doors, lifted from their foundations and departed for the stars, taking {count} residents with them. Rubble and a refund are all they left behind.",
+		"body": "The gaming resorts of {city} have sealed their doors, lifted from their foundations and departed for the stars, taking {count} tourists with them. Rubble and a refund are all they left behind.",
 	},
 	&"approval_milestone": {
 		"title": "A Popular Mayor",

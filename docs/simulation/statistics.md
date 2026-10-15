@@ -15,7 +15,7 @@ Read on the sampling day:
 - `City.building` and `City.zone` layers: developed residential, commercial
   and industrial tiles, counted per tile of each occupied lot.
 - `City.funds`, `City.status`, `City.name`.
-- `CityStats`: `population`, `arcology_population`, `demand`, `jobs`,
+- `CityStats`: `population`, `tourists`, `tourist_occupancy`, `demand`, `jobs`,
   `average_crime`, `average_pollution`, `average_land_value`,
   `average_traffic`, `power_capacity`, `power_demand`, `water_capacity`,
   `water_demand`, `unemployment`, `life_expectancy`, `education_quotient`,
@@ -29,7 +29,11 @@ Read on the sampling day:
 
   | Series | Sample |
   |---|---|
-  | `population` | ordinary residents plus arcology residents |
+  | `population` | permanent residents only |
+  | `tourists` | current overnight guests plus distinct day visitors |
+  | `tourist_occupancy` | current guests / operating guest capacity, percent |
+  | `taxes_occupancy` | latest booked monthly occupancy tax, dollars |
+  | `taxes_gaming` | latest booked monthly gaming revenue tax, dollars |
   | `residents` | developed residential tiles |
   | `commercial` | developed commercial tiles |
   | `industrial` | developed industrial tiles |
@@ -122,3 +126,7 @@ series are selected. They follow the same monthly sampling, history retention
 and saved-history rules as the other series. The A bar reads the cheap scalar
 `CityStats.demand_agricultural`; it never runs a farm census while drawing.
 RCI demand and its saved array retain three components.
+
+Older population history samples retain their original values, which may include
+resort occupants. Migration does not rewrite history or synthesize tourism
+samples. Graph labels distinguish occupancy percent from monthly tax dollars.

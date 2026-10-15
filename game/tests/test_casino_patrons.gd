@@ -13,6 +13,7 @@ func _build(key: StringName = &"arcology_comstock", anchor: Vector2i = Vector2i(
 	hall = ResortInteriorWorld3D.new()
 	root.add_child(hall)
 	hall.build(key,ResortThemes.building(key),anchor)
+	hall.set_attendance(24)
 	var crowd := hall.get_node_or_null("Patrons")
 	check(crowd != null,"the casino floor has other patrons")
 	return crowd
@@ -178,3 +179,24 @@ func test_slot_bank_players_sit_on_the_authored_stools() -> void:
 		var knee := visitor.to_local(skeleton.to_global(skeleton.get_bone_global_pose(skeleton.find_bone("RightShin")).origin))
 		check_gt(knee.y-hip.y,-.008,"slot players bend their knees over the stool, rather than standing through it")
 	check(found,"a slot player is present")
+
+func test_attendance_resize_preserves_survivors_and_reuses_released_seats() -> void:
+	var crowd := _build(ResortThemes.STORE_KEY)
+	var survivor: Dictionary = crowd.get("_people")[0]
+	var visual: Node = survivor.visual
+	var initial := survivor.duplicate(true)
+	seed(7821)
+	var expected := randi()
+	seed(7821)
+	for cycle in 12:
+		crowd.call("set_count",1)
+		check_eq(crowd.get_child_count(),1,"removed visitor models are released immediately")
+		crowd.call("set_count",3)
+		check_eq(crowd.get_child(0),visual)
+		check_eq(crowd.get("_people")[0],initial,"seat, route, yield and cosmetic state survive resize")
+		var occupied := {}
+		for person: Dictionary in crowd.get("_people"):
+			check(not occupied.has(person.target),"each restored visitor owns a free seat")
+			occupied[person.target] = true
+			check(float(person.remaining)<=8.0,"arrival game clock keeps the existing bounded stagger")
+	check_eq(randi(),expected,"resizing draws no global randomness")

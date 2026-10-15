@@ -3,7 +3,7 @@
 # See LICENSE and LICENSING.md in the repository root.
 
 ## Population window: headline counts, the twenty age cohorts with their
-## education and health, the March complaints and the arcologies.
+## education and health, the March complaints and separate tourism attendance.
 class_name PopulationWindow
 extends Control
 
@@ -149,12 +149,7 @@ func refresh() -> void:
 	else:
 		_status_label.text = "No city loaded"
 	var status := PopulationSystem.status_name(_sim.city.status) if has_city else "-"
-	if stats.arcology_population > 0:
-		_headline_label.text = "Population %s (%s residents, %s in gaming resorts), a %s" % [
-			UIFactory.commafy(stats.total_population()), UIFactory.commafy(stats.population),
-			UIFactory.commafy(stats.arcology_population), status]
-	else:
-		_headline_label.text = "Population %s, a %s" % [UIFactory.commafy(stats.total_population()), status]
+	_headline_label.text = "Population %s, a %s" % [UIFactory.commafy(stats.total_population()), status]
 	_scores_label.text = "Employment %d%%, approval %d%%, education %d, life expectancy %d, jobs %s" % [
 		clampi(100 - stats.unemployment, 0, 100), stats.approval, stats.education_quotient,
 		stats.life_expectancy, UIFactory.commafy(stats.jobs)]
@@ -212,7 +207,7 @@ func complaint_text(rank: int) -> String:
 
 
 func arcology_count() -> int:
-	return _arcology_box.get_child_count()
+	return maxi(1, _arcology_box.get_child_count() - 1)
 
 
 func chart() -> CohortChart:
@@ -249,7 +244,7 @@ func _build() -> void:
 	_complaints_box = VBoxContainer.new()
 	_complaints_box.add_theme_constant_override("separation", 2)
 	left.add_child(_complaints_box)
-	left.add_child(UIFactory.make_section_header("Gaming Resorts"))
+	left.add_child(UIFactory.make_section_header("Tourism"))
 	_arcology_box = VBoxContainer.new()
 	_arcology_box.add_theme_constant_override("separation", 2)
 	left.add_child(_arcology_box)
@@ -317,21 +312,26 @@ func _refresh_complaints(population: SimSystem) -> void:
 
 func _refresh_arcologies(has_city: bool) -> void:
 	_clear(_arcology_box)
-	var rewards: SimSystem = _sim.get_system(&"rewards") if has_city else null
-	var report: Array = []
-	if rewards != null and rewards.has_method("arcology_report"):
-		report = rewards.call("arcology_report")
+	var tourism := _sim.tourism() if has_city else null
+	var report: Array = tourism.report() if tourism != null else []
+	if tourism != null:
+		var st := _sim.stats
+		var summary := UIFactory.make_label("%s tourists: %s overnight guests and %s day visitors. Lodging occupancy %d%% of %s operating beds. Visitors are separate from permanent resident cohorts." % [UIFactory.commafy(st.tourists), UIFactory.commafy(st.tourist_guests), UIFactory.commafy(st.tourist_day_visitors), st.tourist_occupancy, UIFactory.commafy(st.tourist_capacity)], UITheme.FONT_SMALL)
+		summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_arcology_box.add_child(summary)
 	if report.is_empty():
 		_arcology_box.add_child(UIFactory.make_label("None built", UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
 		return
-	for entry in report:
-		var rec: Dictionary = entry
-		var anchor: Vector2i = rec.get("anchor", Vector2i(-1, -1))
-		var line := "%s at %d,%d: %s of %s residents, built %d" % [
-			_resort_name(StringName(String(rec.get("key", "")))), anchor.x, anchor.y,
-			UIFactory.commafy(int(rec.get("residents", 0))), UIFactory.commafy(int(rec.get("capacity", 0))),
-			int(rec.get("built_year", 0))]
-		_arcology_box.add_child(UIFactory.make_label(line, UITheme.FONT_SMALL))
+	for rec: Dictionary in report:
+		var anchor: Vector2i = rec.anchor
+		var line := "%s at %d,%d: %s guests / %s beds (%d%%); %s day visitors / %s. %s" % [
+			_resort_name(StringName(rec.key)), anchor.x, anchor.y,
+			UIFactory.commafy(int(rec.guests)), UIFactory.commafy(int(rec.capacity)), int(rec.occupancy),
+			UIFactory.commafy(int(rec.day_visitors)), UIFactory.commafy(int(rec.day_capacity)),
+			"Operating" if rec.operating else String(rec.reason)]
+		var label := UIFactory.make_label(line, UITheme.FONT_SMALL)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_arcology_box.add_child(label)
 
 
 ## A gaming resort's display name from its building key.

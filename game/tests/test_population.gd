@@ -177,7 +177,7 @@ func test_settlement_class_rises_with_population() -> void:
 	check(not (&"status_upgrade" in news_kinds(ctx)))
 	ctx.stats.arcology_population = 9000
 	run_months(ctx, 1)
-	check_eq(c.status, 2, "arcology residents count toward the class")
+	check_eq(c.status, 1, "obsolete resort occupancy never raises permanent settlement class")
 	check_eq(PopulationSystem.status_name(5), "Megalopolis")
 
 
@@ -332,8 +332,10 @@ func test_simulation_snapshot_restores_population_state() -> void:
 		return
 	check_gt(sim.stats.population, 0)
 	var snap := sim.snapshot()
-	var copy := make_simulation(thousand_city())
-	copy.restore(snap)
+	var decoded := SaveFormat.decode_city(SaveFormat.encode_city(sim.city))
+	check_eq(decoded.error,"","restore uses the matching saved city and calendar")
+	var copy := make_simulation(decoded.city)
+	check_eq(copy.restore(snap),OK)
 	check_eq(copy.get_system(&"population").save(), system.save())
 	check_eq(copy.stats.cohorts, sim.stats.cohorts)
 	root.remove_child(sim)

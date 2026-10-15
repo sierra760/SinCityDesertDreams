@@ -26,6 +26,8 @@ const ACCOUNTS: Array[Array] = [
 	[&"taxes_commercial", "Commercial taxes"],
 	[&"taxes_industrial", "Industrial taxes"],
 	[&"taxes_agricultural", "Agricultural taxes"],
+	[&"taxes_occupancy", "Occupancy tax"],
+	[&"taxes_gaming", "Gaming revenue tax"],
 	[&"transit_fares", "Transit fares"],
 	[&"ordinance_income", "Ordinance income"],
 	[&"neighbor_trade", "Neighbor trade"],
@@ -48,10 +50,18 @@ var _syncing := false
 var _status_label: Label
 var _funds_label: Label
 var _review_label: Label
+var _tourism_label: Label
+var _tourism_section: VBoxContainer
+var _tourism_values: Dictionary = {}
+var _tourism_capacity: Label
+var _tourism_tax: Label
+var _tourism_accrued: Label
+var _tourism_details: Button
+var _tourism_detail_body: VBoxContainer
 var _tax_spinners: Dictionary = {}       ## kind -> TouchNumberField
 var _funding_sliders: Dictionary = {}    ## service -> HSlider
 var _funding_values: Dictionary = {}     ## service -> Label
-var _ledger_rows: Dictionary = {}        ## account -> [year_to_date Label, estimate Label]
+var _ledger_rows: Dictionary = {}        ## account -> [year_to_date Label, estimate Label, previous_year Label]
 var _totals_label: Label
 var _condition_label: Label
 var _last_year_label: Label
@@ -145,6 +155,8 @@ func refresh() -> void:
 	_tax_spinners[&"commercial"].value = stats.tax_commercial
 	_tax_spinners[&"industrial"].value = stats.tax_industrial
 	_tax_spinners[&"agricultural"].value = stats.tax_agricultural
+	_tax_spinners[&"occupancy"].value = stats.tax_occupancy
+	_tax_spinners[&"gaming"].value = stats.tax_gaming
 	for service: StringName in _funding_sliders:
 		var pct := stats.funding_of(service)
 		var slider: HSlider = _funding_sliders[service]
@@ -154,6 +166,7 @@ func refresh() -> void:
 	_auto_budget.button_pressed = stats.auto_budget
 	_condition_label.text = condition_text(_sim)
 	_refresh_ledger(stats)
+	_refresh_tourism()
 	_refresh_bonds(stats)
 	_syncing = false
 
@@ -347,6 +360,121 @@ func _build_taxes(parent: VBoxContainer) -> void:
 		grid.add_child(spinner)
 		_tax_spinners[kind] = spinner
 	parent.add_child(grid)
+	_build_tourism(parent)
+
+
+## A stable small grid stays a grid on phones: three metrics, two named columns.
+## Only the existing outer report scrolls; disclosure never reparents controls.
+func _build_tourism(parent: VBoxContainer) -> void:
+	_tourism_section = VBoxContainer.new()
+	_tourism_section.name = "TourismSection"
+	_tourism_section.add_theme_constant_override("separation", 4)
+	parent.add_child(_tourism_section)
+	_tourism_section.add_child(UIFactory.make_section_header("Tourism"))
+	for entry in [[&"occupancy", TourismParams.OCCUPANCY_TAX_LABEL], [&"gaming", TourismParams.GAMING_TAX_LABEL]]:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var caption := _tourism_text(entry[1])
+		caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(caption)
+		var field := TouchNumberField.new()
+		field.min_value = TourismParams.TAX_MIN
+		field.max_value = TourismParams.TAX_MAX
+		field.step = TourismParams.TAX_STEP
+		field.get_line_edit().add_theme_constant_override("minimum_character_width", 2)
+		field.value_changed.connect(_on_tax_changed.bind(entry[0]))
+		row.add_child(field)
+		_tax_spinners[entry[0]] = field
+		_tourism_section.add_child(row)
+	var grid := GridContainer.new()
+	grid.name = "TourismComparison"
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 4)
+	for text in ["", "Current", "Forecast"]:
+		var heading := _tourism_text(text)
+		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		heading.size_flags_stretch_ratio = 1.8 if text.is_empty() else 1.0
+		grid.add_child(heading)
+	for entry in [["guests", "Overnight guests"], ["day", "Day visitors"], ["occupancy", "Occupancy"]]:
+		grid.add_child(_tourism_text(entry[1]))
+		var pair: Array[Label] = []
+		for column in 2:
+			var value := _tourism_text("0")
+			value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			grid.add_child(value)
+			pair.append(value)
+		_tourism_values[entry[0]] = pair
+	_tourism_section.add_child(grid)
+	_tourism_capacity = _tourism_text("")
+	_tourism_section.add_child(_tourism_capacity)
+	_tourism_section.add_child(_tourism_text("Estimated city tax income", UITheme.MONEY_POSITIVE))
+	_tourism_tax = _tourism_text("$0 / year", UITheme.MONEY_POSITIVE)
+	_tourism_tax.name = "TourismTaxEstimate"
+	_tourism_section.add_child(_tourism_tax)
+	_tourism_accrued = _tourism_text("")
+
+	_tourism_section.add_child(_tourism_text("Forecast settles monthly; taxes pay annually.", UITheme.TEXT_MUTED))
+	_tourism_details = UIFactory.make_button("Details", "Show tourism calculations and taxable business")
+	_tourism_details.name = "TourismDetails"
+	_tourism_details.toggle_mode = true
+	_tourism_details.custom_minimum_size.y = 44
+	_tourism_details.focus_mode = Control.FOCUS_ALL
+	_tourism_section.add_child(_tourism_details)
+	_tourism_detail_body = VBoxContainer.new()
+	_tourism_detail_body.name = "TourismDetailBody"
+	_tourism_detail_body.add_child(_tourism_accrued)
+	_tourism_detail_body.hide()
+	_tourism_section.add_child(_tourism_detail_body)
+	_tourism_label = _tourism_text("")
+	_tourism_detail_body.add_child(_tourism_label)
+	_tourism_details.toggled.connect(func(expanded: bool) -> void:
+		_tourism_detail_body.visible = expanded
+		_tourism_details.text = "Hide details" if expanded else "Details")
+
+
+static func _tourism_text(text: String, color: Color = UITheme.TEXT_PRIMARY) -> Label:
+	var label := UIFactory.make_label(text, UITheme.FONT_SMALL, color)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size.x = 0
+	return label
+
+
+func _refresh_tourism() -> void:
+	var tourism := _sim.tourism() if _sim != null and _sim.city != null else null
+	var projection: Dictionary = tourism.forecast() if tourism != null else {}
+	var stats := _sim.stats if tourism != null else CityStats.new()
+	var metrics := {
+		"guests": [UIFactory.commafy(stats.tourist_guests), UIFactory.commafy(int(projection.get("guests", 0)))],
+		"day": [UIFactory.commafy(stats.tourist_day_visitors), UIFactory.commafy(int(projection.get("day_visitors", 0)))],
+		"occupancy": ["%d%%" % stats.tourist_occupancy, "%d%%" % int(projection.get("occupancy", 0))]}
+	for metric in metrics:
+		for column in 2:
+			_tourism_values[metric][column].text = metrics[metric][column]
+	var total_capacity := 0
+	if tourism != null:
+		for row: Dictionary in tourism.report(): total_capacity += int(row.capacity)
+	_tourism_capacity.text = "Beds: %s operating / %s total" % [UIFactory.commafy(int(projection.get("capacity", 0))), UIFactory.commafy(total_capacity)] if tourism != null else "No city loaded"
+	var budget := _budget()
+	var estimate: Dictionary = budget.call("estimated_ledger") if budget != null else {}
+	_tourism_tax.text = UIFactory.format_amount(int(estimate.get(&"taxes_occupancy", 0)) + int(estimate.get(&"taxes_gaming", 0))) + " / year"
+	_tourism_accrued.text = "Accrued this year: " + UIFactory.format_amount(int(stats.ledger.get(&"taxes_occupancy", 0)) + int(stats.ledger.get(&"taxes_gaming", 0)))
+	if tourism == null:
+		_tourism_label.text = "No active tourism economy"
+		return
+	var target := 0
+	for row: Dictionary in projection.get("rows", []):
+		target += int(row.target_guests)
+	var capacity := int(projection.get("capacity", 0))
+	@warning_ignore("integer_division")
+	var target_percent := target * 100 / capacity if capacity > 0 else 0
+	_tourism_label.text = "Current occupancy %d%%: %s guests / %s operating beds; %s day visitors.\nTarget occupancy %d%%: %s guests. Settled forecast %d%%: %s guests, %s day visitors.\nCompleted monthly taxable bases: lodging $%.2f; gaming after payouts $%.2f.\nMonthly taxable business forecast: lodging $%.2f; gaming after payouts $%.2f.\n%s\nRates apply at the next booking. Attendance changes monthly with gradual guest turnover. Tourism estimates show twelve months at settled settings; accrued taxes reach the treasury at annual settlement. Mayor play is separate." % [
+		_sim.stats.tourist_occupancy, UIFactory.commafy(_sim.stats.tourist_guests), UIFactory.commafy(capacity), UIFactory.commafy(_sim.stats.tourist_day_visitors),
+		target_percent, UIFactory.commafy(target), int(projection.get("occupancy", 0)), UIFactory.commafy(int(projection.get("guests", 0))), UIFactory.commafy(int(projection.get("day_visitors", 0))),
+		_sim.stats.tourist_lodging_cents / 100.0, _sim.stats.tourist_gaming_cents / 100.0,
+		int(projection.get("lodging_cents", 0)) / 100.0, int(projection.get("gaming_cents", 0)) / 100.0, String(projection.get("explanation", ""))]
 
 
 func _build_funding(parent: VBoxContainer) -> void:
@@ -386,10 +514,11 @@ func _funding_grid(services: Array[StringName]) -> GridContainer:
 func _build_ledger(parent: VBoxContainer) -> void:
 	parent.add_child(UIFactory.make_section_header("Books"))
 	var grid := UIFactory.ResponsiveTable.new()
-	grid.columns = 3
+	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", UITheme.MARGIN)
 	grid.add_child(UIFactory.make_label("Account", UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
 	grid.add_child(_amount_label("Year to date", UITheme.TEXT_MUTED))
+	grid.add_child(_amount_label("Previous year", UITheme.TEXT_MUTED))
 	grid.add_child(_amount_label("Year-end estimate", UITheme.TEXT_MUTED))
 	for entry in ACCOUNTS:
 		var account: StringName = entry[0]
@@ -397,8 +526,10 @@ func _build_ledger(parent: VBoxContainer) -> void:
 		var ytd := _amount_label("$0")
 		var est := _amount_label("$0")
 		grid.add_child(ytd)
+		var previous := _amount_label("$0")
+		grid.add_child(previous)
 		grid.add_child(est)
-		_ledger_rows[account] = [ytd, est]
+		_ledger_rows[account] = [ytd, est, previous]
 	parent.add_child(grid)
 	_totals_label = UIFactory.make_label("Income $0, expenses $0, net $0", UITheme.FONT_BODY)
 	_last_year_label = UIFactory.make_label("Last year: no books yet", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
@@ -463,6 +594,7 @@ func _refresh_ledger(stats: CityStats) -> void:
 		var expense := account in BudgetParams.EXPENSE_KEYS
 		_set_amount(ytd, int(stats.ledger.get(account, 0)), expense)
 		_set_amount(est, int(estimate.get(account, 0)), expense)
+		_set_amount(pair[2], int(stats.last_year_ledger.get(account, 0)), expense)
 	var income := int(summary.get("estimated_income", 0))
 	var expenses := int(summary.get("estimated_expenses", 0))
 	_totals_label.text = "Estimated income %s, expenses %s, net %s" % [
@@ -552,6 +684,8 @@ func _on_tax_changed(value: float, kind: StringName) -> void:
 		&"commercial": _sim.stats.tax_commercial = rate
 		&"industrial": _sim.stats.tax_industrial = rate
 		&"agricultural": _sim.stats.tax_agricultural = rate
+		&"occupancy": _sim.stats.tax_occupancy = rate
+		&"gaming": _sim.stats.tax_gaming = rate
 	_syncing = true
 	if kind == &"industrial":
 		# The rate is the average of the eleven sector rates: shift them now so
@@ -561,6 +695,7 @@ func _on_tax_changed(value: float, kind: StringName) -> void:
 			economy.call("industrial_rate_written")
 		(_tax_spinners[&"industrial"] as TouchNumberField).value = _sim.stats.tax_industrial
 	_refresh_ledger(_sim.stats)
+	_refresh_tourism()
 	_syncing = false
 	if kind == &"industrial":
 		refresh_other_windows(self)
@@ -574,6 +709,7 @@ func _on_funding_changed(value: float, service: StringName) -> void:
 	_sim.stats.set_funding(service, int(value))
 	_syncing = true
 	_refresh_ledger(_sim.stats)
+	_refresh_tourism()
 	_syncing = false
 
 

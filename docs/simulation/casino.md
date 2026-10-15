@@ -8,7 +8,7 @@ Dealer patter and prompts: `game/scripts/content/casino_lines.gd` (`CasinoLines`
 
 ## Purpose
 
-Each of the ten gaming resorts has a casino floor the mayor can walk into from
+Each of the fourteen gaming resorts has a casino floor the mayor can walk into from
 Explore and play at. The mayor plays with the city treasury: a committed stake
 leaves `city.funds`, and whatever the round returns comes back into it. The
 casino system is the only code that moves that money. It keeps a ledger per
@@ -24,7 +24,7 @@ Despicable's uses the existing building key `com_corner_store` (126) as an
 additional playable venue. It offers only `slots` and `video_poker`, with limits
 of $1–$1,000, capped further by funds. `commit_round` also refuses a store stake
 over $1,000. These two games commit once per round and have no supplemental
-bets. `ResortThemes.keys()` continues to describe the ten resorts;
+bets. `ResortThemes.keys()` continues to describe the fourteen resorts;
 `ResortThemes.venues()` includes the store and owns ledger initialization,
 restoration and monthly reporting. Old saves missing the store ledger restore
 it as an empty history; all Despicable's locations share that history.
@@ -211,3 +211,16 @@ CasinoGame single-commit/single-settlement contract. Stateful games implement
 fallbacks within its existing bounded loop. Probabilities and integer payout
 formulas are documented in [Gaming resorts](../design/gaming-resorts.md).
 The exact rule text and live quotes come from the same engine used by play.
+
+## Visitor business and representative crowds
+
+TourismSystem owns temporary resort guests and day visitors, including up to
+24 concurrent day visitors per operating Despicable's. The mayor's stakes,
+returns, refunds and odds never enter simulated visitor revenue or tourism tax
+bases. Those taxes are Budget income, not extra CasinoSystem transactions.
+
+An occupied hall renders at most its existing model budget and never more
+patrons than current venue attendance. Empty venues render no patrons. Cached
+halls refresh when that venue's attendance changes, including equal-total
+redistributions. Entering, pausing or leaving a hall cannot admit visitors,
+advance tourism, draw simulation RNG or book tax. See [Tourism](tourism.md).

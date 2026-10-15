@@ -236,14 +236,20 @@ func test_prime_rate_follows_the_economy_within_bounds() -> void:
 	var ctx := make_ctx(c)
 	var b := make_budget(ctx)
 	ctx.stats.economy_phase = 3
-	for _y in 10:
+	for year in 10:
+		ctx.clock.day = (year + 1) * GameClock.DAYS_PER_YEAR - 1
+		ctx.city.day = ctx.clock.day
 		b.yearly(ctx)
 	check_eq(ctx.stats.prime_rate, BudgetParams.PRIME_MAX, "a long boom pins the rate at the ceiling")
 	ctx.stats.economy_phase = 0
 	for _y in 10:
+		ctx.clock.day += GameClock.DAYS_PER_YEAR
+		ctx.city.day = ctx.clock.day
 		b.yearly(ctx)
 	check_eq(ctx.stats.prime_rate, BudgetParams.PRIME_MIN, "a long recession pins it at the floor")
 	ctx.stats.bonds.append({"principal": 10000, "rate": 8, "age": 0})
+	ctx.clock.day += GameClock.DAYS_PER_YEAR
+	ctx.city.day = ctx.clock.day
 	b.yearly(ctx)
 	check_eq(int(ctx.stats.bonds[0]["age"]), 1, "bonds age at settlement")
 

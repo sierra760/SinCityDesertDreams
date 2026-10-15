@@ -72,8 +72,8 @@ is not open ground, rubble, a tree, a park or a power line.
    `PortParams.POLLUTION_PER_TILE` for their tile's zone kind (a piece outside
    a port zone uses its category's: military, else seaport), and each also adds
    `PortParams.CRIME_PER_TILE` to its block's base crime (rule 17). Every
-   arcology in the reward system's `arcology_report()` adds its resident-scaled
-   `pollution` and `crime` (see rewards.md) spread evenly over the blocks of its
+   resort in TourismSystem's `report()` adds its tourist-scaled
+   `pollution` and `crime` (see tourism.md) spread evenly over the blocks of its
    footprint.
 2. Industrial emissions are reduced by `POLLUTION_CONTROLS_PERCENT` while the
    `pollution_controls` ordinance is enabled.

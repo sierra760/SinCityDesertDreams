@@ -116,7 +116,8 @@ func test_list_saves_reads_headers() -> void:
 		check(String(e["path"]).ends_with(".sc2d"), "only saves are listed")
 		if e["name"] == "Listed Town":
 			found = true
-			check_eq(e["population"], 1500, "population counts arcologies")
+			check_eq(e["population"], 1200, "population counts permanent residents")
+			check_eq(e["tourists"], 0, "unknown legacy occupant history is not invented")
 			check_eq(e["year"], c.current_year())
 			check_eq(e["day"], c.day)
 			check_eq(e["funds"], 987)
@@ -283,7 +284,8 @@ func test_a_damaged_snapshot_is_refused_before_anything_is_replaced() -> void:
 	]
 	for snapshot: Dictionary in cases:
 		var path := DIR.path_join("damaged.sc2d")
-		check_eq(SaveFormat.save(path, c, snapshot), OK)
+		check_eq(SaveFormat.save(path, c, snapshot), ERR_INVALID_DATA)
+		_write_damaged_snapshot(path, c, snapshot)
 		var loaded := SaveFormat.load(path)
 		check(not bool(loaded["ok"]), "refused: %s" % JSON.stringify(snapshot))
 		check_eq(loaded["error"], SaveFormat.MESSAGE_DAMAGED)
@@ -320,7 +322,8 @@ func test_nested_snapshot_damage_is_refused_before_restore() -> void:
 	]
 	for snapshot: Dictionary in cases:
 		var path := DIR.path_join("nested-damage.sc2d")
-		check_eq(SaveFormat.save(path, flat_city(), snapshot), OK)
+		check_eq(SaveFormat.save(path, flat_city(), snapshot), ERR_INVALID_DATA)
+		_write_damaged_snapshot(path, flat_city(), snapshot)
 		var loaded := SaveFormat.load(path)
 		check(not loaded.ok, "nested damage refused: %s" % JSON.stringify(snapshot))
 		check_eq(loaded.error, SaveFormat.MESSAGE_DAMAGED)
@@ -390,7 +393,7 @@ func test_conditional_and_populated_system_schemas_keep_valid_snapshots() -> voi
 	sim.setup(included.city, 17, null, included.snapshot)
 	sim.restore(included.snapshot)
 	# A real March population pass generates complaint records from this city.
-	sim.clock.day = 2 * GameClock.DAYS_PER_MONTH + 13
+	sim.clock.day = (sim.clock.day / GameClock.DAYS_PER_YEAR) * GameClock.DAYS_PER_YEAR + 2 * GameClock.DAYS_PER_MONTH + 13
 	sim.city.day = sim.clock.day
 	var population := sim.get_system(&"population") as PopulationSystem
 	population.monthly(sim._ctx)
@@ -490,3 +493,11 @@ func test_stats_tables_hold_whole_numbers_after_a_load() -> void:
 		check_eq(typeof(restored.ledger[k]), TYPE_INT, "ledger %s" % k)
 	check_eq(typeof(restored.inventions[&"legacy_tech"]), TYPE_INT, "inventions")
 	check_eq(str(restored.inventions[&"legacy_tech"]), "1951")
+
+
+func _write_damaged_snapshot(path: String, city: City, snapshot: Dictionary) -> void:
+	# The writer now rejects malformed snapshots; inject external corrupt bytes
+	# explicitly so the independent reader rejection remains under test.
+	var doc := {"format": SaveFormat.FORMAT, "version": SaveFormat.VERSION,
+		"stage": SaveFormat.STAGE_PLAY, "city": SaveFormat.encode_city(city), "snapshot": snapshot}
+	check_eq(SaveFormat._write_replacement(path, JSON.stringify(doc).to_utf8_buffer()), OK)

@@ -11,10 +11,12 @@ func before_each() -> void:
 func after_each() -> void:
 	host.free()
 	await process_frame
-func test_emergency_details_leave_landscape_explore_touch_space() -> void:
-	for display: Dictionary in [{"size":Vector2i(667,375),"safe":Rect2i(0,0,667,375)}, {"size":Vector2i(844,390),"safe":Rect2i(47,0,750,369)}]:
+func test_emergency_details_leave_phone_explore_touch_space() -> void:
+	for display: Dictionary in [{"size":Vector2i(320,568),"safe":Rect2i(0,20,320,548)}, {"size":Vector2i(390,844),"safe":Rect2i(0,47,390,763)}, {"size":Vector2i(667,375),"safe":Rect2i(0,0,667,375)}, {"size":Vector2i(844,390),"safe":Rect2i(47,0,750,369)}]:
 		root.size=display.size
 		host.display_layout.refresh_with_mobile_metrics(root.size,1,display.safe)
+		host.status_bar.set_population(1234567)
+		if host.status_bar.has_method("set_tourists"): host.status_bar.call("set_tourists",2345678)
 		host.status_bar.set_emergency_available(true)
 		host.status_bar.set_alerts(PackedStringArray(["Emergency", "Power shortage", "Water shortage"]))
 		host.show_message("Emergency crews are responding.")
@@ -30,6 +32,18 @@ func test_emergency_details_leave_landscape_explore_touch_space() -> void:
 		for action: StringName in [&"move",&"menu"]+touch._mode_actions():
 			check(not status.intersects(touch.control_rect(action)),"emergency summary clears "+str(action))
 		check(not status.intersects(touch._move_label.get_global_rect()),"movement caption clears critical status")
+		var tourists := host.status_bar.get("tourists_label") as Label
+		check(tourists!=null,"emergency status includes tourists")
+		if tourists!=null:
+			var pop := host.status_bar.population_label
+			check(pop.is_visible_in_tree() and tourists.is_visible_in_tree(),"emergency Details retains the visible count row")
+			check(absf(pop.global_position.y-tourists.global_position.y)<1,"emergency counts remain adjacent")
+			for label: Label in [pop,tourists]:
+				var rect := label.get_global_rect()
+				check(host.display_layout.logical_rect().grow(.1).encloses(rect),"emergency counter fits usable display")
+				var ink := label.get_theme_font("font").get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,label.get_theme_font_size("font_size"))
+				check_ge(rect.size.x+.1,ink.x,"emergency counter text fits")
+				check(not rect.intersects(host.status_bar._details_scroll.get_global_rect()),"scroll never covers fixed counts")
 		check(host.status_bar.emergency_button.visible,"emergency action remains available in details")
 		check_ge(host.status_bar.emergency_button.size.y,44)
 		if host.status_bar.get("_details_scroll") != null:

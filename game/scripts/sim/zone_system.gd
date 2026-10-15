@@ -618,8 +618,17 @@ func _stamp_chapel(ctx: SimContext, pos: Vector2i) -> void:
 ## Write a building into the map, mark its tiles conductive and touched.
 func _stamp(ctx: SimContext, pos: Vector2i, id: int, kind: int) -> void:
 	var city := ctx.city
-	city.stamp_building(pos.x, pos.y, id, kind)
 	var s := Buildings.size(id)
+	# Growth replaces lots without Builder's facility erasure. Invalidate only
+	# tourism identity before overwriting any tile, including expansion over
+	# neighboring lots. Names, built dates and other facility fields survive.
+	for dy in s.y:
+		for dx in s.x:
+			var previous := city.anchor_of(pos.x + dx, pos.y + dy)
+			var facility := city.facility(previous)
+			facility.erase("tourism_instance")
+			facility.erase("tourism_migrated")
+	city.stamp_building(pos.x, pos.y, id, kind)
 	for y in range(pos.y, pos.y + s.y):
 		for x in range(pos.x, pos.x + s.x):
 			city.set_flag(x, y, TileFlags.CONDUCTS_POWER | TileFlags.CONDUCTS_WATER, true)

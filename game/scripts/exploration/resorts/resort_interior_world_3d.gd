@@ -16,6 +16,8 @@ const LAYER := 1 << 20
 
 var key: StringName = &""
 var code := 0
+## Standing lot identity; a rebuilt venue cannot retain its old presentation.
+var tourism_instance := 0
 var anchor := Vector2i(-1,-1)
 var plan: Dictionary = {}
 ## Build time of this hall in microseconds, for the performance report.
@@ -40,6 +42,12 @@ func build(resort_key: StringName, building_code: int, lot_anchor: Vector2i) -> 
 	patrons.build(plan,code*131+anchor.x*17+anchor.y*31)
 	stats["patrons"] = patrons.states().size()
 	build_usec = Time.get_ticks_usec()-started
+
+## Current simulated tourists are the only source of representative models.
+func set_attendance(tourists: int) -> void:
+	if not is_instance_valid(patrons): return
+	patrons.set_count(tourists)
+	stats["patrons"] = patrons.states().size()
 
 ## True when `feet` (world) is inside this hall's walkable volume.
 func contains(feet: Vector3) -> bool:

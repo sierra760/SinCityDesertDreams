@@ -13,17 +13,19 @@ The six additional designs occupy 4 × 4 lots and append native building IDs
 invention year stored in an older city; they add no random invention draws.
 The original four keep their identities and Desert Orbit keeps its launch
 behavior. Their themes, named games and palettes are recorded in
-`tools/resort_expansion.json`; construction costs and resident capacities are
-provided by the building/tools and reward parameter tables.
+`tools/resort_expansion.json`; construction costs and overnight guest capacities are
+provided by the building/tools and reward parameter tables. Capacities count
+overnight guests rather than rooms or residents and scale with cost /100; see
+[Tourism](../simulation/tourism.md) for the complete roster and save compatibility.
 
-| ID | Resort | Saved key | Cost | Resident capacity |
+| ID | Resort | Saved key | Cost | Guest capacity |
 |---|---|---|---:|---:|
-| 256 | The Fix | `arcology_fix` | $320,000 | 35,000 |
-| 257 | Six-Week Alibi | `arcology_alibi` | $140,000 | 30,000 |
-| 258 | Velvet Wardrobe | `arcology_velvet` | $220,000 | 30,000 |
-| 259 | The Afterglow | `arcology_afterglow` | $500,000 | 45,000 |
-| 260 | Last Resort | `arcology_last` | $60,000 | 35,000 |
-| 261 | Dust Republic | `arcology_dust` | $95,000 | 40,000 |
+| 256 | The Fix | `arcology_fix` | $320,000 | 3,200 |
+| 257 | Six-Week Alibi | `arcology_alibi` | $140,000 | 1,400 |
+| 258 | Velvet Wardrobe | `arcology_velvet` | $220,000 | 2,200 |
+| 259 | The Afterglow | `arcology_afterglow` | $500,000 | 5,000 |
+| 260 | Last Resort | `arcology_last` | $60,000 | 600 |
+| 261 | Dust Republic | `arcology_dust` | $95,000 | 950 |
 
 New native saves use version 2 and store building IDs in 16 bits. Existing
 version 1 cities remain readable, and classic imports keep their original
@@ -35,12 +37,12 @@ Four smaller resorts are available from the founding of a city. They bridge
 Despicable’s machines and Last Resort, with six themed games per venue and
 independent play histories. No additional invention roll is made.
 
-| ID | Resort | Saved key | Lot | Cost | Resident capacity | Limits |
+| ID | Resort | Saved key | Lot | Cost | Guest capacity | Limits |
 |---|---|---|---|---:|---:|---|
-| 262 | Boddy’s | `arcology_boddy` | 2 × 2 | $8,000 | 500 | $10–$1,000 |
-| 263 | Woolier Days | `arcology_woolier` | 2 × 2 | $16,000 | 1,200 | $15–$1,500 |
-| 264 | Stockgrowers | `arcology_stockgrowers` | 3 × 3 | $30,000 | 3,000 | $25–$2,500 |
-| 265 | Fremont Palace | `arcology_fremont` | 3 × 3 | $45,000 | 5,000 | $40–$4,000 |
+| 262 | Boddy’s | `arcology_boddy` | 2 × 2 | $8,000 | 80 | $10–$1,000 |
+| 263 | Woolier Days | `arcology_woolier` | 2 × 2 | $16,000 | 160 | $15–$1,500 |
+| 264 | Stockgrowers | `arcology_stockgrowers` | 3 × 3 | $30,000 | 300 | $25–$2,500 |
+| 265 | Fremont Palace | `arcology_fremont` | 3 × 3 | $45,000 | 450 | $40–$4,000 |
 
 Boddy’s is a Vegas neighborhood gaming tavern, with cream stucco, burgundy
 awnings, flowers and homelike furnishings. Woolier Days is a northern Nevada

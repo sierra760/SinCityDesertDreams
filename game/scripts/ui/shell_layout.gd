@@ -147,7 +147,9 @@ func _measure() -> void:
 		legend.position = bounds.position + Vector2(left+8,menu_bar.size.y+8)
 	query_panel.offset_right = bounds.end.x - full.size.x - 8
 	query_panel.set_meta("display_usable_rect",bounds)
-	query_panel.offset_left = query_panel.offset_right - minf(QueryPanel.PANEL_WIDTH,maxf(44,bounds.size.x - 16))
+	var compact_inspector := phone_layout and bounds.size.x >= 560 and bounds.size.y < 500
+	query_panel.set_compact_header(compact_inspector)
+	query_panel.offset_left = query_panel.offset_right - minf(640 if compact_inspector else QueryPanel.PANEL_WIDTH,maxf(44,bounds.size.x - 16))
 	query_panel.offset_top = bounds.position.y + menu_bar.size.y + 8
 	# The inspector is as tall as its rows, so no half row shows above its
 	# buttons; it scrolls only when they need more than the room above the footer.

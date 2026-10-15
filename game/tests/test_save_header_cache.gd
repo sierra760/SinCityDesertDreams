@@ -105,6 +105,9 @@ static func _original_read_header(path: String) -> Dictionary:
 		"name": String(h.get("name", path.get_file().get_basename())),
 		"date_text": Time.get_datetime_string_from_unix_time(saved_at, true) + " UTC",
 		"population": int(h.get("population", 0)),
+		"tourists": -1,
+		"count_schema": 0,
+		"count_label": "Legacy population",
 		"year": int(h.get("year", 0)),
 		"day": int(h.get("day", 0)),
 		"funds": int(h.get("funds", 0)),
@@ -112,3 +115,27 @@ static func _original_read_header(path: String) -> Dictionary:
 		"saved_at": saved_at,
 	}
 
+
+
+func test_split_counts_invalidate_equal_timestamp_cache() -> void:
+	var doc := _doc()
+	doc.snapshot = {"stats": {"population": 100, "arcology_population": 900}}
+	doc.city = {"facilities": {"10,10": {"key": "arcology_boddy", "residents": 23}}}
+	var same_time := false
+	for attempt in 4:
+		var path := _write("split-counts", doc)
+		var first := SaveFormat.read_header(path)
+		check_eq(first.population, 100)
+		check_eq(first.tourists, 23)
+		check_eq(SaveFormat.read_header(path), first)
+		var modified := FileAccess.get_modified_time(path)
+		var changed := doc.duplicate(true)
+		changed.snapshot.stats.population = 200
+		changed.city.facilities["10,10"].residents = 34
+		_write("split-counts", changed)
+		check_eq(SaveFormat.read_header(path).population, 200)
+		check_eq(SaveFormat.read_header(path).tourists, 34)
+		if FileAccess.get_modified_time(path) == modified:
+			same_time = true
+			break
+	check(same_time, "changed split counts are observed at equal timestamps")

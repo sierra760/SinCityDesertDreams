@@ -115,7 +115,7 @@ func open_save_dialog() -> void:
 	_host.modal_layer.move_child(dialog, _host.modal_layer.get_child_count() - 1)
 	_host.push_modal()
 	var save_path := _host.save_path
-	dialog.open(_failed_save_name if not _failed_save_name.is_empty() else (save_path.get_file().get_basename() if not save_path.is_empty() else _host.sim.city.name))
+	dialog.open(_failed_save_name if not _failed_save_name.is_empty() else (save_path.get_file().get_basename() if not save_path.is_empty() else _host.sim.city.name), {"population": _host.sim.stats.total_population() if _host.stage == GameHost.Stage.PLAY else 0, "tourists": _host.sim.stats.tourists if _host.stage == GameHost.Stage.PLAY else 0, "count_schema": 1})
 
 
 func open_import_dialog() -> void:

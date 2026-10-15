@@ -49,6 +49,7 @@ var mod_service: ExploreModService
 var mod_packs: Array[Dictionary] = []
 var mod_progress := ExploreModProgress.new()
 var resort_service: ExploreResortService
+var _simulation: Simulation
 ## The table record last requested on a resort floor, until it is released.
 var _casino_table: Dictionary = {}
 var _traffic_claim: Dictionary = {}
@@ -104,7 +105,8 @@ func minimap_marker() -> Dictionary:
 	if heading.length_squared() < 1e-6 and is_instance_valid(camera_rig): heading = Vector2(-sin(camera_rig.yaw),-cos(camera_rig.yaw))
 	return {"position":Vector2(at.x,at.z),"heading":heading.normalized()}
 
-func bind(value: CityView3D, interface: ExploreHUD) -> void:
+func bind(value: CityView3D, interface: ExploreHUD, simulation: Simulation = null) -> void:
+	_simulation = simulation
 	if is_instance_valid(view) and view.geometry_rebuilt.is_connected(_on_geometry_rebuilt):
 		view.geometry_rebuilt.disconnect(_on_geometry_rebuilt)
 	if view != value: _free_retained_world()
@@ -153,7 +155,7 @@ func enter(city: City, origin: Vector3) -> bool:
 	resort_service = ExploreResortService.new()
 	resort_service.name = "ExploreResorts"
 	view.world.add_child(resort_service)
-	resort_service.bind(view,traversal,pedestrian,hud)
+	resort_service.bind(view,traversal,pedestrian,hud,_simulation)
 	resort_service.table_requested.connect(_on_casino_table)
 	resort_service.ejected.connect(func(reason: String) -> void: _message = reason)
 	resort_service.moved.connect(func() -> void:

@@ -27,8 +27,9 @@ Read on the scheduled day:
   footprint rule in `PopulationParams`.
 - `City.flags`: a civic building only serves when its anchor tile is powered.
 - `City.status`: the current settlement class.
-- `CityStats.arcology_population`: written by the reward system; added to the
-  published total but not aged (arcology residents keep their own records).
+- `CityStats.tourists`: temporary overnight guests plus day visitors, owned by
+  TourismSystem. They are excluded from permanent population and cohorts.
+  `arcology_population` is an obsolete migration field, cleared to zero.
 - `CityStats.funding[&"schools"]`, `[&"colleges"]`, `[&"health"]`: funding
   scales the service capacity of schools, colleges and hospitals.
 - `CityStats.ordinances`: `&"pro_reading_campaign"`, `&"free_clinics"`,
@@ -229,7 +230,7 @@ residents as leavers.
 
 ### 9. Settlement class
 
-1. `total = residents + arcology_population`.
+1. `total = residents`. Tourists do not change settlement class or resident milestones.
 2. While `City.status` is below the last class and `total >
    STATUS_THRESHOLDS[status + 1]`, the status rises by one step per month and
    `&"status_upgrade"` is reported. The class never falls.

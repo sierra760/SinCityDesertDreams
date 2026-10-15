@@ -39,12 +39,24 @@ var _last: ResortInteriorWorld3D
 ## rebuilt the physical world and `settle_ejection` finds a checked pose.
 var _pending_ejection := Vector2i(-1,-1)
 var _pending_code := -1
+var _simulation: Simulation
+var _tourism: TourismSystem
+var _city: City
 
-func bind(value: CityView3D, physical: CityTraversalWorld3D, pedestrian: ExplorePedestrian, interface: ExploreHUD) -> void:
+func bind(value: CityView3D, physical: CityTraversalWorld3D, pedestrian: ExplorePedestrian, interface: ExploreHUD, simulation: Simulation = null) -> void:
+	_disconnect_attendance()
+	if _city != value.city: clear()
+	_simulation = simulation
+	_city = value.city
 	view = value
 	traversal = physical
 	walker = pedestrian
 	hud = interface
+	if is_instance_valid(_simulation) and _simulation.city == _city:
+		_tourism = _simulation.tourism()
+		if _tourism != null: _tourism.attendance_changed.connect(_on_attendance_changed)
+	for world: ResortInteriorWorld3D in _worlds.values():
+		world.set_attendance(_attendance(world.anchor))
 	if not is_instance_valid(fill):
 		fill = Dresser.make_fill()
 		add_child(fill)
@@ -71,13 +83,15 @@ func world_for(resort: Dictionary) -> ResortInteriorWorld3D:
 	var anchor: Vector2i = resort.anchor
 	var code := int(resort.code)
 	var world: ResortInteriorWorld3D = _worlds.get(anchor)
-	if is_instance_valid(world) and world.code == code: return world
+	if is_instance_valid(world) and world.code == code and _same_lot(world): return world
 	if is_instance_valid(world):
 		if world == _last: _last = null
 		world.free()
 	world = ResortInteriorWorld3D.new()
 	add_child(world)
 	world.build(StringName(resort.key),code,anchor)
+	world.tourism_instance = int(view.city.facility(anchor).get("tourism_instance",0))
+	world.set_attendance(_attendance(anchor))
 	world.visible = world == _inside
 	_worlds[anchor] = world
 	return world
@@ -222,12 +236,16 @@ func step(delta: float, pedestrian: ExplorePedestrian = null) -> void:
 ## After a city edit: a hall whose resort was demolished or replaced closes.
 ## A walker inside it is put outside first.
 func refresh_geometry() -> void:
-	for anchor: Vector2i in _worlds.keys():
+	_refresh_cached(_worlds.keys())
+
+func _refresh_cached(anchors: Array) -> void:
+	for anchor: Vector2i in anchors:
+		if not _worlds.has(anchor): continue
 		var world: ResortInteriorWorld3D = _worlds[anchor]
-		if is_instance_valid(world) and Access.exists(view.city,anchor,world.code): continue
+		if is_instance_valid(world) and _same_lot(world): continue
 		var was_inside := world == _inside
-		if _transitioning:
-			# A door fade to or from this hall cannot finish: stop it here.
+		if _transitioning and anchor == _resort.get("anchor",Vector2i(-1,-1)):
+			# Only the door fading to or from this closing hall must stop.
 			if is_instance_valid(hud): hud.cancel_fade()
 			_transitioning = false
 		var closed_name := ResortThemes.resort_name(world.key) if is_instance_valid(world) else ""
@@ -271,6 +289,7 @@ func status() -> Dictionary:
 		"prompt": prompt(feet) if is_inside() else ""}
 
 func clear() -> void:
+	_disconnect_attendance()
 	_inside = null
 	_last = null
 	_resort = {}
@@ -283,3 +302,26 @@ func clear() -> void:
 			world.free()
 	_worlds.clear()
 	if is_instance_valid(fill): fill.visible = false
+
+## Updates touch changed cached anchors only; hidden halls have no frame clock.
+func _on_attendance_changed(anchors: Array[Vector2i]) -> void:
+	_refresh_cached(anchors)
+	for anchor: Vector2i in anchors:
+		var world: ResortInteriorWorld3D = _worlds.get(anchor)
+		if is_instance_valid(world): world.set_attendance(_attendance(anchor))
+
+func _same_lot(world: ResortInteriorWorld3D) -> bool:
+	return view.city == _city and Access.exists(view.city,world.anchor,world.code) and world.tourism_instance == int(view.city.facility(world.anchor).get("tourism_instance",0))
+
+func _attendance(anchor: Vector2i) -> int:
+	if _tourism == null or not is_instance_valid(_simulation) or _simulation.city != _city or view.city != _city: return 0
+	return maxi(0,int(_tourism.venue_report(anchor).get("tourists",0)))
+
+func _disconnect_attendance() -> void:
+	if _tourism != null and _tourism.attendance_changed.is_connected(_on_attendance_changed):
+		_tourism.attendance_changed.disconnect(_on_attendance_changed)
+	_tourism = null
+	_simulation = null
+
+func _exit_tree() -> void:
+	_disconnect_attendance()

@@ -582,12 +582,12 @@ const STORIES: Dictionary = {
 		"priority": MAJOR, "decay": FAST,
 		"headlines": [
 			"{city}'s Gaming Resorts Lift Off For The Stars",
-			"{count} Residents Depart Aboard Departing Resorts",
+			"{count} Tourists Depart Aboard Departing Resorts",
 			"The Strip Takes Flight Over {city}",
 			"Resorts Rise Into The Sky; Rubble Left Behind",
 		],
 		"body": [
-			"The gaming resorts of {city} sealed their doors and rose into the sky this month, carrying {count} residents with them. Rubble and a modest refund are all they left behind.",
+			"The gaming resorts of {city} sealed their doors and rose into the sky this month, carrying {count} tourists with them. Rubble and a modest refund are all they left behind.",
 			"Mayor {mayor} watched the launch from the courthouse steps. The council is already arguing over what to build on the empty lots.",
 		],
 	},

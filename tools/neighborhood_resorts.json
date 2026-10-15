@@ -22,7 +22,7 @@
       "cost": 8000,
       "minimum": 10,
       "maximum": 1000,
-      "capacity": 500,
+      "capacity": 80,
       "palette": {
         "stone": "f0dbc3",
         "metal": "ba7749",
@@ -74,7 +74,7 @@
       "cost": 16000,
       "minimum": 15,
       "maximum": 1500,
-      "capacity": 1200,
+      "capacity": 160,
       "palette": {
         "stone": "ead9bd",
         "metal": "a77c43",
@@ -126,7 +126,7 @@
       "cost": 30000,
       "minimum": 25,
       "maximum": 2500,
-      "capacity": 3000,
+      "capacity": 300,
       "palette": {
         "stone": "c9b18b",
         "metal": "ad8b4c",
@@ -178,7 +178,7 @@
       "cost": 45000,
       "minimum": 40,
       "maximum": 4000,
-      "capacity": 5000,
+      "capacity": 450,
       "palette": {
         "stone": "e9d2ac",
         "metal": "c5a34f",

@@ -249,6 +249,20 @@ func test_unrequested_notices_do_not_focus_a_choice() -> void:
 
 # Guards against: a tap or Enter that lands just as an unrequested notice
 # appears answering it; after a moment the choices work normally.
+## The production guard uses monotonic milliseconds, whereas SceneTree timers
+## advance on frame delta (headless test frames may run faster than wall time).
+func _wait_for_notice_grace(notice: NoticeDialog) -> void:
+	var opened := notice._unrequested_since
+	for frame in 4096:
+		if not notice.in_grace_period(): break
+		if Time.get_ticks_msec() - opened > 2000: break
+		await process_frame
+	var elapsed := Time.get_ticks_msec() - opened
+	print("Notice grace: elapsed %dms; production boundary %dms; guarded %s" % [elapsed, NoticeDialog.UNREQUESTED_GRACE_MSEC, notice.in_grace_period()])
+	check_ge(elapsed,NoticeDialog.UNREQUESTED_GRACE_MSEC,"wall-clock grace elapsed")
+	check(not notice.in_grace_period(),"bounded frame wait reaches actual monotonic boundary")
+
+
 func test_unrequested_notice_choices_wait_a_moment() -> void:
 	var notice := host.notice_dialog
 	var answers: Array[StringName] = []
@@ -258,14 +272,14 @@ func test_unrequested_notice_choices_wait_a_moment() -> void:
 	check(notice.in_grace_period(),"a fresh unrequested notice is guarded")
 	(notice.choice_buttons[1] as Button).pressed.emit()
 	check(notice.is_open(),"a press as the notice opens is ignored")
-	await create_timer(0.4).timeout
+	await _wait_for_notice_grace(notice)
 	check(not notice.in_grace_period())
 	root.push_input(_key(KEY_ENTER))
 	await process_frame
 	check(not notice.is_open(),"after a moment Enter takes the first, safe choice")
 	check_eq(answers,[&"decline"] as Array[StringName])
 	notice.show_notice("Offer","Body",[["Decline",&"decline"],["Accept",&"accept"]],false,"",&"",false)
-	await create_timer(0.4).timeout
+	await _wait_for_notice_grace(notice)
 	(notice.choice_buttons[1] as Button).pressed.emit()
 	check(not notice.is_open(),"after a moment a deliberate press answers")
 	check_eq(answers,[&"decline",&"accept"] as Array[StringName])

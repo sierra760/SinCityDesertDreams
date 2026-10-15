@@ -17,7 +17,14 @@ var demand_agricultural := 0
 var agricultural_jobs := 0
 var agricultural_lots := 0
 var population := 0            ## ordinary residents (arcologies excluded)
-var arcology_population := 0
+var arcology_population := 0  ## Obsolete legacy migration field; never residents.
+var tourists := 0
+var tourist_guests := 0
+var tourist_day_visitors := 0
+var tourist_capacity := 0
+var tourist_occupancy := 0
+var tourist_lodging_cents := 0
+var tourist_gaming_cents := 0
 ## Twenty cohorts of five years each.
 var cohorts := PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 var jobs := 0
@@ -49,6 +56,8 @@ var tax_residential := 7
 var tax_commercial := 7
 var tax_industrial := 7
 var tax_agricultural := 7
+var tax_occupancy := TourismParams.TAX_DEFAULT
+var tax_gaming := TourismParams.TAX_DEFAULT
 ## Per-sector industrial tax rates, indexed like IndustrySectors.
 var sector_taxes := PackedInt32Array([7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7])
 ## Funding percentages 0..100.
@@ -109,7 +118,7 @@ func set_funding(service: StringName, percent: int) -> void:
 
 
 func total_population() -> int:
-	return population + arcology_population
+	return population
 
 
 func to_dict() -> Dictionary:
@@ -131,6 +140,9 @@ func to_dict() -> Dictionary:
 
 
 func from_dict(data: Dictionary) -> void:
+	# Loading legacy stats must not inherit rates from a previously used object.
+	tax_occupancy = TourismParams.TAX_DEFAULT
+	tax_gaming = TourismParams.TAX_DEFAULT
 	for p in get_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
 			continue
@@ -167,6 +179,8 @@ func from_dict(data: Dictionary) -> void:
 			_:
 				set(p.name, v)
 
+	tax_occupancy = clampi(tax_occupancy, TourismParams.TAX_MIN, TourismParams.TAX_MAX)
+	tax_gaming = clampi(tax_gaming, TourismParams.TAX_MIN, TourismParams.TAX_MAX)
 	tax_agricultural = clampi(tax_agricultural, AgricultureParams.TAX_MIN, AgricultureParams.TAX_MAX)
 
 

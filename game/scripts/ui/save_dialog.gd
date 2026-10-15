@@ -15,6 +15,7 @@ var cancel_button: Button
 var hint_label: Label
 var filename_label: Label
 var panel: PanelContainer
+var counts_label: Label
 
 
 func _init() -> void:
@@ -47,6 +48,10 @@ func _build() -> void:
 	filename_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	filename_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(filename_label)
+	counts_label = UIFactory.make_label("", UITheme.FONT_SMALL)
+	counts_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	counts_label.hide()
+	body.add_child(counts_label)
 	name_edit.text_changed.connect(func(_text: String): _update_filename())
 	hint_label = UIFactory.make_label(folder_hint(), UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	hint_label.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -70,13 +75,24 @@ func _build() -> void:
 	WindowDrag.enable(chrome["title_bar"], panel)
 
 
-func open(default_name: String = "") -> void:
+func open(default_name: String = "", counts: Dictionary = {}) -> void:
+	counts_label.text = count_summary(counts) if not counts.is_empty() else ""
+	counts_label.visible = not counts_label.text.is_empty()
 	name_edit.text = default_name
 	hint_label.text = folder_hint()
 	_update_filename()
 	visible = true
 	UIFactory.contain_modal_focus(self, name_edit)
 	name_edit.select_all()
+
+
+static func count_summary(header: Dictionary) -> String:
+	var label := String(header.get("count_label", "Population"))
+	var summary := "%s %s" % [label, UIFactory.commafy(int(header.get("population", 0)))]
+	var tourists := int(header.get("tourists", -1))
+	if tourists >= 0:
+		summary += " · Tourists %s" % UIFactory.commafy(tourists)
+	return summary
 
 
 func close() -> void:

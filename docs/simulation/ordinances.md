@@ -12,7 +12,7 @@ the effects read the flags.
 
 ## Inputs
 
-- `stats.population` and `stats.arcology_population`: fees and program costs
+- `stats.population`: permanent residents for fees and program costs
   scale with the number of residents.
 - `city.funds` and `stats.disasters_enabled`: the city council only enacts
   policies on its own when the city is rich and the world is eventful.
@@ -92,7 +92,7 @@ system is named in parentheses; see its page for the full rule.
 | Income Tax | +133 | residential felt rate +1: weaker residential demand and a louder taxes complaint in the March vote (zones, population) |
 | Parking Fines | +67 | adds `VOTE_PARKING_FINES_WEIGHT` (3) to the taxes complaint in the March vote (population) |
 | Legalized Gambling | +80 | adds `GAMBLING_CRIME` (16) to the base crime of every developed block (environment) |
-| Tourist Advertising | −40 | commercial felt rate −1 (zones) |
+| Tourist Advertising | −40 | commercial felt rate −1 (zones); tourism city/local appeal +10 points |
 | Business Advertising | −40 | industrial felt rate −1 (zones) |
 | Volunteer Fire Department | −44 | adds `VOLUNTEER_FIRE_COVERAGE` (8) to the fire cover of every cell, up to 255 (services) |
 | Public Smoking Ban | −7 | adds `HEALTH_ORDINANCE_BONUS` (5) to the health of each newborn served by a hospital place and `LE_ORDINANCE_BONUS` (1) to life expectancy (population) |
@@ -128,3 +128,7 @@ neutral (see zones.md).
 Ordinance switches live in `stats.ordinances` and are saved with `CityStats`.
 The system's own `save()` is empty; `load()` only re-publishes the flags and
 totals.
+
+Tourist Advertising adds ten appeal points and Annual Carnival adds five to
+both city and venue tourism appeal, capped at 100%. Existing costs and zone
+effects remain separate. See [Tourism](tourism.md).

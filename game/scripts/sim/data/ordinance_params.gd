@@ -19,7 +19,7 @@ const CATALOG: Array[Array] = [
 	[&"income_tax", GROUP_FINANCE, "Income Tax", "A levy on residents' earnings. Households feel it as a higher tax rate."],
 	[&"parking_fines", GROUP_FINANCE, "Parking Fines", "Meter patrols ticket the downtown curbs. Steady money, mild grumbling."],
 	[&"legalized_gambling", GROUP_FINANCE, "Legalized Gambling", "Licensed card rooms and slot halls pay the city a share, and bring some crime with them."],
-	[&"tourist_advertising", GROUP_FINANCE, "Tourist Advertising", "Billboards on the interstate invite visitors. Shops enjoy a lower effective tax."],
+	[&"tourist_advertising", GROUP_FINANCE, "Tourist Advertising", "Billboards invite visitors, adding ten tourism appeal points. Shops still enjoy a lower effective commercial tax."],
 	[&"business_advertising", GROUP_FINANCE, "Business Advertising", "Trade-journal campaigns court factories. Industry enjoys a lower effective tax."],
 	[&"volunteer_fire", GROUP_SAFETY, "Volunteer Fire Department", "Trained neighbors back up the fire stations, widening coverage for a modest stipend."],
 	[&"public_smoking_ban", GROUP_SAFETY, "Public Smoking Ban", "No smoking indoors in public places. Cheap to enforce and good for health."],

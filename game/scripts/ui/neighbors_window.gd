@@ -85,7 +85,7 @@ func refresh() -> void:
 	var neighbors: SimSystem = _sim.get_system(&"neighbors") if has_city else null
 	if has_city:
 		_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()]
-		_compass_label.text = "%s\npopulation %s" % [_sim.city.name, UIFactory.commafy(_sim.stats.total_population())]
+		_compass_label.text = "%s\npopulation %s\ntourists %s" % [_sim.city.name, UIFactory.commafy(_sim.stats.total_population()), UIFactory.commafy(_sim.stats.tourists)]
 	else:
 		_status_label.text = "No city loaded"
 		_compass_label.text = "No city"
@@ -106,7 +106,7 @@ func refresh() -> void:
 			trade_label.text = "Trade this year $0"
 			continue
 		name_label.text = String(rec.get("name", "Unknown"))
-		population_label.text = "Population " + UIFactory.commafy(int(rec.get("population", 0)))
+		population_label.text = "Permanent population " + UIFactory.commafy(int(rec.get("population", 0)))
 		links_label.text = _links_text(rec.get("connected", {}))
 		var trade := int(rec.get("trade", 0))
 		trade_label.text = "Trade this year " + UIFactory.format_money(trade)

@@ -233,7 +233,7 @@ func test_population_headline_and_cohorts() -> void:
 	check(w.cohort_text(5).ends_with("| %d | %d" % [eq5, int(population.call("cohort_health", 5, sim.stats))]),
 		"education and health per cohort: " + w.cohort_text(5))
 	check(w.complaint_text(0) != "", "complaint list has a first line")
-	check_eq(w.arcology_count(), 1, "the arcology list shows its placeholder row")
+	check_eq(w.arcology_count(), maxi(1,sim.tourism().report().size()), "tourism lists each resort and store, or a placeholder")
 	var closed := [0]
 	w.closed.connect(func() -> void: closed[0] += 1)
 	w.close()
@@ -277,12 +277,12 @@ func test_status_bar_lists_the_status_lines() -> void:
 	bar.refresh(sim)
 	var statistics := sim.get_system(&"statistics")
 	var lines: Array = statistics.call("status_lines_now")
-	check_eq(bar.population_label.tooltip_text, "\n".join(PackedStringArray(lines)))
+	check_eq(bar.population_label.tooltip_text, "Permanent residents: %s\n%s" % [UIFactory.commafy(sim.stats.population), "\n".join(PackedStringArray(lines))])
 	check(bar.population_label.tooltip_text.contains("Rain "), bar.population_label.tooltip_text)
 	# The summary is the city as it is now, not as of the last monthly report.
 	check(bar.population_label.tooltip_text.contains(sim.date_text()), bar.population_label.tooltip_text)
 	check(bar.population_label.tooltip_text.contains(NoticeLines.money(sim.city.funds)), bar.population_label.tooltip_text)
-	check(bar.population_label.tooltip_text.begins_with(sim.city.name + ", a "), bar.population_label.tooltip_text)
+	check(bar.population_label.tooltip_text.contains("\n" + sim.city.name + ", a "), bar.population_label.tooltip_text)
 
 
 # ── Ordinances ───────────────────────────────────────────────────────────

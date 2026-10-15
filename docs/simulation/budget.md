@@ -73,8 +73,8 @@ prime rate, and decides when the city is in fiscal crisis or bankrupt.
    `zone_value(category, footprint) × stage_multiplier(stage)`, where the
    footprint is 1, 2 or 3 tiles on a side and the stage is the building's
    position within its footprint group (1 for the plainest, up to
-   `STAGES_PER_FOOTPRINT`). An arcology is assessed at `ARCOLOGY_VALUE` as
-   residential property. Yearly tax for a category is the summed assessment
+   `STAGES_PER_FOOTPRINT`). Resorts have no residential or commercial property assessment.
+   Despicable's retains its ordinary commercial assessment. Yearly tax for a category is the summed assessment
    times that category's rate, divided by 100. Construction sites, abandoned
    buildings and rubble are not assessed.
 4. **Service upkeep.** Each police station, fire station, hospital, school and
@@ -138,7 +138,6 @@ prime rate, and decides when the city is in fiscal crisis or bankrupt.
 | `ZONE_VALUE` | assessed base value of a zone building by category and footprint |
 | `STAGE_MULTIPLIER` | how much each development stage adds to the base value |
 | `STAGES_PER_FOOTPRINT` | number of stages a footprint group is divided into |
-| `ARCOLOGY_VALUE` | assessed residential value of one arcology |
 | `SERVICE_UPKEEP` | yearly dollars per police/fire/hospital/school/college at full funding |
 | `TRANSPORT_UPKEEP_CENTS` | yearly cents per tile for each transport category at full funding |
 | `FARE_CENTS` | cents earned per transit rider |
@@ -171,3 +170,19 @@ Budget lists this income account independently, and Graphs offers its history.
 The agricultural rate also feeds the existing tax-pressure curve for its own
 demand; it does not replace any RCI tax or demand component.
 See [Agriculture](agriculture.md).
+
+## Visitor taxes
+
+`taxes_occupancy` and `taxes_gaming` are separate income accounts. The controls
+are **Occupancy tax %** and **Gaming revenue tax %**, each 0–20 in one-point
+steps, default 7. Day 17 computes completed visitor business; day 18 books its
+bases exactly once at the rates then in force. Lodging is $1 per average guest
+month; gaming is $0.50 per visitor month after payouts. These business bases
+are not treasury credits. Annual settlement credits the taxes with the other
+accounts. Fractional twelfths of cents carry through settlement; same-period
+reload/review cannot credit again. Demolition does not erase completed income.
+
+Estimated books forecast twelve months at current settled demand and rates;
+year-to-date and previous-year books contain actual accruals. Estimates do not
+admit guests, change period guards or mutate books. Mayor gambling transactions
+remain in their own casino ledger. See [Tourism](tourism.md).

@@ -19,10 +19,15 @@ var _destinations: Array[Dictionary] = []
 var _people: Array[Dictionary] = []
 var _rng := RandomNumberGenerator.new()
 var _player := Vector2(1000,1000)
+var _seed_value := 0
+var _serial := 0
+var _budget := 0
 
 func build(plan: Dictionary, seed_value: int) -> void:
 	_plan = plan
 	_rng.seed = seed_value
+	_seed_value = seed_value
+	_budget = clampi(int(plan.get("patron_count",3 if plan.key == ResortThemes.STORE_KEY else 16)),0,16)
 	var bounds: AABB = plan.bounds
 	_floor = Rect2(Vector2(bounds.position.x,bounds.position.z),Vector2(bounds.size.x,bounds.size.z)).grow(-.035)
 	# Visitors stay on the casino floor; the vestibule is kept for arrivals.
@@ -32,33 +37,43 @@ func build(plan: Dictionary, seed_value: int) -> void:
 	for table: Dictionary in plan.tables: _seats.append(Vector2(table.seat.x,table.seat.z))
 	_build_grid()
 	_build_destinations()
-	if _destinations.is_empty(): return
-	var count := int(plan.get("patron_count",3 if plan.key == ResortThemes.STORE_KEY else 16))
+
+## Retain every surviving model, route, seat and animation clock. Destinations
+## belong only to _people, so removing the tail releases its reservations.
+func set_count(count: int) -> void:
+	count = clampi(count,0,_budget)
+	while _people.size()>count:
+		var removed: Dictionary = _people.pop_back()
+		(removed.visual as Node3D).free()
+	if _destinations.is_empty() or count<=_people.size(): return
 	var groups: Dictionary = {}
 	for i: int in _destinations.size():
 		var game: StringName = _destinations[i].game
 		if not groups.has(game): groups[game] = []
 		groups[game].append(i)
 	var games := groups.keys()
-	for i: int in count:
+	var previous := _people.size()
+	while _people.size()<count:
+		var i := _serial
 		var game: StringName = games[i%games.size()]
 		var choices: Array = groups[game]
 		var choice := int(choices[(i/games.size())%choices.size()])
 		choice = _free_destination(choice)
 		if choice<0: break
+		_serial += 1
 		var goal: Dictionary = _destinations[choice]
 		var visual := Visual.new()
 		visual.name = "Visitor_%02d"%i
-		visual.configure(posmod(i+seed_value,16))
+		visual.configure(posmod(i+_seed_value,16))
 		add_child(visual)
-		var person := {"visual":visual,"variant":posmod(i+seed_value,16),"position":goal.position,
+		var person := {"visual":visual,"variant":posmod(i+_seed_value,16),"position":goal.position,
 			"yaw":goal.yaw,"mode":"playing","game":goal.game,"seated":goal.seated,"target":choice,
-			"remaining":4.0+i*1.8,"clock":0.0,"path":PackedVector2Array(),"blocked":0.0,"visits":0}
+			"remaining":4.0+_people.size()*1.8,"clock":0.0,"path":PackedVector2Array(),"blocked":0.0,"visits":0}
 		_people.append(person)
 		_place(person,0.0,0.0)
-	# Several visitors are already changing games when the player arrives.
-	for i: int in range(count-4,count):
-		if i>=0 and i<_people.size() and count>3: _choose_game(_people[i])
+	# Only new visitors change games on arrival; survivors are untouched.
+	for i: int in range(maxi(previous,count-4),_people.size()):
+		if count>3: _choose_game(_people[i])
 
 func _clear(point: Vector2) -> bool:
 	if not _floor.has_point(point): return false

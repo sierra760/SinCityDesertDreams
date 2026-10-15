@@ -8,16 +8,13 @@ Parameters: `game/scripts/sim/data/reward_params.gd` (`RewardParams`).
 Rewards are the city's civic prizes. As the ordinary population passes a series
 of milestones the city is offered gift buildings it can place for free, and at
 one milestone the nation proposes a military base. The same system owns the
-four arcologies: when each design becomes available, how a placed arcology
-fills with residents, and the endgame in which a fleet of Desert Orbit
-arcologies leaves the city.
+resort unlocks and the endgame in which a fleet of Desert Orbit resorts
+leaves the city. TourismSystem owns all guest/day attendance.
 
 ## Inputs
 
 - `stats.population` – ordinary residents (arcology residents excluded). This
   is the number the milestones test.
-- `stats.tax_residential`, `stats.tax_commercial`, `stats.tax_industrial` –
-  the combined tax burden slows arcology intake.
 - `stats.inventions` – when the economy system fills it, the year an arcology
   design becomes available is read from here under the design's building key.
   Otherwise the years in `RewardParams` apply.
@@ -31,9 +28,9 @@ arcologies leaves the city.
 - `stats.rewards_offered[key] = true` once a gift has been offered.
 - `stats.rewards_built[key] = true` while a civic gift stands in the city;
   an existing military base keeps this flag because its proposal is one-time.
-- `stats.arcology_population` – the sum of residents of every arcology.
-- `city.facilities[anchor]` for arcologies gains `residents`, `capacity`,
-  `built_year` and `condition` (0–12 desirability).
+- `city.facilities[anchor]` retains resort identity, legacy `capacity`,
+  `built_year` and `condition` metadata. Current attendance lives only in tourism.
+- `arcology_population` stays zero; no resort residents are grown or published.
 - Zone layer: accepting the military offer writes `Zones.MILITARY` over the
   chosen site. The port system develops that zone.
 - Building layer: launching arcologies become rubble.
@@ -46,7 +43,7 @@ Events:
 | `notify` | `reward_offered` | `{key}` for gifts; `{key: "military_base", kind, site: [x, y, w, h], sites: [[x, y, w, h], ...]}` for the base |
 | `report` | `city_milestone` | `{key, population}` |
 | `report` | `military_base` | `{kind, accepted}` |
-| `notify` | `exodus` | `{resorts, residents, refund}`: `resorts` is the number of launching arcologies, `residents` the people aboard |
+| `notify` | `exodus` | `{resorts, residents, refund}`: `resorts` is the number of launching arcologies, `residents` a compatibility alias for tourists aboard; `tourists` is explicit |
 | `report` | `resort_launch` | `{resorts, residents, refund}` |
 
 ## Timing
@@ -54,9 +51,8 @@ Events:
 - **Setup and native restore**: standing rewards are reconciled from the map,
   including older imported saves without reward-system state.
 - **Monthly, day 25**: reconciliation of standing rewards, milestone check
-  (at most one new offer per month), arcology census.
-- **Yearly** (last day of December): arcology intake, condition update, launch
-  check.
+  (at most one new offer per month).
+- **Yearly** (last day of December): launch check; no annual resident intake or RNG draws.
 - **On `networks_changed`**: gifts and arcologies are re-counted from the map
   so that placing or demolishing one takes effect immediately.
 
@@ -108,40 +104,19 @@ Events:
    design's year onward. The year is `stats.inventions[key]` when present, else
    the year in `RewardParams.ARCOLOGIES`. `available_arcologies()` lists the
    keys currently buildable.
-6. **Arcology records.** Every 4×4 arcology footprint on the map (picked once
-   by its north-west corner flag and keyed by its anchor, `City.anchor_of`,
-   which a rotated import keeps on another corner) has a facility record. The system creates a record
-   with `residents = 0`, `capacity` from `RewardParams.ARCOLOGIES`,
-   `built_year` = the current year and `condition = 0` for any footprint that
-   lacks one, and drops the residents of any record whose footprint is gone.
-7. **Condition.** Once a year each arcology's condition is
-   `DESIRABILITY_BASE − pollution/DESIRABILITY_DIVISOR − crime/DESIRABILITY_DIVISOR
-   + land value/DESIRABILITY_DIVISOR`, sampled at the anchor, clamped to
-   0–`DESIRABILITY_BASE`.
-8. **Intake.** An arcology takes in residents once a year only when its anchor
-   is powered and watered. The intake is the smallest of
-   `capacity / INTAKE_CAPACITY_SHARE`,
-   `stats.population / (arcology count × INTAKE_CITY_SHARE)` and
-   `(tax_factor + condition) × INTAKE_PER_POINT − INTAKE_OFFSET`, where
-   `tax_factor = (TAX_FACTOR_BASE − sum of the three tax rates) / TAX_FACTOR_DIVISOR`;
-   a negative intake is treated as zero. Existing residents also grow by
-   `residents / RETENTION_GROWTH_SHARE`, and a random `0..INTAKE_JITTER − 1`
-   is added to every growing arcology. Residents never exceed capacity. An
-   arcology without power or water keeps its residents but takes in nobody.
-9. **Population.** `stats.arcology_population` is the sum of all records'
-   residents; it is refreshed monthly, yearly and on `networks_changed`.
-10. **Report.** `arcology_report()` lists every arcology for the Inspect panel
-    and the Population window, which between them show its residents,
-    capacity, condition and build year. Its `pollution` (= `residents / 1000 ×
-    POLLUTION_PER_THOUSAND`) and `crime` (= `residents / 1000 ×
-    CRIME_PER_THOUSAND`) are added by the environment system, spread over the
-    blocks of the footprint, on top of the flat per-tile arcology emission
-    (`CATEGORY_EMISSION`, 15 per tile, see environment.md).
-11. **Exodus.** On the last day of a year at or after `LAUNCH_YEAR`, if the
-    city holds at least `LAUNCH_COUNT` Desert Orbit arcologies, all of them
-    launch: every footprint turns to rubble, their residents leave the city,
-    `LAUNCH_REFUND` is credited per arcology that had residents, `exodus` is
-    notified and `resort_launch` is reported. The other three designs stay.
+6. **Venue records and attendance.** TourismState discovers canonical standing
+   footprints at their actual sizes/rotations, gives each facility a unique
+   instance and initializes absent metadata. TourismSystem admits temporary
+   guests and day visitors on day 17. Reports, environment loads and current
+   counts use that authority; see [Tourism](tourism.md).
+7. **Compatibility report.** `arcology_report()` delegates to tourism and
+   filters resorts. Its deprecated `residents` field means tourists only;
+   it must never be added to permanent population. New consumers use tourism.
+8. **Exodus.** On the last day of a year at or after `LAUNCH_YEAR`, if the
+   city holds at least `LAUNCH_COUNT` Desert Orbit resorts, all launch and
+   become rubble. Current tourists leave immediately; permanent residents
+   remain. `LAUNCH_REFUND` is credited for each launching venue with tourists.
+   Events include `tourists` and the compatibility alias `residents`.
 
 ## Parameters
 
@@ -156,23 +131,16 @@ Events:
 | `MILITARY_MISSILE_SITES` | number of silo squares sought for a missile base |
 | `MILITARY_MISSILE_SITE_SIZE` | side of each silo square |
 | `MILITARY_MISSILE_ATTEMPTS` | random origins tried for silo squares |
-| `ARCOLOGIES` | building key → `{year, capacity}` |
-| `DESIRABILITY_BASE`, `DESIRABILITY_DIVISOR` | condition scale and how strongly the maps move it |
-| `TAX_FACTOR_BASE`, `TAX_FACTOR_DIVISOR` | how the tax burden feeds intake |
-| `INTAKE_CAPACITY_SHARE` | yearly intake cap as a fraction of capacity |
-| `INTAKE_CITY_SHARE` | yearly intake cap as a fraction of ordinary population per arcology |
-| `INTAKE_PER_POINT`, `INTAKE_OFFSET` | intake per point of (tax factor + condition) and the fixed deduction |
-| `RETENTION_GROWTH_SHARE` | natural growth of existing residents per year |
-| `INTAKE_JITTER` | random residents added to a growing arcology |
-| `POLLUTION_PER_THOUSAND`, `CRIME_PER_THOUSAND` | pollution and crime per thousand arcology residents in `arcology_report()`, applied by the environment system |
-| `LAUNCH_KEY`, `LAUNCH_COUNT`, `LAUNCH_YEAR`, `LAUNCH_REFUND` | the exodus design, the fleet size, the earliest year and the compensation per inhabited arcology |
+| `ARCOLOGIES` | building key → `{year, capacity}`; capacity is overnight guests, construction cost /100 (see [Tourism](tourism.md)) |
+| `POLLUTION_PER_THOUSAND`, `CRIME_PER_THOUSAND` | pollution and crime per thousand current tourists in tourism reports, applied by the environment system |
+| `LAUNCH_KEY`, `LAUNCH_COUNT`, `LAUNCH_YEAR`, `LAUNCH_REFUND` | the exodus design, the fleet size, the earliest year and the compensation per occupied resort |
 
 ## Save state
 
 `save()` returns `milestones_passed`, `military` (`{kind, answered, accepted,
 site, sites}`), `seen_standing` (the gifts last seen on the map, so their
 demolition is noticed after a reload) and an `arcologies` map of
-`tile_key → {residents, capacity, built_year, condition}`.
+`tile_key → {capacity, built_year, condition}`.
 `load()` restores the private state and merges the arcology records back into
 `city.facilities` for footprints that still stand, then reconciles standing
 rewards against the restored stats. If an older native snapshot has no reward
@@ -190,5 +158,11 @@ accept_military(rect: Rect2i = Rect2i()) -> bool
 decline_military() -> void
 arcology_available(key: StringName) -> bool
 available_arcologies() -> Array[StringName]
-arcology_report() -> Array[Dictionary] # {anchor, key, residents, capacity, built_year, condition, pollution, crime}
+arcology_report() -> Array[Dictionary] # deprecated tourism adapter; residents aliases tourists
 ```
+
+Legacy resident records are adopted only after final snapshot restoration,
+clamped to roster guest capacity, then removed from facilities. This preserves
+ordinary resident cohorts, condition/capacity metadata, old histories and earned
+unlocks. Repeated save/load is idempotent. Canonical tourism capacity always
+comes from the roster, even when preserved legacy capacity metadata differs.

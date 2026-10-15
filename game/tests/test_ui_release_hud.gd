@@ -44,7 +44,7 @@ func test_category_jump_reveals_tools_without_selecting_or_building() -> void:
 	toolbar.section_picker.select(index)
 	toolbar.section_picker.item_selected.emit(index)
 	await _settle()
-	var first := toolbar.button_for(Tools.Kind.ARCOLOGY_LAST)
+	var first := toolbar.button_for(Tools.Kind.ARCOLOGY_BODDY)
 	var scroll: ScrollContainer = toolbar.get_node("Shell/Scroll")
 	check(scroll.get_global_rect().encloses(first.get_global_rect()), "category jump reveals the cheapest resort first")
 	check(first.has_focus(), "keyboard focus enters chosen category")

@@ -14,6 +14,7 @@ signal month_ended(year: int, month: int)
 signal year_ended(year: int)
 signal funds_changed(funds: int)
 signal population_changed(population: int)
+signal tourists_changed(tourists: int)
 signal budget_review_due(year: int)
 signal news_published(story: Dictionary)
 signal notice_raised(kind: StringName, payload: Dictionary)
@@ -34,6 +35,7 @@ const SCHEDULE := {
 	12: [&"services"],
 	14: [&"population"],
 	16: [&"economy"],
+	17: [&"tourism"],
 	18: [&"budget", &"ordinances", &"wear"],
 	20: [&"disasters"],
 	22: [&"statistics", &"casino", &"newspaper"],
@@ -45,6 +47,7 @@ const SCHEDULE := {
 const SYSTEM_SCRIPTS := [
 	"res://scripts/sim/power_system.gd",
 	"res://scripts/sim/water_system.gd",
+	"res://scripts/sim/tourism_system.gd",
 	"res://scripts/sim/agriculture_system.gd",
 	"res://scripts/sim/zone_system.gd",
 	"res://scripts/sim/transport_system.gd",
@@ -87,6 +90,7 @@ var _ctx := SimContext.new()
 var _accumulator := 0.0
 var _ready_to_run := false
 var _last_population := -1
+var _last_tourists := -1
 var _last_funds := -1
 
 
@@ -146,10 +150,13 @@ func setup(new_city: City, seed_value: int = -1, restored_stats: CityStats = nul
 			(s as PowerSystem).setup_from_save(_ctx, saved_systems["power"])
 		else:
 			s.setup(_ctx)
-	_ready_to_run = true
 	_last_population = -1
+	_last_tourists = -1
 	_last_funds = -1
-	_emit_scalars()
+	if restored_snapshot.is_empty():
+		tourism().finish_restore({})
+		_ready_to_run = true
+		_emit_scalars()
 
 
 func _load_systems() -> void:
@@ -184,11 +191,13 @@ func toggle_pause() -> void:
 
 ## Run one simulated day. Safe to call directly from tests and tools.
 func advance_day() -> void:
-	if city == null or budget_review_pending:
+	if city == null or not _ready_to_run or budget_review_pending:
 		return
 	events.clear()
 	for s in systems:
 		s.daily(_ctx)
+	# Later daily systems can change fire/service state before scheduled consumers.
+	tourism().reconcile_now()
 	var dom := clock.day_of_month()
 	var scheduled: Array = SCHEDULE.get(dom, [])
 	for k in scheduled:
@@ -196,6 +205,7 @@ func advance_day() -> void:
 		if s == null:
 			continue
 		s.monthly(_ctx, _phase_of(k, dom))
+		tourism().reconcile_now()
 	if clock.is_year_end():
 		for s in systems:
 			s.yearly(_ctx)
@@ -249,6 +259,8 @@ func networks_changed(rect: Rect2i = Rect2i(0, 0, City.WIDTH, City.HEIGHT)) -> v
 		return
 	for s in systems:
 		s.networks_changed(_ctx, rect)
+	# Utilities and other systems have now finished their network refresh.
+	tourism().reconcile_now()
 	map_changed.emit(rect)
 	_emit_scalars()
 
@@ -258,6 +270,8 @@ func request_disaster(kind: StringName, at: Vector2i = Vector2i(-1, -1)) -> bool
 	if d == null or not d.has_method("request"):
 		return false
 	var ok: bool = d.call("request", _ctx, kind, at)
+	tourism().reconcile_now()
+	_emit_scalars()
 	_drain_events()
 	return ok
 
@@ -271,6 +285,10 @@ func redeem_cheat(code: String) -> Dictionary:
 		_emit_scalars()
 		_drain_events()
 	return result
+
+
+func tourism() -> TourismSystem:
+	return get_system(&"tourism") as TourismSystem
 
 
 ## The casino system (treasury transactions and the play ledger).
@@ -338,7 +356,7 @@ func _drain_events() -> void:
 
 
 func _emit_scalars() -> void:
-	if city == null:
+	if city == null or not _ready_to_run:
 		return
 	if city.funds != _last_funds:
 		_last_funds = city.funds
@@ -347,6 +365,9 @@ func _emit_scalars() -> void:
 	if p != _last_population:
 		_last_population = p
 		population_changed.emit(p)
+	if stats.tourists != _last_tourists:
+		_last_tourists = stats.tourists
+		tourists_changed.emit(stats.tourists)
 
 
 # ── Persistence ──────────────────────────────────────────────────────────
@@ -368,7 +389,11 @@ func snapshot() -> Dictionary:
 	}
 
 
-func restore(data: Dictionary) -> void:
+func restore(data: Dictionary) -> Error:
+	# Validate before touching the active clock, RNG, stats or any system.
+	if SaveFormat.validate_snapshot(data) != "" or TourismSaveCodec.problem(data, city) != "":
+		return ERR_INVALID_DATA
+	_ready_to_run = false
 	var pending_seconds := float(data.get("accumulator", 0.0))
 	_accumulator = pending_seconds if is_finite(pending_seconds) and pending_seconds >= 0.0 else 0.0
 	clock.day = int(data.get("clock_day", city.day))
@@ -390,8 +415,13 @@ func restore(data: Dictionary) -> void:
 			s.load(sys[String(s.key)])
 		elif s.key == &"agriculture":
 			s.load({})
+	var normalized := tourism().finish_restore(data)
+	if normalized != OK:
+		return normalized
+	_ready_to_run = true
 	set_speed(int(data.get("speed", GameClock.Speed.PAUSED)))
 	_emit_scalars()
+	return OK
 
 
 func date_text() -> String:

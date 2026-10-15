@@ -35,46 +35,25 @@ const MILITARY_MISSILE_SITE_SIZE := 3
 ## Random origins tried while collecting silo squares.
 const MILITARY_MISSILE_ATTEMPTS := 40
 
-## Arcology designs: the year each becomes buildable and its resident capacity.
+## Arcology designs: the year each becomes buildable and its overnight guest capacity.
 const ARCOLOGIES: Dictionary = {
-	&"arcology_comstock": {"year": 2000, "capacity": 55000},
-	&"arcology_junction": {"year": 2050, "capacity": 30000},
-	&"arcology_boulder": {"year": 2100, "capacity": 45000},
-	&"arcology_orbit": {"year": 2150, "capacity": 65000},
-	&"arcology_fix": {"technology": &"arcology_comstock", "year": 2000, "capacity": 35000},
-	&"arcology_alibi": {"technology": &"arcology_comstock", "year": 2000, "capacity": 30000},
-	&"arcology_velvet": {"technology": &"arcology_comstock", "year": 2000, "capacity": 30000},
-	&"arcology_afterglow": {"technology": &"arcology_comstock", "year": 2000, "capacity": 45000},
-	&"arcology_last": {"technology": &"arcology_comstock", "year": 2000, "capacity": 35000},
-	&"arcology_dust": {"technology": &"arcology_comstock", "year": 2000, "capacity": 40000},
-	&"arcology_boddy": {"year": 0, "capacity": 500},
-	&"arcology_woolier": {"year": 0, "capacity": 1200},
-	&"arcology_stockgrowers": {"year": 0, "capacity": 3000},
-	&"arcology_fremont": {"year": 0, "capacity": 5000},
+	&"arcology_comstock": {"year": 2000, "capacity": 1000},
+	&"arcology_junction": {"year": 2050, "capacity": 1200},
+	&"arcology_boulder": {"year": 2100, "capacity": 1500},
+	&"arcology_orbit": {"year": 2150, "capacity": 2000},
+	&"arcology_fix": {"technology": &"arcology_comstock", "year": 2000, "capacity": 3200},
+	&"arcology_alibi": {"technology": &"arcology_comstock", "year": 2000, "capacity": 1400},
+	&"arcology_velvet": {"technology": &"arcology_comstock", "year": 2000, "capacity": 2200},
+	&"arcology_afterglow": {"technology": &"arcology_comstock", "year": 2000, "capacity": 5000},
+	&"arcology_last": {"technology": &"arcology_comstock", "year": 2000, "capacity": 600},
+	&"arcology_dust": {"technology": &"arcology_comstock", "year": 2000, "capacity": 950},
+	&"arcology_boddy": {"year": 0, "capacity": 80},
+	&"arcology_woolier": {"year": 0, "capacity": 160},
+	&"arcology_stockgrowers": {"year": 0, "capacity": 300},
+	&"arcology_fremont": {"year": 0, "capacity": 450},
 }
 
-## Condition (desirability) scale: base value and how many map points move it
-## by one.
-const DESIRABILITY_BASE := 12
-const DESIRABILITY_DIVISOR := 32
-
-## Tax factor: (TAX_FACTOR_BASE - sum of the three tax rates) / TAX_FACTOR_DIVISOR.
-const TAX_FACTOR_BASE := 60
-const TAX_FACTOR_DIVISOR := 6
-
-## Yearly intake caps: a share of capacity, and a share of the ordinary
-## population divided among all arcologies.
-const INTAKE_CAPACITY_SHARE := 10
-const INTAKE_CITY_SHARE := 20
-## Intake per point of (tax factor + condition), less a fixed deduction.
-const INTAKE_PER_POINT := 200
-const INTAKE_OFFSET := 2000
-## Existing residents grow by this share each year.
-const RETENTION_GROWTH_SHARE := 50
-## Random residents (0 .. JITTER-1) added to every growing arcology.
-const INTAKE_JITTER := 64
-
-## Pollution and crime produced per thousand arcology residents.
+## Pollution and crime produced per thousand current tourists.
 const POLLUTION_PER_THOUSAND := 2
 const CRIME_PER_THOUSAND := 1
 

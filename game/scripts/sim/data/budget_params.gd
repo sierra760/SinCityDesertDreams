@@ -11,6 +11,9 @@ extends RefCounted
 const EXPENSE_KEYS: Array[StringName] = [&"ordinance_cost", &"police", &"fire", &"health",
 	&"education", &"transport", &"bond_interest", &"other"]
 
+## Visitor business accounts retain exact undistributed fractions across years.
+const TOURISM_KEYS: Array[StringName] = [&"taxes_occupancy", &"taxes_gaming"]
+
 ## Assessed base value of a zone building, by category and footprint side
 ## (1, 2 or 3 tiles). Taxed at the category's rate per year.
 const ZONE_VALUE := {
@@ -22,8 +25,6 @@ const ZONE_VALUE := {
 const STAGES_PER_FOOTPRINT := 3
 ## Multiplier (in percent) applied to the base value at stages 1..3.
 const STAGE_MULTIPLIER := {1: 100, 2: 150, 3: 200}
-## Assessed residential value of one arcology.
-const ARCOLOGY_VALUE := 3000
 
 ## Yearly upkeep in dollars per building at full funding, by building key.
 const SERVICE_UPKEEP := {

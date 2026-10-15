@@ -286,13 +286,13 @@ static func _port_kind(zone_kind: int, port_class: int) -> int:
 	return Zones.MILITARY if port_class == 2 else Zones.SEAPORT
 
 
-## Crowded arcologies pollute and breed crime with their residents, spread
+## Current tourists create the existing resort pollution/crime load, spread
 ## evenly over the blocks of their footprint (see rewards.md).
 func _add_arcology_load(ctx: SimContext) -> void:
-	var rewards := ctx.system(&"rewards")
-	if rewards == null or not rewards.has_method("arcology_report"):
+	var tourism := ctx.system(&"tourism")
+	if tourism == null or not tourism.has_method("report"):
 		return
-	for entry: Dictionary in rewards.call("arcology_report"):
+	for entry: Dictionary in tourism.call("report"):
 		var anchor: Vector2i = entry["anchor"]
 		var key: StringName = StringName(String(entry.get("key", "")))
 		var size := Buildings.size(Buildings.id_of(key)) if key != &"" else Vector2i(4, 4)

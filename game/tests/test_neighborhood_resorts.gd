@@ -5,7 +5,7 @@ extends "res://tests/test_case.gd"
 const KEYS := [&"arcology_boddy", &"arcology_woolier", &"arcology_stockgrowers", &"arcology_fremont"]
 const COSTS := [8000,16000,30000,45000]
 const MINIMUMS := [10,15,25,40]
-const CAPACITIES := [500,1200,3000,5000]
+const CAPACITIES := [80,160,300,450]
 const SIGNATURES := [&"faro",&"chuck_a_luck",&"faro",&"baccarat"]
 const Access := preload("res://scripts/exploration/resorts/resort_entrance_access.gd")
 
@@ -86,7 +86,7 @@ func test_founding_construction_demolition_and_save_v2_round_trip() -> void:
 	var sim := make_simulation(city,71)
 	for i: int in KEYS.size():
 		check(sim.get_system(&"rewards").arcology_available(KEYS[i]),"reward pathway agrees with early tools")
-		check_eq(int(city.facility(Vector2i(12+i*5,12)).get("capacity",0)),CAPACITIES[i])
+		check_eq(int(sim.tourism().venue_report(Vector2i(12+i*5,12)).capacity),CAPACITIES[i])
 	var path := "user://neighborhood-resorts-v2.sc2d"
 	check_eq(SaveFormat.save(path,city,sim.snapshot()),OK)
 	var loaded := SaveFormat.load(path)

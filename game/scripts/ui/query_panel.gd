@@ -16,7 +16,7 @@ signal closed
 
 const PANEL_WIDTH := 320
 ## Record fields never listed as counters.
-const HIDDEN_FIELDS: Array[String] = ["key", "built_day", "warned", "age_years", "name", "built_year", "imported"]
+const HIDDEN_FIELDS: Array[String] = ["key", "built_day", "warned", "age_years", "name", "built_year", "imported", "tourism_instance", "tourism_migrated", "residents"]
 
 var title_label: Label
 var rows: VBoxContainer
@@ -32,6 +32,10 @@ var info: Dictionary = {}
 ## pipes and subway under the tile, and on the surface never touches them.
 var underground_view := false
 var _content_revision := 0
+var _column: VBoxContainer
+var _title_row: HBoxContainer
+var _actions: HBoxContainer
+var _compact_header := false
 
 
 func _init() -> void:
@@ -46,12 +50,14 @@ func _init() -> void:
 
 func _build() -> void:
 	var column := VBoxContainer.new()
+	_column = column
 	column.add_theme_constant_override("separation", UITheme.VSEP)
 	add_child(column)
 	var bar := PanelContainer.new()
 	bar.add_theme_stylebox_override("panel", UITheme.title_bar_stylebox())
 	column.add_child(bar)
 	var bar_row := HBoxContainer.new()
+	_title_row = bar_row
 	bar.add_child(bar_row)
 	title_label = UIFactory.make_label("Inspect", UITheme.FONT_TITLE, UITheme.TITLE_TEXT)
 	title_label.add_theme_font_override("font", UITheme.DISPLAY_FONT)
@@ -73,6 +79,7 @@ func _build() -> void:
 	body_scroll.add_child(rows)
 	column.add_child(body_scroll)
 	var actions := HBoxContainer.new()
+	_actions = actions
 	actions.name = "Actions"
 	actions.add_theme_constant_override("separation", 6)
 	column.add_child(actions)
@@ -90,6 +97,16 @@ func _build() -> void:
 	actions.add_child(demolish_button)
 	WindowDrag.enable(bar,self)
 	size = Vector2(PANEL_WIDTH,480)
+
+
+## Short landscape viewports put the same 44-point actions beside the title,
+## recovering a readable scroll body without covering the status face.
+func set_compact_header(compact: bool) -> void:
+	if compact == _compact_header: return
+	_compact_header = compact
+	_actions.reparent(_title_row if compact else _column)
+	if compact:
+		_title_row.move_child(_actions, _title_row.get_child_count() - 2)
 
 
 ## Fill the panel for `at` and show it.
@@ -195,7 +212,8 @@ static func describe(city: City, sim: Simulation, at: Vector2i, underground_laye
 		if zones != null and zones.has_method("population_of"):
 			var people := int(zones.call("population_of", id))
 			var jobs := int(zones.call("jobs_of", id))
-			out["Residents"] = people
+			if id != Buildings.id_of(&"com_corner_store"):
+				out["Residents"] = people
 			out["Jobs"] = jobs
 			if zones.has_method("stage_of"):
 				out["Development stage"] = int(zones.call("stage_of", id))
@@ -256,7 +274,7 @@ static func describe(city: City, sim: Simulation, at: Vector2i, underground_laye
 
 
 ## The live figures the systems keep for a facility: plant output, water
-## output and storage, arcology residents, station riders, prison counts.
+## output and storage, tourism attendance, station riders, prison counts.
 static func _facility_figures(city: City, sim: Simulation, anchor: Vector2i, id: int) -> Dictionary:
 	var out: Dictionary = {}
 	if sim == null:
@@ -281,16 +299,7 @@ static func _facility_figures(city: City, sim: Simulation, anchor: Vector2i, id:
 							out["Stored"] = int(facility.get("stored", 0))
 						out["Powered"] = "Yes" if bool(facility.get("powered", false)) else "No"
 		Buildings.Category.ARCOLOGY:
-			var rewards := sim.get_system(&"rewards")
-			if rewards != null and rewards.has_method("arcology_report"):
-				for entry in rewards.call("arcology_report"):
-					var arcology: Dictionary = entry
-					if arcology.get("anchor", Vector2i(-1, -1)) == anchor:
-						out["Residents"] = int(arcology.get("residents", 0))
-						out["Capacity"] = int(arcology.get("capacity", 0))
-						out["Condition"] = int(arcology.get("condition", 0))
-			var resort := ResortThemes.key_for_building(id)
-			if resort != &"": _resort_figures(out, city, sim, resort)
+			out["Condition"] = int(city.facility(anchor).get("condition", 0))
 		Buildings.Category.TRANSIT:
 			var transport := sim.get_system(&"transport")
 			if transport != null and transport.has_method("ridership"):
@@ -314,7 +323,33 @@ static func _facility_figures(city: City, sim: Simulation, anchor: Vector2i, id:
 							out["Capacity"] = int(prison.get("capacity", 0))
 							out["Utilization"] = "%d%%" % int(prison.get("utilization", 0))
 							out["Escapes"] = int(prison.get("escapes", 0))
+	var resort := ResortThemes.key_for_building(id)
+	if resort != &"":
+		_tourism_figures(out, sim, anchor)
+		_resort_figures(out, city, sim, resort)
 	return out
+
+
+static func _tourism_figures(out: Dictionary, sim: Simulation, anchor: Vector2i) -> void:
+	var tourism := sim.tourism()
+	if tourism == null: return
+	var rec := tourism.venue_report(anchor)
+	if rec.is_empty(): return
+	out["#Tourism"] = ""
+	out["Tourists"] = int(rec.tourists)
+	out["Guests"] = int(rec.guests)
+	out["Day visitors"] = int(rec.day_visitors)
+	out["Lodging capacity"] = int(rec.capacity)
+	out["Day visitor capacity"] = int(rec.day_capacity)
+	out["Occupancy"] = "%d%%" % int(rec.occupancy)
+	out["Operating"] = "Yes" if rec.operating else "No"
+	out["Operating reason"] = "All services and access available" if rec.operating else String(rec.reason)
+	out["Arrivals this month"] = int(rec.arrivals)
+	out["Departures this month"] = int(rec.departures)
+	out["Business period"] = "Completed month %d" % (int(rec.business_month) + 1) if int(rec.business_month) >= 0 else "No completed month"
+	out["Completed lodging base"] = "$%.2f" % (int(rec.lodging_cents) / 100.0)
+	out["Completed gaming base"] = "$%.2f" % (int(rec.gaming_cents) / 100.0)
+	out["Business basis"] = "Completed average guest-month lodging; visitor gaming after payouts. Mayor play excluded."
 
 
 ## A gaming resort's casino floor and the mayor's net play there this year

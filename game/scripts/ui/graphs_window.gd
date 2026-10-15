@@ -30,6 +30,9 @@ const SERIES_LABELS := {
 	&"education": "Education", &"demand_residential": "Residential demand",
 	&"demand_commercial": "Commercial demand", &"demand_industrial": "Industrial demand",
 	&"transit_riders": "Transit riders",
+	&"tourists": "Tourists", &"tourist_occupancy": "Tourist occupancy (%)",
+	&"taxes_occupancy": "Monthly occupancy tax accrued ($)",
+	&"taxes_gaming": "Monthly gaming tax accrued ($)",
 	&"agricultural_jobs": "Agricultural jobs", &"agricultural_lots": "Active farm lots",
 	&"demand_agricultural": "Agricultural demand", &"taxes_agricultural": "Agricultural taxes",
 }
@@ -71,6 +74,8 @@ class GraphCanvas extends Control:
 	func set_series(rows: Array[Dictionary], span_months: int) -> void:
 		series = rows
 		months = maxi(span_months, 2)
+		var label_height := get_theme_default_font().get_height(UITheme.FONT_SMALL) + 2.0
+		custom_minimum_size.y = maxf(220.0, rows.size() * label_height + PAD_TOP + PAD_BOTTOM)
 		queue_redraw()
 
 	func plot_rect() -> Rect2:
@@ -124,8 +129,9 @@ class GraphCanvas extends Control:
 
 	## A value as the axis and end labels print it: dollars for Funds.
 	static func value_text(name: StringName, value: int) -> String:
-		if name in [&"money", &"taxes_agricultural"]:
+		if name in [&"money", &"taxes_agricultural", &"taxes_occupancy", &"taxes_gaming"]:
 			return NoticeLines.money(value)
+		if name == &"tourist_occupancy": return "%d%%" % value
 		return UIFactory.commafy_signed(value)
 
 	## Screen points of one series' polyline, newest sample at the right edge.
@@ -148,6 +154,37 @@ class GraphCanvas extends Control:
 				var y := rect.position.y + rect.size.y * (1.0 - t)
 				out.append(Vector2(x, y))
 		return out
+
+	## Compact in-plot captions; the picker retains the full monthly definitions.
+	func legend_text(name: StringName, fallback: String) -> String:
+		var captions := {&"tourists":"Tourists", &"tourist_occupancy":"Occupancy (%)",
+			&"taxes_occupancy":"Occ. tax ($)", &"taxes_gaming":"Gaming tax ($)"}
+		return String(captions.get(name, fallback))
+
+	## Pack endpoint labels vertically while retaining each true point and value.
+	## The canvas minimum height reserves enough room even with many series.
+	func endpoint_labels() -> Array[Dictionary]:
+		var labels: Array[Dictionary] = []
+		var rect := plot_rect()
+		var height := get_theme_default_font().get_height(UITheme.FONT_SMALL)
+		for row in series:
+			var points := points_for(row.name)
+			if points.is_empty(): continue
+			var last := points[points.size()-1]
+			var values: PackedInt32Array = row.values
+			labels.append({"name":row.name, "text":value_text(row.name, values[values.size()-1]),
+				"color":row.color, "point":last,
+				"rect":Rect2(rect.end.x+4.0, clampf(last.y-height/2.0,rect.position.y,rect.end.y-height),PAD_RIGHT-4.0,height)})
+		labels.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return a.point.y < b.point.y)
+		var next_y := rect.position.y
+		for label in labels:
+			label.rect.position.y = maxf(label.rect.position.y,next_y)
+			next_y = label.rect.end.y+2.0
+		var bottom := rect.end.y
+		for i in range(labels.size()-1,-1,-1):
+			labels[i].rect.position.y = minf(labels[i].rect.position.y,bottom-height)
+			bottom = labels[i].rect.position.y-2.0
+		return labels
 
 	func _draw() -> void:
 		var rect := plot_rect()
@@ -187,15 +224,17 @@ class GraphCanvas extends Control:
 			if points.size() >= 1:
 				var last := points[points.size() - 1]
 				draw_circle(last, 3.0, color)
-				var values: PackedInt32Array = row["values"]
-				draw_string(font, Vector2(rect.end.x + 4.0, last.y + 4.0), value_text(row["name"], values[values.size() - 1]),
-					HORIZONTAL_ALIGNMENT_LEFT, PAD_RIGHT - 4.0, font_size, color)
+		for label in endpoint_labels():
+			var bounds: Rect2 = label.rect
+			var baseline := bounds.position + Vector2(0.0,font.get_ascent(font_size))
+			draw_line(label.point,Vector2(bounds.position.x,bounds.get_center().y),label.color,1.0)
+			draw_string(font,baseline,label.text,HORIZONTAL_ALIGNMENT_LEFT,bounds.size.x,font_size,label.color)
 		var legend_y := rect.position.y + 14.0
 		for row in series:
 			var color: Color = row["color"]
 			draw_rect(Rect2(rect.position.x + 6.0, legend_y - 8.0, 10.0, 10.0), color, true)
-			draw_string(font, Vector2(rect.position.x + 20.0, legend_y), String(row["label"]),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, UITheme.TEXT_PRIMARY)
+			draw_string(font, Vector2(rect.position.x + 20.0, legend_y), legend_text(row["name"], String(row["label"])),
+				HORIZONTAL_ALIGNMENT_LEFT, maxf(1.0,rect.size.x - 26.0), font_size, UITheme.TEXT_PRIMARY)
 			legend_y += 14.0
 
 
@@ -338,6 +377,9 @@ func canvas() -> GraphCanvas:
 func _build() -> void:
 	_status_label = UIFactory.make_label("No city loaded", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	_body.add_child(_status_label)
+	var history_note := UIFactory.make_label("Population is permanent residents; older population samples included resort occupants. Tourist history starts with the tourism economy. Tax graphs show that month’s booked accrual in whole dollars; fractional carry remains in Budget.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	history_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_body.add_child(history_note)
 	var columns := UIFactory.ResponsiveColumns.new()
 	columns.add_theme_constant_override("separation", UITheme.MARGIN)
 	_body.add_child(columns)
@@ -394,6 +436,8 @@ func _ensure_picker(statistics: SimSystem) -> void:
 		var box := CheckBox.new()
 		box.custom_minimum_size.y = 44
 		box.text = _label_of(name)
+		box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.custom_minimum_size.x = 160
 		box.add_theme_font_size_override("font_size", UITheme.FONT_SMALL)
 		box.toggled.connect(_on_series_toggled)
 		_picker.add_child(box)

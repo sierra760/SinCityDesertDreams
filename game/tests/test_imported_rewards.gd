@@ -48,7 +48,7 @@ static func _chunk(tag: String, data: PackedByteArray) -> PackedByteArray:
 	return out
 
 
-func _write_classic(gift_count: int, military: bool) -> void:
+func _write_classic(gift_count: int, military: bool, resort: bool = false) -> void:
 	var altitude := PackedByteArray()
 	altitude.resize(32768)
 	for tile in 16384:
@@ -72,6 +72,15 @@ func _write_classic(gift_count: int, military: bool) -> void:
 				if dx == size.x - 1 and dy == 0: zones[tile] |= 0x20
 				if dx == size.x - 1 and dy == size.y - 1: zones[tile] |= 0x40
 				if dx == 0 and dy == size.y - 1: zones[tile] |= 0x80
+	if resort:
+		for dy in 4:
+			for dx in 4:
+				var tile := (80 + dx) * 128 + 80 + dy
+				buildings[tile] = 251
+				if dx == 0 and dy == 0: zones[tile] |= 0x10
+				if dx == 3 and dy == 0: zones[tile] |= 0x20
+				if dx == 3 and dy == 3: zones[tile] |= 0x40
+				if dx == 0 and dy == 3: zones[tile] |= 0x80
 	if military:
 		zones[90 * 128 + 90] = 0xf7
 		buildings[90 * 128 + 90] = 226
@@ -146,3 +155,19 @@ func test_main_import_keeps_missing_gift_buildable_at_its_milestone() -> void:
 	check(not host.toolbar.is_locked(Tools.Kind.REWARD_MONUMENT), "the missing gift is selectable")
 	check_eq(rewards.available(), [&"monument"])
 
+
+func test_imported_resort_starts_empty_and_never_inflates_population() -> void:
+	_write_classic(0, false, true)
+	check(host.import_city(CLASSIC))
+	var report := host.sim.tourism().venue_report(Vector2i(80, 80))
+	check_eq(report.key, &"arcology_comstock")
+	check_eq(report.capacity, TourismParams.guest_capacity(&"arcology_comstock"))
+	check_eq(report.tourists, 0)
+	check_eq(host.sim.stats.total_population(), 0)
+	check_eq(host.sim.stats.arcology_population, 0)
+	check_eq(host.sim.stats.tax_occupancy, 7)
+	check_eq(host.sim.stats.tax_gaming, 7)
+	check_eq(SaveFormat.save(NATIVE, host.sim.city, host.sim.snapshot()), OK)
+	check(host.load_city(NATIVE))
+	check_eq(host.sim.tourism().venue_report(Vector2i(80, 80)), report)
+	check_eq(host.sim.stats.total_population(), 0)

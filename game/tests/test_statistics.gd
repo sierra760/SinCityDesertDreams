@@ -28,7 +28,7 @@ func test_key_and_names() -> void:
 	var s := make_system(ctx)
 	check_eq(s.key, &"statistics")
 	var names: Array[StringName] = s.names()
-	check_eq(names.size(), 22, "city series, transit riders and four agricultural histories")
+	check_eq(names.size(), 26, "existing series plus four tourism histories")
 	for agricultural: StringName in [&"demand_agricultural", &"agricultural_jobs", &"agricultural_lots", &"taxes_agricultural"]:
 		check(names.has(agricultural))
 	check_eq(names[0], &"population")
@@ -64,7 +64,7 @@ func test_monthly_sample_records_every_series() -> void:
 	s.monthly(ctx, 0)
 	for name in s.names():
 		check_eq(s.series(name, 1).size(), 1, "one sample for %s" % name)
-	check_eq(s.series(&"population", 1)[0], 1600)
+	check_eq(s.series(&"population", 1)[0], 1500)
 	check_eq(s.series(&"residents", 1)[0], 5)
 	check_eq(s.series(&"commercial", 1)[0], 4, "every tile of a lot counts")
 	check_eq(s.series(&"industrial", 1)[0], 1)
@@ -142,7 +142,7 @@ func test_status_lines() -> void:
 	lines = s.status_lines()
 	check(lines[0].contains("Metropolis"), lines[0])
 	check_eq(lines[1], "January 1950")
-	check_eq(lines[2], "Population 123,456")
+	check_eq(lines[2], "Population 123,456 · Tourists 0")
 	check_eq(lines[3], "Funds $1,000,000")
 	check_eq(lines[4], "Employment 93%")
 	check_eq(lines[5], "Approval 63%")

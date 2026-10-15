@@ -271,3 +271,46 @@ func test_help_moved_from_the_title_to_a_city_keeps_its_fitted_captions() -> voi
 				check(caption.get_line_count()<=caption.text.split(" ").size(),"caption '%s' keeps whole words on a line" % caption.text)
 	host.window_manager.close_all()
 	host.in_game = was_in_game
+
+
+func test_report_profiles_fit_with_large_counts() -> void:
+	host.sim.stats.population = 1234567890
+	host.sim.stats.tourists = 987654321
+	host.sim.stats.tourist_guests = 987600000
+	host.sim.stats.tourist_day_visitors = 54321
+	host.sim.stats.tourist_capacity = 999999999
+	host.sim.stats.tourist_occupancy = 98
+	for account in [&"taxes_occupancy", &"taxes_gaming"]:
+		host.sim.stats.ledger[account] = 1234567890
+		host.sim.stats.last_year_ledger[account] = 987654321
+	for profile: Vector2i in [Vector2i(320,568),Vector2i(390,844),Vector2i(667,375),Vector2i(1194,834),Vector2i(1440,900)]:
+		root.size = profile
+		if profile.x < 1000:
+			host.display_layout.refresh_with_mobile_metrics(profile,1,Rect2i(Vector2i.ZERO,profile))
+		else:
+			host.display_layout.refresh_with_metrics(profile,1)
+		await HostFixture.settle(self,10)
+		for window_name in ["budget","population","graphs"]:
+			var window := host.open_window(window_name)
+			await HostFixture.settle(self,10)
+			var panel := window.get("_root") as Control
+			var chrome: Dictionary = panel.get_meta("window_chrome")
+			var scroll := chrome.body_scroll as ScrollContainer
+			check(host.display_layout.logical_rect().grow(.1).encloses(panel.get_global_rect()),window_name+" large counts fit "+str(profile))
+			check(scroll.get_h_scroll_bar().max_value <= scroll.get_h_scroll_bar().page+1.0,window_name+" large counts have no horizontal scroll "+str(profile))
+			if window is BudgetWindow:
+				for kind in [&"occupancy",&"gaming"]:
+					var field := window._tax_spinners[kind] as TouchNumberField
+					check_ge(field._plus.size.y,44,"tourism increment target")
+					check_ge(field._minus.size.y,44,"tourism decrement target")
+					check(field.get_line_edit().size.x >= 30,"rate remains legible")
+				var previous: Label = window._ledger_rows[&"taxes_occupancy"][2]
+				check_eq(previous.text,"$987,654,321","previous-year tourism account displayed")
+			host.window_manager.close_all()
+		host.files.open_save_dialog()
+		await HostFixture.settle(self,10)
+		check(host.save_dialog.counts_label.text.contains("Population 1,234,567,890"))
+		check(host.save_dialog.counts_label.text.contains("Tourists 987,654,321"))
+		var save_scroll: ScrollContainer = host.save_dialog.panel.get_meta("window_chrome").body_scroll
+		check(save_scroll.get_h_scroll_bar().max_value <= save_scroll.get_h_scroll_bar().page+1.0,"save summary fits "+str(profile))
+		host.save_dialog.close()

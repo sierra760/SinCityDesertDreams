@@ -77,6 +77,8 @@ static func save(path: String, city: City, sim_snapshot: Dictionary = {}, stage:
 	# Reject invalid applied metadata before staging or replacing any save.
 	if not StreetNamingCodec.validate(city.street_naming).ok:
 		return ERR_INVALID_DATA
+	if validate_snapshot(sim_snapshot) != "" or TourismSaveCodec.problem(sim_snapshot, city) != "":
+		return ERR_INVALID_DATA
 	var dir := path.get_base_dir()
 	if dir != "" and not DirAccess.dir_exists_absolute(dir):
 		var made := DirAccess.make_dir_recursive_absolute(dir)
@@ -278,6 +280,8 @@ static func load(path: String) -> Dictionary:
 	result["snapshot"] = snap if typeof(snap) == TYPE_DICTIONARY else {}
 	if stage == STAGE_PLAY:
 		var problem := validate_snapshot(result["snapshot"])
+		if problem == "":
+			problem = TourismSaveCodec.problem(result["snapshot"], decoded["city"])
 		if problem != "":
 			# Refuse it here, before the open city is replaced.
 			result["city"] = null
@@ -308,6 +312,8 @@ static var _system_shapes: Dictionary = {}
 ## where numbers belong, lists and tables where those belong. Fields the game
 ## does not know are left alone; missing fields take their defaults.
 static func validate_snapshot(snap: Dictionary) -> String:
+	var tourism_problem := TourismSaveCodec.problem(snap)
+	if tourism_problem != "": return tourism_problem
 	if snap.is_empty():
 		return ""
 	for k in ["clock_day", "speed", "accumulator"]:
@@ -633,6 +639,18 @@ static func read_header(path: String) -> Dictionary:
 		"saved_at": saved_at,
 	}
 
+	var snapshot: Variant = doc.get("snapshot", {})
+	var city_doc: Variant = doc.get("city", {})
+	var facilities: Variant = city_doc.get("facilities", {}) if city_doc is Dictionary else {}
+	var counts := TourismSaveCodec.header_counts(snapshot if snapshot is Dictionary else {}, facilities if facilities is Dictionary else {})
+	if counts.count_schema == 0:
+		# A new explicit header is usable even when a lightweight document has
+		# no snapshot. Old combined counts remain visibly identified as legacy.
+		if h.get("count_schema", 0) == 1 and TourismState._integer(h.get("tourists"), 0, TourismState.MAX_INSTANCE):
+			counts = {"population": result.population, "tourists": int(h.tourists), "count_schema": 1}
+		else:
+			counts.population = result.population
+	result.merge(counts, true)
 	_remember_header(path,text,modified_time,result)
 	return result
 
@@ -659,19 +677,17 @@ static func _remember_header(path: String, text: String, modified_time: int, hea
 # ── City encoding ────────────────────────────────────────────────────────
 
 static func _header(city: City, snap: Dictionary, stage: String = STAGE_PLAY) -> Dictionary:
-	var population := 0
-	var stats: Variant = snap.get("stats", {})
-	if typeof(stats) == TYPE_DICTIONARY:
-		for k in ["population", "arcology_population"]:
-			var v: Variant = stats.get(k, 0)
-			if _is_number(v):
-				population += int(v)
+	var counts := TourismSaveCodec.header_counts(snap, city.facilities)
+	if stage == STAGE_EDITING:
+		counts = {"population": 0, "tourists": 0, "count_schema": 1}
 	return {
 		"name": city.name,
 		"mayor": city.mayor,
 		"year": city.current_year(),
 		"day": city.day,
-		"population": population,
+		"population": counts.population,
+		"tourists": counts.tourists,
+		"count_schema": counts.count_schema,
 		"funds": city.funds,
 		"stage": stage,
 		"saved_at": int(Time.get_unix_time_from_system()),
@@ -823,6 +839,10 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 			var restored := {}
 			for field in record:
 				var value: Variant = record[field]
+				# Identity must be validated before the generic legacy integer
+				# normalization below; near-integers cannot become valid tokens.
+				if String(field) == "tourism_instance" and not TourismState._integer(value, 1, TourismState.MAX_INSTANCE - 1):
+					return {"city": null, "error": "Invalid facility tourism identity."}
 				if String(field) == "key":
 					restored["key"] = StringName(String(value))
 				elif typeof(value) == TYPE_FLOAT and is_equal_approx(value, floorf(value)):

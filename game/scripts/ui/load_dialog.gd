@@ -114,8 +114,8 @@ func refresh(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void
 		# The city's name leads so a narrow list still shows which city it is;
 		# a backup or recovery marker follows the short summary.
 		var year := int(h.get("year", 0))
-		var text := "%s · %spop %s" % [String(h.get("name", "?")),
-			("%d · " % year) if year > 0 else "", UIFactory.commafy(int(h.get("population", 0)))]
+		var text := "%s · %s%s" % [String(h.get("name", "?")),
+			("%d · " % year) if year > 0 else "", SaveDialog.count_summary(h)]
 		if String(h.get("stage", SaveFormat.STAGE_PLAY)) == SaveFormat.STAGE_EDITING:
 			text = "%s · unfounded map" % String(h.get("name", "?"))
 		if bool(h.get("suspended_recovery", false)):
@@ -208,7 +208,7 @@ func _show_details(index: int) -> void:
 	var stage := "Unfounded map" if String(header.get("stage", SaveFormat.STAGE_PLAY)) == SaveFormat.STAGE_EDITING else "Founded city"
 	var year := int(header.get("year", 0))
 	var summary := stage + (" · Year %d" % year if year > 0 else "")
-	summary += " · Population %s" % UIFactory.commafy(int(header.get("population", 0)))
+	summary += " · " + SaveDialog.count_summary(header)
 	var mayor := String(header.get("mayor", ""))
 	# The default credit "Mayor" says nothing; show only a chosen mayor name.
 	var mayor_line := "" if mayor.is_empty() or mayor == DEFAULT_MAYOR else "Mayor: %s\n" % mayor

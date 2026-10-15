@@ -16,6 +16,12 @@ var tool_label: Label
 var funds_label: Label
 var date_label: Label
 var population_label: Label
+var tourists_label: Label
+var _counts_row: HBoxContainer
+var _population := 0
+var _population_details := ""
+var _tourists := 0
+var _available_width := 320.0
 var speed_label: Label
 var alert_label: Label
 var message_label: Label
@@ -70,6 +76,12 @@ func set_phone_layout(on: bool) -> void:
 		if not on:
 			_column.move_child(_metrics_row,1)
 			_column.move_child(alert_label,2)
+	if on:
+		if _counts_row.get_parent() != _column: _counts_row.reparent(_column,false)
+		_column.move_child(_counts_row,1)
+	else:
+		if _counts_row.get_parent() != _metrics_row: _counts_row.reparent(_metrics_row,false)
+		_metrics_row.move_child(_counts_row,3)
 	set_details_open(false)
 
 func set_details_open(on: bool) -> void:
@@ -93,15 +105,17 @@ func apply_phone_height_limit(height: float) -> void:
 	_phone_height_limit = height
 	if not _phone or _details_scroll == null: return
 	var fixed_height := _phone_row.get_combined_minimum_size().y + get_theme_stylebox("panel").get_minimum_size().y + 8.0
+	if _counts_row.visible: fixed_height += _counts_row.get_combined_minimum_size().y + 8.0
 	_details_scroll.custom_minimum_size.y = minf(_details_content.get_combined_minimum_size().y,maxf(44.0,height-fixed_height))
 
 func _sync_phone_summary() -> void:
+	_sync_counts()
 	if _phone_summary == null or _details_button == null: return
 	var paused := speed_label != null and speed_label.text == String(GameClock.SPEED_NAMES[GameClock.Speed.PAUSED])
 	_phone_summary.text = ("" if _editing else funds_label.text+" · ")+date_label.text+(" · Paused" if paused else "")+"\n"+tool_label.text
 	_details_button.text = "Less" if _details_open else ("Alerts" if not alert_label.text.is_empty() else "Details")
 	_details_button.add_theme_color_override("font_color",UITheme.MONEY_NEGATIVE if not alert_label.text.is_empty() else UITheme.TEXT_PRIMARY)
-	_details_button.tooltip_text = alert_label.text if not alert_label.text.is_empty() else "Tool, population, demand and simulation speed"
+	_details_button.tooltip_text = alert_label.text if not alert_label.text.is_empty() else "Tool, resident population, tourists, demand and simulation speed"
 
 
 ## Four bars, one per zone family, growing up for positive demand and down
@@ -183,8 +197,14 @@ func _build() -> void:
 	funds_label = _cell(_metrics_row,"$0",0,UITheme.MONEY_POSITIVE)
 	funds_label.tooltip_text = "City treasury"
 	date_label = _cell(_metrics_row,"—",0)
-	population_label = _cell(_metrics_row,"Pop: 0",0)
-	population_label.tooltip_text = "Total city population"
+	# One flow item keeps the counts together even when other metrics wrap.
+	_counts_row = HBoxContainer.new()
+	_counts_row.name = "PopulationAndTourists"
+	_counts_row.add_theme_constant_override("separation",16)
+	_metrics_row.add_child(_counts_row)
+	population_label = _cell(_counts_row,"Pop: 0",0)
+	tourists_label = _cell(_counts_row,"Tourists: 0",0)
+	_sync_counts()
 	_metrics_row.add_child(UIFactory.make_label("R / C / I / A",UITheme.FONT_SMALL))
 	demand_meter = DemandMeter.new()
 	demand_meter.custom_minimum_size = Vector2(80,28)
@@ -217,6 +237,8 @@ func _cell(row: Container, text: String, min_width: int, color := UITheme.TEXT_P
 	return l
 
 func apply_layout(available_width: float) -> void:
+	_available_width = available_width
+	_sync_counts()
 	custom_minimum_size.x = 0
 	_metrics_row.custom_minimum_size.x = 0
 	# A long tool name is cut with an ellipsis (full name in the tooltip)
@@ -248,7 +270,39 @@ func set_date(text: String) -> void:
 
 
 func set_population(population: int) -> void:
-	population_label.text = "Pop: " + UIFactory.commafy(population)
+	_population = population
+	_sync_counts()
+
+
+func set_tourists(value: int) -> void:
+	_tourists = value
+	_sync_counts()
+
+
+## Exact counts remain in tooltips when the phone needs compact text.
+func _sync_counts() -> void:
+	if _counts_row == null: return
+	_counts_row.visible = not (_phone and _editing)
+	tourists_label.visible = not _editing
+	if _editing: return
+	population_label.text = "Pop: " + UIFactory.commafy(_population)
+	tourists_label.text = "Tourists: " + UIFactory.commafy(_tourists)
+	population_label.tooltip_text = "Permanent residents: " + UIFactory.commafy(_population) + _population_details
+	tourists_label.tooltip_text = "Current tourists: " + UIFactory.commafy(_tourists) + " (overnight guests and day visitors)"
+	var width := 16.0
+	for label: Label in [population_label,tourists_label]:
+		width += label.get_theme_font("font").get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,label.get_theme_font_size("font_size")).x
+	var margins := get_theme_stylebox("panel").get_minimum_size().x
+	if _phone and width > _available_width-margins:
+		population_label.text = "Pop: " + _compact_count(_population)
+		tourists_label.text = "Tourists: " + _compact_count(_tourists)
+
+
+static func _compact_count(value: int) -> String:
+	for tier: Array in [[1000000000,"B"],[1000000,"M"],[1000,"K"]]:
+		if value >= tier[0]:
+			return ("%.2f" % (float(value)/float(tier[0]))).trim_suffix("0").trim_suffix("0").trim_suffix(".") + tier[1]
+	return str(value)
 
 
 func set_demand(demand: Vector3i) -> void:
@@ -286,6 +340,9 @@ func set_message(text: String) -> void:
 ## treasury yet, only the city's name.
 func show_editing(city_name: String) -> void:
 	_editing = true
+	_population = 0
+	_population_details = ""
+	_tourists = 0
 	set_emergency_available(false)
 	# There is no treasury before founding.
 	funds_label.visible = false
@@ -313,14 +370,16 @@ func refresh(sim: Simulation) -> void:
 	set_funds(sim.city.funds)
 	set_date(sim.date_text())
 	set_population(sim.stats.total_population())
+	set_tourists(sim.stats.tourists)
 	set_demand(sim.stats.demand)
 	set_agricultural_demand(sim.stats.demand_agricultural)
+	_population_details = ""
 	var statistics := sim.get_system(&"statistics")
 	if statistics != null and statistics.has_method("status_lines"):
 		# Built from the city as it is now, so it never contradicts the bar.
 		var lines: Array = statistics.call("status_lines_now") if statistics.has_method("status_lines_now") \
 			else statistics.call("status_lines")
-		population_label.tooltip_text = "\n".join(PackedStringArray(lines)) if not lines.is_empty() else "Total city population"
+		_population_details = ("\n" + "\n".join(PackedStringArray(lines))) if not lines.is_empty() else ""
 	set_speed(sim.speed)
 	set_alerts(alerts_for(sim))
 	var disasters := sim.get_system(&"disasters") as DisasterSystem
@@ -353,5 +412,6 @@ static func alerts_for(sim: Simulation) -> PackedStringArray:
 
 ## One line with every field, for tests and logs.
 func summary() -> String:
-	return "%s | %s | %s | %s | %s | %s" % [tool_label.text, funds_label.text, date_label.text,
-		population_label.text, speed_label.text, alert_label.text]
+	return "%s | %s | %s | %s | %s | %s | %s" % [tool_label.text, funds_label.text, date_label.text,
+		population_label.text if _editing else "Pop: " + UIFactory.commafy(_population),
+		"Tourists: " + UIFactory.commafy(_tourists), speed_label.text, alert_label.text]

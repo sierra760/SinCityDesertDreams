@@ -62,9 +62,9 @@ func test_fees_scale_with_population() -> void:
 	check_eq(ctx.stats.ordinance_cost, 67)
 	check(o.is_enabled(&"income_tax"))
 	ctx.stats.population = 20000
-	ctx.stats.arcology_population = 10000
+	ctx.stats.tourists = 10000
 	o.monthly(ctx)
-	check_eq(ctx.stats.ordinance_income, 399, "arcology residents pay too")
+	check_eq(ctx.stats.ordinance_income, 266, "tourists do not pay resident-scaled fees")
 	o.set_enabled(&"income_tax", false)
 	check_eq(ctx.stats.ordinance_income, 0)
 	o.set_enabled(&"no_such_policy", true)

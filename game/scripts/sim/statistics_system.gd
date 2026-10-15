@@ -98,6 +98,17 @@ func _sample(ctx: SimContext) -> void:
 	var counts := _zone_tile_counts(ctx.city)
 	var keep := StatisticsParams.KEEP_MONTHS
 	st.record(&"population", st.total_population(), keep)
+	st.record(&"tourists", st.tourists, keep)
+	st.record(&"tourist_occupancy", st.tourist_occupancy, keep)
+	var budget := ctx.system(&"budget")
+	var booking: Dictionary = budget.call("tourism_booking") if budget != null and budget.has_method("tourism_booking") else {}
+	@warning_ignore("integer_division")
+	var month := ctx.clock.day / GameClock.DAYS_PER_MONTH
+	var matching := int(booking.get("month_id", -1)) == month
+	for entry: Array in [[&"taxes_occupancy", "occupancy_units"], [&"taxes_gaming", "gaming_units"]]:
+		@warning_ignore("integer_division")
+		var dollars := int(booking.get(entry[1], 0)) / 1200 if matching else 0
+		st.record(entry[0], clampi(dollars, 0, StatisticsParams.MONEY_MAX), keep)
 	st.record(&"residents", counts.x, keep)
 	st.record(&"commercial", counts.y, keep)
 	st.record(&"industrial", counts.z, keep)
@@ -166,7 +177,7 @@ static func _lines_for(ctx: SimContext) -> Array[String]:
 	var lines: Array[String] = [
 		"%s, a %s" % [city.name, status_name(city.status)],
 		ctx.clock.date_text(),
-		"Population %s" % NewsStories.count_text({"count": st.total_population()}),
+		"Population %s · Tourists %s" % [NewsStories.count_text({"count": st.total_population()}), NewsStories.count_text({"count": st.tourists})],
 		"Funds %s" % NoticeLines.money(city.funds),
 		"Employment %d%%" % clampi(100 - st.unemployment, 0, 100),
 		"Approval %d%%" % st.approval,

@@ -202,7 +202,7 @@ func _ready() -> void:
 	exploration.controls = controls
 	exploration.set_pedestrian_character(preferences["explore_character"])
 	add_child(exploration)
-	exploration.bind(city_view_3d,explore_hud)
+	exploration.bind(city_view_3d,explore_hud,sim)
 	explore_hud.navigation.bind(exploration,mini_map)
 	explore_hud.navigation.map_visible = bool(preferences.get("minimap",true))
 	exploration.set_touch_controls_enabled(Platform.uses_touch())
@@ -307,6 +307,7 @@ func _connect_simulation() -> void:
 	sim.year_ended.connect(func(_y: int) -> void: refresh_toolbar())
 	sim.funds_changed.connect(func(funds: int) -> void: status_bar.set_funds(funds))
 	sim.population_changed.connect(func(p: int) -> void: status_bar.set_population(p))
+	sim.tourists_changed.connect(func(t: int) -> void: status_bar.set_tourists(t))
 	sim.speed_changed.connect(_on_speed_changed)
 	sim.budget_review_due.connect(_on_budget_review_due)
 	sim.notice_raised.connect(notices.raise)

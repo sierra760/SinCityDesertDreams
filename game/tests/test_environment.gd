@@ -333,15 +333,6 @@ func test_the_wind_carries_pollution_downwind() -> void:
 	check_eq(env.wind_from_name(), "west")
 
 
-class FakeArcologies extends SimSystem:
-	func _init() -> void:
-		key = &"rewards"
-
-	func arcology_report() -> Array[Dictionary]:
-		return [{"anchor": Vector2i(80, 80), "key": &"arcology_comstock", "residents": 40000,
-			"pollution": 80, "crime": 40}]
-
-
 func test_ports_bases_and_arcologies_bring_crime_and_pollution() -> void:
 	var plain := flat_city()
 	var based := flat_city()
@@ -359,14 +350,23 @@ func test_ports_bases_and_arcologies_bring_crime_and_pollution() -> void:
 	var arco := flat_city()
 	var empty := flat_city()
 	for c in [arco, empty]:
-		c.stamp_building(80, 80, Buildings.ARCOLOGY_COMSTOCK)
+		c.stamp_building(80, 80, Buildings.ARCOLOGY_AFTERGLOW)
 		for cy in range(19, 22):
 			for cx in range(19, 22):
 				c.density.put(cx, cy, 120)
 	var crowded := make_ctx(arco)
-	crowded.systems[&"rewards"] = FakeArcologies.new()
+	TourismFixture.set_served(arco, Vector2i(80, 80), true, true)
+	arco.stamp_building(79, 80, Buildings.ROAD_FIRST)
+	arco.add_facility(Vector2i(80, 80), {"key": &"arcology_afterglow", "residents": 5000})
+	var tourism := TourismSystem.new()
+	crowded.systems[&"tourism"] = tourism
+	tourism.setup(crowded)
+	tourism.finish_restore({})
+	check_eq(tourism.report()[0].pollution, 10, "one load derived from current tourists")
+	check_eq(tourism.report()[0].crime, 5)
+	check_eq(crowded.stats.total_population(), 0)
 	run_months(EnvironmentSystemScript.new(), crowded, 2)
 	run_months(EnvironmentSystemScript.new(), make_ctx(empty), 2)
-	check_gt(arco.crime_at(81, 81), empty.crime_at(81, 81), "residents bring crime")
-	check_gt(arco.pollution_at(81, 81), empty.pollution_at(81, 81), "residents add pollution")
+	check_gt(arco.crime_at(81, 81), empty.crime_at(81, 81), "tourists bring crime")
+	check_gt(arco.pollution_at(81, 81), empty.pollution_at(81, 81), "tourists add pollution")
 	crowded.systems.clear()

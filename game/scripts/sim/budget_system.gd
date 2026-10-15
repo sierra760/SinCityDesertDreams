@@ -11,7 +11,7 @@ extends SimSystem
 ## Accounts this system books itself. Other systems may add their own keys
 ## (the neighbor system writes &"neighbor_trade"); settlement reads them all.
 const OWN_KEYS: Array[StringName] = [&"taxes_residential", &"taxes_commercial",
-	&"taxes_industrial", &"taxes_agricultural", &"transit_fares", &"ordinance_income", &"ordinance_cost",
+	&"taxes_industrial", &"taxes_agricultural", &"taxes_occupancy", &"taxes_gaming", &"transit_fares", &"ordinance_income", &"ordinance_cost",
 	&"police", &"fire", &"health", &"education", &"transport", &"bond_interest", &"other"]
 
 ## Twelfths of a yearly cent; the ledger shows this divided by 1200.
@@ -21,6 +21,9 @@ var _ctx: SimContext
 ## Exact year-to-date amount per account, in twelfths of yearly cents.
 var _twelfths: Dictionary = {}
 var _settled_year := -1
+## Tourism completed periods are booked independently of ordinary annual rates.
+var _tourism_booked_month := -1
+var _tourism_booking: Dictionary = {}
 var _deficit_reported := false
 var _bankruptcy_reported := false
 ## Residential, commercial and industrial rates the newspaper last saw; a
@@ -66,6 +69,7 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	var fares := _monthly_fare_cents(ctx)
 	if fares != 0:
 		_twelfths[&"transit_fares"] = int(_twelfths.get(&"transit_fares", 0)) + fares * 12
+	_book_tourism(ctx)
 	_publish_ledger(ctx.stats)
 	ctx.stats.city_value = _city_value(ctx.city)
 	_check_bankruptcy(ctx)
@@ -94,10 +98,15 @@ func estimated_ledger() -> Dictionary:
 	var out := {}
 	if _ctx == null:
 		return out
-	var yearly := _yearly_cents(_ctx)
+	var yearly := _estimated_yearly_cents(_ctx)
 	for k in yearly:
 		out[k] = int(yearly[k]) / 100
 	return out
+
+
+## Latest completed actual booking, in twelfths of a cent; never a forecast.
+func tourism_booking() -> Dictionary:
+	return _tourism_booking.duplicate()
 
 
 ## Everything the January review shows.
@@ -107,7 +116,7 @@ func review_summary() -> Dictionary:
 	var stats := _ctx.stats
 	var actual := _split_ledger(stats.last_year_ledger)
 	# One set of yearly amounts feeds the estimate column and both totals.
-	var yearly := _yearly_cents(_ctx)
+	var yearly := _estimated_yearly_cents(_ctx)
 	var estimate := {}
 	for k in yearly:
 		estimate[k] = int(yearly[k]) / 100
@@ -217,6 +226,8 @@ func save() -> Dictionary:
 	return {
 		"carry": carry,
 		"settled_year": _settled_year,
+		"tourism_booked_month": _tourism_booked_month,
+		"tourism_booking": _tourism_booking.duplicate(),
 		"deficit_reported": _deficit_reported,
 		"bankruptcy_reported": _bankruptcy_reported,
 		"reported_rates": [_reported_rates.x, _reported_rates.y, _reported_rates.z],
@@ -229,6 +240,13 @@ func load(data: Dictionary) -> void:
 	for k in carry:
 		_twelfths[StringName(k)] = int(carry[k])
 	_settled_year = int(data.get("settled_year", _settled_year))
+	_tourism_booked_month = int(data.get("tourism_booked_month", -1))
+	_tourism_booking = {}
+	var booking: Dictionary = data.get("tourism_booking", {})
+	if not booking.is_empty():
+		_tourism_booking = {"month_id": int(booking.get("month_id", -1)),
+			"occupancy_units": int(booking.get("occupancy_units", 0)),
+			"gaming_units": int(booking.get("gaming_units", 0))}
 	_deficit_reported = bool(data.get("deficit_reported", false))
 	_bankruptcy_reported = bool(data.get("bankruptcy_reported", false))
 	var rates: Array = data.get("reported_rates", [])
@@ -244,17 +262,28 @@ func load(data: Dictionary) -> void:
 # ── Settlement ───────────────────────────────────────────────────────────
 
 func _settle(ctx: SimContext) -> void:
+	# Simulation closes on December's last day, then advances before review.
+	# Both sides of that clock boundary refer to the same completed year.
+	var settlement_year := ctx.year()
+	if ctx.clock.day > 0 and ctx.clock.is_year_start():
+		settlement_year -= 1
+	if settlement_year <= _settled_year:
+		return
 	var stats := ctx.stats
 	_publish_ledger(stats)
 	var totals := _split_ledger(stats.ledger)
 	ctx.city.funds += int(totals[0]) - int(totals[1])
 	stats.last_year_ledger = stats.ledger.duplicate()
 	stats.ledger = {}
-	_twelfths.clear()
+	# Ordinary annual estimates reset; exact tourism fractions span years.
+	var tourism_carry := {}
+	for k in BudgetParams.TOURISM_KEYS:
+		tourism_carry[k] = int(_twelfths.get(k, 0)) % TWELFTH_CENTS_PER_DOLLAR
+	_twelfths = tourism_carry
 	_ensure_ledger_keys(stats)
 	for b in stats.bonds:
 		b["age"] = int(b.get("age", 0)) + 1
-	_settled_year = ctx.year()
+	_settled_year = settlement_year
 	stats.city_value = _city_value(ctx.city)
 	_drift_prime(ctx)
 	if ctx.city.funds < 0:
@@ -324,7 +353,7 @@ func _split_ledger(ledger: Dictionary) -> Array:
 func _estimated_totals() -> Array:
 	if _ctx == null:
 		return [0, 0]
-	return _totals_of(_yearly_cents(_ctx))
+	return _totals_of(_estimated_yearly_cents(_ctx))
 
 
 ## [income, expenses] in whole dollars from yearly cents per account.
@@ -349,6 +378,51 @@ func _ensure_ledger_keys(stats: CityStats) -> void:
 func _publish_ledger(stats: CityStats) -> void:
 	for k in OWN_KEYS:
 		stats.ledger[k] = int(_twelfths.get(k, 0)) / TWELFTH_CENTS_PER_DOLLAR
+
+
+## Book only immutable completed visitor activity, synchronously with its
+## acknowledgement. Property tax/fare callers may repeat without a new month.
+func _book_tourism(ctx: SimContext) -> void:
+	var tourism := ctx.system(&"tourism")
+	if tourism == null:
+		return
+	var pending: Dictionary = tourism.call("pending_bases")
+	if pending.is_empty():
+		return
+	var month := int(pending.month_id)
+	if month <= _tourism_booked_month:
+		tourism.call("acknowledge_booking", month)
+		return
+	if month > ctx.clock.day / GameClock.DAYS_PER_MONTH:
+		return
+	# Completed bases are multiples of 25 cents, so rate * 12 / 100 is exact.
+	var occupancy := int(pending.lodging_cents) * clampi(ctx.stats.tax_occupancy,
+		TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
+	var gaming := int(pending.gaming_cents) * clampi(ctx.stats.tax_gaming,
+		TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
+	_twelfths[&"taxes_occupancy"] = int(_twelfths.get(&"taxes_occupancy", 0)) + occupancy
+	_twelfths[&"taxes_gaming"] = int(_twelfths.get(&"taxes_gaming", 0)) + gaming
+	_tourism_booked_month = month
+	_tourism_booking = {"month_id": month, "occupancy_units": occupancy, "gaming_units": gaming}
+	tourism.call("acknowledge_booking", month)
+
+
+## Estimates add twelve months of pure tourism forecast. This dictionary must
+## never feed the ordinary monthly accrual loop.
+func _estimated_yearly_cents(ctx: SimContext) -> Dictionary:
+	var yearly := _yearly_cents(ctx)
+	var occupancy := 0
+	var gaming := 0
+	var tourism := ctx.system(&"tourism")
+	if tourism != null:
+		var forecast: Dictionary = tourism.call("forecast")
+		occupancy = int(forecast.get("lodging_cents", 0)) * clampi(ctx.stats.tax_occupancy,
+			TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
+		gaming = int(forecast.get("gaming_cents", 0)) * clampi(ctx.stats.tax_gaming,
+			TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
+	yearly[&"taxes_occupancy"] = occupancy
+	yearly[&"taxes_gaming"] = gaming
+	return yearly
 
 
 # ── Yearly amounts at current settings ───────────────────────────────────
@@ -548,7 +622,3 @@ func _build_lookups() -> void:
 			var percent: int = BudgetParams.STAGE_MULTIPLIER[stage]
 			_assessment[ids[i]] = base * percent / 100
 			_tax_class[ids[i]] = g[3]
-	for id in Buildings.all_ids():
-		if Buildings.is_arcology(id):
-			_assessment[id] = BudgetParams.ARCOLOGY_VALUE
-			_tax_class[id] = 1

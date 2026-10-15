@@ -9,6 +9,12 @@ extends "res://tests/exploration/explore_session_case.gd"
 const ANCHOR := Vector2i(20,18)
 const ROAD := Vector2i(22,24)
 const Access := preload("res://scripts/exploration/resorts/resort_entrance_access.gd")
+var _patron_authority: Simulation
+
+func after_each() -> void:
+	await super.after_each()
+	if is_instance_valid(_patron_authority): _patron_authority.free()
+	_patron_authority = null
 
 func _resort_city(code: int = Buildings.ARCOLOGY_COMSTOCK, marina: bool = false) -> City:
 	var value := flat_city()
@@ -274,6 +280,17 @@ func test_fade_transition_moves_walker_at_black() -> void:
 
 func test_patron_clocks_follow_explore_pause_and_cached_hall_presence() -> void:
 	if not await _start(): return
+	# Explicit current tourism fixture; an unbound hall correctly stays empty.
+	_patron_authority = Simulation.new()
+	_patron_authority.setup(city,7)
+	TourismFixture.set_served(city,ANCHOR,true,true)
+	_patron_authority.tourism().reconcile_now()
+	var state: TourismState = _patron_authority.tourism().get("_state")
+	var rows := state.records()
+	rows[0].guests = 16
+	check_eq(state.replace_records(rows),OK)
+	_patron_authority.tourism().reconcile_now()
+	session.resort_service.bind(view,session.traversal,session.pedestrian,hud,_patron_authority)
 	var before := SaveFormat.encode_city(city)
 	check(await _go_inside())
 	var service: ExploreResortService = session.resort_service

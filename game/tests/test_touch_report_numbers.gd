@@ -190,3 +190,24 @@ func test_industry_actions_and_typing_change_only_the_selected_sector() -> void:
 	check(window.sector_text(3).ends_with("| 12"), "report still shows its current sector tax")
 	window.refresh()
 	check_eq(sim.stats.sector_taxes[3], 12, "report refresh does not change tax policy")
+
+
+func test_tourism_touch_rates_write_independently_and_refresh_prospectively() -> void:
+	var sim := _simulation()
+	var window := _mount(BudgetWindow.new()) as BudgetWindow
+	window.bind(sim)
+	for kind in [&"occupancy", &"gaming"]:
+		var field := window._tax_spinners[kind] as TouchNumberField
+		_action(field,"+").pressed.emit()
+		check_eq(field.value,8.0,"one-point touch change")
+		check_eq(sim.stats.tax_occupancy,8)
+		check_eq(sim.stats.tax_gaming,8 if kind == &"gaming" else 7)
+		field.get_line_edit().text = "99"
+		field.get_line_edit().text_submitted.emit("99")
+		check_eq(field.value,20.0)
+		_action(field,"−").pressed.emit()
+		check_eq(field.value,19.0)
+		window.set_tax(kind,8)
+	var before := sim.snapshot().duplicate(true)
+	window.refresh()
+	check_eq(sim.snapshot(),before,"refresh cannot apply projected attendance or accrue taxes")

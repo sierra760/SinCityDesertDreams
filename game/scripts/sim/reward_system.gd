@@ -6,7 +6,7 @@
 ##
 ## Population milestones unlock gift buildings the player places for free and,
 ## once, a proposal for a military base. Arcologies become buildable by year,
-## fill with residents once a year while served, and a large enough fleet of
+## host tourists managed by TourismSystem, and a large enough fleet of
 ## Desert Orbit arcologies eventually leaves the city. Rules are in
 ## docs/simulation/rewards.md; constants in RewardParams.
 extends SimSystem
@@ -40,7 +40,6 @@ static func _empty_offer() -> Dictionary:
 func setup(ctx: SimContext) -> void:
 	_ctx = ctx
 	_reconcile_rewards(ctx)
-	_reconcile_arcologies(ctx)
 
 
 func daily(ctx: SimContext) -> void:
@@ -55,19 +54,14 @@ func daily(ctx: SimContext) -> void:
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_reconcile_rewards(ctx)
 	_check_milestone(ctx)
-	_reconcile_arcologies(ctx)
 
 
 func yearly(ctx: SimContext) -> void:
-	_reconcile_arcologies(ctx)
-	_grow_arcologies(ctx)
 	_check_exodus(ctx)
-	_reconcile_arcologies(ctx)
 
 
 func networks_changed(ctx: SimContext, _rect: Rect2i) -> void:
 	_reconcile_rewards(ctx)
-	_reconcile_arcologies(ctx)
 
 
 # ── Gifts ────────────────────────────────────────────────────────────────
@@ -382,26 +376,19 @@ func available_arcologies() -> Array[StringName]:
 	return out
 
 
-## One entry per standing arcology.
-@warning_ignore("integer_division")
+## Deprecated compatibility adapter. `residents` means tourists here only;
+## it is never saved or included in permanent population.
 func arcology_report() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if _ctx == null:
 		return out
-	var city := _ctx.city
-	for anchor in _arcology_anchors(city):
-		var rec := city.facility(anchor)
-		var residents := int(rec.get("residents", 0))
-		out.append({
-			"anchor": anchor,
-			"key": rec.get("key", Buildings.key(city.building_at(anchor.x, anchor.y))),
-			"residents": residents,
-			"capacity": int(rec.get("capacity", 0)),
-			"built_year": int(rec.get("built_year", city.current_year())),
-			"condition": int(rec.get("condition", 0)),
-			"pollution": residents / 1000 * RewardParams.POLLUTION_PER_THOUSAND,
-			"crime": residents / 1000 * RewardParams.CRIME_PER_THOUSAND,
-		})
+	var tourism := _ctx.system(&"tourism")
+	if tourism == null:
+		return out
+	for row: Dictionary in tourism.call("report"):
+		if RewardParams.ARCOLOGIES.has(row.key):
+			row["residents"] = row.tourists
+			out.append(row)
 	return out
 
 
@@ -436,58 +423,6 @@ static func _capacity_of(arcology_key: StringName) -> int:
 	return int(design.get("capacity", 0))
 
 
-## Give every standing arcology a record, drop records of vanished ones and
-## refresh the arcology population total.
-func _reconcile_arcologies(ctx: SimContext) -> void:
-	var city := ctx.city
-	var live: Dictionary = {}
-	var total := 0
-	for anchor in _arcology_anchors(city):
-		var k := Buildings.key(city.building_at(anchor.x, anchor.y))
-		var rec := city.facility(anchor)
-		if rec.is_empty() or rec.get("key", &"") != k:
-			rec = {"key": k, "built_day": city.day}
-			city.add_facility(anchor, rec)
-		if not rec.has("residents"):
-			rec["residents"] = 0
-			rec["capacity"] = _capacity_of(k)
-			rec["built_year"] = city.current_year()
-			rec["condition"] = 0
-		live[anchor] = true
-		total += int(rec.residents)
-	for anchor in city.facilities.keys():
-		var rec: Dictionary = city.facilities[anchor]
-		if RewardParams.ARCOLOGIES.has(rec.get("key", &"")) and not live.has(anchor):
-			city.facilities.erase(anchor)
-	ctx.stats.arcology_population = total
-
-
-@warning_ignore("integer_division")
-func _grow_arcologies(ctx: SimContext) -> void:
-	var city := ctx.city
-	var stats := ctx.stats
-	var anchors := _arcology_anchors(city)
-	var count := maxi(1, anchors.size())
-	var tax_factor := (RewardParams.TAX_FACTOR_BASE - stats.tax_residential - stats.tax_commercial - stats.tax_industrial) / RewardParams.TAX_FACTOR_DIVISOR
-	for anchor in anchors:
-		var rec := city.facility(anchor)
-		var div := RewardParams.DESIRABILITY_DIVISOR
-		var condition := RewardParams.DESIRABILITY_BASE - city.pollution_at(anchor.x, anchor.y) / div - city.crime_at(anchor.x, anchor.y) / div + city.land_value_at(anchor.x, anchor.y) / div
-		condition = clampi(condition, 0, RewardParams.DESIRABILITY_BASE)
-		rec["condition"] = condition
-		if not (city.is_powered(anchor.x, anchor.y) and city.is_watered(anchor.x, anchor.y)):
-			continue
-		var capacity := int(rec.capacity)
-		var residents := int(rec.residents)
-		var intake := mini(capacity / RewardParams.INTAKE_CAPACITY_SHARE, stats.population / (count * RewardParams.INTAKE_CITY_SHARE))
-		intake = mini(intake, (tax_factor + condition) * RewardParams.INTAKE_PER_POINT - RewardParams.INTAKE_OFFSET)
-		intake = maxi(intake, 0)
-		var next := residents + residents / RewardParams.RETENTION_GROWTH_SHARE + intake
-		if next > residents:
-			next += ctx.rng.below(RewardParams.INTAKE_JITTER)
-		rec["residents"] = mini(capacity, next)
-
-
 func _check_exodus(ctx: SimContext) -> void:
 	if ctx.year() < RewardParams.LAUNCH_YEAR:
 		return
@@ -498,12 +433,15 @@ func _check_exodus(ctx: SimContext) -> void:
 			fleet.append(anchor)
 	if fleet.size() < RewardParams.LAUNCH_COUNT:
 		return
-	var residents := 0
+	var tourists := 0
 	var refund := 0
+	var tourism := ctx.system(&"tourism")
+	if tourism != null:
+		tourism.call("reconcile_now")
 	for anchor in fleet:
-		var rec := city.facility(anchor)
-		var aboard := int(rec.get("residents", 0))
-		residents += aboard
+		var report: Dictionary = tourism.call("venue_report", anchor) if tourism != null else {}
+		var aboard := int(report.get("tourists", 0))
+		tourists += aboard
 		if aboard > 0:
 			refund += RewardParams.LAUNCH_REFUND
 		var rect := city.clear_footprint(anchor.x, anchor.y)
@@ -512,9 +450,10 @@ func _check_exodus(ctx: SimContext) -> void:
 				city.building.put(x, y, Buildings.RUBBLE_1 + ctx.rng.below(4))
 		ctx.events.mark_dirty(rect)
 	city.funds += refund
-	# "residents" is the head count the notice and story print; "resorts" is
-	# the number of departing buildings.
-	var args := {"resorts": fleet.size(), "residents": residents, "refund": refund}
+	if tourism != null:
+		tourism.call("reconcile_now")
+	# Retain the old event field for downstream compatibility only.
+	var args := {"resorts": fleet.size(), "tourists": tourists, "residents": tourists, "refund": refund}
 	ctx.events.notify(&"exodus", args)
 	ctx.events.report(&"resort_launch", args, 3)
 
@@ -545,8 +484,7 @@ func save() -> Dictionary:
 		for anchor in _arcology_anchors(city):
 			var rec := city.facility(anchor)
 			arcologies[tile_key(anchor)] = {
-				"residents": int(rec.get("residents", 0)),
-				"capacity": int(rec.get("capacity", 0)),
+				"capacity": int(rec.get("capacity", _capacity_of(Buildings.key(city.building_at(anchor.x, anchor.y))))),
 				"built_year": int(rec.get("built_year", city.current_year())),
 				"condition": int(rec.get("condition", 0)),
 			}
@@ -599,9 +537,9 @@ func load(data: Dictionary) -> void:
 		if rec.is_empty():
 			rec = {"key": Buildings.key(id), "built_day": city.day}
 			city.add_facility(anchor, rec)
-		rec["residents"] = int(saved.get("residents", 0))
-		rec["capacity"] = int(saved.get("capacity", _capacity_of(Buildings.key(id))))
-		rec["built_year"] = int(saved.get("built_year", city.current_year()))
-		rec["condition"] = int(saved.get("condition", 0))
+		if saved.has("residents") and not rec.get("tourism_migrated", false):
+			rec["residents"] = saved.residents
+		rec["capacity"] = int(saved.get("capacity", rec.get("capacity", _capacity_of(Buildings.key(id)))))
+		rec["built_year"] = int(saved.get("built_year", rec.get("built_year", city.current_year())))
+		rec["condition"] = int(saved.get("condition", rec.get("condition", 0)))
 	_reconcile_rewards(_ctx)
-	_reconcile_arcologies(_ctx)
