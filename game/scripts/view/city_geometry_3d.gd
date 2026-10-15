@@ -561,12 +561,13 @@ static func _mark_tint(tints: PackedByteArray, vertex_count: int, tint: int) -> 
 
 
 ## Ground colour under one cell: desert sand, or the zone tint while the zoned
-## ground stays visible. Standalone utility lines leave the zoned ground visible.
+## ground stays visible. Standalone utility lines and natural trees leave the
+## zoned ground visible.
 static func cell_sand_color(city: City, x: int, y: int) -> Color:
 	var sand := Color(0.75, 0.633, 0.49)
 	var zone := city.zone_kind_at(x, y)
 	var building := city.building.at(x, y)
-	if zone > Zones.NONE and (building == Buildings.NONE \
+	if zone > Zones.NONE and (building == Buildings.NONE or Buildings.is_tree(building) \
 			or (building >= Buildings.POWER_LINE_FIRST and building <= Buildings.POWER_LINE_LAST)):
 		var tint: Color = Zones.COLORS.get(zone, sand)
 		sand = sand.lerp(tint, 0.65)

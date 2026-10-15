@@ -26,6 +26,11 @@ map tiles retain their zone's density shade; buildings without matching zoning
 fall back to the corresponding light shade. Transport symbols retain their
 existing map colors, including roads through military land.
 
+Natural trees on undeveloped zoned land retain the zone color beneath their
+canopies and on both maps. Unzoned groves and built pocket parks keep their map
+colors. Zoned trees carry power across a zone but do not need electricity or
+show outage warnings.
+
 The SVG icon authoring tool reads the same literal hex constants from
 `game/scripts/core/zones.gd`. Run `python3 tools/build_ui_icons.py` after changing
 the palette. Icon shapes, outlines and text labels continue to identify the

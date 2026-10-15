@@ -109,7 +109,8 @@ func sync_power(layers: Dictionary = {}) -> void:
 		var flags := city.flags.data
 		for i: int in buildings.size():
 			var code := buildings[i]
-			if code == Buildings.NONE or (flags[i] & (TileFlags.CONDUCTS_POWER | TileFlags.POWERED)) != TileFlags.CONDUCTS_POWER:
+			# Zoning makes natural tree tiles conductive, but trees need no power.
+			if code == Buildings.NONE or Buildings.is_tree(code) or (flags[i] & (TileFlags.CONDUCTS_POWER | TileFlags.POWERED)) != TileFlags.CONDUCTS_POWER:
 				continue
 			# Bridges carry electricity but do not need an outage warning.
 			if Buildings.category(code) == Buildings.Category.BRIDGE:

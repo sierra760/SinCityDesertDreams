@@ -176,7 +176,8 @@ static func _changed_indices(before: Variant, after: Variant, changed: Dictionar
 static func tile_color(city: City, x: int, y: int) -> Color:
 	var id := city.building.at(x, y)
 	var zone_kind := city.zone_kind_at(x, y)
-	if id == Buildings.NONE:
+	# Natural trees leave undeveloped zoning visible; built parks keep their symbol.
+	if id == Buildings.NONE or (Buildings.is_tree(id) and zone_kind != Zones.NONE):
 		if city.is_water(x, y):
 			return COLOR_WATER
 		if zone_kind != Zones.NONE:
