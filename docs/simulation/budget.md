@@ -176,13 +176,20 @@ See [Agriculture](agriculture.md).
 `taxes_occupancy` and `taxes_gaming` are separate income accounts. The controls
 are **Occupancy tax %** and **Gaming revenue tax %**, each 0–20 in one-point
 steps, default 7. Day 17 computes completed visitor business; day 18 books its
-bases exactly once at the rates then in force. Lodging is $1 per average guest
-month; gaming is $0.50 per visitor month after payouts. These business bases
+bases exactly once at the rates then in force. The base is $1 lodging per average guest
+month and $0.50 gaming per visitor month after payouts, weighted by immutable
+venue-tier and visitor-segment factors. These business bases
 are not treasury credits. Annual settlement credits the taxes with the other
-accounts. Fractional twelfths of cents carry through settlement; same-period
+accounts. Exact cent numerators use denominator10,000; tax conversion retains both
+twelfth-cent carry and a saved0–999,999subunit residue per tax through settlement.
+Historical booking rates and opening/closing residue are proved from retained
+per-segment activity. Legacy profiles retain their original quantum checks. Same-period
 reload/review cannot credit again. Demolition does not erase completed income.
 
-Estimated books forecast twelve months at current settled demand and rates;
+Estimated books project the exact integer turnover mix for twelve months at
+fixed current settings and rates. Derived bounded caches avoid repeating that
+projection on ordinary reads. Future service, access and demand changes can
+change realized income;
 year-to-date and previous-year books contain actual accruals. Estimates do not
 admit guests, change period guards or mutate books. Mayor gambling transactions
 remain in their own casino ledger. See [Tourism](tourism.md).

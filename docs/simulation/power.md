@@ -175,3 +175,9 @@ change generation, fuel, facility records, city funds or RNG. Inspect shows
 requested total units across actual members and complete supply. Low-density
 parcel cells and prepared/dormant cells have zero power load and no outage
 marker. See [Agriculture](agriculture.md).
+
+
+Visitor power demand uses the same accepted overlay in network summaries, preflight
+and established allocation. Budget's current-supported forecast does not promise
+newly added supply before the next monthly admission. Completed taxable business
+survives a service closure; reports neither readmit visitors nor reallocate power.

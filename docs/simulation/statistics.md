@@ -130,3 +130,10 @@ RCI demand and its saved array retain three components.
 Older population history samples retain their original values, which may include
 resort occupants. Migration does not rewrite history or synthesize tourism
 samples. Graph labels distinguish occupancy percent from monthly tax dollars.
+
+
+Tourist attendance histories are concurrent guests plus exclusive day visitors.
+Tourism reputation is stored in thousandths and graphed on the 0–100 scale. Actual
+occupancy/gaming tax histories are distinct from Budget's current-month pace ×12
+estimates; those estimates hold season/events fixed and may be limited by the last
+accepted utility plan. No report read appends history or settles money.

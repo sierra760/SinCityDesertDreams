@@ -21,6 +21,8 @@ const N := W * H
 
 ## Result of the last distribution, for the UI.
 var _summary: Dictionary = {}
+var _visitors := TourismUtilities.new()
+var _baseline_demand := 0
 var _has_supply_state := false
 var _shortage := false
 var _consumed := 0
@@ -52,6 +54,7 @@ func _init() -> void:
 # ── Lifecycle ────────────────────────────────────────────────────────────
 
 func setup(ctx: SimContext) -> void:
+	_refresh_visitors(ctx)
 	_refresh_conduction(ctx.city, Rect2i(0, 0, W, H))
 	if ctx.city.restored_layers.has("flags"):
 		# A saved city keeps the service and tower contents it was saved with
@@ -82,10 +85,12 @@ func reallocate_established(ctx: SimContext, rect: Rect2i) -> void:
 
 
 func save() -> Dictionary:
-	return {"shortage": _shortage, "consumed": _consumed, "treatment_adequate": _treatment_adequate}
+	return {"shortage": _shortage, "consumed": _consumed, "treatment_adequate": _treatment_adequate,
+		"requested_demand": int(_summary.get("demand",0)), "visitor_demand": int(_summary.get("visitor_demand",0))}
 
 
 func load(data: Dictionary) -> void:
+	if reporting_problem(data) != "": return
 	_shortage = bool(data.get("shortage", false))
 	_consumed = int(data.get("consumed", 0))
 	_treatment_adequate = bool(data.get("treatment_adequate", true))
@@ -93,7 +98,12 @@ func load(data: Dictionary) -> void:
 		# The saved stats are restored before the systems load.
 		var capacity := maxi(0, _restored_stats.water_capacity)
 		_summary["capacity"] = capacity
-		_summary["demand"] = _restored_stats.water_demand
+		# Growth can occur after allocation. Keep that saved reporting baseline,
+		# not a fresh world census, and replace only the accepted visitor portion.
+		# Earlier saves never consumed visitor units, so their whole demand is baseline.
+		_baseline_demand = int(data.get("requested_demand",_restored_stats.water_demand)) - int(data.get("visitor_demand",0))
+		_summary["visitor_demand"] = _visitors.units
+		_summary["demand"] = _baseline_demand + _visitors.units
 		_summary["unwatered_buildings"] = _restored_stats.unwatered_buildings
 		_summary["stored"] = _restored_stats.water_stored
 		_summary["storage_capacity"] = _restored_stats.water_storage_capacity
@@ -102,6 +112,10 @@ func load(data: Dictionary) -> void:
 		_summary["usage_percent"] = mini(100, _consumed * 100 / capacity) if capacity > 0 else 100
 		_summary["shortage"] = _shortage
 		_summary["treatment_adequate"] = _treatment_adequate
+	if not _summary.is_empty() and data.has("requested_demand"):
+		_baseline_demand = int(data.requested_demand) - int(data.visitor_demand)
+		_summary["visitor_demand"] = _visitors.units
+		_summary["demand"] = _baseline_demand + _visitors.units
 	_restored_stats = null
 
 
@@ -111,7 +125,11 @@ func load(data: Dictionary) -> void:
 ## stored, storage_capacity, treatment_adequate and a `facilities` array of
 ## {anchor, key, name, output, stored, powered}.
 func network_summary() -> Dictionary:
-	return _summary.duplicate(true)
+	var result := _summary.duplicate(true)
+	var available := int(result.get("capacity",0))
+	result["available_capacity"] = available
+	result["spare_capacity"] = maxi(0,available-int(result.get("demand",0)))
+	return result
 
 
 func is_shortage() -> bool:
@@ -135,8 +153,9 @@ func usage_percent() -> int:
 ## Predict full replacement service using the last established source outputs.
 ## This does not generate power, sample weather, drain towers or mutate City.
 func can_supply_lot(city: City, rect: Rect2i, load_per_tile: int) -> bool:
-	if load_per_tile == 0: return true
-	return _has_supply_state and Params.can_supply_lot(city, rect, load_per_tile, true)
+	_visitors.accept(city,_visitors.rows,true)
+	if load_per_tile == 0 and not Params.has_supplemental_load(_visitors.values,rect): return true
+	return _has_supply_state and Params.can_supply_lot(city, rect, load_per_tile, true, false, _visitors.values)
 
 
 # ── Conduction flags ─────────────────────────────────────────────────────
@@ -217,6 +236,7 @@ func _desalination_output(city: City, anchor: Vector2i, id: int) -> int:
 # ── Distribution ─────────────────────────────────────────────────────────
 
 func _distribute(ctx: SimContext, established: bool = false) -> void:
+	_refresh_visitors(ctx)
 	_has_supply_state = true
 	var city := ctx.city
 	var flags := city.flags.data
@@ -251,7 +271,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 				i += 1
 				continue
 			if draws[id] != 0:
-				total_demand += Params.water_load(id)
+				total_demand += Params.water_load(id) + _visitors.values[i]
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			elif facility_tbl[id] != 0 and (multi[id] == 0 or Params.is_anchor_tile(bld, zn, i)):
@@ -308,8 +328,8 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			elif facility_tbl[id] != 0:
 				capacity += _output[t]
 			elif draws[id] != 0:
-				demand += Params.water_load(id)
-		var allocation := Params.allocate_network(_queue.slice(start, tail), bld, mini(demand, capacity), true)
+				demand += Params.water_load(id) + _visitors.values[t]
+		var allocation := Params.allocate_network(_queue.slice(start, tail), bld, mini(demand, capacity), true, Rect2i(), -1, _visitors.values)
 		var served: int = allocation.consumed
 		if demand > capacity:
 			short = true
@@ -368,7 +388,8 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			"name": Buildings.display_name(id), "output": int(rec.get("output", 0)),
 			"stored": tower_units,
 			"powered": (flags[anchor.y * W + anchor.x] & TileFlags.POWERED) != 0})
-	_summary = {"capacity": total_capacity, "demand": total_demand, "consumed": consumed,
+	_baseline_demand = total_demand - _visitors.units
+	_summary = {"visitor_demand": _visitors.units, "capacity": total_capacity, "demand": total_demand, "consumed": consumed,
 		"usage_percent": usage, "shortage": short, "unwatered_buildings": unwatered,
 		"stored": stored, "storage_capacity": storage_capacity,
 		"treatment_adequate": _treatment_adequate, "facilities": facilities}
@@ -403,7 +424,7 @@ func _summarize_saved(city: City, stats: CityStats) -> void:
 				if (flags[i] & TileFlags.WATERED) != 0:
 					stored += Params.TOWER_UNITS_PER_TILE
 			elif id != Buildings.NONE and draws[id] != 0:
-				total_demand += Params.water_load(id)
+				total_demand += Params.water_load(id) + _visitors.values[i]
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			i += 1
@@ -430,7 +451,8 @@ func _summarize_saved(city: City, stats: CityStats) -> void:
 	var capacity := maxi(0, stats.water_capacity)
 	@warning_ignore("integer_division")
 	var usage := mini(100, _consumed * 100 / capacity) if capacity > 0 else 100
-	_summary = {"capacity": capacity, "demand": total_demand, "consumed": _consumed,
+	_baseline_demand = total_demand - _visitors.units
+	_summary = {"visitor_demand": _visitors.units, "capacity": capacity, "demand": total_demand, "consumed": _consumed,
 		"usage_percent": usage, "shortage": _shortage, "unwatered_buildings": unwatered,
 		"stored": stored, "storage_capacity": storage_capacity,
 		"treatment_adequate": _treatment_adequate, "facilities": facilities}
@@ -480,3 +502,37 @@ func _count_unserved(city: City, bld: PackedInt32Array, flags: PackedByteArray) 
 		if not served:
 			unserved += 1
 	return unserved
+
+
+## Update derived accepted demand only. Never allocate or change source/storage state.
+func accept_visitor_rows(city: City, rows: Array) -> void:
+	_visitors.accept(city,rows,true)
+	if not _summary.is_empty() and int(_summary.get("visitor_demand",0)) != _visitors.units:
+		_summary["visitor_demand"] = _visitors.units
+		_summary["demand"] = _baseline_demand + _visitors.units
+
+## Detached projections carry the current accepted load, not facility guest guesses.
+func copy_visitor_load(other: WaterSystem) -> void:
+	_visitors.rows = other._visitors.rows.duplicate(true)
+
+func _refresh_visitors(ctx: SimContext) -> void:
+	var tourism := ctx.system(&"tourism") as TourismSystem
+	accept_visitor_rows(ctx.city,tourism.utility_rows() if tourism != null else _visitors.rows)
+
+
+## Optional derived reporting counters, never source/storage/admission authority.
+## Both use whole allocator units; demand includes its nonnegative visitor part.
+## Absent together identifies pre-visitor-consumption saves.
+static func reporting_problem(data: Dictionary) -> String:
+	if not data.has("requested_demand") and not data.has("visitor_demand"): return ""
+	for field in ["requested_demand","visitor_demand"]:
+		if not TourismState._integer(data.get(field),0,2147483647):
+			return "Invalid water reporting units: " + field
+	if int(data.visitor_demand) > int(data.requested_demand):
+		return "Water visitor demand exceeds total requested demand"
+	return ""
+
+
+## Read-only exact established network budget; no RNG, storage or time tick.
+func admission_budget(city: City) -> Dictionary:
+	return Params.admission_budget(city,true)

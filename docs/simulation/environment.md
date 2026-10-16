@@ -72,9 +72,9 @@ is not open ground, rubble, a tree, a park or a power line.
    `PortParams.POLLUTION_PER_TILE` for their tile's zone kind (a piece outside
    a port zone uses its category's: military, else seaport), and each also adds
    `PortParams.CRIME_PER_TILE` to its block's base crime (rule 17). Every
-   resort in TourismSystem's `report()` adds its tourist-scaled
-   `pollution` and `crime` (see tourism.md) spread evenly over the blocks of its
-   footprint.
+   resort adds its tourist-scaled pollution over its footprint. Tourism crime
+   uses the separate fixed-point security-tier source and local kernel, including
+   fractional remainders (see tourism.md), rather than a second scalar crime term.
 2. Industrial emissions are reduced by `POLLUTION_CONTROLS_PERCENT` while the
    `pollution_controls` ordinance is enabled.
 3. Each block also receives `traffic / TRAFFIC_POLLUTION_DIVISOR` from the
@@ -197,3 +197,9 @@ the two news latches `pollution_alerted`, `crime_alerted`, and this month's
 weather `rain`, `wind` and `wind_from` (a save without them keeps the
 seasonal means and the prevailing direction). The maps
 themselves are saved with the city layers.
+
+
+Tourism reporting uses accepted visitor crime pressure and ordinary downstream crime
+and traffic maps. Casino Safety Program source reduction is separate from police
+mitigation; local nightlife affects nearby homes through land value. Budget Details
+shows source units per month, not an attributed police expense or an exact net profit.

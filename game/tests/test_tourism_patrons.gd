@@ -38,6 +38,7 @@ func _set_counts(authority: Simulation, counts: Dictionary) -> void:
 		if counts.has(row.anchor):
 			row.guests = 0
 			row.day_visitors = int(counts[row.anchor])
+	TourismFixture.segment_rows(rows)
 	check_eq(state.replace_records(rows),OK,"explicit fixture attendance validates")
 	tourism.reconcile_now()
 

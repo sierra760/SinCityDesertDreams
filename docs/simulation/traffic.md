@@ -5,7 +5,8 @@
 The transport system decides whether the city's residents can get to work
 and shops, how crowded the roads become while they try, and how many of
 them ride the bus, the train or the subway. Once a month it sends a trip
-from residential lots toward the nearest commercial or industrial lot over
+from residential lots toward the nearest ordinary workplace, allocated agricultural
+parcel, or operating resort with accepted tourism job opportunities over
 the road, highway, rail and subway networks. Trips that arrive leave
 congestion on the road tiles they drove along and are counted as riders on
 any transit they used. Trips that cannot arrive are counted as unreachable,
@@ -27,6 +28,12 @@ rail and subway trips remove this pressure just as successful road trips do.
   between two tunnel entrances.
 - `traffic` layer: last month's congestion, decayed before new trips are
   added.
+
+Tourism supplies current accepted job footprint tiles at the resident pass's
+binding boundary. Each usable frontage is a destination alias, not another job
+allocation. Standing identity checks prevent replacement lots from inheriting
+jobs; closure and demolition remove destinations, and restore rebuilds them.
+The ordinary category table does not treat every arcology as a workplace.
 
 ## Outputs
 

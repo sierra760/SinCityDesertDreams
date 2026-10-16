@@ -153,6 +153,7 @@ func refresh() -> void:
 	_scores_label.text = "Employment %d%%, approval %d%%, education %d, life expectancy %d, jobs %s" % [
 		clampi(100 - stats.unemployment, 0, 100), stats.approval, stats.education_quotient,
 		stats.life_expectancy, UIFactory.commafy(stats.jobs)]
+	_scores_label.text += " (including %s tourism positions)" % UIFactory.commafy(stats.tourism_jobs)
 	var people := PackedInt32Array()
 	var education := PackedInt32Array()
 	var health := PackedInt32Array()

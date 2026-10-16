@@ -16,7 +16,7 @@ func start(key: StringName = &"arcology_fremont") -> SimContext:
 	var a := Vector2i(10, 10)
 	TourismFixture.venue(city, key, a)
 	TourismFixture.set_served(city, a, true, true)
-	city.stamp_building(a.x - 1, a.y, Buildings.ROAD_FIRST)
+	for x in range(a.x): city.building.put(x,a.y,Buildings.ROAD_FIRST)
 	var ctx := TourismFixture.context(city)
 	contexts.append(ctx)
 	var tourism := TourismSystem.new()
@@ -42,6 +42,9 @@ func earned(ctx: SimContext, month: int, half_guests: int, day_visitors: int) ->
 	var block := t.save()
 	var row := t.report()[0]
 	block.last_month = month
+	block.features.calendar = {} # Authored historical business predates event guards.
+	block.features.utilities = {} # Independently authored historical business predates utility reservations.
+	block.features.staffing = {} # Synthetic historical business has no accepted worker allocation.
 	block.activity = {"month_id": month, "rows": [{"anchor": [10, 10],
 		"key": String(row.key), "code": row.code, "instance": row.instance,
 		"guest_half_months": half_guests, "day_visitors": day_visitors}]}
@@ -84,7 +87,8 @@ func test_nonzero_settlement_matches_hand_calculation() -> void:
 	ctx.city.day = ctx.clock.day
 	var before := ctx.city.funds
 	b.yearly(ctx)
-	check_eq(ctx.city.funds - before, 71, "business revenue itself never enters treasury")
+	check_eq(ctx.stats.last_year_ledger.transport,1,"ten actual road tiles cost one annual dollar")
+	check_eq(ctx.city.funds - before, 70, "$71 tax less $1 road upkeep; business revenue never enters treasury")
 	check_eq(int(b.save().carry.get("taxes_gaming", 0)), 480)
 	check_eq(ctx.stats.ledger.get(&"taxes_gaming", -1), 0)
 
@@ -126,8 +130,8 @@ func test_demolish_between_day17_and18_keeps_earned_base() -> void:
 	check_eq(t.pending_bases(), pending)
 	ctx.clock.day = 17
 	b.monthly(ctx)
-	check_eq(int(b.save().carry.get("taxes_gaming", 0)), pending.gaming_cents * 7 * 12 / 100)
-	check_eq(int(b.save().carry.get("taxes_occupancy", 0)), pending.lodging_cents * 7 * 12 / 100)
+	check_eq(int(b.save().carry.get("taxes_gaming", 0)), pending.gaming_numerator * 7 * 12 / 1000000)
+	check_eq(int(b.save().carry.get("taxes_occupancy", 0)), pending.lodging_numerator * 7 * 12 / 1000000)
 	check(t.pending_bases().is_empty())
 
 func test_forecast_does_not_book_or_acknowledge() -> void:
@@ -219,7 +223,7 @@ func test_fractional_remainder_survives_multiple_years() -> void:
 		check_eq(int(b.save().carry.get("taxes_gaming", 0)), ((year + 1) * 252) % 1200)
 		check_eq(ctx.stats.ledger.get(&"taxes_gaming", -1), 0)
 		b.load(JSON.parse_string(JSON.stringify(b.save())))
-	check_eq(ctx.city.funds, 10001, "72 tiny periods eventually settle one dollar")
+	check_eq(ctx.city.funds, 9995, "72 tiny periods settle $1 tax less six years of $1 road upkeep")
 
 func test_mayor_play_does_not_change_tourism_base() -> void:
 	var ctx := start()
@@ -238,7 +242,7 @@ func test_mayor_play_does_not_change_tourism_base() -> void:
 	if not budget(ctx).has_method("tourism_booking"):
 		check(false, "Budget exposes saved actual booking")
 		return
-	check_eq(budget(ctx).call("tourism_booking").gaming_units, pending.gaming_cents * 7 * 12 / 100)
+	check_eq(budget(ctx).call("tourism_booking").gaming_units, pending.gaming_numerator * 7 * 12 / 1000000)
 
 func test_day17_restore_continues_exactly_before_and_after_booking() -> void:
 	var ctx := start()
@@ -313,3 +317,71 @@ func test_automatic_budget_uses_the_same_guard_at_actual_year_boundary() -> void
 	sim.systems.clear()
 	root.remove_child(sim)
 	sim.free()
+
+func test_safety_program_exact_expense_continues_across_year_and_reload() -> void:
+	var ctx := start(&"com_corner_store")
+	ctx.stats.ordinances[&"casino_safety"] = true
+	var b := budget(ctx)
+	var t := tourism(ctx)
+	var half_cents := 0
+	for month in 12:
+		ctx.clock.day = month * GameClock.DAYS_PER_MONTH + 16
+		ctx.city.day = ctx.clock.day
+		t.monthly(ctx)
+		half_cents += int(t.pending_bases().program_half_cents)
+		b.monthly(ctx)
+		check_eq(int(b.save().carry.ordinance_cost), half_cents * 6)
+		var snapshot: Dictionary = JSON.parse_string(JSON.stringify({"systems": {"tourism": t.save(), "budget": b.save()}}))
+		b.load(snapshot.systems.budget)
+		check_eq(t.finish_restore(snapshot), OK)
+		b.monthly(ctx)
+		check_eq(int(b.save().carry.ordinance_cost), half_cents * 6, "restored booking cannot charge again")
+	ctx.clock.day = GameClock.DAYS_PER_YEAR
+	ctx.city.day = ctx.clock.day
+	b.yearly(ctx)
+	check_eq(ctx.stats.last_year_ledger.ordinance_cost, half_cents / 200)
+	check_eq(b.save().carry.ordinance_cost, half_cents * 6 % 1200)
+	check_gt(int(b.save().carry.ordinance_cost), 0, "sub-dollar program expense survives annual settlement")
+
+func test_ordinary_ordinance_fraction_still_resets_without_tourism_program() -> void:
+	var ctx := start(&"com_corner_store")
+	var ordinances := OrdinanceSystem.new()
+	ctx.systems[&"ordinances"] = ordinances
+	ordinances.setup(ctx)
+	ctx.stats.population = 1000
+	ordinances.set_enabled(&"neighborhood_watch", true) # $4/year => 400 twelfth-cent units/month.
+	var b := budget(ctx)
+	b.monthly(ctx)
+	check_eq(int(b.save().carry.ordinance_cost), 400)
+	ctx.clock.day = GameClock.DAYS_PER_YEAR
+	ctx.city.day = ctx.clock.day
+	b.yearly(ctx)
+	check_eq(int(b.save().carry.get("ordinance_cost", 0)), 0, "ordinary annual fractions retain baseline reset")
+
+func test_mixed_ordinances_preserve_only_exact_program_residue() -> void:
+	var ctx := start(&"com_corner_store")
+	var o := OrdinanceSystem.new()
+	ctx.systems[&"ordinances"] = o
+	o.setup(ctx)
+	ctx.stats.population = 1000
+	o.set_enabled(&"neighborhood_watch", true)
+	o.set_enabled(&"casino_safety", true)
+	var b := budget(ctx)
+	var t := tourism(ctx)
+	var program_units := 0
+	for month in 2:
+		ctx.clock.day = month * GameClock.DAYS_PER_MONTH + 16
+		ctx.city.day = ctx.clock.day
+		t.monthly(ctx)
+		program_units += int(t.pending_bases().program_half_cents) * 6
+		b.monthly(ctx)
+	check_eq(ctx.stats.ledger.ordinance_cost, program_units / 1200, "ordinary fraction cannot combine into a program dollar")
+	ctx.clock.day = GameClock.DAYS_PER_YEAR
+	ctx.city.day = ctx.clock.day
+	b.yearly(ctx)
+	check_eq(int(b.save().carry.get("ordinance_cost", 0)), program_units % 1200)
+	var before := b.save()
+	var snapshot := {"clock_day": ctx.clock.day, "stats": ctx.stats.to_dict(), "systems": {"tourism": t.save(), "budget": before}}
+	check_eq(TourismSaveCodec.problem(snapshot, ctx.city), "", "mixed annual native boundary remains valid")
+	b.load(JSON.parse_string(JSON.stringify(before)))
+	check_eq(b.save(), before, "exact program residue survives JSON continuation")

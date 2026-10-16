@@ -293,6 +293,9 @@ static func _facility_figures(city: City, sim: Simulation, anchor: Vector2i, id:
 			var power := sim.get_system(&"power")
 			if power != null and power.has_method("plant_capacity"):
 				out["Output"] = "%d units" % int(power.call("plant_capacity", anchor))
+			var summary: Dictionary = power.call("network_summary") if power != null else {}
+			out["City visitor power"] = "%d units" % int(summary.get("visitor_demand",0))
+			out["City power spare"] = "%d units; local connections still required" % int(summary.get("spare_capacity",0))
 			var rec := city.facility(anchor)
 			if rec.has("age_years"):
 				out["Service years"] = int(rec["age_years"])
@@ -300,6 +303,8 @@ static func _facility_figures(city: City, sim: Simulation, anchor: Vector2i, id:
 			var water := sim.get_system(&"water")
 			if water != null and water.has_method("network_summary"):
 				var summary: Dictionary = water.call("network_summary")
+				out["City visitor water"] = "%d units" % int(summary.get("visitor_demand",0))
+				out["City water spare"] = "%d units; local connections still required" % int(summary.get("spare_capacity",0))
 				for entry in summary.get("facilities", []):
 					var facility: Dictionary = entry
 					if facility.get("anchor", Vector2i(-1, -1)) == anchor:
@@ -345,9 +350,18 @@ static func _tourism_figures(out: Dictionary, sim: Simulation, anchor: Vector2i)
 	var rec := tourism.venue_report(anchor)
 	if rec.is_empty(): return
 	out["#Tourism"] = ""
+	out["Destination reputation"] = tourism.reputation_text()
+	out["Resident effects"] = "Resident jobs, nearby shops, actual traffic and fares, local crime and nightlife use their ordinary systems. Visitors add no residents or votes."
 	out["Tourists"] = int(rec.tourists)
 	out["Guests"] = int(rec.guests)
 	out["Day visitors"] = int(rec.day_visitors)
+	out["Visitor segments"] = TourismMarkets.mix_text(rec.guest_segments,rec.day_segments)
+	out["Tier yields"] = "Lodging %d%% / gaming %d%% of base; segment spending 85 / 100 / 150 / 110%%" % rec.yield_factors
+	out["Tourism jobs"] = "%d offered / %d resident-filled / %d incoming" % [rec.positions,rec.local_staff,rec.incoming_staff]
+	out["Staffing"] = "%d%%; supports %d of %d planned guests, %d of %d planned day visitors" % [rec.staffing_percent,rec.supported_capacity,rec.planned_guests,rec.supported_day_capacity,rec.planned_day_visitors]
+	out["Utility support"] = "%d guests / %d day visitors; %s" % [rec.utility_supported_guests,rec.utility_supported_days,"accepted attendance" if String(rec.utility_limiting_reason).is_empty() else "limited by "+String(rec.utility_limiting_reason)]
+	out["Visitor power"] = "%d %s above building demand" % [int(rec.visitor_power_demand),"unit" if int(rec.visitor_power_demand)==1 else "units"]
+	out["Visitor water"] = "%d %s above building demand" % [int(rec.visitor_water_demand),"unit" if int(rec.visitor_water_demand)==1 else "units"]
 	out["Lodging capacity"] = int(rec.capacity)
 	out["Day visitor capacity"] = int(rec.day_capacity)
 	out["Occupancy"] = "%d%%" % int(rec.occupancy)
@@ -358,6 +372,16 @@ static func _tourism_figures(out: Dictionary, sim: Simulation, anchor: Vector2i)
 	out["Business period"] = "Completed month %d" % (int(rec.business_month) + 1) if int(rec.business_month) >= 0 else "No completed month"
 	out["Completed lodging base"] = "$%.2f" % (int(rec.lodging_cents) / 100.0)
 	out["Completed gaming base"] = "$%.2f" % (int(rec.gaming_cents) / 100.0)
+	out["Casino source"] = "%.3f crime units / month" % (float(rec.crime_source_milli) / 1000.0)
+	out["Casino safety"] = "%s tier; %s; ordinary police also applies" % [String(rec.security_tier).capitalize(), "program reduces source 40%" if rec.safety_active else "program inactive this period"]
+	out["Nightlife exposure"] = "Up to %d local land-value points; six-tile reach, reduced by distance and greenery" % int(rec.nightlife_strength)
+	out["District appeal"] = "+%d points; %d attraction categories" % [int(rec.district_appeal_bonus), rec.district_categories.size()]
+	out["Resort variety"] = "+%d points from other resort identities" % int(rec.resort_variety_bonus)
+	out["District access"] = String(rec.district_access)
+	out["External access"] = String(rec.access_reason)
+	out["Arrival capacity"] = "%d shared seats / month" % int(rec.arrival_capacity)
+	out["Local day access"] = "Connected resident city" if rec.local_reachable else "No connected resident neighborhood"
+	out["Retail support"] = "$%.2f business opportunity; $%.2f allocated nearby" % [int(rec.commercial_spending_cents) / 100.0, int(rec.commercial_allocated_cents) / 100.0]
 	out["Business basis"] = "Completed average guest-month lodging; visitor gaming after payouts. Mayor play excluded."
 
 

@@ -21,6 +21,9 @@ const N := W * H
 
 ## Result of the last distribution, for the UI.
 var _summary: Dictionary = {}
+var _visitors := TourismUtilities.new()
+var _baseline_demand := 0
+var _available_capacity := 0
 var _has_supply_state := false
 var _shortage := false
 var _consumed := 0
@@ -58,6 +61,7 @@ func setup(ctx: SimContext) -> void:
 ## registering plants or changing the saved city. Missing power runtime data
 ## continues through ordinary setup instead.
 func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
+	_refresh_visitors(ctx)
 	self.load(data)
 	_has_supply_state = true
 	_conservation = bool(ctx.stats.ordinances.get(Params.CONSERVATION_ORDINANCE, false))
@@ -79,7 +83,7 @@ func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
 			var i := y * W + x
 			var id := bld[i]
 			if draws[id] != 0:
-				total_demand += Params.power_load(id)
+				total_demand += Params.power_load(id) + _visitors.values[i]
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			elif plant_tbl[id] != 0:
@@ -104,9 +108,11 @@ func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
 	if total_capacity > 0:
 		@warning_ignore("integer_division")
 		usage = mini(100, _consumed * 100 / total_capacity)
-	_summary = {"capacity": total_capacity, "demand": total_demand, "consumed": _consumed,
+	_baseline_demand = total_demand - _visitors.units
+	_summary = {"visitor_demand": _visitors.units, "capacity": total_capacity, "demand": total_demand, "consumed": _consumed,
 		"usage_percent": usage, "shortage": _shortage,
 		"unpowered_buildings": _count_unserved(city, bld, flags), "plants": plants}
+	_available_capacity = _saved_available_capacity(flags)
 
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
@@ -148,7 +154,11 @@ func load(data: Dictionary) -> void:
 ## Last distribution: capacity, demand, consumed, usage_percent, shortage and
 ## a `plants` array of {anchor, key, name, age_years, capacity, powered}.
 func network_summary() -> Dictionary:
-	return _summary.duplicate(true)
+	var result := _summary.duplicate(true)
+	var available := _available_capacity
+	result["available_capacity"] = available
+	result["spare_capacity"] = maxi(0,available-int(result.get("demand",0)))
+	return result
 
 
 func is_shortage() -> bool:
@@ -174,8 +184,9 @@ func plant_capacity(anchor: Vector2i) -> int:
 ## Predict full replacement service using the last established source outputs.
 ## This does not generate power, sample weather, drain towers or mutate City.
 func can_supply_lot(city: City, rect: Rect2i, load_per_tile: int) -> bool:
-	if load_per_tile == 0: return true
-	return _has_supply_state and Params.can_supply_lot(city, rect, load_per_tile, false, _conservation)
+	_visitors.accept(city,_visitors.rows,false)
+	if load_per_tile == 0 and not Params.has_supplemental_load(_visitors.values,rect): return true
+	return _has_supply_state and Params.can_supply_lot(city, rect, load_per_tile, false, _conservation, _visitors.values)
 
 
 # ── Conduction flags ─────────────────────────────────────────────────────
@@ -263,6 +274,7 @@ func _generation_of(ctx: SimContext, anchor: Vector2i, id: int, rain: int, wind:
 # ── Distribution ─────────────────────────────────────────────────────────
 
 func _distribute(ctx: SimContext, established: bool = false) -> void:
+	_refresh_visitors(ctx)
 	_has_supply_state = true
 	var city := ctx.city
 	var flags := city.flags.data
@@ -291,7 +303,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			var id := bld[i]
 			if id != Buildings.NONE:
 				if draws[id] != 0:
-					total_demand += Params.power_load(id)
+					total_demand += Params.power_load(id) + _visitors.values[i]
 					if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 						_consumers.append(i)
 				elif plant_tbl[id] != 0:
@@ -328,6 +340,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 	_plant_tiles.sort()
 	var tail := 0
 	var consumed := 0
+	_available_capacity = 0
 	var short := false
 	for k in _plant_tiles:
 		@warning_ignore("integer_division")
@@ -344,14 +357,15 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			if plant_tbl[id] != 0:
 				capacity += _generation[t]
 			elif draws[id] != 0:
-				demand += Params.power_load(id)
+				demand += Params.power_load(id) + _visitors.values[t]
 		var budget := capacity
 		if _conservation:
 			@warning_ignore("integer_division")
 			budget += capacity / Params.CONSERVATION_BONUS_DIVISOR
+		_available_capacity += budget
 		if demand > budget:
 			short = true
-		var allocation := Params.allocate_network(_queue.slice(start, tail), bld, budget, false)
+		var allocation := Params.allocate_network(_queue.slice(start, tail), bld, budget, false, Rect2i(), -1, _visitors.values)
 		consumed += int(allocation.consumed)
 		for q in range(start, tail):
 			var t := _queue[q]
@@ -382,7 +396,8 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 		plants.append({"anchor": a, "key": Buildings.key(id), "name": Buildings.display_name(id),
 			"age_years": int(rec.get("age_years", 0)), "capacity": _generation[ai],
 			"powered": (flags[ai] & TileFlags.POWERED) != 0})
-	_summary = {"capacity": total_capacity, "demand": total_demand, "consumed": consumed,
+	_baseline_demand = total_demand - _visitors.units
+	_summary = {"visitor_demand": _visitors.units, "capacity": total_capacity, "demand": total_demand, "consumed": consumed,
 		"usage_percent": usage, "shortage": short, "unpowered_buildings": unpowered, "plants": plants}
 	if short and not _shortage:
 		ctx.events.report(&"power_shortage", {"unpowered": unpowered, "demand": total_demand,
@@ -486,3 +501,44 @@ func _retire(ctx: SimContext, anchor: Vector2i, id: int, rec: Dictionary, args: 
 	ctx.events.report(&"plant_retired", args, 2)
 	ctx.events.notify(&"plant_retired", args)
 	ctx.events.mark_dirty(rect)
+
+
+## Update derived accepted demand only. Never allocate or change source/storage state.
+func accept_visitor_rows(city: City, rows: Array) -> void:
+	_visitors.accept(city,rows,false)
+	if not _summary.is_empty() and int(_summary.get("visitor_demand",0)) != _visitors.units:
+		_summary["visitor_demand"] = _visitors.units
+		_summary["demand"] = _baseline_demand + _visitors.units
+
+## Detached projections carry the current accepted load, not facility guest guesses.
+func copy_visitor_load(other: PowerSystem) -> void:
+	_visitors.rows = other._visitors.rows.duplicate(true)
+
+func _refresh_visitors(ctx: SimContext) -> void:
+	var tourism := ctx.system(&"tourism") as TourismSystem
+	accept_visitor_rows(ctx.city,tourism.utility_rows() if tourism != null else _visitors.rows)
+
+
+## Restore the exact component-local conservation budgets, without allocating.
+func _saved_available_capacity(flags: PackedByteArray) -> int:
+	_visited.fill(0)
+	var tail := 0
+	var available := 0
+	for key_value in _plant_tiles:
+		@warning_ignore("integer_division")
+		var seed := (key_value % H) * W + key_value / H
+		if _visited[seed] != 0 or (flags[seed] & TileFlags.CONDUCTS_POWER) == 0: continue
+		var start := tail
+		tail = _flood(seed,flags,tail)
+		var capacity := 0
+		for q in range(start,tail): capacity += _generation[_queue[q]]
+		available += capacity
+		if _conservation:
+			@warning_ignore("integer_division")
+			available += capacity / Params.CONSERVATION_BONUS_DIVISOR
+	return available
+
+
+## Read-only exact established network budget; no RNG, storage or time tick.
+func admission_budget(city: City) -> Dictionary:
+	return Params.admission_budget(city,false, _conservation)

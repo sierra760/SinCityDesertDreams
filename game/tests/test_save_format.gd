@@ -393,7 +393,16 @@ func test_conditional_and_populated_system_schemas_keep_valid_snapshots() -> voi
 	sim.setup(included.city, 17, null, included.snapshot)
 	sim.restore(included.snapshot)
 	# A real March population pass generates complaint records from this city.
-	sim.clock.day = (sim.clock.day / GameClock.DAYS_PER_YEAR) * GameClock.DAYS_PER_YEAR + 2 * GameClock.DAYS_PER_MONTH + 13
+	var march_day := (sim.clock.day / GameClock.DAYS_PER_YEAR) * GameClock.DAYS_PER_YEAR + 2 * GameClock.DAYS_PER_MONTH + 13
+	# Choose the next March; moving a restored city's clock backwards makes
+	# its accepted feature initialization illegally future-dated.
+	if march_day < sim.clock.day:
+		march_day += GameClock.DAYS_PER_YEAR
+		# Cross January before March so the real yearly API closes the previous year.
+		sim.clock.day = march_day - 2 * GameClock.DAYS_PER_MONTH - 13
+		sim.city.day = sim.clock.day
+		(sim.get_system(&"budget") as BudgetSystem).yearly(sim._ctx)
+	sim.clock.day = march_day
 	sim.city.day = sim.clock.day
 	var population := sim.get_system(&"population") as PopulationSystem
 	population.monthly(sim._ctx)
@@ -422,9 +431,14 @@ func test_conditional_and_populated_system_schemas_keep_valid_snapshots() -> voi
 	rewards.load({"military": {"kind": "missile", "sites": rewards._rects_to_array(sites)}})
 	var snapshot := sim.snapshot()
 	var path := DIR.path_join("conditional-records.sc2d")
+	check_eq(SaveFormat.validate_snapshot(snapshot),"","populated fixture has a coherent forward-only timeline")
+	check_eq(TourismSaveCodec.problem(snapshot,sim.city),"","city calendar and real budget settlement agree")
 	check_eq(SaveFormat.save(path, sim.city, snapshot), OK)
 	var loaded := SaveFormat.load(path)
 	check(loaded.ok, str(loaded.get("detail", "")))
+	if not loaded.ok:
+		sim.free()
+		return
 	check_eq(loaded.snapshot, JSON.parse_string(JSON.stringify(snapshot, "", false)), "full populated snapshot remains exact")
 	var restored := Simulation.new()
 	restored.setup(loaded.city, 17, null, loaded.snapshot)

@@ -64,8 +64,8 @@ func test_oversupply_cannot_cancel_tax_response() -> void:
 	var free := TourismDemand.forecast(rows, _inputs(), 0, 0)
 	var taxed := TourismDemand.forecast(rows, _inputs(), 20, 20)
 	check_eq(free["guests"], 10000)
-	check_eq(taxed["guests"], 800)
-	check_eq(taxed["day_visitors"], 1333)
+	check_eq(taxed["guests"], 760)
+	check_eq(taxed["day_visitors"], 898)
 	check_lt(taxed["guests"], free["guests"])
 	check_lt(taxed["day_visitors"], free["day_visitors"])
 
@@ -110,12 +110,15 @@ func test_exact_pools_local_appeal_services_and_ordinances() -> void:
 	var row := _venue(&"arcology_boddy")
 	row["land_value"] = 160
 	var result := TourismDemand.forecast([row], inputs, 7, 7)
-	check_eq(result["guest_pool"], 895)
-	check_eq(result["day_pool"], 414)
-	check_eq(result["guests"], 39)
-	check_eq(result["day_visitors"], 11)
-	check_eq(result["lodging_cents"], 3900)
-	check_eq(result["gaming_cents"], 2500)
+	# Untaxed 1575/524 pools partitioned 45/30/15/10 and 55/25/5/15;
+	# each segment uses its own tax elasticity. Local 72 beds split by
+	# preference into 41/21/4/6, taxed to 19/11/2/3 guests.
+	check_eq(result["guest_pool"], 857)
+	check_eq(result["day_pool"], 394)
+	check_eq(result["guests"], 35)
+	check_eq(result["day_visitors"], 9)
+	check_eq(result["lodging_cents"], 3245)
+	check_eq(result["gaming_cents"], 2027)
 	check_eq(result["rows"][0]["appeal"], 90)
 	inputs["tourist_advertising"] = true
 	inputs["annual_carnival"] = true
@@ -133,7 +136,7 @@ func test_exact_pools_local_appeal_services_and_ordinances() -> void:
 	check_eq(TourismDemand.forecast([row], inputs, 0, 0)["rows"][0]["appeal"], 80)
 	inputs["tourist_advertising"] = false
 	inputs["annual_carnival"] = true
-	check_eq(TourismDemand.forecast([row], inputs, 0, 0)["rows"][0]["appeal"], 75)
+	check_eq(TourismDemand.forecast([row], inputs, 0, 0)["rows"][0]["appeal"], 70)
 	inputs["annual_carnival"] = false
 	row["crime"] = 1
 	check_eq(TourismDemand.forecast([row], inputs, 0, 0)["rows"][0]["appeal"], 69, "one final division retains environmental fractions")

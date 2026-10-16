@@ -71,9 +71,11 @@ static func project(ctx: SimContext, record: Dictionary = {}, proposals: Array[D
 	if power != null:
 		var system := PowerSystem.new()
 		system.copy_supply_policy(power)
+		system.copy_visitor_load(power)
 		system.reallocate_established(detached,full)
 	if water != null:
 		var system := WaterSystem.new()
+		system.copy_visitor_load(water)
 		system.reallocate_established(detached,full)
 	else:
 		for i in city.flags.data.size(): city.flags.data[i] &= ~TileFlags.WATERED

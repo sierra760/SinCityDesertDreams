@@ -24,6 +24,11 @@ var _settled_year := -1
 ## Tourism completed periods are booked independently of ordinary annual rates.
 var _tourism_booked_month := -1
 var _tourism_booking: Dictionary = {}
+var _tourism_program_booking: Dictionary = {}
+## Separate exact expense fractions; ordinary ordinance fractions still reset annually.
+var _tourism_program_carry := 0
+var _tourism_money_profile := ""
+var _tourism_residue := {"occupancy":0,"gaming":0}
 var _deficit_reported := false
 var _bankruptcy_reported := false
 ## Residential, commercial and industrial rates the newspaper last saw; a
@@ -106,7 +111,7 @@ func estimated_ledger() -> Dictionary:
 
 ## Latest completed actual booking, in twelfths of a cent; never a forecast.
 func tourism_booking() -> Dictionary:
-	return _tourism_booking.duplicate()
+	return _tourism_booking.duplicate(true)
 
 
 ## Everything the January review shows.
@@ -223,11 +228,16 @@ func save() -> Dictionary:
 	var carry := {}
 	for k in _twelfths:
 		carry[String(k)] = int(_twelfths[k])
+	if _tourism_program_carry > 0:
+		carry["ordinance_cost"] = int(carry.get("ordinance_cost", 0)) + _tourism_program_carry
 	return {
 		"carry": carry,
+		"tourism_program_carry": _tourism_program_carry,
+		"tourism_money_profile":_tourism_money_profile,"tourism_residue":_tourism_residue.duplicate(),
 		"settled_year": _settled_year,
 		"tourism_booked_month": _tourism_booked_month,
-		"tourism_booking": _tourism_booking.duplicate(),
+		"tourism_booking": _tourism_booking.duplicate(true),
+		"tourism_program_booking": _tourism_program_booking.duplicate(),
 		"deficit_reported": _deficit_reported,
 		"bankruptcy_reported": _bankruptcy_reported,
 		"reported_rates": [_reported_rates.x, _reported_rates.y, _reported_rates.z],
@@ -239,14 +249,25 @@ func load(data: Dictionary) -> void:
 	var carry: Dictionary = data.get("carry", {})
 	for k in carry:
 		_twelfths[StringName(k)] = int(carry[k])
+	_tourism_money_profile = String(data.get("tourism_money_profile",""))
+	var residue: Dictionary = data.get("tourism_residue",{})
+	_tourism_residue = {"occupancy":int(residue.get("occupancy",0)),"gaming":int(residue.get("gaming",0))}
+	_tourism_program_carry = int(data.get("tourism_program_carry", 0))
+	if _tourism_program_carry > 0:
+		_twelfths[&"ordinance_cost"] = int(_twelfths.get(&"ordinance_cost", 0)) - _tourism_program_carry
 	_settled_year = int(data.get("settled_year", _settled_year))
 	_tourism_booked_month = int(data.get("tourism_booked_month", -1))
+	_tourism_program_booking = {}
+	var program: Dictionary = data.get("tourism_program_booking", {})
+	if not program.is_empty():
+		_tourism_program_booking = {"month_id": int(program.get("month_id", -1)), "half_cents": int(program.get("half_cents", 0))}
 	_tourism_booking = {}
 	var booking: Dictionary = data.get("tourism_booking", {})
 	if not booking.is_empty():
-		_tourism_booking = {"month_id": int(booking.get("month_id", -1)),
-			"occupancy_units": int(booking.get("occupancy_units", 0)),
-			"gaming_units": int(booking.get("gaming_units", 0))}
+		_tourism_booking = booking.duplicate(true)
+		if _tourism_booking.has("activity"): _tourism_booking.activity = TourismMarkets.integer_activity(_tourism_booking.activity)
+		for field in _tourism_booking:
+			if field not in ["profile","activity"]: _tourism_booking[field] = int(_tourism_booking[field])
 	_deficit_reported = bool(data.get("deficit_reported", false))
 	_bankruptcy_reported = bool(data.get("bankruptcy_reported", false))
 	var rates: Array = data.get("reported_rates", [])
@@ -279,6 +300,7 @@ func _settle(ctx: SimContext) -> void:
 	var tourism_carry := {}
 	for k in BudgetParams.TOURISM_KEYS:
 		tourism_carry[k] = int(_twelfths.get(k, 0)) % TWELFTH_CENTS_PER_DOLLAR
+	_tourism_program_carry %= TWELFTH_CENTS_PER_DOLLAR
 	_twelfths = tourism_carry
 	_ensure_ledger_keys(stats)
 	for b in stats.bonds:
@@ -378,6 +400,7 @@ func _ensure_ledger_keys(stats: CityStats) -> void:
 func _publish_ledger(stats: CityStats) -> void:
 	for k in OWN_KEYS:
 		stats.ledger[k] = int(_twelfths.get(k, 0)) / TWELFTH_CENTS_PER_DOLLAR
+	stats.ledger[&"ordinance_cost"] += _tourism_program_carry / TWELFTH_CENTS_PER_DOLLAR
 
 
 ## Book only immutable completed visitor activity, synchronously with its
@@ -400,14 +423,33 @@ func _book_tourism(ctx: SimContext) -> void:
 		TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
 	var gaming := int(pending.gaming_cents) * clampi(ctx.stats.tax_gaming,
 		TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
+	var proof := {}
+	if pending.get("profile","") == TourismMarkets.PROFILE:
+		_tourism_money_profile = TourismMarkets.PROFILE
+		proof = {"profile":TourismMarkets.PROFILE,"activity":tourism.save().activity.duplicate(true)}
+		for pair in [["occupancy","lodging_numerator",ctx.stats.tax_occupancy],["gaming","gaming_numerator",ctx.stats.tax_gaming]]:
+			var name: String = pair[0]
+			var rate := clampi(int(pair[2]),TourismParams.TAX_MIN,TourismParams.TAX_MAX)
+			var opening := int(_tourism_residue[name])
+			var exact := TourismMarkets.tax(int(pending[pair[1]]),rate,opening)
+			proof[name+"_rate"] = rate
+			proof[name+"_opening_residue"] = opening
+			proof[name+"_closing_residue"] = exact.residue
+			_tourism_residue[name] = exact.residue
+			if name == "occupancy": occupancy = exact.units
+			else: gaming = exact.units
 	_twelfths[&"taxes_occupancy"] = int(_twelfths.get(&"taxes_occupancy", 0)) + occupancy
 	_twelfths[&"taxes_gaming"] = int(_twelfths.get(&"taxes_gaming", 0)) + gaming
+	var program := int(pending.get("program_half_cents", 0)) * 6
+	_tourism_program_carry += program
+	_tourism_program_booking = {"month_id": month, "half_cents": int(pending.get("program_half_cents", 0))}
 	_tourism_booked_month = month
 	_tourism_booking = {"month_id": month, "occupancy_units": occupancy, "gaming_units": gaming}
+	_tourism_booking.merge(proof)
 	tourism.call("acknowledge_booking", month)
 
 
-## Estimates add twelve months of pure tourism forecast. This dictionary must
+## Estimates annualize the current-month season/event forecast at fixed settings. This dictionary must
 ## never feed the ordinary monthly accrual loop.
 func _estimated_yearly_cents(ctx: SimContext) -> Dictionary:
 	var yearly := _yearly_cents(ctx)
@@ -415,11 +457,16 @@ func _estimated_yearly_cents(ctx: SimContext) -> Dictionary:
 	var gaming := 0
 	var tourism := ctx.system(&"tourism")
 	if tourism != null:
-		var forecast: Dictionary = tourism.call("forecast")
+		var forecast: Dictionary = tourism.call("supported_forecast",-1,-1,true)
 		occupancy = int(forecast.get("lodging_cents", 0)) * clampi(ctx.stats.tax_occupancy,
 			TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
 		gaming = int(forecast.get("gaming_cents", 0)) * clampi(ctx.stats.tax_gaming,
 			TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
+		if forecast.has("lodging_numerator"):
+			occupancy = int(forecast.lodging_numerator)*clampi(ctx.stats.tax_occupancy,0,20)*12/TourismMarkets.TAX_DENOMINATOR
+			gaming = int(forecast.gaming_numerator)*clampi(ctx.stats.tax_gaming,0,20)*12/TourismMarkets.TAX_DENOMINATOR
+	if tourism != null and bool(ctx.stats.ordinances.get(&"casino_safety", false)):
+		yearly[&"ordinance_cost"] += int(tourism.call("program_estimated_annual_cents"))
 	yearly[&"taxes_occupancy"] = occupancy
 	yearly[&"taxes_gaming"] = gaming
 	return yearly
@@ -474,7 +521,7 @@ func _yearly_cents(ctx: SimContext) -> Dictionary:
 	out[&"transport"] = transport
 	var ordinances := ctx.system(&"ordinances")
 	if ordinances != null and ordinances.has_method("yearly_totals"):
-		var totals: Dictionary = ordinances.call("yearly_totals")
+		var totals: Dictionary = ordinances.call("yearly_totals", false)
 		out[&"ordinance_income"] = int(totals.get("income", 0)) * 100
 		out[&"ordinance_cost"] = int(totals.get("cost", 0)) * 100
 	var interest := 0
@@ -488,7 +535,10 @@ func _monthly_fare_cents(ctx: SimContext) -> int:
 	var transport := ctx.system(&"transport")
 	if transport == null or not transport.has_method("monthly_ridership"):
 		return 0
-	return int(transport.call("monthly_ridership")) * BudgetParams.FARE_CENTS
+	var riders := int(transport.call("monthly_ridership"))
+	var tourism := ctx.system(&"tourism")
+	if tourism != null: riders += int(tourism.call("claim_transport_riders"))
+	return riders * BudgetParams.FARE_CENTS
 
 
 # ── Map survey ───────────────────────────────────────────────────────────

@@ -28,6 +28,8 @@ func test_tax_sweeps_and_capacity_conservation() -> void:
 				var forecast := TourismDemand.forecast(rows,inputs,o,g)
 				var current := PackedInt64Array()
 				current.resize(rows.size())
+				var segments: Array = []
+				for i in rows.size(): segments.append([0,0,0,0])
 				var lodging := 0
 				var gaming := 0
 				var guests := 0
@@ -38,17 +40,23 @@ func test_tax_sweeps_and_capacity_conservation() -> void:
 					for i in rows.size():
 						var row: Dictionary = forecast.rows[i]
 						var opening := current[i]
+						var opening_segments: Array = segments[i].duplicate()
 						var change := TourismDemand.turnover(opening,row.target_guests)
 						current[i] = change.guests
+						segments[i] = TourismMarkets.advance(opening_segments,current[i],change.departures,change.arrivals,row.target_guest_segments)
 						check_eq(current[i],opening-int(change.departures)+int(change.arrivals))
 						check_between(current[i],0,int(row.capacity))
 						check_between(int(row.target_day_visitors),0,int(row.day_capacity))
 						guests += current[i]
 						day += int(row.target_day_visitors)
 						if month >= 24:
-							var bases := TourismDemand.business_bases(opening,current[i],row.target_day_visitors)
-							lodging += int(bases.lodging_cents)*o
-							gaming += int(bases.gaming_cents)*g
+							# Independent exact profile oracle, avoiding business()/tax().
+							var tier_index := ["budget","standard","premium"].find(TourismParams.venue_tier(row.key))
+							for segment in 4:
+								var halves := int(opening_segments[segment])+int(segments[i][segment])
+								var spend: int = [85,100,150,110][segment]
+								lodging += halves*50*int([100,130,180][tier_index])*spend*o
+								gaming += (halves*25+int(row.target_day_segments[segment])*50)*int([100,120,150][tier_index])*spend*g
 					check_between(guests,0,int(forecast.guest_pool))
 					check_between(day,0,int(forecast.day_pool))
 				check_eq(guests,int(forecast.guests),"settled forecast matches 36 monthly steps")
@@ -56,12 +64,15 @@ func test_tax_sweeps_and_capacity_conservation() -> void:
 				check(day <= previous_day,"higher independent tax never raises day attendance")
 				previous_guests = guests
 				previous_day = day
+				check(forecast.forecast_mix_exact,"supported sweep closes pure projection within bound")
+				check_eq(lodging,int(forecast.lodging_numerator)*o*12,"projected lodging equals actual last twelve months of integer turnover")
+				check_eq(gaming,int(forecast.gaming_numerator)*g*12,"projected gaming equals actual last twelve months of integer turnover")
 				var applicable := lodging if occupancy else gaming
 				receipts.append(applicable)
 				if rate == 0: check_eq(applicable,0)
 				if scenario in ["store_only","service_collapse"]: check_eq(lodging,0)
 				if scenario == "service_collapse": check_eq(guests+day+gaming,0)
-				evidence.append({"scenario":scenario,"varied":"occupancy" if occupancy else "gaming","rate":rate,"guests":guests,"day_visitors":day,"capacity":forecast.capacity,"occupancy":forecast.occupancy,"guest_pool":forecast.guest_pool,"day_pool":forecast.day_pool,"annual_lodging_tax_cent_percent":lodging,"annual_gaming_tax_cent_percent":gaming,"venue_construction_cost":cost,"tax_only_simple_payback_years":float(cost)*10000.0/float(lodging+gaming) if lodging+gaming > 0 and cost > 0 else -1})
+				evidence.append({"scenario":scenario,"varied":"occupancy" if occupancy else "gaming","rate":rate,"guests":guests,"day_visitors":day,"capacity":forecast.capacity,"occupancy":forecast.occupancy,"guest_pool":forecast.guest_pool,"day_pool":forecast.day_pool,"annual_lodging_tax_numerator":lodging,"annual_gaming_tax_numerator":gaming,"tax_cent_denominator":1000000,"forecast_mix_basis":forecast.forecast_mix_basis,"forecast_annual_lodging_tax_numerator":int(forecast.lodging_numerator)*o*12,"forecast_annual_gaming_tax_numerator":int(forecast.gaming_numerator)*g*12,"venue_construction_cost":cost,"tax_only_simple_payback_years":float(cost)*100000000.0/float(lodging+gaming) if lodging+gaming > 0 and cost > 0 else -1})
 			if scenario != "service_collapse" and (not occupancy or scenario != "store_only"):
 				# Whole-person rounding can move the best intermediate point in small venues.
 				# Exhaustively require at least one positive intermediate to beat 20%.

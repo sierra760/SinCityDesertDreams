@@ -19,12 +19,27 @@ static func problem(snapshot: Dictionary, city: City = null) -> String:
 			return "Invalid tourism aggregate: " + field
 	if stats.has("tourist_occupancy") and not TourismState._integer(stats.tourist_occupancy, 0, 100):
 		return "Invalid tourism occupancy percentage."
+	if stats.has("tourist_reputation_milli") and not TourismState._integer(stats.tourist_reputation_milli,0,100000):
+		return "Invalid destination reputation score."
+	var histories: Variant=stats.get("history",{})
+	if histories is Dictionary and histories.has("tourist_reputation"):
+		var samples: Variant=histories["tourist_reputation"]
+		if not (samples is Array or samples is PackedInt32Array) or samples.size()>StatisticsParams.KEEP_MONTHS:
+			return "Invalid destination reputation history."
+		for sample: Variant in samples:
+			if not TourismState._integer(sample,0,100000): return "Invalid destination reputation history score."
 	var budget: Variant = systems.get("budget", {})
 	if not budget is Dictionary:
 		return "Invalid tourism budget."
 	var current: bool = systems.has("tourism")
 	# Legacy files have no completed tourism activity and never earn back taxes.
 	if not current:
+		if budget.get("tourism_program_booking", {}) != {} or budget.get("tourism_program_carry", 0) != 0:
+			return "Tourism program expense has no attendance history."
+		if budget.get("tourism_money_profile", "") != "":
+			return "Tourism residue has no attendance history."
+		var residue: Variant = budget.get("tourism_residue",{"occupancy":0,"gaming":0})
+		if not residue is Dictionary or residue.size()!=2 or not TourismState._integer(residue.get("occupancy"),0,0) or not TourismState._integer(residue.get("gaming"),0,0): return "Tourism residue has no attendance history."
 		if budget.get("tourism_booked_month", -1) != -1 or budget.get("tourism_booking", {}) != {}:
 			return "Tourism booking has no attendance history."
 		var carry: Variant = budget.get("carry", {})
@@ -102,6 +117,31 @@ static func _budget_problem(budget: Dictionary, block: Dictionary, day: int, cit
 		return "Invalid latest tourism booking."
 	if (booked == -1) != booking.is_empty():
 		return "Tourism booking and booked-month guard disagree."
+	var money_profile: Variant = budget.get("tourism_money_profile", "")
+	if money_profile not in ["",TourismMarkets.PROFILE]: return "Invalid tourism money profile."
+	var segmented: bool = money_profile == TourismMarkets.PROFILE
+	var residue: Variant = budget.get("tourism_residue",{"occupancy":0,"gaming":0})
+	if not residue is Dictionary or residue.size() != 2: return "Invalid tourism subunit residue."
+	for name in ["occupancy","gaming"]:
+		if not TourismState._integer(residue.get(name),0,TourismMarkets.TAX_DENOMINATOR-1): return "Invalid tourism subunit residue."
+		if not segmented and int(residue[name]) != 0: return "Legacy tourism cannot carry segmented residue."
+	if segmented != (booking.get("profile","") == TourismMarkets.PROFILE): return "Tourism money profile has no matching booking."
+	if not segmented and (booking.has("profile") or booking.has("activity")): return "Invalid legacy tourism booking profile."
+	var program: Variant = budget.get("tourism_program_booking", {})
+	if not program is Dictionary: return "Invalid tourism program booking."
+	var safety: Dictionary = block.get("features", {}).get("safety", {})
+	if not program.is_empty():
+		if program.size() != 2 or booked < 0 or not TourismState._integer(program.get("month_id"), booked, booked) or not TourismState._integer(program.get("half_cents"), 0, TourismState.MAX_INSTANCE / 12):
+			return "Invalid tourism program booking."
+		if booked == int(block.last_month) and int(program.half_cents) != int(safety.get("cost_half_cents", 0)):
+			return "Tourism program booking disagrees with completed protection."
+	elif booked == int(safety.get("period_month", -1)) and int(safety.get("cost_half_cents", 0)) > 0:
+		return "Completed tourism program has no booking."
+	var program_carry: Variant = budget.get("tourism_program_carry", 0)
+	if not TourismState._integer(program_carry, 0, TourismState.MAX_INSTANCE / 12) or int(program_carry) % 6 != 0:
+		return "Invalid exact tourism program residue."
+	if int(program_carry) > 0 and (program.is_empty() or booked < 0):
+		return "Tourism program residue has no booking history."
 	var largest_capacity := 0
 	for key in RewardParams.ARCOLOGIES:
 		largest_capacity = maxi(largest_capacity, TourismParams.profile_guest_capacity(key, TourismParams.PREVIOUS_PROFILE))
@@ -118,7 +158,28 @@ static func _budget_problem(budget: Dictionary, block: Dictionary, day: int, cit
 				return "Invalid latest tourism booking amount."
 		# The saved rates are prospective; a historical booking may use any legal
 		# integer rate. Its amounts must nevertheless fit its completed business.
-		if booked == int(block.last_month):
+		if segmented:
+			if booking.size() != 11: return "Invalid segmented booking fields."
+			var bases := TourismSystem.validate_activity(booking.get("activity"),booked,TourismMarkets.PROFILE)
+			if not bases.ok: return "Invalid segmented booking activity."
+			var known := {}
+			for current: Dictionary in block.state.records + block.get("activity",{}).get("rows",[]):
+				known[int(current.instance)] = [int(current.anchor[0]),int(current.anchor[1]),String(current.key),int(current.code)]
+			for historical: Dictionary in booking.activity.rows:
+				var instance := int(historical.instance)
+				if instance >= int(block.state.next_instance): return "Booking identity exceeds the saved instance counter."
+				var identity := [int(historical.anchor[0]),int(historical.anchor[1]),String(historical.key),int(historical.code)]
+				if known.has(instance) and known[instance] != identity: return "Booking reuses another venue identity."
+			if booked == int(block.last_month) and (TourismSystem.activity_profile(block) != TourismMarkets.PROFILE or TourismMarkets.integer_activity(booking.activity) != TourismMarkets.integer_activity(block.get("activity",{}))): return "Latest booking activity differs from completed activity."
+			for pair in [["occupancy","lodging_numerator"],["gaming","gaming_numerator"]]:
+				var name: String = pair[0]
+				if not TourismState._integer(booking.get(name+"_rate"),0,20): return "Invalid historical tourism tax rate."
+				for suffix in ["_opening_residue","_closing_residue"]:
+					if not TourismState._integer(booking.get(name+suffix),0,TourismMarkets.TAX_DENOMINATOR-1): return "Invalid tourism residue proof."
+				var exact := TourismMarkets.tax(int(bases[pair[1]]),int(booking[name+"_rate"]),int(booking[name+"_opening_residue"]))
+				if int(booking[name+"_units"]) != int(exact.units) or int(booking[name+"_closing_residue"]) != int(exact.residue) or int(residue[name]) != int(exact.residue): return "Tourism booking fails its exact residue transition."
+		elif booked == int(block.last_month):
+			if TourismSystem.activity_profile(block) == TourismMarkets.PROFILE: return "Segmented business requires exact residue booking."
 			var bases := TourismSystem.validate_activity(block.get("activity", {}), booked, TourismSystem.activity_profile(block))
 			for pair in [["occupancy_units", "lodging_cents"], ["gaming_units", "gaming_cents"]]:
 				var valid_amount := false
@@ -129,12 +190,16 @@ static func _budget_problem(budget: Dictionary, block: Dictionary, day: int, cit
 				if not valid_amount: return "Tourism booking does not match completed business at any legal rate."
 	var carry: Variant = budget.get("carry", {})
 	if not carry is Dictionary: return "Invalid budget carry."
+	if not TourismState._integer(carry.get("ordinance_cost", 0), 0, TourismState.MAX_INSTANCE / 12):
+		return "Invalid ordinance expense carry."
+	if int(carry.get("ordinance_cost", 0)) < int(program_carry):
+		return "Ordinance carry omits exact tourism program residue."
 	for key in BudgetParams.TOURISM_KEYS:
 		if not TourismState._integer(carry.get(String(key), 0), 0, maximum_booking * 12 + 1199):
 			return "Invalid tourism fractional carry."
 		var units := int(carry.get(String(key), 0))
 		var quantum := 6 if key == &"taxes_occupancy" else 3
-		if units % quantum != 0 or (booked == -1 and units != 0):
+		if (not segmented and units % quantum != 0) or (booked == -1 and units != 0):
 			return "Tourism carry has no matching booked activity."
 	if not TourismState._integer(budget.get("settled_year", -1), -1, TourismParams.MAX_COUNT):
 		return "Invalid budget settlement year."
@@ -149,6 +214,8 @@ static func _budget_problem(budget: Dictionary, block: Dictionary, day: int, cit
 		if booked >= 0:
 			@warning_ignore("integer_division")
 			var booking_year := city.founded_year + booked / GameClock.MONTHS_PER_YEAR
+			if not program.is_empty() and ((settled < booking_year and int(program_carry) < int(program.half_cents) * 6) or (settled >= booking_year and int(program_carry) >= BudgetSystem.TWELFTH_CENTS_PER_DOLLAR)):
+				return "Tourism program charge is absent from expense carry."
 			for pair in [["taxes_occupancy", "occupancy_units"], ["taxes_gaming", "gaming_units"]]:
 				var units := int(carry.get(pair[0], 0))
 				if (settled < booking_year and units < int(booking[pair[1]])) or (settled >= booking_year and units >= BudgetSystem.TWELFTH_CENTS_PER_DOLLAR):

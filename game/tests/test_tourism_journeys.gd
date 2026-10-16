@@ -42,7 +42,13 @@ func services(with_resort := true, with_zones := false) -> void:
 	paint(Tools.Kind.WATER_PUMP,Vector2i(38,38))
 	paint(Tools.Kind.WATER_PIPE,Vector2i(38,39),Vector2i(55,39))
 	for x in [40,44,48,52,55]: paint(Tools.Kind.POWER_LINE,Vector2i(x,38),Vector2i(x,39))
-	paint(Tools.Kind.ROAD,Vector2i(39,43),Vector2i(55,43))
+	paint(Tools.Kind.ROAD,Vector2i(55,43),Vector2i(0,43))
+	var link_before := host.sim.city.funds
+	check(host.choice_dialog.visible,"border road offers paid neighbor connection")
+	host.choice_dialog.build_button.pressed.emit()
+	check_eq(link_before-host.sim.city.funds,100,"accepted regional road link costs $100")
+	check(Buildings.is_road_like(host.sim.city.building_at(0,43)))
+	paid.append({"tool":Tools.Kind.ROAD,"from":[0,43],"to":[0,43],"before":link_before,"cost":100,"after":host.sim.city.funds})
 	if with_resort: paint(Tools.Kind.ARCOLOGY_BODDY,RESORT)
 	if with_zones:
 		for x in range(40,56): paint(Tools.Kind.WATER_PIPE,Vector2i(x,40),Vector2i(x,46))
@@ -51,7 +57,7 @@ func services(with_resort := true, with_zones := false) -> void:
 		paint(Tools.Kind.ZONE_COM_LOW,Vector2i(44,40),Vector2i(55,42))
 	var expense := 0
 	for item in paid: expense += int(item.cost)
-	check_eq(expense,4384 + (8000 if with_resort else 0) + (568 if with_zones else 0),"literal planned infrastructure/zoning/venue costs")
+	check_eq(expense,4864 + (8000 if with_resort else 0) + (568 if with_zones else 0),"literal planned infrastructure/zoning/venue costs")
 	check_eq(host.sim.city.funds,STARTING_FUNDS-expense,"construction ledger reconciles to declared initial treasury")
 	host.select_tool(Tools.Kind.QUERY)
 
@@ -90,8 +96,8 @@ func test_paid_store_and_resort_host_journey() -> void:
 	budget.close()
 	host.sim.advance_day()
 	var books := host.sim.get_system(&"budget")
-	check_eq(int(books.save().carry.taxes_occupancy),int(pending.lodging_cents)*9*12/100,"day18 uses selected occupancy rate")
-	check_eq(int(books.save().carry.taxes_gaming),int(pending.gaming_cents)*11*12/100,"day18 uses selected gaming rate")
+	check_eq(int(books.save().carry.taxes_occupancy),int(pending.lodging_numerator)*9*12/1000000,"day18 uses selected occupancy rate")
+	check_eq(int(books.save().carry.taxes_gaming),int(pending.gaming_numerator)*11*12/1000000,"day18 uses selected gaming rate")
 	var store := Vector2i(-1,-1)
 	while host.sim.clock.day < 1500:
 		run_to(host.sim.clock.day+1)
@@ -255,6 +261,11 @@ func test_populated_legacy_host_preserves_cohorts_histories_and_old_books() -> v
 	services(true,true)
 	paint(Tools.Kind.ZONE_RES_LOW,Vector2i(40,44),Vector2i(55,46))
 	run_to(275)
+	# This populated legacy continuation must retain real visitor water headroom
+	# after housing/commercial development; pay for two additional connected pumps.
+	for x in [36,37]:
+		paint(Tools.Kind.WATER_PUMP,Vector2i(x,38))
+		paint(Tools.Kind.WATER_PIPE,Vector2i(x,39))
 	check_gt(host.sim.stats.population,0,"paid zoning creates real ordinary residents")
 	var city := host.sim.city.duplicate_city()
 	var snapshot := host.sim.snapshot().duplicate(true)
@@ -271,6 +282,11 @@ func test_populated_legacy_host_preserves_cohorts_histories_and_old_books() -> v
 	for account in ["tourists","tourist_occupancy"]: snapshot.stats.history.erase(account)
 	snapshot.systems.budget.erase("tourism_booking")
 	snapshot.systems.budget.erase("tourism_booked_month")
+	# A pre-tourism snapshot has no completed protection period either.
+	snapshot.systems.budget.erase("tourism_program_booking")
+	snapshot.systems.budget.erase("tourism_program_carry")
+	snapshot.systems.budget.erase("tourism_money_profile")
+	snapshot.systems.budget.erase("tourism_residue")
 	for at in city.facilities:
 		city.facilities[at].erase("tourism_instance")
 		city.facilities[at].erase("tourism_migrated")
@@ -305,6 +321,7 @@ func test_populated_legacy_host_preserves_cohorts_histories_and_old_books() -> v
 	check_state(economic_state(twin),migrated,"idempotent current host restore after legacy adoption")
 	# Replay real calendar from preserved cohorts and historical books.
 	twin.sim.advance_days(18)
+	print("LEGACY_CALENDAR_SERVICE utility=",twin.sim.tourism().utility_report()," components=",twin.sim.get_system(&"water").admission_budget(twin.sim.city).components)
 	check_gt(twin.sim.stats.tourists,0)
 	for key in history:
 		var values: Array = Array(twin.sim.stats.history[StringName(key)])

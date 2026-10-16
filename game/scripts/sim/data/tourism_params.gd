@@ -30,7 +30,6 @@ const CRIME_DIVISOR := 8
 const POLLUTION_DIVISOR := 8
 const TRAFFIC_DIVISOR := 16
 const ADVERTISING_APPEAL := 10
-const CARNIVAL_APPEAL := 5
 const OCCUPANCY_TAX_DISCOURAGEMENT := 4
 const GAMING_TAX_DISCOURAGEMENT := 3
 const TURNOVER_DIVISOR := 2
@@ -46,6 +45,35 @@ const GAMING_CENTS_PER_HALF_GUEST := GAMING_CENTS_PER_VISITOR / TURNOVER_DIVISOR
 ## Defensive bound for external numeric inputs, keeping intermediate int64 math safe.
 ## Real city and venue counts are far below this limit.
 const MAX_COUNT := 2147483647
+const CRIME_MICRO_UNIT := 1000000
+const GUEST_CRIME_MICRO := 10000
+const DAY_CRIME_MICRO := 20000
+const SAFETY_REMAINING_PERCENT := 60
+const SAFETY_CENTS_PER_VISITOR := 2
+const NIGHTLIFE_RADIUS := 6
+const NIGHTLIFE_CAP := 12
+const NIGHTLIFE_VISITOR_DIVISOR := 50
+const DISTRICT_REACH := 16
+const DISTRICT_CATEGORY_FIRST := 4
+const DISTRICT_CATEGORY_SECOND := 2
+const DISTRICT_CATEGORY_LATER := 1
+const DISTRICT_CATEGORY_CAP := 5
+const DISTRICT_APPEAL_CAP := 20
+const RESORT_VARIETY_CAP := 5
+const COMMERCIAL_REACH := 12
+const GUEST_RETAIL_CENTS := 20
+const DAY_RETAIL_CENTS := 10
+const COMMERCIAL_CENTS_PER_POINT := 100
+const COMMERCIAL_DEMAND_CAP := 100
+const COMMERCIAL_GROWTH_CAP := 10
+
+static func venue_tier(key: StringName) -> String:
+	var cost := Buildings.cost(Buildings.id_of(key))
+	if key == &"com_corner_store" or cost < 100000: return "budget"
+	return "standard" if cost < 200000 else "premium"
+
+static func security_percent(key: StringName) -> int:
+	return {"budget": 150, "standard": 100, "premium": 65}[venue_tier(key)]
 
 
 ## Immutable schema-1 roster: validation authority for previously earned business only.
@@ -87,3 +115,16 @@ static func day_capacity(key: StringName) -> int:
 	if capacity == 0:
 		return 0
 	return clampi(int(sqrt(capacity)), MIN_DAY_CAPACITY, MAX_DAY_CAPACITY)
+
+## Fulfilled safety/access/attractions/staffing/services, each vector sums100.
+## Budget visitors chiefly need safe access and reliable affordable service;
+## leisure prizes attractions; business prizes access; luxury prizes service
+## and attractions. Prices, spend multipliers and venue tiers award no points.
+const EXPERIENCE_BUDGET := [30,25,10,15,20]
+const EXPERIENCE_LEISURE := [20,20,30,10,20]
+const EXPERIENCE_LUXURY := [20,15,25,20,20]
+const EXPERIENCE_BUSINESS := [20,30,10,20,20]
+const EXPERIENCE_WEIGHTS := [EXPERIENCE_BUDGET,EXPERIENCE_LEISURE,EXPERIENCE_LUXURY,EXPERIENCE_BUSINESS]
+## Forced loss of actual natural survivors caps experience at their service
+## fulfillment, before city exposure weighting. Never penalizes unadmitted demand.
+const ESSENTIAL_SERVICE_EXPERIENCE_CEILING := true

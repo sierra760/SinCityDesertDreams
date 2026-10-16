@@ -31,6 +31,7 @@ const SERIES_LABELS := {
 	&"demand_commercial": "Commercial demand", &"demand_industrial": "Industrial demand",
 	&"transit_riders": "Transit riders",
 	&"tourists": "Tourists", &"tourist_occupancy": "Tourist occupancy (%)",
+	&"tourist_reputation": "Destination reputation (0–100)",
 	&"taxes_occupancy": "Monthly occupancy tax accrued ($)",
 	&"taxes_gaming": "Monthly gaming tax accrued ($)",
 	&"agricultural_jobs": "Agricultural jobs", &"agricultural_lots": "Active farms and parcels",
@@ -132,6 +133,7 @@ class GraphCanvas extends Control:
 		if name in [&"money", &"taxes_agricultural", &"taxes_occupancy", &"taxes_gaming"]:
 			return NoticeLines.money(value)
 		if name == &"tourist_occupancy": return "%d%%" % value
+		if name == &"tourist_reputation": return "%.2f" % (value/1000.0)
 		return UIFactory.commafy_signed(value)
 
 	## Screen points of one series' polyline, newest sample at the right edge.
@@ -158,7 +160,7 @@ class GraphCanvas extends Control:
 	## Compact in-plot captions; the picker retains the full monthly definitions.
 	func legend_text(name: StringName, fallback: String) -> String:
 		var captions := {&"tourists":"Tourists", &"tourist_occupancy":"Occupancy (%)",
-			&"taxes_occupancy":"Occ. tax ($)", &"taxes_gaming":"Gaming tax ($)"}
+			&"taxes_occupancy":"Occ. tax ($)", &"taxes_gaming":"Gaming tax ($)", &"tourist_reputation":"Reputation"}
 		return String(captions.get(name, fallback))
 
 	## Pack endpoint labels vertically while retaining each true point and value.

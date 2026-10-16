@@ -55,6 +55,8 @@ var _block_crime := PackedInt32Array()       # crime added by ports, bases and a
 var _amenity := PackedInt32Array()           # amenity per 4×4 cell
 var _treatment_anchors := PackedInt32Array()
 var _centre := Vector2i.ZERO
+var _tourism_crime := PackedInt32Array()
+var _tourism_nightlife := PackedInt32Array()
 ## Block scratch buffers.
 var _work := PackedInt32Array()
 var _bonus := PackedByteArray()
@@ -74,6 +76,8 @@ func _init() -> void:
 	_block_zone.resize(BLOCK_COUNT)
 	_block_emission.resize(BLOCK_COUNT)
 	_block_crime.resize(BLOCK_COUNT)
+	_tourism_crime.resize(BLOCK_COUNT)
+	_tourism_nightlife.resize(BLOCK_COUNT)
 	_amenity.resize(CELL_COUNT)
 	_work.resize(BLOCK_COUNT)
 	_bonus.resize(BLOCK_COUNT)
@@ -287,6 +291,13 @@ func _scan_tiles(ctx: SimContext) -> void:
 	elif dev_count > 0:
 		_centre = Vector2i(dev_x / dev_count / 2, dev_y / dev_count / 2)
 	_add_arcology_load(ctx)
+	_tourism_crime.fill(0)
+	_tourism_nightlife.fill(0)
+	var tourism := ctx.system(&"tourism")
+	if tourism != null and tourism.has_method("environmental_effects"):
+		var effects: Dictionary = tourism.call("environmental_effects", _developed)
+		_tourism_crime = effects.crime
+		_tourism_nightlife = effects.nightlife
 
 
 ## The zone kind whose port figures a port or military piece uses: its own
@@ -315,11 +326,8 @@ func _add_arcology_load(ctx: SimContext) -> void:
 			continue
 		@warning_ignore("integer_division")
 		var pollution := int(entry.get("pollution", 0)) / blocks.size()
-		@warning_ignore("integer_division")
-		var crime := int(entry.get("crime", 0)) / blocks.size()
 		for b in blocks:
 			_block_emission[b] += pollution
-			_block_crime[b] += crime
 
 
 # ── Pollution ────────────────────────────────────────────────────────────
@@ -487,6 +495,7 @@ func _update_land_value(ctx: SimContext) -> void:
 					- traffic[bi] / Params.RES_TRAFFIC_DIVISOR
 				if block_density < Params.QUIET_DENSITY:
 					value += Params.QUIET_BONUS
+			if Zones.is_residential(zone): value -= _tourism_nightlife[bi]
 			if _abandoned_tbl[bld[(by * 2) * W + bx * 2]] != 0:
 				@warning_ignore("integer_division")
 				value /= 2
@@ -594,7 +603,7 @@ func _update_crime(ctx: SimContext) -> void:
 				sum += _base[bi + BLOCKS]
 				count += 1
 			@warning_ignore("integer_division")
-			var value := clampi(sum / count, 0, 255)
+			var value := clampi(sum / count + _tourism_crime[bi], 0, 255)
 			crime[bi] = value
 			total += value
 			bi += 1

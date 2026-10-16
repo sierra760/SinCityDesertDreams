@@ -186,7 +186,9 @@ func _run_census(ctx: SimContext) -> void:
 		var agricultural_jobs := int(agriculture.call("jobs"))
 		jobs += agricultural_jobs
 		ctx.stats.agricultural_jobs = agricultural_jobs
-	ctx.stats.jobs = jobs
+	var tourism := ctx.system(&"tourism")
+	ctx.stats.tourism_jobs = int(tourism.call("jobs")) if tourism != null else 0
+	ctx.stats.jobs = jobs + ctx.stats.tourism_jobs
 
 
 static func _lot_capacity(zones: SimSystem, asks_zones: bool, id: int) -> int:
@@ -697,12 +699,14 @@ func load(data: Dictionary) -> void:
 				var counted := _census.duplicate()
 				var jobs := ctx.stats.jobs
 				var agricultural_jobs := ctx.stats.agricultural_jobs
+				var tourism_jobs := ctx.stats.tourism_jobs
 				_run_census(ctx)
 				if residents() <= 0:
 					# Nobody to count: leave the saved figures exactly as they were.
 					_census = counted
 					ctx.stats.jobs = jobs
 					ctx.stats.agricultural_jobs = agricultural_jobs
+					ctx.stats.tourism_jobs = tourism_jobs
 				_settle_city(ctx)
 			_settled = true
 		if ctx.city.status < 0 or ctx.city.status >= PopulationParams.STATUS_NAMES.size():

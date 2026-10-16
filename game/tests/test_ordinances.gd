@@ -27,11 +27,11 @@ func make_ordinances(ctx: SimContext) -> OrdinanceSystem:
 	return o
 
 
-func test_catalog_has_twenty_policies_in_three_groups() -> void:
+func test_catalog_has_twenty_one_policies_in_three_groups() -> void:
 	var ctx := make_ctx(flat_city())
 	var o := make_ordinances(ctx)
 	var rows := o.catalog()
-	check_eq(rows.size(), 20)
+	check_eq(rows.size(), 21)
 	var groups := {}
 	var names := {}
 	for row in rows:
@@ -42,7 +42,7 @@ func test_catalog_has_twenty_policies_in_three_groups() -> void:
 		check(ctx.stats.ordinances.has(row["key"]), "flag published for %s" % row["key"])
 		check(not bool(ctx.stats.ordinances[row["key"]]), "everything starts off")
 	check_eq(int(groups[OrdinanceParams.GROUP_FINANCE]), 6)
-	check_eq(int(groups[OrdinanceParams.GROUP_SAFETY]), 7)
+	check_eq(int(groups[OrdinanceParams.GROUP_SAFETY]), 8)
 	check_eq(int(groups[OrdinanceParams.GROUP_CITY]), 7)
 	check_eq(ctx.stats.ordinance_income, 0)
 	check_eq(ctx.stats.ordinance_cost, 0)
@@ -216,7 +216,7 @@ func test_flags_survive_save_and_load() -> void:
 	check(not o2.is_enabled(&"sales_tax"))
 	check_eq(ctx2.stats.ordinance_income, ctx.stats.ordinance_income)
 	check_eq(ctx2.stats.ordinance_cost, ctx.stats.ordinance_cost)
-	check_eq(ctx2.stats.ordinances.size(), 20)
+	check_eq(ctx2.stats.ordinances.size(), 21)
 
 
 ## True when the Simulation loaded every system script. A sibling package with

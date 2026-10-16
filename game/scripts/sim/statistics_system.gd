@@ -100,6 +100,7 @@ func _sample(ctx: SimContext) -> void:
 	st.record(&"population", st.total_population(), keep)
 	st.record(&"tourists", st.tourists, keep)
 	st.record(&"tourist_occupancy", st.tourist_occupancy, keep)
+	st.record(&"tourist_reputation", st.tourist_reputation_milli, keep)
 	var budget := ctx.system(&"budget")
 	var booking: Dictionary = budget.call("tourism_booking") if budget != null and budget.has_method("tourism_booking") else {}
 	@warning_ignore("integer_division")
@@ -132,7 +133,7 @@ func _sample(ctx: SimContext) -> void:
 	var transport := ctx.system(&"transport")
 	var riders := 0
 	if transport != null and transport.has_method("monthly_ridership"):
-		riders = int(transport.call("monthly_ridership"))
+		riders = int(transport.call("monthly_total_ridership" if transport.has_method("monthly_total_ridership") else "monthly_ridership"))
 	st.record(&"transit_riders", riders, keep)
 	_samples += 1
 

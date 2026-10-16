@@ -345,3 +345,10 @@ rather than adding it again on repeated sampling. New parcels calculate exact
 job units from member area, then share whole jobs deterministically across
 active parcel IDs. A commute destination is an actual member tile with a
 positive job assignment. See [Agriculture](agriculture.md).
+
+
+Tourism positions, resident-filled positions and incoming staff remain distinct.
+Both replacing censuses retain exactly one tourism jobs contribution. Physical beds,
+staff-supported plans and utility-accepted attendance are different counts in Budget
+and Inspect. Residents alone determine population, cohorts, unemployment and voting;
+tourist trips and segment totals never enter those counts.

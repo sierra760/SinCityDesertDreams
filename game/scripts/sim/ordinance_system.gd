@@ -69,14 +69,20 @@ func set_enabled(k: StringName, on: bool) -> void:
 func estimated_yearly(k: StringName) -> int:
 	if _ctx == null or not is_known(k):
 		return 0
+	if k == &"casino_safety":
+		var tourism := _ctx.system(&"tourism")
+		return -int(tourism.call("program_estimated_annual_cents")) / 100 if tourism != null else 0
 	return _yearly_amount(k, _ctx.stats.total_population())
 
 
 ## {income, cost} in yearly dollars for the enabled ordinances. Read by the budget.
-func yearly_totals() -> Dictionary:
+func yearly_totals(include_visitor_estimate: bool = true) -> Dictionary:
 	if _ctx == null:
 		return {"income": 0, "cost": 0}
-	return _totals(_ctx.stats)
+	var totals := _totals(_ctx.stats)
+	if include_visitor_estimate and is_enabled(&"casino_safety"):
+		totals.cost -= estimated_yearly(&"casino_safety")
+	return totals
 
 
 ## Demand-side tax rates after ordinance adjustments (residential, commercial, industrial).

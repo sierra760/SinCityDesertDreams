@@ -167,3 +167,10 @@ preview consumes no live storage, weather draw or city funds. Inspect reports
 the requested member total and whether every member is supplied. Empty holes
 inside a parcel's bounds draw no agricultural water.
 See [Agriculture](agriculture.md) for the load table and lifecycle.
+
+
+Visitor water demand is additional actual allocator demand above building baseline.
+Budget's last accepted guest/day support is attendance, not physical bed capacity.
+The supported estimate conservatively retains a limited venue's accepted ceiling
+until the next monthly admission tests new headroom; reports never rebuild component
+graphs or reserve supply. Inspect uses singular/plural water units consistently.

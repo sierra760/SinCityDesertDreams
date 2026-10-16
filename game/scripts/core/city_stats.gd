@@ -15,6 +15,8 @@ var demand := Vector3i.ZERO
 ## Independent agricultural demand, displayed in [-999, 999].
 var demand_agricultural := 0
 var agricultural_jobs := 0
+## Tourism opportunities, included exactly once in jobs; filled labor is separate.
+var tourism_jobs := 0
 var agricultural_lots := 0
 var population := 0            ## ordinary residents (arcologies excluded)
 var arcology_population := 0  ## Obsolete legacy migration field; never residents.
@@ -23,6 +25,8 @@ var tourist_guests := 0
 var tourist_day_visitors := 0
 var tourist_capacity := 0
 var tourist_occupancy := 0
+## Derived from authoritative tourism state on restore/publication.
+var tourist_reputation_milli := 60000
 var tourist_lodging_cents := 0
 var tourist_gaming_cents := 0
 ## Twenty cohorts of five years each.

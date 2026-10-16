@@ -181,6 +181,72 @@ func port_report() -> Array[Dictionary]:
 	return out
 
 
+## Cached civilian discovery. Uses real member frontages and a shared flood
+## from navigable map-edge water, never vehicle spawning or simulation RNG.
+var _tourism_layers: Array = []
+var _tourism_ports: Array[Dictionary] = []
+
+func tourism_gateways() -> Array[Dictionary]:
+	if _ctx == null: return []
+	var city := _ctx.city
+	var flooded := PackedInt32Array()
+	for p: Variant in city.flood_overlay:
+		if p is Vector2i and city.in_bounds(p.x,p.y): flooded.append(p.y*City.WIDTH+p.x)
+	flooded.sort()
+	var layers: Array = [city.zone.data,city.building.data,city.flags.data,city.terrain.data,city.altitude.data,flooded]
+	if layers == _tourism_layers: return _tourism_ports.duplicate(true)
+	_tourism_layers = layers.duplicate(true)
+	_tourism_ports.clear()
+	_ensure_ports(city)
+	var sea := {}
+	var queue := PackedInt32Array()
+	for i in City.WIDTH*City.HEIGHT:
+		var tile := _tile_of(i)
+		if _is_edge(tile) and _navigable(city,tile):
+			sea[i] = true
+			queue.append(i)
+	var head := 0
+	while head < queue.size():
+		var tile := _tile_of(queue[head])
+		head += 1
+		for direction in SHORE_ORDER:
+			var next := tile+direction
+			var index := next.y*City.WIDTH+next.x
+			if not sea.has(index) and _navigable(city,next):
+				sea[index] = true
+				queue.append(index)
+	for port in _ports:
+		if not port.operating or port.kind == Zones.MILITARY: continue
+		if port.kind == Zones.SEAPORT:
+			var navigable := false
+			for crane: Vector2i in port.crane_tiles:
+				var berth := _berth_of(city,crane)
+				if city.in_bounds(berth.x,berth.y) and sea.has(berth.y*City.WIDTH+berth.x): navigable = true
+			if not navigable: continue
+		var states := PackedInt32Array()
+		var seen := {}
+		for member: Vector2i in port.tiles:
+			if city.is_water(member.x,member.y): continue
+			for direction in SHORE_ORDER:
+				var next := member+direction
+				if not city.in_bounds(next.x,next.y) or port.tile_set.has(next): continue
+				var cls := TransportParams.surface_class(city.building_at(next.x,next.y))
+				var mode := -1
+				if cls & (TransportParams.SURFACE_ROAD | TransportParams.SURFACE_RAMP): mode = TransportSystem.MODE_CAR
+				elif cls & TransportParams.SURFACE_STATION: mode = TransportSystem.MODE_STATION
+				if mode < 0: continue
+				var state := mode*TransportSystem.TILES+next.y*City.WIDTH+next.x
+				if not seen.has(state):
+					seen[state] = true
+					states.append(state)
+		if states.is_empty(): continue
+		states.sort()
+		var kind := "airport" if port.kind == Zones.AIRPORT else "harbor"
+		_tourism_ports.append({"id":"%s:%d" % [kind,port.anchor.y*City.WIDTH+port.anchor.x],
+			"kind":kind,"anchor":port.anchor,"capacity":6000 if kind == "airport" else 1500,"states":states})
+	return _tourism_ports.duplicate(true)
+
+
 # ── Port enumeration ─────────────────────────────────────────────────────
 
 func _ensure_ports(city: City) -> void:

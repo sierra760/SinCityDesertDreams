@@ -363,7 +363,7 @@ func test_ports_bases_and_arcologies_bring_crime_and_pollution() -> void:
 	tourism.setup(crowded)
 	tourism.finish_restore({})
 	check_eq(tourism.report()[0].pollution, 10, "one load derived from current tourists")
-	check_eq(tourism.report()[0].crime, 5)
+	check_eq(tourism.report()[0].crime, 32.5, "premium security replaces old tourist truncation")
 	check_eq(crowded.stats.total_population(), 0)
 	run_months(EnvironmentSystemScript.new(), crowded, 2)
 	run_months(EnvironmentSystemScript.new(), make_ctx(empty), 2)

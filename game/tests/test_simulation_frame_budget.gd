@@ -4,6 +4,12 @@
 
 extends "res://tests/test_case.gd"
 
+class ClockOnlyTourism extends TourismSystem:
+	func reconcile_now() -> void:
+		pass
+	func finish_restore(_snapshot: Dictionary) -> Error:
+		return OK
+
 func _simulation() -> Simulation:
 	var sim := make_simulation(flat_city())
 	sim.set_process(false)
@@ -11,6 +17,8 @@ func _simulation() -> Simulation:
 	# separately by the real-city fixed-work profile.
 	sim.systems.clear()
 	sim._system_index.clear()
+	# Keep the required direct tourism hooks inert while isolating clock admission.
+	sim._system_index[&"tourism"] = ClockOnlyTourism.new()
 	sim.set_speed(GameClock.Speed.FASTEST)
 	return sim
 

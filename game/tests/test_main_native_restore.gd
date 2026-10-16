@@ -155,7 +155,15 @@ func test_damaged_nested_snapshot_keeps_current_city_and_runtime() -> void:
 		{"systems": {"services": {"prisons": {"0,0": 1}}}},
 		{"systems": {"disasters": {"entities": [1]}}},
 	]:
-		check_eq(SaveFormat.save(SAVE, replacement, damaged), OK)
+		check_eq(host.files.write_save(SAVE), OK)
+		var valid_bytes := FileAccess.get_file_as_bytes(SAVE)
+		check_eq(SaveFormat.save(SAVE, replacement, damaged), ERR_INVALID_DATA,"high-level writer rejects malformed nested source")
+		check_eq(FileAccess.get_file_as_bytes(SAVE),valid_bytes,"rejected write preserves previous valid save")
+		# Same raw envelope fixture used by test_save_format: reach reader validation
+		# independently of the high-level writer's intentional source validation.
+		var doc := {"format":SaveFormat.FORMAT,"version":SaveFormat.VERSION,
+			"stage":SaveFormat.STAGE_PLAY,"city":SaveFormat.encode_city(replacement),"snapshot":damaged}
+		check_eq(SaveFormat._write_replacement(SAVE,JSON.stringify(doc).to_utf8_buffer()),OK)
 		check(not host.load_city(SAVE), "host refuses nested damage")
 		check(host.sim.city == current, "original city remains bound")
 		check_eq(SaveFormat.encode_city(host.sim.city), data, "original city bytes remain")

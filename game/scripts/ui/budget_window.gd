@@ -56,6 +56,9 @@ var _tourism_values: Dictionary = {}
 var _tourism_capacity: Label
 var _tourism_tax: Label
 var _tourism_accrued: Label
+var _tourism_calendar: Label
+var _tourism_limiter: Label
+var _tourism_detail_sections: Dictionary = {}
 var _tourism_details: Button
 var _tourism_detail_body: VBoxContainer
 var _tax_spinners: Dictionary = {}       ## kind -> TouchNumberField
@@ -92,6 +95,38 @@ func _ready() -> void:
 	_build()
 	_built = true
 	hide()
+	_bind_chrome_bounds.call_deferred()
+
+
+## Budget can fill a short display. Its title must stay below the host's actual
+## menu edge, including the existing portrait camera-band placement.
+func _layout_host() -> GameHost:
+	var node:=get_parent()
+	while node!=null:
+		if node is GameHost: return node as GameHost
+		node=node.get_parent()
+	return null
+
+func _bind_chrome_bounds() -> void:
+	var host:=_layout_host()
+	if host==null: return
+	host.menu_bar.item_rect_changed.connect(_schedule_chrome_fit)
+	host.menu_bar.visibility_changed.connect(_schedule_chrome_fit)
+	host.display_layout.metrics_changed.connect(func(_metrics: Dictionary): _schedule_chrome_fit())
+	_schedule_chrome_fit()
+
+func _schedule_chrome_fit() -> void:
+	_fit_below_menu.call_deferred()
+
+func _fit_below_menu() -> void:
+	var host:=_layout_host()
+	if host==null or not is_instance_valid(_root): return
+	var bounds:=host.display_layout.logical_rect()
+	if host.menu_bar.visible:
+		var top:=maxf(bounds.position.y,host.menu_bar.get_global_rect().end.y)
+		bounds=Rect2(Vector2(bounds.position.x,top),Vector2(bounds.size.x,maxf(0.0,bounds.end.y-top)))
+	_root.set_meta("display_usable_rect",bounds)
+	_root.call("_schedule_fit")
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -129,6 +164,7 @@ func bind(sim: Simulation) -> void:
 func open() -> void:
 	show()
 	refresh()
+	_fit_below_menu.call_deferred()
 
 
 func close() -> void:
@@ -210,6 +246,10 @@ static func condition_text(sim: Simulation) -> String:
 			riders.append("%s %s" % [entry[1], UIFactory.commafy(series[series.size() - 1])])
 	if not riders.is_empty():
 		lines.append("Transit riders last year: " + ", ".join(riders))
+	var transport := sim.get_system(&"transport")
+	if transport != null:
+		var trips: Dictionary = transport.tourism_report()
+		lines.append("Visitor trips: %s completed; %s pending; %s unsampled. Resident commutes are counted separately." % [UIFactory.commafy(int(trips.completed)),UIFactory.commafy(int(trips.pending)),UIFactory.commafy(int(trips.unsampled))])
 	return "\n".join(lines)
 
 
@@ -414,9 +454,14 @@ func _build_tourism(parent: VBoxContainer) -> void:
 	_tourism_tax = _tourism_text("$0 / year", UITheme.MONEY_POSITIVE)
 	_tourism_tax.name = "TourismTaxEstimate"
 	_tourism_section.add_child(_tourism_tax)
+	_tourism_calendar = _tourism_text("")
+	_tourism_calendar.name = "TourismCalendar"
+	_tourism_limiter = _tourism_text("")
+	_tourism_limiter.name = "TourismLimiter"
+	_tourism_section.add_child(_tourism_limiter)
 	_tourism_accrued = _tourism_text("")
 
-	_tourism_section.add_child(_tourism_text("Forecast settles monthly; taxes pay annually.", UITheme.TEXT_MUTED))
+	_tourism_section.add_child(_tourism_text("Attendance updates monthly; taxes pay annually.", UITheme.TEXT_MUTED))
 	_tourism_details = UIFactory.make_button("Details", "Show tourism calculations and taxable business")
 	_tourism_details.name = "TourismDetails"
 	_tourism_details.toggle_mode = true
@@ -429,10 +474,18 @@ func _build_tourism(parent: VBoxContainer) -> void:
 	_tourism_detail_body.hide()
 	_tourism_section.add_child(_tourism_detail_body)
 	_tourism_label = _tourism_text("")
+	_tourism_detail_body.add_child(UIFactory.make_section_header("Income and estimates"))
 	_tourism_detail_body.add_child(_tourism_label)
+	for title in ["Visitors and staff","Access and services","Reputation and events","Municipal program and shops"]:
+		_tourism_detail_body.add_child(UIFactory.make_section_header(title))
+		var label := _tourism_text("")
+		_tourism_detail_sections[title] = label
+		_tourism_detail_body.add_child(label)
+		if title == "Reputation and events": _tourism_detail_body.add_child(_tourism_calendar)
 	_tourism_details.toggled.connect(func(expanded: bool) -> void:
 		_tourism_detail_body.visible = expanded
-		_tourism_details.text = "Hide details" if expanded else "Details")
+		_tourism_details.text = "Hide details" if expanded else "Details"
+		if expanded: _refresh_tourism())
 
 
 static func _tourism_text(text: String, color: Color = UITheme.TEXT_PRIMARY) -> Label:
@@ -444,37 +497,57 @@ static func _tourism_text(text: String, color: Color = UITheme.TEXT_PRIMARY) -> 
 
 func _refresh_tourism() -> void:
 	var tourism := _sim.tourism() if _sim != null and _sim.city != null else null
-	var projection: Dictionary = tourism.forecast() if tourism != null else {}
+	var projection: Dictionary = tourism.supported_forecast(-1,-1,true) if tourism != null else {}
 	var stats := _sim.stats if tourism != null else CityStats.new()
 	var metrics := {
-		"guests": [UIFactory.commafy(stats.tourist_guests), UIFactory.commafy(int(projection.get("guests", 0)))],
-		"day": [UIFactory.commafy(stats.tourist_day_visitors), UIFactory.commafy(int(projection.get("day_visitors", 0)))],
-		"occupancy": ["%d%%" % stats.tourist_occupancy, "%d%%" % int(projection.get("occupancy", 0))]}
+		"guests": [UIFactory.commafy(stats.tourist_guests), UIFactory.commafy(int(projection.get("guests",0)))],
+		"day": [UIFactory.commafy(stats.tourist_day_visitors), UIFactory.commafy(int(projection.get("day_visitors",0)))],
+		"occupancy": ["%d%%"%stats.tourist_occupancy,"%d%%"%int(projection.get("occupancy",0))]}
 	for metric in metrics:
-		for column in 2:
-			_tourism_values[metric][column].text = metrics[metric][column]
-	var total_capacity := 0
-	if tourism != null:
-		for row: Dictionary in tourism.report(): total_capacity += int(row.capacity)
-	_tourism_capacity.text = "Beds: %s operating / %s total" % [UIFactory.commafy(int(projection.get("capacity", 0))), UIFactory.commafy(total_capacity)] if tourism != null else "No city loaded"
+		for column in 2: _tourism_values[metric][column].text=metrics[metric][column]
 	var budget := _budget()
-	var estimate: Dictionary = budget.call("estimated_ledger") if budget != null else {}
-	_tourism_tax.text = UIFactory.format_amount(int(estimate.get(&"taxes_occupancy", 0)) + int(estimate.get(&"taxes_gaming", 0))) + " / year"
-	_tourism_accrued.text = "Accrued this year: " + UIFactory.format_amount(int(stats.ledger.get(&"taxes_occupancy", 0)) + int(stats.ledger.get(&"taxes_gaming", 0)))
-	if tourism == null:
-		_tourism_label.text = "No active tourism economy"
+	var estimate: Dictionary=budget.call("estimated_ledger") if budget!=null else {}
+	_tourism_tax.text=UIFactory.format_amount(int(estimate.get(&"taxes_occupancy",0))+int(estimate.get(&"taxes_gaming",0)))+" / year at this month’s pace"
+	_tourism_accrued.text="Actual accrued this year: "+UIFactory.format_amount(int(stats.ledger.get(&"taxes_occupancy",0))+int(stats.ledger.get(&"taxes_gaming",0)))
+	if tourism==null:
+		_tourism_capacity.text="No city loaded"
+		_tourism_limiter.text=""
+		_tourism_calendar.text=""
+		_tourism_label.text="No active tourism economy"
 		return
-	var target := 0
-	for row: Dictionary in projection.get("rows", []):
-		target += int(row.target_guests)
-	var capacity := int(projection.get("capacity", 0))
-	@warning_ignore("integer_division")
-	var target_percent := target * 100 / capacity if capacity > 0 else 0
-	_tourism_label.text = "Current occupancy %d%%: %s guests / %s operating beds; %s day visitors.\nTarget occupancy %d%%: %s guests. Settled forecast %d%%: %s guests, %s day visitors.\nCompleted monthly taxable bases: lodging $%.2f; gaming after payouts $%.2f.\nMonthly taxable business forecast: lodging $%.2f; gaming after payouts $%.2f.\n%s\nRates apply at the next booking. Attendance changes monthly with gradual guest turnover. Tourism estimates show twelve months at settled settings; accrued taxes reach the treasury at annual settlement. Mayor play is separate." % [
-		_sim.stats.tourist_occupancy, UIFactory.commafy(_sim.stats.tourist_guests), UIFactory.commafy(capacity), UIFactory.commafy(_sim.stats.tourist_day_visitors),
-		target_percent, UIFactory.commafy(target), int(projection.get("occupancy", 0)), UIFactory.commafy(int(projection.get("guests", 0))), UIFactory.commafy(int(projection.get("day_visitors", 0))),
-		_sim.stats.tourist_lodging_cents / 100.0, _sim.stats.tourist_gaming_cents / 100.0,
-		int(projection.get("lodging_cents", 0)) / 100.0, int(projection.get("gaming_cents", 0)) / 100.0, String(projection.get("explanation", ""))]
+	var utilities := tourism.utility_report()
+	var staff := tourism.staffing_report()
+	_tourism_capacity.text="Physical beds: %s. Last accepted support: %s guests / %s day visitors." % [UIFactory.commafy(int(projection.physical_capacity)),UIFactory.commafy(utilities.supported_guests),UIFactory.commafy(utilities.supported_days)]
+	var limiter := "Demand at current taxes and season"
+	if int(projection.stock_venues)==0: limiter="No tourism venues"
+	elif int(projection.operating_venues)==0: limiter="Closed venues: power, water, access or fire"
+	elif int(projection.support_limited_venues)>0: limiter="Local power or water capacity"
+	elif int(projection.awaiting_support_venues)>0: limiter="Awaiting monthly support plan"
+	elif int(projection.staff_limited_guest_venues)+int(projection.staff_limited_day_venues)>0: limiter="Available staff"
+	elif int(projection.capacity)>0 and int(projection.guests)>=int(projection.capacity): limiter="Available beds"
+	elif int(projection.day_capacity)>0 and int(projection.day_visitors)>=int(projection.day_capacity): limiter="Available day-visitor capacity"
+	_tourism_limiter.text="Main limit: "+limiter
+	if _tourism_detail_body.visible: _refresh_tourism_details(tourism,projection,staff,utilities)
+
+func _refresh_tourism_details(tourism: TourismSystem, projection: Dictionary, staff: Dictionary, utilities: Dictionary) -> void:
+	var rows := tourism.report()
+	var segment_guests := [0,0,0,0]
+	var segment_days := [0,0,0,0]
+	for row: Dictionary in rows:
+		for segment in 4:
+			segment_guests[segment]+=int(row.guest_segments[segment])
+			segment_days[segment]+=int(row.day_segments[segment])
+	_tourism_label.text="Completed monthly taxable bases: lodging $%.2f; gaming after payouts $%.2f.\nSupported estimate: lodging $%.2f / month; gaming $%.2f / month.\nBasis: this month’s season/events ×12; last accepted utility support. Next support update: monthly admission. See Help → Tourism." % [_sim.stats.tourist_lodging_cents/100.0,_sim.stats.tourist_gaming_cents/100.0,int(projection.lodging_cents)/100.0,int(projection.gaming_cents)/100.0]
+	_tourism_detail_sections["Visitors and staff"].text=TourismMarkets.mix_text(segment_guests,segment_days)+"\nPositions: %d; resident-filled: %d; incoming staff: %d.\nLast plan: %d guests / %d day visitors; staff supported: %d / %d." % [staff.positions,staff.local_staff,staff.incoming_staff,staff.planned_guests,staff.planned_day_visitors,staff.supported_capacity,staff.supported_day_capacity]
+	var effects := tourism.extension_report()
+	var trips := tourism.transport_report()
+	_tourism_detail_sections["Access and services"].text="Arrival capacity: %d shared seats / month; %d gateways.\nLast visitor transport: %d completed trips; %d deferred. Trips do not add visitors.\nVisitor demand: %d power / %d water units above building demand. %d venues utility-limited." % [int(effects.access.arrival_capacity),int(effects.access.gateway_count),int(trips.get("completed",0)),int(trips.get("pending",0)),utilities.power,utilities.water,utilities.limited_venues]
+	var rep := tourism.reputation_report()
+	_tourism_detail_sections["Reputation and events"].text="Reputation: %.2f / 100. Current demand: %.2f%%; next month: %.2f%%.\n%s experience: %s." % [int(rep.value_milli)/1000.0,int(rep.current_factor_milli)/1000.0,int(rep.future_factor_milli)/1000.0,rep.period_date,"%.2f / 100"%(int(rep.experience_milli)/1000.0) if int(rep.experience_milli)>=0 else "no accepted visitors"]
+	var calendar: Dictionary=projection.calendar
+	var event: Dictionary=calendar.get("next_event",{})
+	_tourism_calendar.text="Season: %d%%. %s" % [int(calendar.season_percent),"Next event: %s, %s — %s."%[event.name,event.date,event.status] if not event.is_empty() else "No announced upcoming event."]
+	_tourism_detail_sections["Municipal program and shops"].text="Casino Safety Program: %s. Completed cost: $%.3f; estimate if enabled: $%.2f / year at this month’s pace.\nCasino crime source: %.3f units / month, before ordinary police mitigation.\nRetail support: $%.2f / month; $%.2f reaches nearby shops. Business support is not city cash. See Help → Tourism for the operating rules." % ["active" if effects.program_active else "inactive",int(effects.program_completed_half_cents)/200.0,int(effects.program_estimated_annual_cents)/100.0,float(effects.crime_source_milli)/1000.0,int(effects.available_spending_cents)/100.0,int(effects.allocated_spending_cents)/100.0]
 
 
 func _build_funding(parent: VBoxContainer) -> void:

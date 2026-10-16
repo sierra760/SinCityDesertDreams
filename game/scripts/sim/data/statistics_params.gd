@@ -29,5 +29,5 @@ const SERIES: Array[StringName] = [
 	&"demand_residential", &"demand_commercial", &"demand_industrial",
 	&"transit_riders",
 	&"demand_agricultural", &"agricultural_jobs", &"agricultural_lots", &"taxes_agricultural",
-	&"tourists", &"tourist_occupancy", &"taxes_occupancy", &"taxes_gaming",
+	&"tourists", &"tourist_occupancy", &"taxes_occupancy", &"taxes_gaming", &"tourist_reputation",
 ]

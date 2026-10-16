@@ -80,9 +80,9 @@ func test_month_demolition_restore_and_replacement_refresh_signal_counts() -> vo
 	var city := flat_city()
 	var anchor := Vector2i(10,10)
 	TourismFixture.venue(city,&"arcology_boddy",anchor)
-	city.stamp_building(9,10,Buildings.ROAD_FIRST)
+	for x in range(10): city.building.put(x,10,Buildings.ROAD_FIRST)
 	host.begin_city(city,{},7,null)
-	TourismFixture.set_served(city,anchor,true,true)
+	TourismFixture.established_sources(host.sim)
 	host.sim.clock.day = 16
 	host.sim.advance_day()
 	await Fixture.settle(self,8)

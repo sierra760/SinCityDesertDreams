@@ -18,7 +18,7 @@ func test_small_phone_tourism_legend_fits_actual_plot() -> void:
  check(canvas.has_method("legend_text"),"drawn legend has a bounded compact label")
  if not canvas.has_method("legend_text"): return
  var available := canvas.plot_rect().size.x-26.0
- for key in [&"tourists",&"tourist_occupancy",&"taxes_occupancy",&"taxes_gaming"]:
+ for key in [&"tourists",&"tourist_occupancy",&"taxes_occupancy",&"taxes_gaming",&"tourist_reputation"]:
   var label := String(canvas.call("legend_text",key,GraphsWindow.SERIES_LABELS[key]))
   check(canvas.get_theme_default_font().get_string_size(label,HORIZONTAL_ALIGNMENT_LEFT,-1,UITheme.FONT_SMALL).x<=available,"legend text fits plot: "+label)
   check(not label.is_empty())
@@ -62,7 +62,7 @@ func test_landscape_inspector_reveals_tourism_rows_and_preserves_controls() -> v
  var panel:=host.query_panel
  check_ge(panel.body_scroll.size.y,80,"landscape body can show multiple unwrapped tourism rows")
  for label in panel.rows.find_children("*","Label",true,false):
-  if label.text in ["Completed gaming base","Completed lodging base","Tourists"]:
+  if label.text in ["Destination reputation","Resident effects","Completed gaming base","Completed lodging base","Tourists","Casino source","Casino safety","Nightlife exposure","District appeal","Resort variety","District access","Retail support","External access","Arrival capacity","Local day access","Visitor segments","Tier yields","Visitor power","Visitor water","Utility support"]:
    panel.body_scroll.ensure_control_visible(label)
    await Fixture.settle(self,3)
    check(panel.body_scroll.get_global_rect().grow(.5).encloses(label.get_global_rect()),"entire tourism label can be revealed")
@@ -81,6 +81,9 @@ func test_budget_tourism_compact_comparison_disclosure_and_large_values_fit() ->
   host.display_layout.refresh_with_mobile_metrics(profile,1,Rect2i(Vector2i.ZERO,profile),0)
   var budget:=host.open_window("budget") as BudgetWindow
   await Fixture.settle(self,10)
+  var title: Control=budget._root.get_meta("window_chrome").title_bar
+  check_ge(title.get_global_rect().position.y,host.menu_bar.get_global_rect().end.y,"Budget title stays below actual menu end")
+  check(budget._root.get_global_rect().end.y<=host.display_layout.logical_rect().end.y,"Budget footer stays within safe bounds")
   var section:=budget.find_child("TourismSection",true,false) as Control
   var details:=budget.find_child("TourismDetails",true,false) as Button
   var body:=budget.find_child("TourismDetailBody",true,false) as Control

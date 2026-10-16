@@ -225,6 +225,7 @@ func test_updates_are_atomic_and_derive_capacities() -> void:
 	rows[0].day_visitors = 10
 	rows[0].operating = true
 	rows[0].capacity = 999999
+	TourismFixture.segment_rows(rows)
 	check_eq(state.replace_records(rows), OK)
 	check_eq(state.record_at(AT).guests, 40)
 	check_eq(state.record_at(AT).capacity, TourismParams.guest_capacity(KEY))
@@ -267,6 +268,7 @@ func test_current_snapshot_adoption_does_not_overwrite_authoritative_guests() ->
 	state.reconcile(city)
 	var saved := state.to_dict()
 	saved.records[0].guests = 37
+	TourismFixture.segment_rows(saved.records)
 	var decoded := TourismState.decode(saved, city, 0)
 	check(decoded.ok)
 	if decoded.ok:
@@ -281,6 +283,7 @@ func test_updated_authoritative_guests_survive_late_adoption() -> void:
 	state.reconcile(city)
 	var rows := state.records()
 	rows[0].guests = 37
+	TourismFixture.segment_rows(rows)
 	check_eq(state.replace_records(rows), OK)
 	state.reconcile(city, true)
 	check_eq(state.record_at(AT).guests, 37)
@@ -301,6 +304,7 @@ func test_store_growth_replacement_invalidates_identity_before_regrowth() -> voi
 			var rows := state.records()
 			rows[0].day_visitors = TourismParams.STORE_DAY_CAPACITY
 			rows[0].target_day_visitors = TourismParams.STORE_DAY_CAPACITY
+			TourismFixture.segment_rows(rows)
 			rows[0].operating = true
 			check_eq(state.replace_records(rows), OK)
 			var old_instance: int = state.record_at(AT).instance

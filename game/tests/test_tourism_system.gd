@@ -28,7 +28,7 @@ func start(city: City) -> SimContext:
 func served(city: City, key: StringName, a: Vector2i) -> void:
 	TourismFixture.venue(city, key, a)
 	TourismFixture.set_served(city, a, true, true)
-	city.stamp_building(a.x - 1, a.y, Buildings.ROAD_FIRST)
+	for x in range(a.x): city.building.put(x,a.y,Buildings.ROAD_FIRST)
 
 func test_day17_runs_once_before_budget() -> void:
 	check_eq(Simulation.SCHEDULE.get(17, []), [&"tourism"], "tourism scheduled before day-18 budget")
@@ -49,8 +49,15 @@ func test_day17_runs_once_before_budget() -> void:
 	check_eq(ctx.stats.get("tourists"), row.guests + row.day_visitors)
 	var pending: Dictionary = t.pending_bases()
 	check_eq(pending.month_id, 0)
-	check_eq(pending.lodging_cents, row.guests * 50)
-	check_eq(pending.gaming_cents, row.guests * 25 + row.day_visitors * 50)
+	# Independent sum: budget tier, opening empty, weighted half-guests.
+	var weighted_guests := 0
+	var weighted_days := 0
+	for segment in 4:
+		weighted_guests += int(row.guest_segments[segment])*int([85,100,150,110][segment])
+		weighted_days += int(row.day_segments[segment])*int([85,100,150,110][segment])
+	check_eq(pending.lodging_numerator, weighted_guests*50*100)
+	check_eq(pending.lodging_cents, weighted_guests*50/100)
+	check_eq(pending.gaming_numerator, (weighted_guests*25+weighted_days*50)*100)
 	var saved: Dictionary = t.save()
 	t.monthly(ctx)
 	check_eq(t.save(), saved, "duplicate monthly call has no effect")
@@ -77,6 +84,7 @@ func test_service_access_and_fire_clear_counts_without_admissions() -> void:
 	served(city, &"arcology_woolier", b)
 	served(city, &"com_corner_store", c)
 	var ctx := start(city)
+	ctx.stats.cohorts[PopulationParams.WORK_COHORT_MIN] = 100 # Isolate service closure from labor.
 	var t = ctx.system(&"tourism")
 	if t == null: return
 	ctx.clock.day = 16
@@ -95,11 +103,11 @@ func test_service_access_and_fire_clear_counts_without_admissions() -> void:
 	city.set_flag(b.x + 1, b.y + 1, TileFlags.POWERED, false)
 	t.daily(ctx)
 	check_eq(t.venue_report(b).tourists, 0, "all footprint members need power")
-	city.clear_footprint(c.x - 1, c.y)
+	for x in range(c.x-3,c.x): city.building.put(x,c.y,0)
 	t.networks_changed(ctx, Rect2i(c, Vector2i.ONE))
 	check_eq(t.venue_report(c).tourists, 0, "road access loss clears attendance")
 	TourismFixture.set_served(city, b, true, true)
-	city.stamp_building(c.x - 1, c.y, Buildings.ROAD_FIRST)
+	for x in range(c.x): city.building.put(x,c.y,Buildings.ROAD_FIRST)
 	t.acknowledge_booking(0)
 	ctx.clock.day += 25
 	t.monthly(ctx)
@@ -194,6 +202,7 @@ func test_completed_activity_survives_closure_acknowledgement_and_replacement() 
 	var a := Vector2i(10, 10)
 	served(city, &"arcology_boddy", a)
 	var ctx := start(city)
+	ctx.stats.cohorts[PopulationParams.WORK_COHORT_MIN] = 100 # Isolate service closure from labor.
 	var t = ctx.system(&"tourism")
 	if t == null: return
 	ctx.clock.day = 16
@@ -227,8 +236,8 @@ func test_natural_day17_execution_and_scalar_publication() -> void:
 	sim.tourists_changed.connect(func(value: int): totals.append(value))
 	sim.setup(city, 7)
 	check_eq(totals, [0])
-	# Explicit synthetic service isolates natural scheduling from utility capacity.
-	TourismFixture.set_served(city, Vector2i(10, 10), true, true)
+	# Day17 now requires real established source budgets as well as service.
+	TourismFixture.established_sources(sim)
 	sim.advance_day()
 	check_gt(sim.stats.tourists, 0)
 	check_eq(sim.tourism().pending_bases().month_id, 0)
@@ -238,8 +247,9 @@ func test_natural_day17_execution_and_scalar_publication() -> void:
 	check_eq(sim.tourism().save().state, before.state, "day 18 never advances attendance")
 	check_eq(sim.tourism().save().activity, before.activity, "booking retains completed business")
 	check_eq(sim.tourism().save().last_month, before.last_month)
-	sim.networks_changed(Rect2i(10, 10, 2, 2))
-	check_eq(sim.stats.tourists, 0, "real utility refresh removes synthetic service before publishing")
+	city.clear_footprint(6,6)
+	sim.networks_changed(Rect2i(6,6,4,4))
+	check_eq(sim.stats.tourists, 0, "source removal clears accepted attendance before publishing")
 	check_eq(totals.back(), 0)
 	sim.free()
 
@@ -265,6 +275,8 @@ func test_equal_total_redistribution_notifies_changed_venues_only() -> void:
 	var saved: Dictionary = t.save()
 	saved.state.records[0].guests = 30
 	saved.state.records[1].guests = 10
+	TourismFixture.segment_rows(saved.state.records)
+	TourismFixture.reservation_rows(saved)
 	check_eq(t.finish_restore({"systems": {"tourism": saved}}), OK)
 	check_eq(ctx.stats.tourists, 40)
 	check_eq(changes, [[a, b]])
@@ -302,7 +314,7 @@ func test_requested_fire_clears_attendance_immediately_while_paused() -> void:
 	served(city, &"arcology_boddy", a)
 	var sim := Simulation.new()
 	sim.setup(city, 7)
-	TourismFixture.set_served(city, a, true, true)
+	TourismFixture.established_sources(sim)
 	sim.clock.day = 16
 	sim.tourism().monthly(sim._ctx)
 	check_gt(sim.stats.tourists, 0)
@@ -315,7 +327,7 @@ func test_station_access_boundary_and_current_business_after_booked_restore() ->
 	var city := flat_city()
 	var a := Vector2i(10, 10)
 	served(city, &"arcology_boddy", a)
-	city.clear_footprint(9, 10)
+	for x in range(7,10): city.building.put(x,10,0)
 	city.stamp_building(7, 10, Buildings.SUBWAY_STATION)
 	var ctx := start(city)
 	var t = ctx.system(&"tourism")

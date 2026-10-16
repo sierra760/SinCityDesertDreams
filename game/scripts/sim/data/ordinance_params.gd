@@ -26,6 +26,7 @@ const CATALOG: Array[Array] = [
 	[&"free_clinics", GROUP_SAFETY, "Free Clinics", "Walk-in clinics for anyone. Costly, and it lengthens lives."],
 	[&"junior_sports", GROUP_SAFETY, "Junior Sports", "Little leagues and after-school teams keep kids busy and learning."],
 	[&"anti_drug_campaign", GROUP_SAFETY, "Anti-Drug Campaign", "Outreach and counseling. Improves health and trims crime."],
+	[&"casino_safety", GROUP_SAFETY, "Casino Safety Program", "Reduces casino source crime by 40%. Costs 2 cents per actual visitor-month; changes apply to the next visitor period."],
 	[&"neighborhood_watch", GROUP_SAFETY, "Neighborhood Watch", "Residents keep an eye on each block. Crime falls where people look out for each other."],
 	[&"cpr_training", GROUP_SAFETY, "CPR Training", "Free first-aid courses. A few more emergencies end well."],
 	[&"pollution_controls", GROUP_CITY, "Pollution Controls", "Scrubbers and inspections for industry. Cleaner air, higher effective industrial tax."],
@@ -34,7 +35,7 @@ const CATALOG: Array[Array] = [
 	[&"homeless_shelters", GROUP_CITY, "Homeless Shelters", "Beds and meals for those without. Costly, but the city feels kinder and shops do better."],
 	[&"pro_reading_campaign", GROUP_CITY, "Pro-Reading Campaign", "Library drives and literacy tutors. Education rises a little every year."],
 	[&"tree_planting", GROUP_CITY, "Tree Planting", "Shade trees along every street. Cleaner air, and households enjoy a lower effective tax."],
-	[&"annual_carnival", GROUP_CITY, "Annual Carnival", "A week of rides and fireworks each spring. Shops enjoy a lower effective tax."],
+	[&"annual_carnival", GROUP_CITY, "Annual Carnival", "April leisure and budget visitor demand rises 25% when announced in March. Shops retain their lower effective tax."],
 ]
 
 ## Yearly dollars per PER_CAPITA_UNIT residents; positive is income.
@@ -51,6 +52,7 @@ const YEARLY_RATE := {
 	&"junior_sports": -33,
 	&"anti_drug_campaign": -27,
 	&"neighborhood_watch": -44,
+	&"casino_safety": 0, # Visitor-based actual cost is booked by Tourism/Budget.
 	&"cpr_training": -22,
 	&"pollution_controls": -40,
 	&"energy_conservation": -133,

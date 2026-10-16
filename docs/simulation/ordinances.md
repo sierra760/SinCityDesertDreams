@@ -129,6 +129,13 @@ Ordinance switches live in `stats.ordinances` and are saved with `CityStats`.
 The system's own `save()` is empty; `load()` only re-publishes the flags and
 totals.
 
-Tourist Advertising adds ten appeal points and Annual Carnival adds five to
-both city and venue tourism appeal, capped at 100%. Existing costs and zone
+Tourist Advertising adds ten appeal points to city and venue tourism appeal,
+capped at 100%. Annual Carnival raises eligible April segment demand after notice. Existing costs and zone
 effects remain separate. See [Tourism](tourism.md).
+
+
+Casino Safety Program has an explicit completed visitor-period cost. Its Budget
+quote uses the current-supported attendance estimate at this month's pace ×12;
+actual cost remains based on completed half-guest-month/day activity. Changes apply
+to the next visitor period. Annual Carnival is announced before its April event;
+cancellation removes its demand bonus without inventing income or replaying costs.

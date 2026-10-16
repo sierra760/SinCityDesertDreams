@@ -61,6 +61,7 @@ var _crime := PackedByteArray()
 ## Last transport pass supplies monthly city-wide residential access pressure.
 ## Recomputed for each growth phase, including after a mid-month load.
 var _commute_success := 1.0
+var _tourism: SimSystem
 
 
 func _init() -> void:
@@ -87,6 +88,7 @@ func setup(ctx: SimContext) -> void:
 
 
 func monthly(ctx: SimContext, phase: int = 0) -> void:
+	_tourism = ctx.system(&"tourism")
 	_commute_success = 1.0
 	var transport := ctx.system(&"transport")
 	if transport != null and transport.has_method("unreachable_ratio"):
@@ -246,6 +248,9 @@ func _take_census(city: City, stats: CityStats) -> PackedInt32Array:
 ## CityStats.jobs counts the ports' jobs too, as the population census does,
 ## so the figure does not change meaning between the two passes of a month.
 func _add_port_jobs(ctx: SimContext) -> void:
+	var tourism := ctx.system(&"tourism")
+	ctx.stats.tourism_jobs = int(tourism.call("jobs")) if tourism != null else 0
+	ctx.stats.jobs += ctx.stats.tourism_jobs
 	var ports := ctx.system(&"ports")
 	if ports != null and ports.has_method("jobs"):
 		ctx.stats.jobs += int(ports.call("jobs"))
@@ -300,8 +305,9 @@ func _update_demand(ctx: SimContext) -> void:
 	var agriculture := ctx.system(&"agriculture")
 	if agriculture != null and agriculture.has_method("jobs"):
 		agricultural_job_units = float(agriculture.call("jobs")) / Params.PEOPLE_PER_UNIT
+	var tourism_job_units := float(stats.tourism_jobs) / Params.PEOPLE_PER_UNIT
 	@warning_ignore("integer_division")
-	var res_target := minf(maxf(float(Params.RES_TARGET_FLOOR), float(jobs + port_job_units + r / Params.RES_SELF_GROWTH_DIVISOR) + agricultural_job_units),
+	var res_target := minf(maxf(float(Params.RES_TARGET_FLOOR), float(jobs + port_job_units + r / Params.RES_SELF_GROWTH_DIVISOR) + agricultural_job_units + tourism_job_units),
 		minf(float(c * Params.RES_PER_COMMERCIAL + Params.RES_BASE_TARGET),
 			float((Params.RES_CAP_BASE + recreation) * Params.RES_CAP_STEP)))
 
@@ -328,7 +334,8 @@ func _update_demand(ctx: SimContext) -> void:
 	# family feels; property tax still charges the player's rates.
 	var felt := OrdinanceSystem.effective_rates(stats)
 	var taxes: Array[int] = [felt.x, felt.y, felt.z]
-	var nudges: Array[int] = [0, port_bonus.y + trade_bonus, port_bonus.z + trade_bonus]
+	var tourism_demand := int(_tourism.call("commercial_demand_bonus")) if _tourism != null else 0
+	var nudges: Array[int] = [0, port_bonus.y + trade_bonus + tourism_demand, port_bonus.z + trade_bonus]
 	if stats.ordinances.get(&"pro_reading_campaign", false):
 		nudges[Params.FAMILY_RESIDENTIAL] += Params.READING_NUDGE
 
@@ -459,6 +466,8 @@ func _growth_points(anchor: Vector2i, family: int, connected: bool) -> int:
 		g += _land_value[b] * Params.LAND_VALUE_WEIGHT
 	g -= maxi(0, _pollution[b] - Params.POLLUTION_TOLERANCE) * Params.POLLUTION_WEIGHT[family]
 	g -= maxi(0, _crime[b] - Params.CRIME_TOLERANCE) * Params.CRIME_WEIGHT[family]
+	if family == Params.FAMILY_COMMERCIAL and _tourism != null:
+		g += int(_tourism.call("commercial_bonus", anchor))
 	g = clampi(g, 0, Params.GROWTH_POINTS_MAX)
 	if family == Params.FAMILY_RESIDENTIAL:
 		g = int(g * _commute_success)

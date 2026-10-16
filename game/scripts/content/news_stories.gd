@@ -24,6 +24,14 @@ const QUIET := &"quiet_month"
 
 ## kind -> {priority, decay, headlines: [String], body: [paragraph String]}
 const STORIES: Dictionary = {
+	&"tourism_event_announced": {
+		"priority": NOTABLE, "decay": ONCE,
+		"headlines": ["{event} Scheduled For {date}"],
+		"body": ["{city} has announced {event} for {date}. Eligible visitor markets receive a seasonal event boost, subject to available transport, staff, beds, power and water. The event will be cancelled if its qualifying services are lost."]},
+	&"tourism_event_cancelled": {
+		"priority": NOTABLE, "decay": ONCE,
+		"headlines": ["{event} Cancelled For {date}"],
+		"body": ["{event} will not bring its advertised visitor boost: qualifying services are no longer available. Completed visitor business remains on the books. The city can qualify again next year."]},
 	&"generic": {
 		"priority": MINOR, "decay": SLOW,
 		"headlines": [
@@ -920,7 +928,7 @@ const DISTRICTS: Array[String] = [
 	"the southwest corner", "the south end", "the southeast corner",
 ]
 
-const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind"]
+const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind", "event", "date"]
 
 
 static func kinds() -> Array[StringName]:
@@ -1004,6 +1012,8 @@ static func values_for(kind: StringName, args: Dictionary, city_name: String, ma
 		"count": count_text(args),
 		"place": place_text(args, fallback),
 		"kind": kind_text(kind, args),
+		"event": String(args.get("event","City event")),
+		"date": String(args.get("date","next month")),
 	}
 
 

@@ -6,11 +6,13 @@
 class_name TourismState
 extends RefCounted
 
-const SCHEMA := 2
+const SCHEMA := 3
 ## Largest integer exactly representable by a JSON number.
 const MAX_INSTANCE := 9007199254740991
 
 var _rows: Array[Dictionary] = []
+## Derived read-cache invalidation only; never serialized.
+var revision := 0
 var _next_instance := 1
 ## Canonical restored/updated rows outrank any surviving legacy metadata.
 var _adopted_instances: Dictionary = {}
@@ -67,14 +69,18 @@ func reconcile(city: City, adopt_legacy: bool = false) -> void:
 		if adopt_legacy:
 			if not authoritative and not bool(facility.get("tourism_migrated", false)):
 				row.guests = _legacy_count(facility.get("residents", 0), row.capacity)
+				row["guest_segments"] = TourismMarkets.partition(row.guests,TourismMarkets.GUEST_WEIGHTS)
 			facility.tourism_migrated = true
 			authoritative = true
 			# Transfer has completed before removing the old occupant source.
 			facility.erase("residents")
 		if authoritative or bool(facility.get("tourism_migrated", false)):
 			adopted[int(token)] = true
+		row["guest_segments"] = TourismMarkets.counts(row)
+		row["day_segments"] = TourismMarkets.counts(row,true)
 		next.append(row)
 	_rows = next
+	revision += 1
 	_adopted_instances = adopted
 
 
@@ -180,6 +186,7 @@ func replace_records(rows_to_install: Array[Dictionary]) -> Error:
 		if not _matches_city(_city, row):
 			return ERR_INVALID_DATA
 	_rows.assign(checked.rows)
+	revision += 1
 	for row in _rows:
 		_adopted_instances[row.instance] = true
 		# Canonical attendance now owns this lot, including newly grown stores.
@@ -281,6 +288,12 @@ static func _validate_rows(input: Variant, encoded: bool, previous_roster: bool 
 			if not _integer(value.get(field), 0, limit):
 				return {"ok": false, "error": "Invalid tourism " + field}
 			row[field] = mini(int(value[field]), current_limit)
+		for pair in [["guest_segments","guests",TourismMarkets.GUEST_WEIGHTS],["day_segments","day_visitors",TourismMarkets.DAY_WEIGHTS]]:
+			var count := int(value[pair[1]])
+			if value.has(pair[0]) and not TourismMarkets.valid_segments(value[pair[0]],count):
+				return {"ok":false,"error":"Tourism segments do not conserve attendance"}
+			var segments: Array = value.get(pair[0],TourismMarkets.partition(count,pair[2]))
+			row[pair[0]] = TourismMarkets.partition(int(row[pair[1]]),segments) if count != int(row[pair[1]]) else segments.map(func(v: Variant) -> int: return int(v))
 		if not value.get("operating") is bool or not value.get("reason") is String:
 			return {"ok": false, "error": "Invalid tourism operating status"}
 		row.operating = value.operating

@@ -20,7 +20,7 @@ func start() -> SimContext:
 	var city := flat_city()
 	TourismFixture.venue(city, &"arcology_boddy", Vector2i(10, 10))
 	TourismFixture.set_served(city, Vector2i(10, 10), true, true)
-	city.stamp_building(9, 10, Buildings.ROAD_FIRST)
+	for x in range(10): city.building.put(x,10,Buildings.ROAD_FIRST)
 	var ctx := TourismFixture.context(city)
 	contexts.append(ctx)
 	var tourism := TourismSystem.new()
@@ -217,8 +217,8 @@ func test_day17_day18_and_year_end_roundtrip_equal_continuous() -> void:
 		var replay := snap(c)
 		replay.systems.tourism.pending = a.system(&"tourism").pending_bases()
 		var activity: Dictionary = replay.systems.tourism.activity
-		var bases := TourismSystem.validate_activity(activity, month)
-		replay.systems.tourism.pending = {"month_id": month, "lodging_cents": bases.lodging_cents, "gaming_cents": bases.gaming_cents}
+		var bases := TourismSystem.validate_activity(activity, month,TourismMarkets.PROFILE)
+		replay.systems.tourism.pending = {"month_id": month,"profile":TourismMarkets.PROFILE,"lodging_numerator":bases.lodging_numerator,"gaming_numerator":bases.gaming_numerator, "lodging_cents": bases.lodging_cents, "gaming_cents": bases.gaming_cents}
 		check_eq(TourismSaveCodec.problem(replay, c.city), "")
 		check_eq(c.system(&"tourism").finish_restore(replay), OK)
 		check(c.system(&"tourism").pending_bases().is_empty())
@@ -271,9 +271,10 @@ func test_stale_attendance_drops_but_earned_activity_survives_demolition() -> vo
 func test_legacy_native_v1_v2_migration_is_idempotent_and_preserves_history() -> void:
 	for version in [1, 2]:
 		var city := flat_city()
+		city.day = 3 * GameClock.DAYS_PER_MONTH + 5
 		var anchor := Vector2i(10, 10)
 		TourismFixture.venue(city, &"arcology_comstock", anchor)
-		city.stamp_building(9, 10, Buildings.ROAD_FIRST)
+		for x in range(10): city.building.put(x,10,Buildings.ROAD_FIRST)
 		city.add_facility(anchor, {"key": &"arcology_comstock", "residents": 80, "condition": 13, "built_day": -20, "built_year": 1888, "capacity": 12345, "custom": "kept"})
 		city.status = 3 # Explicit legacy resort-inflated input, not an earned-history fixture.
 		var stats := CityStats.new()
@@ -301,6 +302,7 @@ func test_legacy_native_v1_v2_migration_is_idempotent_and_preserves_history() ->
 		check_eq(sim.city.status, 0, "legacy resort-inflated class is corrected against permanent residents")
 		check_eq(sim.stats.cohorts, stats.cohorts)
 		check_eq(sim.stats.tourists, 80)
+		check_eq(sim.tourism().save().features.migration.grace_until_month, 4, "oldest native migration grants a full intervening month")
 		check_eq(sim.stats.arcology_population, 0)
 		check_eq(sim.stats.tax_gaming, 7)
 		check_eq(sim.stats.tax_occupancy, 7)
@@ -324,6 +326,15 @@ func test_legacy_native_v1_v2_migration_is_idempotent_and_preserves_history() ->
 		TourismFixture.set_served(sim.city, anchor, true, true)
 		check_eq(sim.restore(current), OK)
 		check_eq(canonical(sim.tourism().save()), first, "repeated setup/restoration retains canonical authority")
+		# Resave as schema3, then reload in a later month without renewing grace.
+		sim.clock.day = 6 * GameClock.DAYS_PER_MONTH
+		sim.city.day = sim.clock.day
+		var path := DIR.path_join("legacy-grace-resaved-" + str(version) + ".sc2d")
+		check_eq(SaveFormat.save(path, sim.city, sim.snapshot()), OK)
+		var resumed := restored_context(path)
+		if resumed != null:
+			check_eq(resumed.system(&"tourism").save().features.migration.grace_until_month, 4, "schema3 reload cannot renew expired grace")
+			check_eq(resumed.stats.tourists, 80)
 		sim.free()
 
 func test_sc2_import_starts_empty_and_defaults_to_seven_percent() -> void:
@@ -386,7 +397,7 @@ func test_impossible_calendar_and_orphaned_carry_are_rejected() -> void:
 	for value in [1, 2, 4]:
 		var bad := good.duplicate(true)
 		bad.systems.budget.carry.taxes_gaming = value
-		check_ne(TourismSaveCodec.problem(bad), "", "carry respects exact fixed-point quantum")
+		check_ne(TourismSaveCodec.problem(bad,ctx.city), "", "open-year carry covers completed exact units")
 	var lost := good.duplicate(true)
 	lost.systems.budget.carry.taxes_gaming = 0
 	check_ne(TourismSaveCodec.problem(lost, ctx.city), "", "open-year carry cannot omit its latest booking")
@@ -469,7 +480,10 @@ func test_live_facility_cannot_reuse_attendance_or_activity_identity() -> void:
 		for moved in [false, true]:
 			var ctx := start()
 			var snapshot := snap(ctx)
-			if activity_only: snapshot.systems.tourism.state.records = []
+			if activity_only:
+				snapshot.systems.tourism.state.records = []
+				snapshot.systems.tourism.features.staffing.rows = [] # Removed live opportunities; earned activity remains.
+				snapshot.systems.tourism.features.utilities.rows = [] # Removed live reservations.
 			var anchor := Vector2i(20, 20) if moved else Vector2i(10, 10)
 			var key := &"arcology_boddy" if moved else &"arcology_woolier"
 			var token := int(snapshot.systems.tourism.activity.rows[0].instance)
@@ -494,7 +508,10 @@ func test_absent_historical_lot_and_fresh_token_replacement_remain_valid() -> vo
 			var snapshot := snap(ctx)
 			snapshot.rng_seed = str(ctx.rng.seed_value())
 			snapshot.rng_state = str(ctx.rng.state())
-			if activity_only: snapshot.systems.tourism.state.records = []
+			if activity_only:
+				snapshot.systems.tourism.state.records = []
+				snapshot.systems.tourism.features.staffing.rows = [] # Removed live opportunities; earned activity remains.
+				snapshot.systems.tourism.features.utilities.rows = [] # Removed live reservations.
 			ctx.city.clear_footprint(10, 10)
 			check_eq(TourismSaveCodec.problem(snapshot, ctx.city), "", "earned business needs no standing original venue")
 			var anchor := Vector2i(20, 20) if moved else Vector2i(10, 10)
@@ -551,6 +568,20 @@ func test_previous_capacity_pending_business_normalizes_without_losing_earnings(
 	var old := snap(ctx)
 	var block: Dictionary = old.systems.tourism
 	block.schema = 1
+	block.features.access = {} # This historical fixture predates accepted-arrival ledgers.
+	block.features.markets = {}
+	block.features.staffing = {} # Historical profile has no accepted staff plan.
+	block.features.utilities = {} # Historical profile has no accepted utility reservation.
+	block.features.calendar = {} # Historical profile has no accepted event calendar.
+	block.features.reputation = {} # Historical activity predates completed experience.
+	block.erase("activity_profile")
+	for legacy: Dictionary in block.state.records:
+		legacy.erase("guest_segments")
+		legacy.erase("day_segments")
+	for legacy: Dictionary in block.activity.get("rows",[]):
+		legacy.erase("guest_half_segments")
+		legacy.erase("day_segments")
+	for field in ["profile","lodging_numerator","gaming_numerator"]: block.pending.erase(field)
 	block.state.schema = 1
 	var row: Dictionary = block.state.records[0]
 	row.capacity = 500
@@ -608,6 +639,20 @@ func old_roster_snapshot(sim: Simulation, month: int) -> Dictionary:
 	snapshot.clock_day = month * 25 + 16
 	var block: Dictionary = snapshot.systems.tourism
 	block.schema = 1
+	block.features.access = {} # This historical fixture predates accepted-arrival ledgers.
+	block.features.markets = {}
+	block.features.staffing = {} # Historical profile has no accepted staff plan.
+	block.features.utilities = {} # Historical profile has no accepted utility reservation.
+	block.features.calendar = {} # Historical profile has no accepted event calendar.
+	block.features.reputation = {} # Historical activity predates completed experience.
+	block.erase("activity_profile")
+	for legacy: Dictionary in block.state.records:
+		legacy.erase("guest_segments")
+		legacy.erase("day_segments")
+	for legacy: Dictionary in block.activity.get("rows",[]):
+		legacy.erase("guest_half_segments")
+		legacy.erase("day_segments")
+	for field in ["profile","lodging_numerator","gaming_numerator"]: block.pending.erase(field)
 	block.state.schema = 1
 	block.erase("activity_profile")
 	block.last_month = month
@@ -719,8 +764,8 @@ func test_previous_roster_native_and_annual_continuation_preserve_earned_state()
 			twin.clock.day = (month + 1) * 25 + 16
 			twin.city.day = twin.clock.day
 			twin.tourism().monthly(twin._ctx)
-			check_eq(twin.tourism().save().activity_profile, TourismParams.CURRENT_PROFILE)
-			check(TourismSystem.validate_activity(twin.tourism().save().activity, month + 1).ok)
+			check_eq(twin.tourism().save().activity_profile, TourismMarkets.PROFILE)
+			check(TourismSystem.validate_activity(twin.tourism().save().activity, month + 1,TourismMarkets.PROFILE).ok)
 			check_eq(TourismSaveCodec.problem(twin.snapshot(), twin.city), "")
 			twin.free()
 			sim.free()
@@ -729,3 +774,99 @@ func remove_test_tree(path: String) -> void:
 	for folder in DirAccess.get_directories_at(path): remove_test_tree(path.path_join(folder))
 	for name in DirAccess.get_files_at(path): DirAccess.remove_absolute(path.path_join(name))
 	DirAccess.remove_absolute(path)
+
+func test_safety_remainders_malformed_native_restore_is_atomic() -> void:
+	var ctx := start()
+	var env := EnvironmentSystem.new()
+	env.monthly(ctx)
+	var snapshot := snap(ctx)
+	check_eq(TourismSaveCodec.problem(snapshot, ctx.city), "")
+	for replacement in [null, [null], [{"instance": 1, "micro": -1, "cursor": 0, "opening_micro": 0, "opening_cursor": 0, "month": 0}], [{"instance": 9999, "micro": 0, "cursor": 0, "opening_micro": 0, "opening_cursor": 0, "month": 0}]]:
+		var bad := snapshot.duplicate(true)
+		bad.systems.tourism.features.safety.remainders = replacement
+		check_ne(TourismSaveCodec.problem(bad, ctx.city), "", "detached native validation rejects malformed remainder")
+		var before: Dictionary = ctx.system(&"tourism").save()
+		check_eq(ctx.system(&"tourism").finish_restore(bad), ERR_INVALID_DATA)
+		check_eq(ctx.system(&"tourism").save(), before)
+
+func test_missing_schema3_feature_blocks_have_neutral_defaults() -> void:
+	var ctx := start()
+	var snapshot := snap(ctx)
+	# Phase-1/2/3 schema-3 snapshot: old cost-scaled business with no markets.
+	snapshot.systems.tourism.activity_profile = TourismParams.CURRENT_PROFILE
+	for row: Dictionary in snapshot.systems.tourism.activity.rows:
+		row.erase("guest_half_segments")
+		row.erase("day_segments")
+	var old_bases := TourismSystem.validate_activity(snapshot.systems.tourism.activity,0,TourismParams.CURRENT_PROFILE)
+	snapshot.systems.tourism.pending = {"month_id":0,"lodging_cents":old_bases.lodging_cents,"gaming_cents":old_bases.gaming_cents}
+	snapshot.systems.tourism.erase("features")
+	# The omitted optional block has no new charges; existing taxes stay exact.
+	snapshot.systems.tourism.pending.erase("program_half_cents")
+	check_eq(TourismSaveCodec.problem(snapshot, ctx.city), "")
+	check_eq(ctx.system(&"tourism").finish_restore(snapshot), OK)
+	check_eq(ctx.system(&"tourism").save().features.reputation.value_milli, 60000)
+	check_eq(ctx.system(&"tourism").pending_bases().gaming_cents, snapshot.systems.tourism.pending.gaming_cents)
+
+func test_safety_booking_and_expense_carry_reject_forged_values() -> void:
+	var ctx := start()
+	var t := ctx.system(&"tourism") as TourismSystem
+	var b := ctx.system(&"budget") as BudgetSystem
+	b.monthly(ctx)
+	ctx.stats.ordinances[&"casino_safety"] = true
+	ctx.clock.day = GameClock.DAYS_PER_MONTH + 16
+	ctx.city.day = ctx.clock.day
+	t.monthly(ctx)
+	b.monthly(ctx)
+	var saved := snap(ctx)
+	check_eq(TourismSaveCodec.problem(saved, ctx.city), "")
+	for invalid in [-1, 0.5, "100", TourismState.MAX_INSTANCE]:
+		var bad := saved.duplicate(true)
+		bad.systems.budget["tourism_program_booking"] = {"month_id": 1, "half_cents": invalid}
+		check_ne(TourismSaveCodec.problem(bad, ctx.city), "", "saved exact program booking must match completed period")
+		bad = saved.duplicate(true)
+		bad.systems.budget["tourism_program_carry"] = invalid
+		check_ne(TourismSaveCodec.problem(bad, ctx.city), "", "saved program residue uses exact bounded units")
+	var bad := saved.duplicate(true)
+	bad.systems.budget.carry["ordinance_cost"] = -1
+	check_ne(TourismSaveCodec.problem(bad, ctx.city), "", "negative expense residue cannot erase a paid program")
+
+func test_native_mixed_program_expense_residue_continues_after_year_end() -> void:
+	var a := TourismFixture.host_with_store(24)
+	contexts.append(a)
+	a.stats.population = 1000
+	var ordinances := OrdinanceSystem.new()
+	a.systems[&"ordinances"] = ordinances
+	ordinances.setup(a)
+	ordinances.set_enabled(&"neighborhood_watch", true)
+	ordinances.set_enabled(&"casino_safety", true)
+	for month in 2:
+		a.clock.day = month * GameClock.DAYS_PER_MONTH + 16
+		a.city.day = a.clock.day
+		a.system(&"tourism").monthly(a)
+		a.system(&"budget").monthly(a)
+	var env := EnvironmentSystem.new()
+	env.monthly(a)
+	var path := DIR.path_join("program-mixed-native.sc2d")
+	save_context(a, path)
+	var b := restored_context(path)
+	if b == null: return
+	check_contexts(a, b)
+	for ctx in [a, b]:
+		ctx.clock.day = GameClock.DAYS_PER_YEAR
+		ctx.city.day = ctx.clock.day
+		ctx.system(&"budget").yearly(ctx)
+	check_contexts(a, b)
+	save_context(a, path)
+	var resumed := restored_context(path)
+	if resumed == null: return
+	check_contexts(a, resumed)
+	check_eq(int(resumed.system(&"budget").save().tourism_program_carry), 480)
+	var resumed_ordinances := OrdinanceSystem.new()
+	resumed.systems[&"ordinances"] = resumed_ordinances
+	resumed_ordinances.setup(resumed)
+	for ctx in [a, resumed]:
+		ctx.clock.day = GameClock.DAYS_PER_YEAR + 16
+		ctx.city.day = ctx.clock.day
+		ctx.system(&"tourism").monthly(ctx)
+		ctx.system(&"budget").monthly(ctx)
+	check_contexts(a, resumed)

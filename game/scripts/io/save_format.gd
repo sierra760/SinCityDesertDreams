@@ -471,6 +471,7 @@ static func _shape_problem(expected: Dictionary, saved: Dictionary, where: Strin
 ## consume. Check those wire shapes here before the host releases its current
 ## city. Missing fields still take each loader's legacy defaults.
 static func _nested_system_problem(key: String, saved: Dictionary) -> String:
+	if key == "water": return WaterSystem.reporting_problem(saved)
 	if key == "newspaper":
 		for story: Dictionary in saved.get("queue", []):
 			var problem := _news_args_problem(String(story.get("kind", "generic")), story.get("args", {}))
