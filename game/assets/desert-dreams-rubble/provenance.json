@@ -1,0 +1,42 @@
+{
+  "authoring_tool": "Blender 5.2.2 LTS",
+  "generator": "tools/build_rubble_models.py",
+  "glb_sha256": "6d6c2880151e1559dbf5f460003b2099ed1c477b794695fbb6664d7afb0dbc1d",
+  "north": "Godot -Z",
+  "provenance": "Original procedural geometry and vertex-colour materials; no external meshes, textures, fonts or artwork",
+  "runtime_scale": 0.0625,
+  "source": "assets/rubble-models/rubble-kit.blend",
+  "source_units": "metres",
+  "variants": {
+    "Contamination": {
+      "drapes": 2,
+      "pieces": 9,
+      "solids": 3,
+      "source_triangles": 3036
+    },
+    "Rubble1": {
+      "drapes": 2,
+      "pieces": 8,
+      "solids": 2,
+      "source_triangles": 3176
+    },
+    "Rubble2": {
+      "drapes": 2,
+      "pieces": 9,
+      "solids": 3,
+      "source_triangles": 3016
+    },
+    "Rubble3": {
+      "drapes": 2,
+      "pieces": 8,
+      "solids": 2,
+      "source_triangles": 3164
+    },
+    "Rubble4": {
+      "drapes": 3,
+      "pieces": 8,
+      "solids": 1,
+      "source_triangles": 2868
+    }
+  }
+}

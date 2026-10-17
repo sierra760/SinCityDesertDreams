@@ -1,0 +1,43 @@
+{
+  "content_extent_metres": 7.0,
+  "glb_sha256": "6d6c2880151e1559dbf5f460003b2099ed1c477b794695fbb6664d7afb0dbc1d",
+  "meters_per_tile": 16,
+  "nodes": 48,
+  "runtime_materials": 4,
+  "runtime_meshes": 41,
+  "runtime_triangles": 15108,
+  "shared_prototypes": 62,
+  "units": "metres",
+  "variants": {
+    "Contamination": {
+      "drapes": 2,
+      "pieces": 9,
+      "solids": 3,
+      "source_triangles": 3036
+    },
+    "Rubble1": {
+      "drapes": 2,
+      "pieces": 8,
+      "solids": 2,
+      "source_triangles": 3176
+    },
+    "Rubble2": {
+      "drapes": 2,
+      "pieces": 9,
+      "solids": 3,
+      "source_triangles": 3016
+    },
+    "Rubble3": {
+      "drapes": 2,
+      "pieces": 8,
+      "solids": 2,
+      "source_triangles": 3164
+    },
+    "Rubble4": {
+      "drapes": 3,
+      "pieces": 8,
+      "solids": 1,
+      "source_triangles": 2868
+    }
+  }
+}

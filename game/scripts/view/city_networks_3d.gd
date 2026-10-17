@@ -275,6 +275,7 @@ func _copy_cell(city: City, previous: CityNetworks3D, visit: int) -> void:
 				_beam(spec[1], spec[2], spec[3], spec[4], false)
 				_physical_group = group
 			&"palms": _palms(city, spec[1], spec[2])
+			&"rubble": _rubble(city, spec[1], spec[2])
 	_physical_group = previous._span_states[visit][2]
 	_physical_depth = previous._span_states[visit][3]
 
@@ -326,7 +327,8 @@ func _emit_cell(city: City, region: Rect2i, cell: Vector2i, drawn_blocks: Dictio
 		if code >= Buildings.TREES_1:
 			_palms(city, cell, code)
 		else:
-			_rect(city, cell, Rect2(0.1, 0.1, 0.8, 0.8), Color(0.42, 0.34, 0.26), 0.04)
+			_rubble_ground(city, cell, code)
+			_rubble(city, cell, code)
 		return
 	if NetworkShapes.is_onramp(code):
 		_ramp(city, cell, code)
@@ -984,6 +986,30 @@ func _palms(city: City, cell: Vector2i, code: int) -> void:
 		var root := CityGeometry3D.point_on_ground(city, cell, offset)
 		palm.position = root
 		add_child(palm)
+
+
+## Rubble and contaminated ground: the kit's low heaps and stains are laid on
+## the terrain facets as visual surface; its rigid debris are child nodes.
+func _rubble_ground(city: City, cell: Vector2i, code: int) -> void:
+	const Rubble := preload("res://scripts/view/city_rubble_3d.gd")
+	var facet := _facet(city, cell)
+	var ground: Array = Rubble.drape_ground(code, cell)
+	var offsets: PackedVector2Array = ground[0]
+	var heights: PackedFloat32Array = ground[1]
+	var colors: PackedColorArray = ground[2]
+	var corners: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
+	for t: int in colors.size():
+		for k: int in 3:
+			var point := CityGeometry3D.point_over_facet(facet[0], facet[1], cell, offsets[t * 3 + k])
+			point.y += heights[t * 3 + k]
+			corners[k] = point
+		_emit_triangle(cell, corners[0], corners[1], corners[2], colors[t], PhysicalRole.DETAIL, false)
+
+
+func _rubble(city: City, cell: Vector2i, code: int) -> void:
+	_node_specs.append([&"rubble", cell, code])
+	const Rubble := preload("res://scripts/view/city_rubble_3d.gd")
+	Rubble.add_pieces(self, cell, code, _facet(city, cell))
 
 
 func _draw_path(city: City, cell: Vector2i, mask: int, width: float, color: Color, elevation: float, role: int = PhysicalRole.DETAIL) -> void:
