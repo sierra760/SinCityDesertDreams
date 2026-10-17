@@ -345,6 +345,13 @@ What each question means for `apply`:
     `SIGN_LIMIT` (50) signs exist at once; replacing a sign on its own tile
     does not count against the limit.
 
+In Build, choose Place sign and click or tap an existing label to edit its
+text. Inspect (or right-click) the label and choose **Edit Sign** for the same
+editor. Existing signs open with their current text and a Save button;
+Cancel keeps the sign, and saving blank text removes it. Sign and Inspect
+target the displayed label's stored tile; construction and demolition
+continue to target the physical map beneath the pointer.
+
 ## Parameters
 
 | name | value | tunes |

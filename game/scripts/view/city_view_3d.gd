@@ -799,6 +799,23 @@ func _update_camera() -> void:
 	view_changed.emit()
 
 
+## Resolve visible text before ray-picking the ground behind it. Labels are
+## transparent to ordinary construction and demolition input.
+func sign_cell_at_screen(point: Vector2) -> Vector2i:
+	if not aerial_controls_enabled or not active or city == null or not labels_visible or _labels == null or not _labels.is_visible_in_tree():
+		return INVALID_CELL
+	if not Rect2(container.position, container.size).has_point(point):
+		return INVALID_CELL
+	# Last drawn text wins when labels overlap, matching their visual order.
+	var cells := _label_nodes.keys()
+	cells.reverse()
+	for cell: Vector2i in cells:
+		var label: Label = _label_nodes[cell]
+		if city.signs.has(cell) and label.is_visible_in_tree() and label.get_global_rect().has_point(point):
+			return cell
+	return INVALID_CELL
+
+
 ## Terrain-only placement uses layer 1; query tools also consider layer 2.
 func pick_cell(point: Vector2, purpose: int = 0) -> Vector2i:
 	if not aerial_controls_enabled or not active or city == null or camera == null or container.size.x <= 0 or container.size.y <= 0:
@@ -1157,6 +1174,7 @@ func _update_labels() -> void:
 			_labels.add_child(label)
 			_label_nodes[cell] = label
 		label.text = String(city.signs[cell])
+		label.size = label.get_minimum_size()
 		label.position = project_cell(cell) + Vector2(0, -24)
 
 

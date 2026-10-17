@@ -257,6 +257,7 @@ func _build_chrome() -> void:
 	status_bar.emergency_requested.connect(go_to_emergency)
 	query_panel.demolish_requested.connect(construction._on_demolish_requested)
 	query_panel.rename_requested.connect(construction.prompt_rename)
+	query_panel.sign_edit_requested.connect(construction.prompt_sign)
 	query_panel.closed.connect(sync_query_feedback)
 
 

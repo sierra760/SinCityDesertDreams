@@ -569,14 +569,16 @@ func prompt_sign(at: Vector2i) -> void:
 	if _host.stage != GameHost.Stage.PLAY:
 		return
 	var existing := String(_host.sim.city.signs.get(at, ""))
-	_host.notices.queue("Place Sign", "Text for the sign at %d, %d (leave empty to remove it):" % [at.x, at.y],
-		[["Place", &"submit"], ["Cancel", &"ok"]],
+	_host.notices.queue("Edit Sign" if not existing.is_empty() else "Place Sign", "Text for the sign at %d, %d (leave empty to remove it):" % [at.x, at.y],
+		[["Save" if not existing.is_empty() else "Place", &"submit"], ["Cancel", &"ok"]],
 		func(choice: StringName) -> void:
 			if choice == &"submit":
 				var r := _host.builder.place_sign(at, _host.notice_dialog.prompt_text())
 				if bool(r.get("ok", false)):
 					_host.city_view_3d.set_labels_visible(bool(_host.preferences.get("labels", true)))
 					_host.city_view_3d.queue_refresh()
+					if _host.query_panel.is_open():
+						_host.query_panel.show_tile(_host.sim.city, _host.sim, _host.query_panel.tile)
 				else:
 					_host.show_message(sentence(String(r.get("reason", "")))),
 		true, existing)

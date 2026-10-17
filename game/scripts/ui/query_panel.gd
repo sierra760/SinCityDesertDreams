@@ -12,6 +12,7 @@ extends PanelContainer
 
 signal demolish_requested(tile: Vector2i)
 signal rename_requested(tile: Vector2i)
+signal sign_edit_requested(tile: Vector2i)
 signal closed
 
 const PANEL_WIDTH := 320
@@ -23,6 +24,7 @@ var rows: VBoxContainer
 var body_scroll: ScrollContainer
 var demolish_button: Button
 var rename_button: Button
+var sign_button: Button
 var close_button: Button
 ## The tile shown, or (-1,-1).
 var tile := Vector2i(-1, -1)
@@ -78,6 +80,11 @@ func _build() -> void:
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body_scroll.add_child(rows)
 	column.add_child(body_scroll)
+	sign_button = UIFactory.make_button("Edit Sign", "Edit this tile's sign; blank text removes it")
+	sign_button.pressed.connect(func() -> void:
+		if tile.x >= 0 and info.has("Sign"):
+			sign_edit_requested.emit(tile))
+	column.add_child(sign_button)
 	var actions := HBoxContainer.new()
 	_actions = actions
 	actions.name = "Actions"
@@ -149,6 +156,7 @@ func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
 	demolish_button.text = "Remove " + buried.to_lower() if not buried.is_empty() else "Demolish"
 	demolish_button.tooltip_text = "Dig up the %s under this tile" % buried.to_lower() if not buried.is_empty() else "Bulldoze this tile"
 	rename_button.disabled = not bool(info.get("_renamable", false))
+	sign_button.visible = info.has("Sign")
 	visible = true
 	body_scroll.scroll_vertical = reading_position
 	_restore_scroll.call_deferred(reading_position, _content_revision)

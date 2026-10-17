@@ -42,6 +42,7 @@ var _street_mouse_down := false
 var _street_mouse_dragged := false
 var _street_mouse_origin := Vector2.ZERO
 var _query_tool_active := false
+var _sign_tool_active := false
 var _query_touch_active := false
 var _pointer_position := Vector2.ZERO
 var _pointer_available := false
@@ -58,6 +59,9 @@ func bind_city(value: City) -> void:
 		view.bind_city(value)
 
 func tile_at_screen(point: Vector2, purpose: int = -1) -> Vector2i:
+	if view != null and (_query_tool_active or _sign_tool_active or purpose == 1):
+		var sign_cell := view.sign_cell_at_screen(point)
+		if sign_cell.x >= 0: return sign_cell
 	return view.pick_cell(point, pick_purpose if purpose < 0 else purpose) if view != null else Vector2i(-1, -1)
 
 func set_overlay(kind: StringName) -> void:
@@ -94,6 +98,7 @@ func is_underground() -> bool:
 
 func select_tool(tool: int) -> void:
 	set_query_tool_active(tool == Tools.Kind.QUERY)
+	_sign_tool_active = tool == Tools.Kind.SIGN
 	if _exploration_suspended: return
 	if UNDERGROUND_TOOLS.has(tool):
 		if not is_underground():
@@ -322,7 +327,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var button := event as InputEventMouseButton
 		if button.button_index != MOUSE_BUTTON_LEFT and button.button_index != MOUSE_BUTTON_RIGHT:
 			return
-		var tile := tile_at_screen(button.position, 1 if button.button_index == MOUSE_BUTTON_RIGHT else pick_purpose)
+		var tile := tile_at_screen(button.position, 1 if button.button_index == MOUSE_BUTTON_RIGHT else -1)
 		if button.pressed:
 			if tile.x < 0:
 				return
