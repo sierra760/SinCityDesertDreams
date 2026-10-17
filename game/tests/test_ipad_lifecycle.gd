@@ -59,6 +59,7 @@ func test_background_is_idempotent_and_resume_requires_deliberate_speed() -> voi
 	check_eq(FileAccess.get_file_as_bytes(RECOVERY), bytes)
 	check(host.is_input_blocked(), "background owns input")
 	host.call("resume_from_background")
+	check(not FileAccess.file_exists(RECOVERY), "a clean return removes the tracked recovery copy")
 	check_eq(host.sim.speed, GameClock.Speed.PAUSED)
 	check(not host.is_input_blocked())
 	host.push_modal()

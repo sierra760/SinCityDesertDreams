@@ -284,7 +284,8 @@ func test_pruning_preserves_manual_and_conflict_slot_payloads_and_unrelated_file
 	check(FileAccess.file_exists(manual))
 	check(FileAccess.file_exists(original), "separate unresolved conflict branch survives")
 	check_eq(FileAccess.get_file_as_string(unrelated), "unrelated")
-	check_eq(_payload_count(store), 4, "current continuation, manual, conflict continuation, unrelated file")
+	check_eq(manual, original, "an identical manual save shares the continuation payload")
+	check_eq(_payload_count(store), 3, "current continuation, shared manual/conflict continuation, unrelated file")
 
 func test_retiring_confirmed_nonapplication_releases_only_its_pin() -> void:
 	var root := _root()

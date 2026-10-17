@@ -14,6 +14,13 @@ simulator execution cannot use the transport. The `icloud_saves` preference
 defaults true when support is available and can be changed in Options. Turning
 it off retains existing cloud copies and local/offline saving remains available.
 
+While synchronization is unsupported or off, the cloud session does no capture,
+copy or validation work: ordinary saves and recovery behave as plain local
+files. The open city and any save made meanwhile join the library when
+synchronization is turned on. A suspension recovery copy remembers its named
+save destination in a small local note (path and hash) so a reopened recovery
+keeps it without the journal.
+
 The transport uses the private CloudKit database in the configured shared
 container. It does not use a public database, Game Center, analytics or a
 publisher-operated save server. Account and network availability can change
@@ -47,8 +54,15 @@ Divergent work is preserved as branches rather than silently overwritten.
 
 A continuation and a manual save serve different purposes: the continuation
 keeps recent play, while the manual asset retains the explicit save baseline.
-Discard records a tombstone and may retain the manual asset. Unresolved branches
-remain available and cloud slots have no automatic expiry.
+Choosing Don't Save drops only the current session's changes. A slot that has
+not changed since it was opened is left alone. A slot that existed before the
+session returns to the state it was opened in. A slot created during the
+session returns to its manual save, or, with no manual save and nothing
+acknowledged by the server, records a tombstone. If the player then cancels the
+Load, New or Import dialog and returns to the same city, the discard is undone
+and checkpoints resume. Saving As onto a name another city has reserved moves
+that reservation to a free name instead of taking the other city's slot.
+Unresolved branches remain available and cloud slots have no automatic expiry.
 
 Application suspension stores local recovery bytes with a journal-owned receipt
 binding the exact path and hash to its captured owner, conditional generation
@@ -93,7 +107,17 @@ Changed foreground play checkpoints every 60 seconds; a visible library refreshe
 every 30 seconds. There is one upload lane and one download lane. Each asset is
 limited to 64 MiB (67,108,864 bytes), inventory pages to 256 records/deletions,
 metadata to 64 bounded scalar entries, and opaque server archives to 1 MiB.
-Payloads are size/hash/format validated before publication. Downloaded assets
+Payloads are size/hash/format validated before publication. Opening a
+library checks each payload's size and SHA-256 against its journal descriptor
+rather than decoding it; a payload whose descriptor exists was format-validated
+when it was copied, and decoding for metadata happens on use. A manual save
+identical to its continuation shares one payload file. Load City lists local
+saves from their headers, so a save with a damaged body is still listed.
+Personal saves are migrated once per verified account epoch and afterwards only
+when a file changes. Signed-out, quota and permission failures back off up to
+15 minutes (other failures up to 60 seconds); foregrounding, opening Load City
+or saving can retry sooner, at most once a minute and never before a
+server-requested delay. Downloaded assets
 must match the requested remote revision before becoming usable local copies.
 
 ## Native build support

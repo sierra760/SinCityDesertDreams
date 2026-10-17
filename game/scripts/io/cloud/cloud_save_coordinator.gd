@@ -13,6 +13,13 @@ signal verified_owner_changed(previous: String, current: String, epoch: int)
 const MAX_PAGE_RECORDS := 256
 const MAX_SYSTEM_FIELDS_BYTES := 1024 * 1024
 const REFRESH_INTERVAL_MS := 30000
+const RETRY_CAP_MS := 60000
+## Account, storage and permission failures need a person or an account change.
+## Their exponential wait grows to this cap; an account change resets it, and
+## foreground/library/local-save activity may retry once per minute.
+const LONG_RETRY_CAP_MS := 900000
+const LONG_WAIT_CODES := ["signed_out", "quota", "permission"]
+const ACTIVITY_RETRY_MS := 60000
 ## Optional main-thread session guard, called only before verified publication.
 ## It may durably stage the active ancestor; normal policy then reconciles it.
 ## ERR_BUSY parks the page, never retains a native temporary asset path.
@@ -41,6 +48,11 @@ var _last_status: Dictionary = {}
 var _initial_inventory_complete := false
 var _capture_errors: Dictionary = {}
 var _download_errors: Dictionary = {}
+var _server_retry_at := 0
+var _failed_at := 0
+## Personal files already migrated in this verified epoch: path key -> stamp.
+var _migrated: Dictionary = {}
+var _migration_signature := ""
 
 func _init(store: CloudSaveStore, platform: RefCounted) -> void:
 	_store = store
@@ -51,6 +63,9 @@ func _init(store: CloudSaveStore, platform: RefCounted) -> void:
 func supported() -> bool:
 	return _platform.available()
 
+func enabled() -> bool:
+	return _enabled
+
 func set_enabled(enabled: bool) -> void:
 	if _closed or enabled == _enabled: return
 	_enabled = enabled
@@ -59,6 +74,7 @@ func set_enabled(enabled: bool) -> void:
 
 func refresh(_reason: StringName) -> void:
 	if _closed: return
+	if _reason in [&"foreground", &"visible"]: _activity_retry()
 	if _reason == &"foreground":
 		if not _enabled or not _platform.available(): return
 		if _refresh or _has("changes"): return
@@ -73,6 +89,7 @@ func refresh(_reason: StringName) -> void:
 func notify_local_commit() -> void:
 	if _closed: return
 	if _error == "local_io": _error = "" # A real durable publication, not an unchanged capture.
+	_activity_retry()
 	library_changed.emit()
 	_emit_status()
 
@@ -84,19 +101,23 @@ func report_capture(owner: String, id: String, error: Error) -> void:
 		_capture_errors[key] = owner
 	_emit_status()
 
+## Runs every frame through advance(); queue facts are counted without copies.
 func status() -> Dictionary:
 	var state := "disabled"
+	var pending := _store.pending_count() if _enabled and not _owner.is_empty() else 0
 	if _enabled:
 		if not _platform.available(): state = "unavailable"
-		elif _owner.is_empty(): state = "verifying_account"
+		# An account failure explains why no owner is verified (signed out,
+		# restricted or temporarily unavailable) instead of a perpetual check.
+		elif _owner.is_empty(): state = _error if not _error.is_empty() else "verifying_account"
 		elif _owner in _capture_errors.values(): state = "local_io"
 		elif not _store._unreconciled_manual.is_empty(): state = "local_only"
 		elif not _error.is_empty(): state = _error
 		elif not _active.is_empty() or not _page.is_empty(): state = "syncing"
-		elif not _store.pending().is_empty() or not _store.inflight().is_empty(): state = "pending"
+		elif pending > 0 or _store.has_inflight(): state = "pending"
 		else: state = "synced"
 	return {"state": state, "enabled": _enabled, "owner": _owner, "epoch": _epoch,
-		"supported": supported(), "pending": _store.pending().size() if not _owner.is_empty() else 0,
+		"supported": supported(), "pending": pending,
 		"retry_at_ms": _retry_at, "error": _error}
 
 func shutdown() -> void:
@@ -107,6 +128,9 @@ func shutdown() -> void:
 	_emit_status()
 
 func _invalidate() -> void:
+	# Only an actually visible library change is announced; a repeated account
+	# check with no verified owner and no remote rows changes nothing.
+	var visible := not _owner.is_empty() or not _page.is_empty() or not _fetched_remotes.is_empty() or not _download_errors.is_empty()
 	_epoch += 1
 	_platform.cancel_all()
 	_active.clear()
@@ -116,12 +140,15 @@ func _invalidate() -> void:
 	_selected_download = ""
 	_zone = false
 	_initial_inventory_complete = false
+	_migrated.clear()
+	_migration_signature = ""
 	_refresh = true
 	_retry_at = _now
+	_server_retry_at = 0
 	_failures = 0
 	_error = ""
 	_set_owner("")
-	library_changed.emit()
+	if visible: library_changed.emit()
 
 func _set_owner(value: String) -> void:
 	if _owner == value: return
@@ -154,7 +181,8 @@ func _schedule() -> void:
 	if _library_visible and _now - _last_refresh >= REFRESH_INTERVAL_MS: _refresh = true
 	# Recovered pins are resolved before any new upload or descendant dispatch.
 	if not _has("save") and not _has("fetch_record"):
-		var pins := _store.inflight()
+		var pins: Array[Dictionary] = []
+		if _store.has_inflight(): pins = _store.inflight()
 		if not pins.is_empty(): _send("fetch_record", {"slot_id": pins[0].slot_id}, {"work": pins[0], "slot_id": pins[0].slot_id})
 		else:
 			for slot_id in _store.unresolved_remote_slots():
@@ -173,7 +201,7 @@ func _schedule() -> void:
 		_send("changes", {"token": _store.change_token(), "limit": MAX_PAGE_RECORDS})
 	_process_page()
 	if _now < _retry_at: return
-	if not _has("save") and not _has("fetch_record") and _store.inflight().is_empty():
+	if not _has("save") and not _has("fetch_record") and not _store.has_inflight() and _store.pending_count() > 0:
 		for work in _store.pending():
 			if work.owner != _owner or _page_has(work.slot_id): continue
 			var pinned := _store.begin_upload(work.slot_id, work.generation)
@@ -292,7 +320,9 @@ func _complete(value: Dictionary) -> void:
 				var expected: String = remote[key + "_sha256"]
 				if expected.is_empty(): continue
 				var path := _store._download_path(result.downloaded.get(key, ""))
-				if _store.readable_header(path).is_empty() or FileAccess.get_sha256(path) != expected:
+				# Cheap digest first; only the requested bytes are fully decoded.
+				# Identical manual/continuation bytes reuse that one validation.
+				if FileAccess.get_sha256(path) != expected or _store.readable_header(path).is_empty():
 					_fail("invalid", 0)
 					return
 			if not _guard_remote_update(remote.slot_id, remote): return
@@ -324,7 +354,13 @@ func _failure(request: Dictionary, completion: Dictionary) -> void:
 	var code: String = completion.get("code", "invalid") if completion.get("code") is String else "invalid"
 	var retry: int = completion.get("retry_after_ms", 0) if completion.get("retry_after_ms") is int else 0
 	if code == "signed_out":
+		# Revoke the old identity but keep growing the wait: an account change
+		# notification, not a polling loop, reports a later sign-in.
+		var failures := _failures
+		var server_retry := _server_retry_at
 		_invalidate()
+		_failures = failures
+		_server_retry_at = server_retry
 		_fail("signed_out", retry)
 		return
 	if request.op == "changes":
@@ -352,14 +388,23 @@ func _failure(request: Dictionary, completion: Dictionary) -> void:
 
 func _fail(code: String, server_ms: int) -> void:
 	_error = code
-	_failures = mini(_failures + 1, 7)
-	var base := mini(1000 * (1 << (_failures - 1)), 60000)
+	var cap := LONG_RETRY_CAP_MS if code in LONG_WAIT_CODES else RETRY_CAP_MS
+	_failures = mini(_failures + 1, 11)
+	var base := mini(1000 * (1 << (_failures - 1)), cap)
 	var fraction := clampf(float(jitter.call()), 0.0, 1.0) if jitter.is_valid() else 0.0
 	var delay := maxi(base + int(base * 0.25 * fraction), maxi(server_ms, 0))
 	var deadline := _now + mini(delay, 9223372036854775807 - _now)
+	if server_ms > 0: _server_retry_at = maxi(_server_retry_at, _now + mini(server_ms, 9223372036854775807 - _now))
+	_failed_at = _now
 	# Independent lanes can fail in the same batch. Neither a shorter later
 	# failure nor a successful callback releases an outstanding provider delay.
 	_retry_at = maxi(_retry_at, deadline)
+
+## A person may have freed storage or changed access. Retry a long wait early,
+## at most once per minute and never before a server-provided deadline.
+func _activity_retry() -> void:
+	if not _error in LONG_WAIT_CODES or _retry_at <= _now: return
+	_retry_at = mini(_retry_at, maxi(maxi(_now, _server_retry_at), _failed_at + ACTIVITY_RETRY_MS))
 
 func _valid_remote(value: Dictionary) -> bool:
 	return CloudSaveTypes.valid_remote(value) and value.system_fields.size() <= MAX_SYSTEM_FIELDS_BYTES and value.metadata.size() <= 64
@@ -377,16 +422,10 @@ func _valid_page(value: Dictionary) -> bool:
 	return true
 
 func _pin_exists(work: Dictionary) -> bool:
-	for pin in _store.inflight():
-		if pin.slot_id == work.slot_id and pin.generation == work.generation and pin.commit_id == work.commit_id: return true
-	return false
+	return _store.has_pin(work.slot_id, work.generation, work.commit_id)
 
 func _work(slot_id: String) -> Dictionary:
-	for pin in _store.inflight():
-		if pin.slot_id == slot_id: return pin
-	for work in _store.pending():
-		if work.slot_id == slot_id: return work
-	return {}
+	return _store.work_for(slot_id)
 
 ## Returns true once local reconciliation is durable. Remote payload publication
 ## may still require a download; those records are queued in the current page.
@@ -527,7 +566,7 @@ func _process_page() -> void:
 	_page.clear()
 	if initial_finished:
 		_initial_inventory_complete = true
-		if migrate_personal_saves(SaveFormat.list_saves()) != OK:
+		if _migrate_changed_personal_saves() != OK:
 			_fail("local_io", 0)
 			_refresh = true
 			return
@@ -552,10 +591,49 @@ func migrate_personal_saves(headers: Array[Dictionary]) -> Error:
 		if error != OK: return error
 	return OK
 
+## Every changes completion is inventory. Each verified epoch migrates all
+## personal saves once, then only new or changed files, unless a journal fact or
+## claim that migration reads has changed. An unchanged file's stamp is trusted
+## only when its modification second precedes the pass (same racy-time rule as
+## the store's digest memo).
+func _migrate_changed_personal_saves() -> Error:
+	if _owner.is_empty() or not _initial_inventory_complete: return ERR_BUSY
+	var signature := _store.migration_signature()
+	if signature != _migration_signature: _migrated.clear()
+	var directory := SaveFormat.default_dir()
+	var candidates: Array[Dictionary] = []
+	var present: Dictionary = {}
+	var dir := DirAccess.open(directory)
+	if dir != null:
+		for name in dir.get_files():
+			if name.get_extension().to_lower() != SaveFormat.EXTENSION: continue
+			var path := directory.path_join(name)
+			var key := CloudSaveStore.path_key(path)
+			present[key] = true
+			var file := FileAccess.open(path, FileAccess.READ)
+			if file == null: continue
+			var stamp := "%d:%d" % [file.get_length(), FileAccess.get_modified_time(path)]
+			file.close()
+			if _migrated.get(key, "") != stamp: candidates.append({"path": path, "key": key, "stamp": stamp, "modified": FileAccess.get_modified_time(path)})
+	for key in _migrated.keys():
+		if not present.has(key): _migrated.erase(key)
+	# Newest first, as the ordinary save list orders the same directory.
+	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.modified > b.modified or (a.modified == b.modified and a.path < b.path))
+	var started := int(Time.get_unix_time_from_system())
+	for candidate in candidates:
+		var error := _store.migrate_personal_file(candidate.path)
+		if error != OK: return error
+		if candidate.modified < started: _migrated[candidate.key] = candidate.stamp
+	_migration_signature = _store.migration_signature()
+	return OK
+
+## Load lists every save whose header reads, including one whose city body is
+## damaged: it remains visible for inspection or sharing, and loading reports
+## the damage. Cloud rows still require intact immutable payload bytes.
 func library_entries(local_saves: Array[Dictionary]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for row in local_saves:
-		if row.get("path") is String and not _store.readable_header(row.path).is_empty(): result.append(row.duplicate(true))
+		if row.get("path") is String and not row.path.is_empty() and FileAccess.file_exists(row.path): result.append(row.duplicate(true))
 	var local_count := result.size()
 	if not _enabled or _owner.is_empty(): return result
 	var associated: Dictionary = {}
@@ -564,14 +642,14 @@ func library_entries(local_saves: Array[Dictionary]) -> Array[Dictionary]:
 		if row.sync_state == "conflict" and _work(row.slot_id).is_empty(): continue
 		# Disk validation precedes exposing a readable path. Corrupt payloads stay
 		# absent rather than becoming loadable library rows.
-		if not row.path.is_empty() and _store.payload_metadata(row.continuation).is_empty(): continue
+		if not row.path.is_empty() and not _store.payload_intact(row.continuation): continue
 		var named: String = row.get("manual_path", "")
 		# A successful local Save may outlive a failed optional cloud journal.
 		# Only exact retained manual bytes can hide the ordinary named file.
-		if not named.is_empty() and FileAccess.get_sha256(named) == row.manual_sha256: associated[named] = true
+		if not named.is_empty() and _store.file_matches(named, row.manual_sha256): associated[CloudSaveStore.path_key(named)] = true
 		result.append(row)
 	for i in range(local_count - 1, -1, -1):
-		if associated.has(result[i].get("path", "")) and not result[i].get("path", "").is_empty(): result.remove_at(i)
+		if not result[i].get("path", "").is_empty() and associated.has(CloudSaveStore.path_key(result[i].path)): result.remove_at(i)
 	for item in _page.get("items", []) + _fetched_remotes:
 		if item.get("deleted", false) or item.tombstone: continue
 		var present := -1

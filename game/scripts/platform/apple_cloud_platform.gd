@@ -7,8 +7,15 @@ const CONFIG := "res://addons/apple_cloud/apple_cloud.cfg"
 const CONTAINER := "iCloud.com.sierraburkhart.sincitydesertdreams"
 const OPS := ["account", "prepare_zone", "changes", "fetch_record", "download", "save"]
 const CODES := ["unavailable", "signed_out", "transient", "quota", "conflict", "token_expired", "cancelled", "invalid", "permission"]
+const STAGING := "user://apple-cloud-staging"
+## Completions settled per drain; native bounds outstanding requests, so a larger
+## batch (account notifications) is held and settled over the next drains.
+const DRAIN_LIMIT := 64
 var _native: RefCounted
 var _requests: Dictionary = {}
+var _backlog: Array = []
+## Outstanding request ids that received a malformed or mismatched completion.
+var _suspect: Dictionary = {}
 
 func _init() -> void:
 	if Engine.is_editor_hint() or OS.has_feature("editor") or DisplayServer.get_name() == "headless": return
@@ -20,7 +27,11 @@ func _init() -> void:
 		if status not in [GDExtensionManager.LOAD_STATUS_OK, GDExtensionManager.LOAD_STATUS_ALREADY_LOADED]: return
 	if not ClassDB.class_exists("SCDDAppleCloud"): return
 	var bridge: RefCounted = ClassDB.instantiate("SCDDAppleCloud")
-	if bridge.call("configure", CONTAINER, ProjectSettings.globalize_path("user://apple-cloud-staging")) == OK:
+	var staging := ProjectSettings.globalize_path(STAGING)
+	# A terminated process cannot clean its own transport directory. Only this
+	# process configures a new one below, so every existing one is abandoned.
+	remove_stale_staging(staging)
+	if bridge.call("configure", CONTAINER, staging) == OK:
 		_native = bridge
 
 func available() -> bool:
@@ -37,21 +48,89 @@ func drain_completions() -> Array[Dictionary]:
 	var accepted: Array[Dictionary] = []
 	if _native == null: return accepted
 	var incoming: Variant = _native.call("drain_completions")
-	if not incoming is Array or incoming.size() > 64: return accepted
-	for item: Variant in incoming:
-		if not valid_completion(item): continue
-		if item.op == "account_changed":
-			accepted.append(item)
-			continue
-		var request: Dictionary = _requests.get(item.id, {})
-		if request.is_empty() or request.epoch != item.epoch or request.op != item.op: continue
-		_requests.erase(item.id)
-		accepted.append(item)
+	if incoming is Array: _backlog.append_array(incoming)
+	var batch := _backlog.slice(0, DRAIN_LIMIT)
+	_backlog = _backlog.slice(batch.size())
+	var earlier := _suspect
+	_suspect = {}
+	for item: Variant in batch:
+		var completion := accept_completion(item)
+		if not completion.is_empty(): accepted.append(completion)
+	# Native finishes each request once. If its answer was malformed and no
+	# valid answer followed by the next drain, settle it as an invalid failure
+	# so the coordinator's lane is released instead of waiting forever.
+	if _backlog.is_empty():
+		for id: String in earlier:
+			if not _requests.has(id) or _suspect.has(id): continue
+			var request: Dictionary = _requests[id]
+			_requests.erase(id)
+			accepted.append({"id": id, "epoch": request.epoch, "op": request.op, "ok": false, "code": "invalid", "result": {}, "retry_after_ms": 0})
+	else:
+		_suspect.merge(earlier)
 	return accepted
+
+## Validate one native completion against its outstanding request. Anything
+## malformed or mismatched is never delivered; it only marks that request.
+func accept_completion(item: Variant) -> Dictionary:
+	var id: Variant = item.get("id") if item is Dictionary else null
+	var outstanding: bool = id is String and _requests.has(id)
+	if not valid_completion(item):
+		if outstanding: _suspect[id] = true
+		return {}
+	if item.op == "account_changed": return item
+	if not outstanding: return {}
+	var request: Dictionary = _requests[item.id]
+	if request.epoch != item.epoch or request.op != item.op:
+		_suspect[item.id] = true
+		return {}
+	_requests.erase(item.id)
+	_suspect.erase(item.id)
+	return item
 
 func cancel_all() -> void:
 	_requests.clear()
+	_backlog.clear()
+	_suspect.clear()
 	if _native != null: _native.call("cancel_all")
+
+## Remove abandoned transport directories directly under `root`. Only entries
+## named as generated UUIDs are touched, and links are unlinked, never followed.
+## A symlinked root is refused, matching the native transport's own rule.
+static func remove_stale_staging(root: String) -> int:
+	root = root.simplify_path()
+	if root.is_empty() or not DirAccess.dir_exists_absolute(root): return 0
+	var parent := DirAccess.open(root.get_base_dir())
+	if parent == null or parent.is_link(root.get_file()): return 0
+	var dir := DirAccess.open(root)
+	if dir == null: return 0
+	var removed := 0
+	for name in dir.get_directories() + dir.get_files():
+		if not _uuid_name(name): continue
+		var path := root.path_join(name)
+		if dir.is_link(name):
+			if DirAccess.remove_absolute(path) == OK: removed += 1
+		elif DirAccess.dir_exists_absolute(path):
+			if _remove_tree(path) == OK: removed += 1
+	return removed
+
+static func _remove_tree(path: String) -> Error:
+	var dir := DirAccess.open(path)
+	if dir == null: return ERR_CANT_OPEN
+	# Staged transport files can be dotfiles; listings skip them by default.
+	dir.include_hidden = true
+	for name in dir.get_files(): DirAccess.remove_absolute(path.path_join(name))
+	for name in dir.get_directories():
+		if dir.is_link(name): DirAccess.remove_absolute(path.path_join(name))
+		else: _remove_tree(path.path_join(name))
+	return DirAccess.remove_absolute(path)
+
+static func _uuid_name(name: String) -> bool:
+	if name.length() != 36: return false
+	for i in 36:
+		if i in [8, 13, 18, 23]:
+			if name[i] != "-": return false
+		elif not name[i] in "0123456789abcdefABCDEF": return false
+	return true
 
 static func valid_request(r: Variant) -> bool:
 	if not r is Dictionary or not CloudSaveTypes.valid_id(r.get("id")) or not r.get("epoch") is int or r.epoch < 0 or r.get("op") not in OPS or not r.get("args") is Dictionary: return false

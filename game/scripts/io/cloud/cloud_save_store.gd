@@ -9,6 +9,8 @@ const JOURNAL_VERSION := 1
 const JOURNAL_LIMIT := 16 * 1024 * 1024
 const MAX_CHANGE_TOKEN_BYTES := 1024 * 1024
 const VALIDATED_CONTENT_LIMIT := 32
+const INTACT_FILE_LIMIT := 4096
+const PAYLOAD_HEADER_LIMIT := 256
 var _root: String
 var _directory := ""
 var _owner := ""
@@ -18,6 +20,18 @@ var _installation_id := ""
 ## Every use still bounds, reads and hashes current bytes before reuse.
 var _validated_versions: Dictionary = {}
 var _unreconciled_manual: Dictionary = {}
+## Process-wide integrity memo for files whose expected digest is already bound
+## by a journal or a retained manual hash: key -> {sha256, bytes, modified,
+## checked}. A hit needs the same size and modification second, and that second
+## must precede the second in which hashing began. A later write therefore always
+## changes the observed time, and a same-second replacement is always rehashed.
+static var _intact_files: Dictionary = {}
+## Display metadata of immutable private payloads, keyed by path and digest.
+## Populated only after a full validation of exactly those bytes.
+static var _payload_headers: Dictionary = {}
+static var _case_insensitive_files := -1
+## Headers of payloads copied by this instance, reused by its slot publication.
+var _copied_headers: Dictionary = {}
 
 func _init(root: String) -> void:
 	_root = ProjectSettings.globalize_path(root).simplify_path()
@@ -81,20 +95,56 @@ func _write_claims(value: Dictionary) -> Error:
 	return SaveFormat._write_replacement(_root.path_join("ownership.bin"), bytes)
 
 static func personal_path(path: String) -> bool:
+	var absolute := path_key(path)
+	return absolute.get_base_dir() == path_key(SaveFormat.default_dir()) and absolute.get_extension().to_lower() == SaveFormat.EXTENSION
+
+## Comparable identity of a local file name. Default macOS APFS ignores case, so
+## "Desert" and "desert" name one file there; case-sensitive volumes keep both.
+## Stored paths and claim keys keep their exact spelling; only comparisons fold.
+static func path_key(path: String) -> String:
 	var absolute := ProjectSettings.globalize_path(path).simplify_path()
-	return absolute.get_base_dir() == ProjectSettings.globalize_path(SaveFormat.default_dir()).simplify_path() and absolute.get_extension().to_lower() == SaveFormat.EXTENSION
+	return absolute.to_lower() if _case_insensitive() else absolute
+
+static func _case_insensitive() -> bool:
+	if _case_insensitive_files >= 0: return _case_insensitive_files == 1
+	var directory := OS.get_user_data_dir()
+	var name := ".case-probe-" + CloudSaveTypes.uuid()
+	var probe := directory.path_join(name)
+	var file := FileAccess.open(probe, FileAccess.WRITE)
+	# Without a probe, folding is the conservative choice: aliases are refused.
+	if file == null:
+		_case_insensitive_files = 1
+		return true
+	file.close()
+	_case_insensitive_files = 1 if FileAccess.file_exists(directory.path_join(name.to_upper())) else 0
+	DirAccess.remove_absolute(probe)
+	return _case_insensitive_files == 1
+
+static func _inside_root(path: String, root: String) -> bool:
+	return path_key(path).begins_with(path_key(root) + "/")
+
+## Existing claim key naming the same local file, or a new exact-spelling key.
+static func _claim_key(claims: Dictionary, path: String) -> String:
+	var exact := "path:" + ProjectSettings.globalize_path(path).simplify_path()
+	if claims.has(exact): return exact
+	var wanted := path_key(path)
+	for key: Variant in claims:
+		if key is String and key.begins_with("path:") and path_key(key.trim_prefix("path:")) == wanted: return key
+	return exact
 
 func path_claim(path: String) -> Dictionary:
 	var claims := _claims()
 	if claims.is_empty(): return {"owner": "invalid-ownership", "slot_id": "invalid-ownership"}
-	return claims.claims.get("path:" + ProjectSettings.globalize_path(path).simplify_path(), {}).duplicate(true)
+	return claims.claims.get(_claim_key(claims.claims, path), {}).duplicate(true)
 
 func _claim(keys: Array[String], owner: String, id: String, explicit: bool = false) -> Error:
 	if not CloudSaveTypes.valid_id(owner) or not CloudSaveTypes.valid_id(id): return ERR_INVALID_PARAMETER
 	var claims := _claims()
 	if claims.is_empty(): return ERR_FILE_CORRUPT
 	var changed := false
-	for key in keys:
+	for requested in keys:
+		# A different spelling of an already claimed file is that same claim.
+		var key := _claim_key(claims.claims, requested.trim_prefix("path:")) if requested.begins_with("path:") else requested
 		var prior: Dictionary = claims.claims.get(key, {})
 		if not prior.is_empty() and prior.owner != owner and not explicit: return ERR_UNAUTHORIZED
 		var desired := {"owner": owner, "slot_id": id}
@@ -115,7 +165,7 @@ static func manual_identity_head(entry: Dictionary) -> Dictionary:
 		"manual_path": entry.get("manual_path", "")}
 
 static func _same_manual_path(a: String, b: String) -> bool:
-	return not a.is_empty() and not b.is_empty() and ProjectSettings.globalize_path(a).simplify_path() == ProjectSettings.globalize_path(b).simplify_path()
+	return not a.is_empty() and not b.is_empty() and path_key(a) == path_key(b)
 
 ## A successful named file is independent of cloud-journal publication. This
 ## small digest-bound receipt survives a failed journal and belongs to one owner.
@@ -128,7 +178,7 @@ func _valid_manual_intent(value: Variant) -> bool:
 	if not CloudSaveTypes.valid_id(value.get("intent_id")) or not CloudSaveTypes.valid_hash(value.get("sha256")): return false
 	if not value.get("path") is String or value.path.to_utf8_buffer().size() > 4096: return false
 	var path := ProjectSettings.globalize_path(value.path).simplify_path()
-	if path.begins_with(_root + "/") or not path.ends_with(".sc2d"): return false
+	if _inside_root(path, _root) or not path.ends_with(".sc2d"): return false
 	if not CloudSaveTypes.valid_id(value.get("source")) or not CloudSaveTypes.valid_id(value.get("target"), true): return false
 	for key in ["unnamed", "same_path", "transfer"]:
 		if not value.get(key) is bool: return false
@@ -369,22 +419,28 @@ func recover_manual_save(transition: Dictionary) -> String:
 ## without an upload; a continuation-only match must preserve this file's new
 ## manual intent as a separate root, never replace the remote manual baseline.
 func migrate_personal_file(path: String) -> Error:
-	if _owner.is_empty() or not personal_path(path) or readable_header(path).is_empty(): return OK
+	# Unreadable files are skipped without side effects. Exact retained manual
+	# bytes were fully validated when stored, so only new content is decoded.
+	if _owner.is_empty() or not personal_path(path) or not FileAccess.file_exists(path): return OK
+	var digest := _file_sha256(path)
+	if digest.is_empty(): return OK
 	var receipt := manual_intent(path)
-	if not receipt.is_empty() and FileAccess.get_sha256(path) == receipt.sha256:
+	if not receipt.is_empty() and digest == receipt.sha256:
+		if readable_header(path).is_empty(): return OK
 		return OK if not recover_manual_save(receipt).is_empty() else ERR_CANT_CREATE
 	var claim := path_claim(path)
 	if not claim.is_empty() and claim.owner != _owner: return OK
 	var id: String = claim.get("slot_id", "")
 	for row in slots():
-		if not row.manual_path.is_empty() and ProjectSettings.globalize_path(row.manual_path).simplify_path() == ProjectSettings.globalize_path(path).simplify_path():
+		if _same_manual_path(row.manual_path, path):
 			if not _empty_reservation(_state.slots[row.slot_id]):
-				if FileAccess.get_sha256(path) != row.manual_sha256: _unreconciled_manual[path] = true
-				else: _unreconciled_manual.erase(path)
+				if digest == row.manual_sha256: _unreconciled_manual.erase(path)
+				elif readable_header(path).is_empty(): return OK
+				else: _unreconciled_manual[path] = true
 				return claim_manual_path(path, row.slot_id)
 			id = row.slot_id
+	if readable_header(path).is_empty(): return OK
 	var repairing := not id.is_empty() and _has_slot(id) and _empty_reservation(_state.slots[id])
-	var digest := FileAccess.get_sha256(path)
 	if not repairing:
 		for row in slots():
 			if row.manual_sha256 == digest and row.manual_path.is_empty(): return bind_manual_path(row.slot_id, path)
@@ -400,7 +456,7 @@ func migrate_personal_file(path: String) -> Error:
 	slot.manual = payload.duplicate(true)
 	slot.sync_state = "pending"
 	slot.pending = {"slot_id":id, "generation":1, "commit_id":CloudSaveTypes.uuid(), "parent_commit_id":"", "baseline":PackedByteArray(), "baseline_tag":"", "continuation":payload.duplicate(true), "manual":payload.duplicate(true), "tombstone":false, "owner":_owner}
-	_set_header(slot, readable_header(payload.path))
+	_set_header(slot, _payload_header(payload.path))
 	next.slots[id] = slot
 	return _commit(next)
 
@@ -482,10 +538,10 @@ func create_slot(manual_path: String = "") -> String:
 func bind_manual_path(slot_id: String, path: String) -> Error:
 	if not _has_slot(slot_id) or path.is_empty(): return ERR_INVALID_PARAMETER
 	var absolute := ProjectSettings.globalize_path(path).simplify_path()
-	if absolute.begins_with(_root + "/") or not absolute.ends_with(".sc2d"): return ERR_INVALID_PARAMETER
+	if _inside_root(absolute, _root) or not absolute.ends_with(".sc2d"): return ERR_INVALID_PARAMETER
 	for id in _state.slots:
 		var other: Dictionary = _state.slots[id]
-		if id != slot_id and not other.tombstone and not other.manual_path.is_empty() and ProjectSettings.globalize_path(other.manual_path).simplify_path() == absolute:
+		if id != slot_id and not other.tombstone and _same_manual_path(other.manual_path, absolute):
 			return ERR_ALREADY_EXISTS
 	var claimed := claim_manual_path(path, slot_id)
 	if claimed != OK: return claimed
@@ -500,12 +556,12 @@ func bind_manual_path(slot_id: String, path: String) -> Error:
 func branch_manual_save(origin_id: String, path: String, expected_hash: String, retire_slot: String = "", intent_id: String = "") -> String:
 	if not _has_slot(origin_id) or path.is_empty() or not CloudSaveTypes.valid_hash(expected_hash): return ""
 	var absolute := ProjectSettings.globalize_path(path).simplify_path()
-	if absolute.begins_with(_root + "/") or not absolute.ends_with(".sc2d"): return ""
+	if _inside_root(absolute, _root) or not absolute.ends_with(".sc2d"): return ""
 	for id in _state.slots:
 		var existing: Dictionary = _state.slots[id]
-		if id != origin_id and not existing.tombstone and not existing.manual_path.is_empty() and ProjectSettings.globalize_path(existing.manual_path).simplify_path() == absolute: return ""
+		if id != origin_id and not existing.tombstone and _same_manual_path(existing.manual_path, absolute): return ""
 	var origin: Dictionary = _state.slots[origin_id]
-	if not origin.manual_path.is_empty() and ProjectSettings.globalize_path(origin.manual_path).simplify_path() != absolute: return ""
+	if not origin.manual_path.is_empty() and not _same_manual_path(origin.manual_path, absolute): return ""
 	var claimed := claim_manual_path(path, origin_id)
 	if claimed != OK: return ""
 	var payload := _copy_payload(path, expected_hash)
@@ -525,7 +581,7 @@ func branch_manual_save(origin_id: String, path: String, expected_hash: String, 
 	if not CloudSaveTypes.valid_pending(work): return ""
 	slot.pending = work
 	slot.history["1"] = work.duplicate(true)
-	_set_header(slot, readable_header(payload.path))
+	_set_header(slot, _payload_header(payload.path))
 	var next := _state.duplicate(true)
 	next.slots[origin_id].manual_path = ""
 	next.slots[id] = slot
@@ -535,10 +591,9 @@ func branch_manual_save(origin_id: String, path: String, expected_hash: String, 
 func stage(slot_id: String, continuation_path: String, manual_path: String = "", tombstone: bool = false, retire_slot: String = "", intent_id: String = "") -> Dictionary:
 	if not _has_slot(slot_id): return {}
 	if not manual_path.is_empty():
-		var absolute := ProjectSettings.globalize_path(manual_path).simplify_path()
 		for id in _state.slots:
 			var other: Dictionary = _state.slots[id]
-			if id != slot_id and not other.tombstone and not other.manual_path.is_empty() and ProjectSettings.globalize_path(other.manual_path).simplify_path() == absolute: return {}
+			if id != slot_id and not other.tombstone and _same_manual_path(other.manual_path, manual_path): return {}
 		if claim_manual_path(manual_path, slot_id) != OK: return {}
 	var slot: Dictionary = _state.slots[slot_id]
 	var continuation: Dictionary = {}
@@ -547,7 +602,9 @@ func stage(slot_id: String, continuation_path: String, manual_path: String = "",
 		continuation = _copy_payload(continuation_path)
 		if continuation.is_empty(): return {}
 	if not manual_path.is_empty():
-		manual = _copy_payload(manual_path)
+		# A manual save identical to the continuation shares its validated payload.
+		if not continuation.is_empty() and _file_sha256(manual_path) == continuation.sha256: manual = continuation.duplicate(true)
+		else: manual = _copy_payload(manual_path)
 		if manual.is_empty(): return {}
 	elif not slot.manual.is_empty():
 		manual = slot.manual.duplicate(true)
@@ -577,7 +634,7 @@ func stage(slot_id: String, continuation_path: String, manual_path: String = "",
 	updated.sync_state = "pending"
 	updated.source_device_label = coarse_device_label(OS.get_name())
 	if not manual_path.is_empty(): updated.manual_path = manual_path
-	if not tombstone: _set_header(updated, readable_header(continuation.path))
+	if not tombstone: _set_header(updated, _payload_header(continuation.path))
 	if not retire_slot.is_empty() and not _retire_unnamed(next, retire_slot): return {}
 	if _commit(next) != OK: return {}
 	if not manual_path.is_empty(): _unreconciled_manual.erase(manual_path)
@@ -643,6 +700,46 @@ func inflight() -> Array[Dictionary]:
 	for slot in _state.get("slots", {}).values():
 		for work in slot.uploads.values(): result.append(work.duplicate(true))
 	return result
+
+## Allocation-free queue summaries for per-frame status and scheduling.
+func pending_count() -> int:
+	var count := 0
+	for slot in _state.get("slots", {}).values():
+		if not slot.pending.is_empty(): count += 1
+	return count
+
+func has_pin(slot_id: String, generation: int, commit_id: String) -> bool:
+	if not _has_slot(slot_id): return false
+	var pin: Dictionary = _state.slots[slot_id].uploads.get(str(generation), {})
+	return not pin.is_empty() and pin.commit_id == commit_id
+
+func has_inflight() -> bool:
+	for slot in _state.get("slots", {}).values():
+		if not slot.uploads.is_empty(): return true
+	return false
+
+## The slot's first uncertain pin, else its pending work, else empty. Matches
+## scanning inflight() then pending() without copying unrelated slots.
+func work_for(slot_id: String) -> Dictionary:
+	# Journal validation binds every pin and pending entry to its own slot key.
+	if not _has_slot(slot_id): return {}
+	var slot: Dictionary = _state.slots[slot_id]
+	if not slot.uploads.is_empty(): return (slot.uploads.values()[0] as Dictionary).duplicate(true)
+	return slot.pending.duplicate(true)
+
+## Changes whenever a journal fact that personal-file migration reads changes:
+## named destinations, retained manual digests and empty reservations, plus the
+## installation-wide claims file. Unchanged files need no new migration pass.
+func migration_signature() -> String:
+	var parts: Array[String] = [_directory, _owner]
+	var ids: Array = _state.get("slots", {}).keys()
+	ids.sort()
+	for id: String in ids:
+		var slot: Dictionary = _state.slots[id]
+		parts.append("%s|%s|%s|%s|%s" % [id, path_key(slot.manual_path) if not slot.manual_path.is_empty() else "", slot.manual.get("sha256", ""), slot.tombstone, _empty_reservation(slot)])
+	var claims := _root.path_join("ownership.bin")
+	parts.append("claims|" + (FileAccess.get_sha256(claims) if FileAccess.file_exists(claims) else ""))
+	return "\n".join(parts).sha256_text()
 
 ## Fork publication leaves a durable marker on the original identity until its
 ## server branch is published or authoritatively removed. Include tombstones,
@@ -721,7 +818,8 @@ func publish_remote(remote: Dictionary, downloaded: Dictionary) -> Error:
 		continuation = _copy_payload(_download_path(downloaded.get("continuation", "")), remote.continuation_sha256)
 		if continuation.is_empty(): return ERR_FILE_CORRUPT
 	if not remote.manual_sha256.is_empty():
-		manual = _copy_payload(_download_path(downloaded.get("manual", "")), remote.manual_sha256)
+		if remote.manual_sha256 == remote.continuation_sha256 and not continuation.is_empty(): manual = continuation.duplicate(true)
+		else: manual = _copy_payload(_download_path(downloaded.get("manual", "")), remote.manual_sha256)
 		if manual.is_empty(): return ERR_FILE_CORRUPT
 	var next := _state.duplicate(true)
 	var slot := _new_slot(remote.slot_id, "")
@@ -736,7 +834,7 @@ func publish_remote(remote: Dictionary, downloaded: Dictionary) -> Error:
 	slot.source_device_label = coarse_device_label(remote.metadata.get("source_device_label", ""))
 	var origin := metadata_conflict_origin(remote.metadata.get("conflict_origin", ""))
 	if not origin.is_empty(): slot.conflict_origin = origin
-	if not continuation.is_empty(): _set_header(slot, readable_header(continuation.path))
+	if not continuation.is_empty(): _set_header(slot, _payload_header(continuation.path))
 	next.slots[remote.slot_id] = slot
 	return _commit(next)
 
@@ -854,7 +952,7 @@ func fork_pending(slot_id: String, generation: int, exact_recovery: bool = false
 	fork.baseline_tag = ""
 	slot.pending = fork
 	slot.history["1"] = fork.duplicate(true)
-	if not slot.continuation.is_empty(): _set_header(slot, readable_header(slot.continuation.path))
+	if not slot.continuation.is_empty(): _set_header(slot, _payload_header(slot.continuation.path))
 	var next := _state.duplicate(true)
 	next.slots[id] = slot
 	var original: Dictionary = next.slots[slot_id]
@@ -876,7 +974,7 @@ func fork_pending(slot_id: String, generation: int, exact_recovery: bool = false
 		original.manual = work.manual.duplicate(true)
 		original.tombstone = work.tombstone
 		original.sync_state = "conflict"
-		if not work.continuation.is_empty(): _set_header(original, readable_header(work.continuation.path))
+		if not work.continuation.is_empty(): _set_header(original, _payload_header(work.continuation.path))
 	return id if _commit(next) == OK else ""
 
 func _new_slot(id: String, manual_path: String) -> Dictionary:
@@ -937,16 +1035,70 @@ func _validated_version(path: String, text: String) -> int:
 
 ## Describes the exact immutable payload, including the document's actual save
 ## version rather than the current writer version. Native never parses cities.
+## Current bytes must match the descriptor; the full decode happens once per
+## process for those exact bytes, at their first actual use.
 func payload_metadata(payload: Dictionary) -> Dictionary:
-	if not CloudSaveTypes.valid_payload(payload): return {}
-	var file := FileAccess.open(payload.path, FileAccess.READ)
-	if file == null: return {}
-	var size := file.get_length()
-	file.close()
-	if size != payload.bytes or FileAccess.get_sha256(payload.path) != payload.sha256: return {}
+	if not payload_intact(payload): return {}
+	var key := path_key(payload.path)
+	var known: Dictionary = _payload_headers.get(key, {})
+	if known.get("sha256", "") == payload.sha256: return (known.header as Dictionary).duplicate(true)
 	var header := readable_header(payload.path)
 	header.erase("path")
+	# The decoded bytes must still be the descriptor's bytes.
+	if header.is_empty() or FileAccess.get_sha256(payload.path) != payload.sha256: return {}
+	_payload_headers.erase(key)
+	while _payload_headers.size() >= PAYLOAD_HEADER_LIMIT: _payload_headers.erase(_payload_headers.keys()[0])
+	_payload_headers[key] = {"sha256": payload.sha256, "header": header.duplicate(true)}
 	return header
+
+## Cheap integrity check of a journal descriptor against current file bytes:
+## exact size and SHA-256 (memoized by the racy-time rule above). Every journal
+## payload was fully format-validated before its descriptor was published, so a
+## matching digest proves these are those validated bytes.
+func payload_intact(payload: Dictionary) -> bool:
+	if not CloudSaveTypes.valid_payload(payload): return false
+	return _file_matches(payload.path, payload.sha256, payload.bytes)
+
+## True when a local file currently has exactly this digest.
+func file_matches(path: String, sha256: String) -> bool:
+	return _file_matches(path, sha256)
+
+func _file_matches(path: String, sha256: String, expected_bytes: int = -1) -> bool:
+	if path.is_empty() or not CloudSaveTypes.valid_hash(sha256): return false
+	if expected_bytes >= 0:
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file == null: return false
+		var size := file.get_length()
+		file.close()
+		if size != expected_bytes: return false
+	return _file_sha256(path) == sha256
+
+## Current SHA-256 of a local file, or "" when it cannot be read. A memo entry is
+## reused only for an unchanged size and modification second that predates the
+## second in which its hash began; anything else is hashed again.
+func _file_sha256(path: String) -> String:
+	if path.is_empty(): return ""
+	var key := path_key(path)
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		_intact_files.erase(key)
+		return ""
+	var size := file.get_length()
+	file.close()
+	var modified := FileAccess.get_modified_time(path)
+	var known: Dictionary = _intact_files.get(key, {})
+	if not known.is_empty() and known.bytes == size and known.modified == modified and modified < known.checked:
+		return known.sha256
+	var checked := int(Time.get_unix_time_from_system())
+	var digest := _hash_file(path)
+	_intact_files.erase(key)
+	if digest.is_empty() or FileAccess.get_modified_time(path) != modified: return digest
+	while _intact_files.size() >= INTACT_FILE_LIMIT: _intact_files.erase(_intact_files.keys()[0])
+	_intact_files[key] = {"sha256": digest, "bytes": size, "modified": modified, "checked": checked}
+	return digest
+
+func _hash_file(path: String) -> String:
+	return FileAccess.get_sha256(path)
 
 func _copy_payload(path: String, expected_hash: String = "") -> Dictionary:
 	if path.is_empty(): return {}
@@ -967,16 +1119,24 @@ func _copy_payload(path: String, expected_hash: String = "") -> Dictionary:
 	if FileAccess.file_exists(destination) or FileAccess.file_exists(staged): return {}
 	if SaveFormat._write_replacement(staged, bytes) != OK: return {}
 	# The private copy is bounded and immutable before full format validation.
-	if readable_header(staged).is_empty():
+	var header := readable_header(staged)
+	if header.is_empty():
 		DirAccess.remove_absolute(staged)
 		return {}
 	if DirAccess.rename_absolute(staged, destination) != OK: return {}
+	while _copied_headers.size() >= 8: _copied_headers.erase(_copied_headers.keys()[0])
+	_copied_headers[destination] = header
 	return {"path": destination, "sha256": digest, "bytes": size}
 
 
 func _set_header(slot: Dictionary, header: Dictionary) -> void:
 	for key in header:
 		if key != "path": slot[key] = header[key]
+
+## Header of a payload copied by this instance, without reading it again.
+func _payload_header(path: String) -> Dictionary:
+	if _copied_headers.has(path): return (_copied_headers[path] as Dictionary).duplicate(true)
+	return readable_header(path)
 
 func _commit(next: Dictionary) -> Error:
 	_compact_history(next)
@@ -1002,7 +1162,8 @@ func _write_journal(bytes: PackedByteArray) -> Error:
 	return DirAccess.rename_absolute(staged, journal_path())
 
 ## Only publication supplies descriptors from its already validated prior state.
-## Startup/recovery supplies none and deeply verifies every referenced asset.
+## Startup/recovery supplies none and checks every referenced asset's size and
+## digest; format validation happened before the descriptor first existed.
 func _read_journal(path: String, directory: String, owner: String, verified: Dictionary = {}) -> Dictionary:
 	if not FileAccess.file_exists(path): return {}
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -1069,11 +1230,9 @@ func _valid_stored_payload(payload: Dictionary, directory: String, verified: Dic
 	if path.get_base_dir() != directory.path_join("payloads") or not path.ends_with(".sc2d"): return false
 	if not CloudSaveTypes.valid_id(path.get_file().trim_suffix(".sc2d")): return false
 	if verified.get(path, {}) == payload: return true
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null: return false
-	var size := file.get_length()
-	file.close()
-	if size != payload.bytes or FileAccess.get_sha256(path) != payload.sha256 or readable_header(path).is_empty(): return false
+	# Payloads are immutable and fully validated before any descriptor can be
+	# published; reopening checks that the referenced bytes are still those.
+	if not payload_intact(payload): return false
 	verified[path] = payload.duplicate(true)
 	return true
 

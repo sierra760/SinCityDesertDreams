@@ -10,6 +10,7 @@ extends Node
 
 const BundledCities := preload("res://scripts/io/bundled_cities.gd")
 const AUTOSAVE_NAME := "autosave"
+const CLOUD_STORE_ROOT := "user://cloud-saves"
 ## Shown when a close request has to wait for an open window.
 const QUIT_WAITING_MESSAGE := "Close the open window to quit."
 
@@ -38,6 +39,7 @@ var _recovery_city: WeakRef = null
 var _recovery_path := ""
 var _cloud_load_intent: Dictionary = {}
 var _cloud_refresh_queued := false
+var _last_sync_rows_key: Array = []
 
 
 func _init(host: GameHost) -> void:
@@ -96,6 +98,11 @@ func _sync_status_changed(status: Dictionary) -> void:
 	_host.load_dialog.set_sync_status(status)
 	var options := _host.windows.get("options") as OptionsWindow
 	if options != null: options.set_sync_status(status)
+	# Rows depend on the account and library, not on retry timing or counts;
+	# library_changed covers content changes.
+	var key := [status.get("state", ""), status.get("owner", ""), status.get("epoch", 0)]
+	if key == _last_sync_rows_key: return
+	_last_sync_rows_key = key
 	_queue_cloud_refresh()
 
 
@@ -406,6 +413,11 @@ func mark_saved() -> void:
 	_saved_content = save_content()
 
 
+## The content at the last local save or load ({} when never saved).
+func saved_content() -> Dictionary:
+	return _saved_content
+
+
 ## Restore the explicit manual baseline when loading a newer continuation.
 func set_saved_content(content: Dictionary) -> void:
 	_saved_content = content.duplicate(true)
@@ -448,7 +460,9 @@ func request_city_action(action: StringName) -> void:
 	# leaving it needs no prompt. Downloaded real-world land is still offered a
 	# save except when rolling another map.
 	var untouched := is_unchanged_generated_land()
-	if not has_unsaved_changes() or (untouched and (action == &"regenerate" or _host.editing_params.get("source") != "real_world")):
+	# A city reopened from its iCloud copy and left unchanged loses nothing.
+	if not has_unsaved_changes() or (_host.cloud_saves != null and _host.cloud_saves.unchanged_since_opened()) \
+			or (untouched and (action == &"regenerate" or _host.editing_params.get("source") != "real_world")):
 		_perform_city_action(action)
 		return
 	_pending_city_action = action
@@ -457,7 +471,9 @@ func request_city_action(action: StringName) -> void:
 		func(choice: StringName) -> void:
 			_pending_city_action = &""
 			if choice == &"discard":
-				var error: Error = _host.cloud_saves.discard() if _host.cloud_saves != null else OK
+				# Load/New/Import can still be cancelled back to this same city.
+				var cancellable := action in [&"new", &"load", &"import"]
+				var error: Error = _host.cloud_saves.discard(cancellable) if _host.cloud_saves != null else OK
 				if error == OK: _perform_city_action(action)
 				else: _host.notices.show("Cannot Discard Yet", "Your local save choice could not be recorded. Check free space and try again.")
 			elif choice == &"save":
@@ -562,10 +578,11 @@ func save_city() -> Error:
 	if not _host.in_game:
 		return ERR_UNAVAILABLE
 	var path := _host.save_path if not _host.save_path.is_empty() else save_path_for(_host.sim.city.name)
+	var existed := FileAccess.file_exists(path)
 	var error := write_save(path)
 	if error == OK:
 		_host.save_path = path
-		if _host.cloud_saves != null: _host.cloud_saves.manual_saved(path)
+		if _host.cloud_saves != null: _host.cloud_saves.manual_saved(path, false, existed)
 	return error
 
 
@@ -574,10 +591,11 @@ func save_city_as(save_name: String) -> String:
 	if not _host.in_game:
 		return ""
 	var path := save_path_for(save_name)
+	var existed := FileAccess.file_exists(path)
 	if write_save(path) != OK:
 		return ""
 	_host.save_path = path
-	if _host.cloud_saves != null: _host.cloud_saves.manual_saved(path, true)
+	if _host.cloud_saves != null: _host.cloud_saves.manual_saved(path, true, existed)
 	return path
 
 
@@ -614,6 +632,42 @@ static func application_recovery_path() -> String:
 static func application_recovery_fallback_path() -> String:
 	return "user://recovery/suspended-untracked.sc2d"
 
+static func recovery_destination_path() -> String:
+	return "user://recovery/suspended-destination.json"
+
+## While cloud sync is off, the tracked recovery keeps its named destination
+## in this small note, bound to the exact recovery bytes it describes.
+static func write_recovery_destination(recovery_path: String, manual_path: String) -> void:
+	if not valid_recovery_destination(manual_path) or not FileAccess.file_exists(recovery_path):
+		clear_recovery_destination()
+		return
+	var note := {"version": 1, "recovery": ProjectSettings.globalize_path(recovery_path).simplify_path(),
+		"sha256": FileAccess.get_sha256(recovery_path), "manual": manual_path}
+	if SaveFormat._write_replacement(recovery_destination_path(), JSON.stringify(note).to_utf8_buffer()) != OK:
+		clear_recovery_destination()
+
+## The named destination for exactly these recovery bytes, or "".
+static func recovery_destination(recovery_path: String) -> String:
+	var file := FileAccess.open(recovery_destination_path(), FileAccess.READ)
+	if file == null or file.get_length() > 8192: return ""
+	var note: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if not note is Dictionary or note.get("version") != 1.0 or not note.get("manual") is String or not note.get("sha256") is String: return ""
+	if note.get("recovery") != ProjectSettings.globalize_path(recovery_path).simplify_path(): return ""
+	var manual: String = note.manual
+	if not valid_recovery_destination(manual): return ""
+	return manual if FileAccess.get_sha256(recovery_path) == note.sha256 else ""
+
+## Only an ordinary personal save may be a recovery destination: never a cloud
+## store payload, managed recovery/backup copy or other location.
+static func valid_recovery_destination(path: String) -> bool:
+	if path.is_empty() or path.to_utf8_buffer().size() > 4096 or not CloudSaveStore.personal_path(path) or is_managed_recovery_path(path): return false
+	return not CloudSaveStore._inside_root(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(CLOUD_STORE_ROOT))
+
+static func clear_recovery_destination() -> void:
+	if FileAccess.file_exists(recovery_destination_path()):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(recovery_destination_path()))
+
 ## A newer canonical write is already durable before retiring this old fallback.
 func retire_fallback_recovery() -> void:
 	var path := application_recovery_fallback_path()
@@ -626,6 +680,7 @@ func discard_recovery_copy() -> void:
 	var path := _recovery_path
 	_recovery_path = ""
 	if path.is_empty(): return
+	if is_tracked_application_recovery_path(path): clear_recovery_destination()
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 

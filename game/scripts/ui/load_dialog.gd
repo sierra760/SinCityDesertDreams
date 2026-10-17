@@ -121,13 +121,17 @@ func _build() -> void:
 
 ## Fill personal save headers and optionally append included-city entries.
 func refresh(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void:
-	var identity := _selection_identity()
-	item_list.clear()
-	_saves = saves.duplicate(true)
+	var rows := saves.duplicate(true)
 	for entry: Dictionary in included:
 		var header := entry.duplicate(true)
 		header["included_city"] = true
-		_saves.append(header)
+		rows.append(header)
+	# Background sync notifications refresh an open list often. Identical rows
+	# keep the current list, selection, scroll position and details as they are.
+	if visible and rows == _saves and item_list.item_count == _saves.size(): return
+	var identity := _selection_identity()
+	item_list.clear()
+	_saves = rows
 	details_label.text = ""
 	details_label.hide()
 	paths = PackedStringArray()
