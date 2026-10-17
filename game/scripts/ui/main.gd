@@ -27,6 +27,8 @@ enum Stage { NONE, EDITING, PLAY }
 const NO_TOOL := -1
 ## Visible time for transient feedback, independent of simulation speed.
 const MESSAGE_SECONDS := 7.0
+## Disasters that travel across the city; the camera follows them by default.
+const FOLLOWED_DISASTERS: Array[StringName] = [&"tornado", &"monster", &"hurricane", &"plane_crash", &"microwave"]
 
 @onready var sim: Simulation = $Simulation
 var street_names: StreetNamesSession
@@ -58,6 +60,8 @@ var mod_registry := ExploreModRegistry.new()
 var exploration: CityExplorationController
 var explore_hud: ExploreHUD
 var cursor_caption_3d: Label
+## True while the camera follows a moving disaster; panning the map lets go.
+var follow_disaster := false
 ## Tests may supply a separate preference file without changing city saves.
 var preferences_path := ViewPreferences.PATH
 var builder: Builder
@@ -328,6 +332,7 @@ func _connect_simulation() -> void:
 
 func _connect_presentation() -> void:
 	city_view_3d.view_changed.connect(_on_3d_view_changed)
+	city_view_3d.camera_moved_by_player.connect(_on_player_moved_camera)
 	presentation.preview.footprint_changed.connect(sync_3d_cursor)
 	presentation.tile_clicked.connect(_on_tile_clicked)
 	presentation.tile_hovered.connect(_on_tile_hovered)
@@ -1049,6 +1054,8 @@ func go_to_emergency() -> void:
 	presentation.set_view_mode(CityPresentationController.ViewMode.SURFACE)
 	presentation.set_overlay(&"")
 	city_view_3d.set_center_cell(point)
+	# Going back to a moving disaster picks up following it again.
+	follow_disaster = StringName(String(disasters.active().get("kind", ""))) in FOLLOWED_DISASTERS
 
 
 func request_disaster(kind: StringName) -> bool:
@@ -1268,10 +1275,33 @@ func _finish_budget_review() -> void:
 	status_bar.refresh(sim)
 
 
-func _on_disaster_started(_kind: StringName, center: Vector2i) -> void:
+func _on_disaster_started(kind: StringName, center: Vector2i) -> void:
 	if center.x >= 0 and in_game and not is_exploring():
-		city_view_3d.set_center_cell(center)
+		follow_disaster = kind in FOLLOWED_DISASTERS
+		# A moving disaster may start away from where it is headed: open on it.
+		var disasters := sim.get_system(&"disasters") as DisasterSystem
+		var live := disasters.emergency_target() if follow_disaster and disasters != null else Vector2i(-1, -1)
+		city_view_3d.set_center_cell(live if live.x >= 0 else center)
 	refresh_toolbar()
+
+
+## Keep a moving disaster in view until it is gone or the player pans away.
+func _follow_disaster_camera(delta: float) -> void:
+	if not follow_disaster:
+		return
+	if is_exploring() or stage != Stage.PLAY:
+		return
+	var point := city_view_3d.feedback.moving_incident_point() if city_view_3d.feedback != null else Vector3.INF
+	if point.is_finite():
+		city_view_3d.follow_point(point, delta)
+		return
+	var disasters := sim.get_system(&"disasters") as DisasterSystem
+	if disasters == null or not disasters.is_emergency():
+		follow_disaster = false
+
+
+func _on_player_moved_camera() -> void:
+	follow_disaster = false
 
 
 # ── Input blocking ───────────────────────────────────────────────────────
@@ -1397,7 +1427,9 @@ func _process(delta: float) -> void:
 	if is_exploring() and is_instance_valid(exploration.occupied): player_world = exploration.occupied.global_position
 	presentation.sync_livestock(delta,agriculture,livestock_paused(),player_world)
 	presentation.sync_actors(delta, entity_records.gather(), sim.get_system(&"transport"),
-		sim.speed == GameClock.Speed.PAUSED, bool(preferences.get("vehicles", true)))
+		sim.speed == GameClock.Speed.PAUSED, bool(preferences.get("vehicles", true)),
+		float(GameClock.SECONDS_PER_DAY.get(sim.speed, 0.8)))
+	_follow_disaster_camera(delta)
 
 
 ## Write the preferences to their file.

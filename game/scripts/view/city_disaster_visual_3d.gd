@@ -24,10 +24,20 @@ const MODELS := {
 	&"plane": MODEL_ROOT + "plane.glb",
 	&"fire": MODEL_ROOT + "fire.glb",
 }
+## Ground Tsawhawbitts' authored walk covers at normal playback, in tiles per
+## second (stride length and cadence are in `tools/disaster_art/creatures.py`).
+const MONSTER_WALK_SPEED := 0.3024
+## Faster game speeds play the stride faster; beyond this many times the
+## authored cadence (only at the fastest speed) the feet are allowed to slide.
+const MONSTER_MAX_CADENCE := 12.0
 var kind: StringName
 var _animation_player: AnimationPlayer
 var _animation_name: StringName
 var _phase := 0.0
+## Once the city drives the walk, the clip advances with ground covered rather
+## than wall-clock time, so a paused or standing giant stops mid-stride.
+var _stride_locked := false
+var _cadence := 0.0
 
 
 static func fire_material() -> ShaderMaterial:
@@ -48,6 +58,8 @@ func build(value: StringName) -> void:
 	_animation_player = null
 	_animation_name = &""
 	_phase = 0.0
+	_stride_locked = false
+	_cadence = 0.0
 	kind = value
 	name = String(value).capitalize()
 	if has_meta("authored_model"): remove_meta("authored_model")
@@ -90,8 +102,21 @@ func set_animation_phase(value: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if _stride_locked:
+		return
 	if _animation_player != null and is_finite(delta) and delta >= 0.0:
 		_animation_player.advance(delta)
+
+
+## Advance the walk by the ground covered: `speed` is tiles per second over
+## this frame's `delta` seconds. The cadence eases so steps do not stutter.
+func walk(speed: float, delta: float) -> void:
+	_stride_locked = true
+	if _animation_player == null or not is_finite(speed) or not is_finite(delta) or delta <= 0.0:
+		return
+	var target := clampf(speed / MONSTER_WALK_SPEED, 0.0, MONSTER_MAX_CADENCE)
+	_cadence = lerpf(_cadence, target, 1.0 - exp(-delta * 8.0))
+	_animation_player.advance(delta * _cadence)
 
 
 static func _model_scene(value: StringName) -> PackedScene:

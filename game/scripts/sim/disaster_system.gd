@@ -522,9 +522,10 @@ func _start(ctx: SimContext, kind: StringName, at: Vector2i, survey: Dictionary)
 				"heading": ctx.rng.below(8)})
 			_active["remaining"] = DisasterParams.TORNADO_DAYS
 		&"monster":
-			var edge := _edge_point(ctx)
-			_entities.append({"kind": "monster", "x": edge.x, "y": edge.y, "frame": 0,
-				"heading": ctx.rng.below(8), "tx": point.x, "ty": point.y, "arrived": false})
+			var entry := _monster_entry(point)
+			_entities.append({"kind": "monster", "x": entry.x, "y": entry.y, "frame": 0,
+				"heading": _heading_toward(entry, point), "tx": point.x, "ty": point.y,
+				"arrived": false, "leaving": false})
 			_active["remaining"] = DisasterParams.MONSTER_DAYS
 		&"meltdown":
 			_begin_meltdown(ctx, point)
@@ -851,20 +852,37 @@ func _step_monster(ctx: SimContext) -> void:
 		return
 	var pos := Vector2i(int(e["x"]), int(e["y"]))
 	var target := Vector2i(int(e["tx"]), int(e["ty"]))
-	if not bool(e["arrived"]) and _chebyshev(pos, target) <= DisasterParams.MONSTER_HOVER_RADIUS:
+	var heading := int(e["heading"])
+	var leaving := bool(e.get("leaving", false))
+	if not leaving and int(_active["remaining"]) <= 1:
+		leaving = true
+	if not leaving and not bool(e["arrived"]) and _chebyshev(pos, target) <= DisasterParams.MONSTER_HOVER_RADIUS:
 		e["arrived"] = true
-	if bool(e["arrived"]):
-		e["heading"] = ctx.rng.below(8)
-		pos += DIRS_8[int(e["heading"])] * (1 + ctx.rng.below(DisasterParams.MONSTER_STEP))
+	if leaving:
+		heading = _turn_toward(heading, _heading_toward(pos, _nearest_edge(pos)))
+	elif bool(e["arrived"]):
+		# Wander the streets in long, gently curving walks, turning back
+		# toward the heart of the city when it strays too far.
+		if _chebyshev(pos + DIRS_8[heading], target) > DisasterParams.MONSTER_WANDER_RADIUS:
+			heading = _turn_toward(heading, _heading_toward(pos, target))
+		elif ctx.rng.chance(1, DisasterParams.MONSTER_TURN_ODDS):
+			heading = posmod(heading + (1 if ctx.rng.chance(1, 2) else -1), 8)
 	else:
-		var diff := target - pos
-		pos += Vector2i(clampi(diff.x, -DisasterParams.MONSTER_STEP, DisasterParams.MONSTER_STEP),
-			clampi(diff.y, -DisasterParams.MONSTER_STEP, DisasterParams.MONSTER_STEP))
-		e["heading"] = _heading_toward(pos, target)
+		heading = _turn_toward(heading, _heading_toward(pos, target))
+		if ctx.rng.chance(1, DisasterParams.MONSTER_TURN_ODDS * 2):
+			heading = posmod(heading + (1 if ctx.rng.chance(1, 2) else -1), 8)
+	pos += DIRS_8[heading] * DisasterParams.MONSTER_STEP
+	e["heading"] = heading
+	e["frame"] = int(e["frame"]) + 1
+	if leaving:
+		e["leaving"] = true
+		e["leave_days"] = int(e.get("leave_days", 0)) + 1
+		if not ctx.city.in_bounds(pos.x, pos.y) or int(e["leave_days"]) > DisasterParams.MONSTER_LEAVE_DAYS:
+			_remove_entity("monster")
+			return
 	pos = Vector2i(clampi(pos.x, 0, City.WIDTH - 1), clampi(pos.y, 0, City.HEIGHT - 1))
 	e["x"] = pos.x
 	e["y"] = pos.y
-	e["frame"] = int(e["frame"]) + 1
 	for dy in range(-1, 2):
 		for dx in range(-1, 2):
 			var p := pos + Vector2i(dx, dy)
@@ -877,8 +895,35 @@ func _step_monster(ctx: SimContext) -> void:
 				_wreck_wind(ctx, p)
 			elif ctx.rng.chance(1, DisasterParams.MONSTER_IGNITE_ODDS):
 				_ignite(ctx, p.x, p.y)
-	if bool(e["arrived"]) and ctx.rng.chance(1, DisasterParams.MONSTER_LEAVE_ODDS):
-		_remove_entity("monster")
+	if bool(e["arrived"]) and not leaving and ctx.rng.chance(1, DisasterParams.MONSTER_LEAVE_ODDS):
+		e["leaving"] = true
+
+
+## Where Tsawhawbitts walks in: the map edge nearest its target, or a point
+## on that line no farther than MONSTER_APPROACH_DISTANCE from it.
+func _monster_entry(target: Vector2i) -> Vector2i:
+	var edge := _nearest_edge(target)
+	var d := edge - target
+	var reach := DisasterParams.MONSTER_APPROACH_DISTANCE
+	return target + Vector2i(clampi(d.x, -reach, reach), clampi(d.y, -reach, reach))
+
+
+func _nearest_edge(p: Vector2i) -> Vector2i:
+	var options: Array[Vector2i] = [Vector2i(p.x, 0), Vector2i(City.WIDTH - 1, p.y),
+		Vector2i(p.x, City.HEIGHT - 1), Vector2i(0, p.y)]
+	var best := options[0]
+	for o in options:
+		if _chebyshev(p, o) < _chebyshev(p, best):
+			best = o
+	return best
+
+
+## One eighth-turn from `heading` toward `desired`, the shorter way round.
+func _turn_toward(heading: int, desired: int) -> int:
+	var diff := posmod(desired - heading, 8)
+	if diff == 0:
+		return heading
+	return posmod(heading + (1 if diff <= 4 else -1), 8)
 
 
 func _step_hurricane(ctx: SimContext) -> void:
@@ -992,7 +1037,8 @@ func _finish_if_done(ctx: SimContext) -> void:
 		"tornado":
 			going = remaining > 0 and not _entity("tornado").is_empty()
 		"monster":
-			going = remaining > 0 and not _entity("monster").is_empty()
+			# Tsawhawbitts finishes once it has walked away, not when its days run out.
+			going = not _entity("monster").is_empty()
 		"plane_crash":
 			going = remaining > 0 and not _entity("plane").is_empty()
 		"microwave":

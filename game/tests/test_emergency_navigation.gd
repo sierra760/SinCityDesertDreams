@@ -169,3 +169,39 @@ func test_dispatched_crews_retain_their_authored_vehicles_and_explore_selection(
 		var selected := host.city_view_3d.traffic.claim_nearby_vehicle(point, 0.2)
 		check_eq(selected.get("kind", &""), example[0], "response vehicle remains selectable in Explore")
 		host.city_view_3d.traffic.release_vehicle(selected, point)
+
+
+func _frame(delta: float) -> void:
+	host.presentation.sync_actors(delta, host.entity_records.gather(), host.sim.get_system(&"transport"), false, false, 0.8)
+	host._follow_disaster_camera(delta)
+
+func _camera_cell_distance(to: Vector2i) -> float:
+	var c := host.city_view_3d.center
+	return Vector2(c.x, c.z).distance_to(Vector2(to) + Vector2(0.5, 0.5))
+
+func test_camera_follows_a_moving_disaster_until_the_player_pans() -> void:
+	check(host.sim.request_disaster(&"tornado", Vector2i(45, 39)))
+	check(host.follow_disaster, "a moving disaster is followed from the start")
+	check_eq(Vector2i(host.city_view_3d.center.x, host.city_view_3d.center.z), _target(), "the camera opens on the disaster itself")
+	host.notices.clear_pending()
+	host.notice_dialog.dismiss()
+	for day in 2:
+		host.sim.advance_day()
+		for i in 20: _frame(0.05)
+	check(_system().is_emergency(), "fixture tornado is still on the ground")
+	check_lt(_camera_cell_distance(_target()), 2.0, "the camera keeps the tornado in view as it moves")
+	host.city_view_3d._pan(Vector3(6, 0, 0))
+	check(not host.follow_disaster, "panning the map lets go")
+	var held := host.city_view_3d.center
+	host.sim.advance_day()
+	for i in 20: _frame(0.05)
+	check_eq(host.city_view_3d.center, held, "the camera stays where the player put it")
+	host.go_to_emergency()
+	check(host.follow_disaster, "Go to Emergency picks the moving disaster up again")
+	host.city_view_3d.set_zoom_level(1)
+	check(host.follow_disaster, "zooming keeps following")
+
+func test_fixed_disasters_are_shown_but_not_followed() -> void:
+	check(host.sim.request_disaster(&"fire", Vector2i(32, 39)))
+	check(not host.follow_disaster, "a fire stays put; there is nothing to follow")
+	check_eq(Vector2i(host.city_view_3d.center.x, host.city_view_3d.center.z), Vector2i(32, 39))

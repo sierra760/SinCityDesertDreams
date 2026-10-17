@@ -286,10 +286,12 @@ func _apply_exploration_visibility() -> void:
 ## simulation's entity records. Disaster records drive the markers; crews and
 ## ordinary vehicles drive traffic, which shows only when `show_vehicles` is
 ## on and the plain surface view is up.
-func sync_actors(delta: float, records: Array, transport: SimSystem, paused: bool, show_vehicles: bool) -> void:
+func sync_actors(delta: float, records: Array, transport: SimSystem, paused: bool, show_vehicles: bool, day_seconds: float = 0.8) -> void:
 	if view.feedback != null:
 		var incidents: Array = records.filter(func(record: Dictionary) -> bool: return record.get("source", &"") == &"disasters" or not CityTrafficCatalog.is_vehicle_kind(record.kind))
+		view.feedback.day_seconds = day_seconds
 		view.feedback.sync_records(incidents)
+		view.feedback.advance_disasters(0.0 if paused else delta)
 	if view.traffic != null:
 		if transport != null and transport.has_method("monthly_riders_by_mode"):
 			view.traffic.riders = transport.call("monthly_riders_by_mode")

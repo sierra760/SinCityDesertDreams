@@ -193,18 +193,38 @@ func test_extra_edition_breaks_on_urgent_news() -> void:
 	check(lead["body"].contains("the southeast corner"), lead["body"])
 	check_eq(notices_of(ctx, &"newspaper"), 1)
 	check_eq(s.pending().size(), 0, "the boom story was printed alongside the extra")
-	ctx.events.report(&"disaster_started", {"kind": "flood", "x": 1, "y": 1}, 3)
-	s.daily(ctx)
-	check_eq(s.archive().size(), 1, "at most one extra per day")
-	check_eq(s.pending().size(), 1)
-	next_day(ctx)
 	ctx.events.report(&"bankruptcy", {})
 	s.daily(ctx)
-	check_eq(s.archive().size(), 2)
-	var printed: Array = []
-	for st in s.latest_issue()["stories"]:
-		printed.append(st["kind"])
-	check_eq(printed.slice(0, 2), ["disaster_started", "bankruptcy"], "equal priorities print oldest first")
+	check_eq(s.archive().size(), 1, "other urgent news gets at most one extra per day")
+	check_eq(s.pending().size(), 1)
+	ctx.events.report(&"disaster_started", {"kind": "flood", "x": 1, "y": 1}, 3)
+	s.daily(ctx)
+	check_eq(s.archive().size(), 2, "a second disaster the same day still breaks at once")
+	check_eq(s.latest_issue()["stories"][0]["kind"], "bankruptcy", "equal priorities print oldest first")
+	check_eq(s.latest_issue()["stories"][1]["kind"], "disaster_started")
+	check_eq(s.pending().size(), 0)
+
+
+func test_disaster_extra_leads_the_days_notices() -> void:
+	var ctx := make_ctx()
+	var s := make_system(ctx)
+	ctx.events.notify(&"disaster", {"kind": "tornado", "x": 5, "y": 5})
+	ctx.events.notify(&"national_guard", {})
+	ctx.events.report(&"disaster_started", {"kind": "tornado", "x": 5, "y": 5}, 3)
+	s.absorb(ctx)
+	check_eq(ctx.events.notices.size(), 3)
+	check_eq(ctx.events.notices[0]["kind"], &"newspaper", "the paper breaks the news first")
+	check_eq(ctx.events.notices[1]["kind"], &"disaster")
+	check_eq(ctx.events.notices[2]["kind"], &"national_guard")
+
+
+func test_disaster_stories_read_as_breaking_news() -> void:
+	for kind in DisasterParams.KINDS:
+		var values := NewsStories.values_for(&"disaster_started", {"kind": kind, "x": 5, "y": 5}, "Testville", "Pat", 2000)
+		var body := NewsStories.body(&"disaster_started", {"kind": kind}, values)
+		check(not body.contains("this month"), "%s onset story is not an after-the-fact report: %s" % [kind, body])
+		for finished in ["has passed", "left the way", "lifting back", "came down", "broke out", "struck "]:
+			check(not body.contains(finished), "%s onset story says it is over (%s): %s" % [kind, finished, body])
 
 
 func test_every_reported_kind_has_its_own_story() -> void:

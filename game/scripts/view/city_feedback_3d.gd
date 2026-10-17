@@ -13,6 +13,20 @@ var power_markers: Node3D
 var traffic: MultiMeshInstance3D
 var disaster_visuals: Node3D
 var _disaster_nodes: Dictionary = {}
+## Per-visual glide between the simulation's daily positions:
+## key -> {from, to, t, h_from, h_to, yaw}.
+var _disaster_motion: Dictionary = {}
+## Real seconds one simulated day takes at the current speed. Moving incidents
+## walk, spin or fly from one day's tile to the next over this time instead of
+## jumping a whole day's distance at once.
+var day_seconds := 0.8
+## Incidents that travel across the city, which the camera can follow.
+const MOVING_INCIDENTS: Array[StringName] = [&"tornado", &"monster", &"hurricane", &"beam", &"plane"]
+## Turning to a new heading takes about this share of a day.
+const TURN_DAYS := 0.35
+## Moves longer than this (a load, or a crowd record changing places) cut
+## rather than glide; the longest daily move, a landing plane, is shorter.
+const GLIDE_LIMIT := 12.0
 var _signature := 0
 var _power_signature: Variant = null
 var _power_texture: Texture2D
@@ -245,23 +259,88 @@ func _sync_disasters(records: Array) -> void:
 		counts[kind] = index + 1
 		var key := "%s:%d" % [kind, index]
 		seen[key] = true
+		var pos: Vector2 = record.pos
+		var yaw := -float(record.heading) * PI / 4.0
 		var visual: CityDisasterVisual3D = _disaster_nodes.get(key)
 		if visual == null:
 			visual = CityDisasterVisual3D.new()
 			visual.build(kind)
 			disaster_visuals.add_child(visual)
-			var initial_pos: Vector2 = record.pos
-			visual.set_animation_phase(float(posmod(int(initial_pos.x) * 73 + int(initial_pos.y) * 157, 997)) / 997.0)
+			visual.set_animation_phase(float(posmod(int(pos.x) * 73 + int(pos.y) * 157, 997)) / 997.0)
 			_disaster_nodes[key] = visual
-		var pos: Vector2 = record.pos
-		visual.position = Vector3(pos.x + 0.5, CityGeometry3D.surface_height(city, Vector2i(pos)), pos.y + 0.5)
-		visual.rotation.y = -float(record.heading) * PI / 4.0
+			var h := _incident_height(pos)
+			_disaster_motion[key] = {"from": pos, "to": pos, "t": 1.0, "h_from": h, "h_to": h, "yaw": yaw}
+			visual.rotation.y = yaw
+			_place_incident(visual, _disaster_motion[key])
+			continue
+		var motion: Dictionary = _disaster_motion[key]
+		motion.yaw = yaw
+		if pos == motion.to:
+			continue
+		var shown: Vector2 = (motion.from as Vector2).lerp(motion.to, motion.t)
+		var limit := 1.5 if kind == &"riot" else GLIDE_LIMIT
+		if shown.distance_to(pos) > limit:
+			# Not a walk: show the new place at once.
+			var h := _incident_height(pos)
+			motion.merge({"from": pos, "to": pos, "t": 1.0, "h_from": h, "h_to": h}, true)
+			visual.rotation.y = yaw
+		else:
+			motion.h_from = lerpf(motion.h_from, motion.h_to, motion.t)
+			motion.merge({"from": shown, "to": pos, "t": 0.0, "h_to": _incident_height(pos)}, true)
+		_place_incident(visual, motion)
 	for key: String in _disaster_nodes.keys():
 		if seen.has(key): continue
 		var visual: CityDisasterVisual3D = _disaster_nodes[key]
 		disaster_visuals.remove_child(visual)
 		visual.queue_free()
 		_disaster_nodes.erase(key)
+		_disaster_motion.erase(key)
+
+
+## Move each incident along its glide and turn it toward its heading. Called
+## once a frame with the frame time; pass 0 while the city is paused, which
+## holds every incident (and Tsawhawbitts' stride) where it stands.
+func advance_disasters(delta: float) -> void:
+	if not is_finite(delta) or delta < 0.0:
+		return
+	var span := maxf(day_seconds, 0.01)
+	for key: String in _disaster_nodes:
+		var visual: CityDisasterVisual3D = _disaster_nodes[key]
+		var motion: Dictionary = _disaster_motion[key]
+		var before: Vector2 = (motion.from as Vector2).lerp(motion.to, motion.t)
+		motion.t = minf(1.0, float(motion.t) + delta / span)
+		var now := _place_incident(visual, motion)
+		var turn := angle_difference(visual.rotation.y, motion.yaw)
+		if absf(turn) < 0.001:
+			visual.rotation.y = motion.yaw
+		else:
+			visual.rotation.y += turn * (1.0 - exp(-delta / (span * TURN_DAYS)))
+		if visual.kind == &"monster":
+			# Lock the stride to the ground covered so the feet stay planted.
+			var speed := before.distance_to(now) / delta if delta > 0.0 else 0.0
+			visual.walk(speed, delta)
+
+
+## Where the first moving incident (the tornado, Tsawhawbitts, the hurricane's
+## eye, a falling plane or a stray beam) is drawn now, or INF when there is none.
+func moving_incident_point() -> Vector3:
+	for key: String in _disaster_nodes:
+		var visual: CityDisasterVisual3D = _disaster_nodes[key]
+		if visual.kind in MOVING_INCIDENTS:
+			return visual.position
+	return Vector3.INF
+
+
+func _place_incident(visual: Node3D, motion: Dictionary) -> Vector2:
+	var t := float(motion.t)
+	var pos: Vector2 = (motion.from as Vector2).lerp(motion.to, t)
+	visual.position = Vector3(pos.x + 0.5, lerpf(motion.h_from, motion.h_to, t), pos.y + 0.5)
+	return pos
+
+
+func _incident_height(pos: Vector2) -> float:
+	var cell := Vector2i(clampi(int(pos.x), 0, City.WIDTH - 1), clampi(int(pos.y), 0, City.HEIGHT - 1))
+	return CityGeometry3D.surface_height(city, cell)
 
 
 ## Synchronize external snapshots without retaining mutable simulation records.

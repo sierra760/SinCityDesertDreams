@@ -335,8 +335,8 @@ const STORIES: Dictionary = {
 			"Crews Race To {place} After {kind}",
 		],
 		"body": [
-			"A {kind} struck {city} near {place} this month. Emergency crews were dispatched as residents fled to higher ground, lower ground, or the nearest bar, depending on temperament.",
-			"Damage is still being counted. Mayor {mayor} asked residents to stay calm and keep the roads clear for responders.",
+			"A {kind} is striking {city} near {place} as this edition goes to press. Emergency crews are on their way and residents are heading for higher ground, lower ground, or the nearest bar, depending on temperament.",
+			"There is no counting the damage yet. Mayor {mayor} asks residents to stay calm and keep the roads clear for responders.",
 		],
 	},
 	&"disaster_fire": {
@@ -348,7 +348,7 @@ const STORIES: Dictionary = {
 			"Dry Wind Feeds Flames Near {place}",
 		],
 		"body": [
-			"A fire broke out near {place} and, helped along by the wind, spread faster than the volunteers could unroll hose. Several buildings are gone and more are threatened.",
+			"Fire has broken out near {place} and, helped along by the wind, is spreading faster than the volunteers can unroll hose. Neighboring buildings are threatened.",
 			"Firefighters ask residents to stay away and, for once, not to bring lawn chairs.",
 		],
 	},
@@ -361,7 +361,7 @@ const STORIES: Dictionary = {
 			"The Rain Came All At Once",
 		],
 		"body": [
-			"A wall of water came down the wash and into {place} this month. Cars were carried a block, porches floated free, and one canoe made an appearance nobody could explain.",
+			"A wall of water is coming down the wash and into {place}. Cars are being carried down the block, porches are floating free, and one canoe has made an appearance nobody can explain.",
 			"The water will recede. The mud, old-timers warn, will not.",
 		],
 	},
@@ -371,11 +371,11 @@ const STORIES: Dictionary = {
 			"Twister Tears Across {place}",
 			"Tornado Touches Down In {city}",
 			"Funnel Cloud Rearranges {place}",
-			"Roofs Airborne As Tornado Passes Through",
+			"Roofs Airborne As Tornado Tears Through Town",
 		],
 		"body": [
-			"A tornado touched down near {place} and cut a ragged line across town before lifting back into the sky. Roofs, fences and at least one outhouse were relocated without permits.",
-			"Nobody in {city} had seen one before, and most would prefer not to again.",
+			"A tornado has touched down near {place} and is cutting a ragged line across town. Roofs, fences and at least one outhouse are being relocated without permits.",
+			"Nobody in {city} has seen one before, and everybody would like it to lift back into the sky soon.",
 		],
 	},
 	&"disaster_earthquake": {
@@ -387,21 +387,21 @@ const STORIES: Dictionary = {
 			"{city} Rattled By Quake; Aftershocks Feared",
 		],
 		"body": [
-			"The ground shook under {city} this month, hardest near {place}. Walls cracked, gas lines ruptured, and fires broke out where the shaking was worst.",
-			"Geologists say the fault has always been there. Residents say they would have appreciated a mention earlier.",
+			"The ground is shaking under {city}, hardest near {place}. Walls are cracking, gas lines have ruptured, and fires are breaking out where the shaking is worst.",
+			"Geologists say the fault has always been there and warn of aftershocks. Residents say they would have appreciated a mention earlier.",
 		],
 	},
 	&"disaster_monster": {
 		"priority": URGENT, "decay": ONCE,
 		"headlines": [
-			"Tsawhawbitts Stomps Through {place}",
+			"Tsawhawbitts Stomps Toward {place}",
 			"Tsawhawbitts Sighted; {city} Advises Staying Indoors",
 			"Tsawhawbitts Is Walking Down Main Street",
-			"Tsawhawbitts Flattens {place}; Scientists Baffled, Locals Less So",
+			"Giant Walks Out Of The Desert; Scientists Baffled, Locals Less So",
 		],
 		"body": [
-			"Tsawhawbitts walked out of the desert and through {place} this month. The enormous giant appeared to be looking for something and did not find it.",
-			"Tsawhawbitts left the way he came. The buildings he stepped on did not.",
+			"Tsawhawbitts has walked out of the desert and is heading for {place}. The enormous giant appears to be looking for something, and buildings are coming down wherever he steps.",
+			"Residents are urged to keep clear of his path. Nobody knows how long he means to stay.",
 		],
 	},
 	&"disaster_riot": {
@@ -413,21 +413,21 @@ const STORIES: Dictionary = {
 			"Police Call For Backup As Riot Grows",
 		],
 		"body": [
-			"A crowd near {place} turned into a riot this month. Windows were broken, cars were overturned, and a great deal was said about the council that cannot be printed.",
-			"Police have asked for reinforcements. Mayor {mayor} has asked what started it, which is a longer conversation.",
+			"A crowd near {place} has turned into a riot. Windows are being broken, cars overturned, and a great deal is being said about the council that cannot be printed.",
+			"Police are asking for reinforcements. Mayor {mayor} is asking what started it, which is a longer conversation.",
 		],
 	},
 	&"disaster_plane_crash": {
 		"priority": URGENT, "decay": ONCE,
 		"headlines": [
-			"Aircraft Comes Down Near {place}",
-			"Plane Crash Sparks Fires In {city}",
-			"Wreckage Scattered Across {place}",
-			"Pilot Missed The Runway By Some Distance",
+			"Aircraft Going Down Near {place}",
+			"Stricken Plane Heads For {place}",
+			"Crews Race To Meet Falling Airliner",
+			"Airliner In Trouble Over {city}",
 		],
 		"body": [
-			"An aircraft came down near {place} this month, starting fires where it hit. Crews worked through the night to keep the flames from spreading.",
-			"Investigators are on their way. The airport says its runway is fine and was, in fact, right over there.",
+			"An aircraft in trouble is coming down over {place}. Witnesses report smoke from one engine, and crews are racing to where it will hit.",
+			"Investigators are on their way. The airport says its runway is fine and is, in fact, right over there.",
 		],
 	},
 	&"disaster_hurricane": {
@@ -436,11 +436,11 @@ const STORIES: Dictionary = {
 			"Hurricane Batters {city}",
 			"Storm Surge Swamps {place}",
 			"Winds Howl, Water Rises Along The Shore",
-			"Hurricane Makes Landfall; {city} Boards Up",
+			"Hurricane Making Landfall; {city} Boards Up",
 		],
 		"body": [
-			"A hurricane came ashore this month, driving water into {place} and wind through everything else. Palms bent double and signs went sailing.",
-			"The storm has passed. The cleanup, the council is told, has not started.",
+			"A hurricane is coming ashore, driving water toward {place} and wind through everything else. Palms are bending double and signs are going sailing.",
+			"Residents near the water are told to head inland and stay there until the all-clear.",
 		],
 	},
 	&"disaster_meltdown": {
@@ -452,8 +452,8 @@ const STORIES: Dictionary = {
 			"Glow Over {place} Not The Good Kind",
 		],
 		"body": [
-			"The reactor near {place} suffered a meltdown this month. Ground around the plant is contaminated and will stay that way for longer than anyone reading this will live.",
-			"The utility called it an isolated incident. Residents called it several other things.",
+			"The reactor near {place} is in meltdown. Ground around the plant is being contaminated and will stay that way for longer than anyone reading this will live.",
+			"The utility calls it an isolated incident. Residents are calling it several other things on their way out of the area.",
 		],
 	},
 	&"disaster_chemical_spill": {
@@ -465,7 +465,7 @@ const STORIES: Dictionary = {
 			"Something Green Is Seeping Out Of {place}",
 		],
 		"body": [
-			"A chemical spill near {place} has left the ground contaminated and the air sharp enough to taste. Crews in heavy suits are working the site.",
+			"A chemical spill near {place} is spreading into the ground and leaving the air sharp enough to taste. Crews in heavy suits are working the site.",
 			"The company responsible has issued a statement. It is very short.",
 		],
 	},
@@ -478,8 +478,8 @@ const STORIES: Dictionary = {
 			"Power From Space Arrives Somewhat Off Course",
 		],
 		"body": [
-			"The satellite that feeds the microwave receiver lost its aim this month and cooked a stretch of {place} instead. Fires followed, and so did a great many questions.",
-			"Engineers say the beam has been recalibrated. Residents near the plant have bought hats.",
+			"The satellite that feeds the microwave receiver has lost its aim and is cooking a stretch of {place} instead. Fires are following, and so are a great many questions.",
+			"Engineers say they are working to recalibrate the beam. Residents near the plant are buying hats.",
 		],
 	},
 	&"disaster_volcano": {
@@ -491,7 +491,7 @@ const STORIES: Dictionary = {
 			"The Ground Opened Up And Nobody Was Consulted",
 		],
 		"body": [
-			"A volcano erupted near {place} this month, raising a new mountain where there was none and burying everything on its slopes in ash and lava.",
+			"A volcano is erupting near {place}, raising a new mountain where there was none and burying everything on its slopes in ash and lava.",
 			"Geologists are thrilled. Nobody else is.",
 		],
 	},
@@ -504,8 +504,8 @@ const STORIES: Dictionary = {
 			"{city} Burns From {place} Outward",
 		],
 		"body": [
-			"Fires broke out across {city} at once this month, fanned by a hot wind that turned each one into a front. Crews near {place} fought through the night.",
-			"The sky was orange until dawn. The Dispatch office is fine, thank you for asking.",
+			"Fires are breaking out across {city} at once, fanned by a hot wind that turns each one into a front. Crews near {place} expect to fight through the night.",
+			"The sky is orange. The Dispatch office is fine, thank you for asking.",
 		],
 	},
 	&"disaster_mass_riots": {
@@ -517,8 +517,8 @@ const STORIES: Dictionary = {
 			"Whole Districts Take To The Streets",
 		],
 		"body": [
-			"Riots broke out in several districts of {city} at once this month, worst near {place}. Fires were set and storefronts emptied before police could form a line.",
-			"Mayor {mayor} has requested outside help. The council has requested the mayor.",
+			"Riots are breaking out in several districts of {city} at once, worst near {place}. Fires are being set and storefronts emptied before police can form a line.",
+			"Mayor {mayor} is requesting outside help. The council is requesting the mayor.",
 		],
 	},
 	&"disaster_major_flood": {
@@ -530,8 +530,8 @@ const STORIES: Dictionary = {
 			"Water Everywhere, And Rising",
 		],
 		"body": [
-			"The worst flood anyone can remember spread across the low ground of {city} this month, drowning {place} and everything at its level.",
-			"Boats were seen on the main road. Some of them were being used correctly.",
+			"The worst flood anyone can remember is spreading across the low ground of {city}, drowning {place} and everything at its level.",
+			"Boats are out on the main road. Some of them are being used correctly.",
 		],
 	},
 	&"disaster_hazard": {
@@ -543,7 +543,7 @@ const STORIES: Dictionary = {
 			"Old Dump Turns Out To Be Worse Than Advertised",
 		],
 		"body": [
-			"Inspectors found hazardous contamination near {place} this month and fenced the site off. Nothing can be built there until it is cleaned, and cleaning is not cheap.",
+			"Inspectors have found hazardous contamination near {place} and are fencing the site off. Nothing can be built there until it is cleaned, and cleaning is not cheap.",
 			"The previous owner could not be reached, having moved to another state and possibly another name.",
 		],
 	},

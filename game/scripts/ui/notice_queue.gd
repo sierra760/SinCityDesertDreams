@@ -18,8 +18,10 @@ func _init(host: GameHost) -> void:
 
 
 ## Flavour notices with nothing to decide: they go to the status line instead
-## of pausing the city behind a dialog.
-const STATUS_ONLY: Array[StringName] = [&"tree_protest", &"approval_milestone"]
+## of pausing the city behind a dialog. A disaster is announced by the extra
+## edition of the newspaper that breaks with it, so its own notice is only a
+## status line rather than a second dialog in front of the paper.
+const STATUS_ONLY: Array[StringName] = [&"tree_protest", &"approval_milestone", &"disaster"]
 
 
 ## Show the notice for something the simulation raised, if it has one.

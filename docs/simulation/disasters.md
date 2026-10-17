@@ -192,12 +192,19 @@ chance 1 in `TORNADO_VANISH_ODDS` each day.
 
 ### 8. Tsawhawbitts
 
-Tsawhawbitts appears at a map edge and walks `MONSTER_STEP` tiles a day toward
-the developed center of the city; once within `MONSTER_HOVER_RADIUS` it wanders
-randomly. Each day every built tile within one tile of it is wrecked with
-chance 1 in `MONSTER_WRECK_ODDS`, or ignited with chance 1 in
-`MONSTER_IGNITE_ODDS`. It leaves after `MONSTER_DAYS`, or once wandering with
-chance 1 in `MONSTER_LEAVE_ODDS` per day.
+Tsawhawbitts walks in from the map edge nearest its target, or from the point
+on that line `MONSTER_APPROACH_DISTANCE` tiles out when the edge is farther. It
+walks `MONSTER_STEP` tile a day along one of eight headings and turns at most
+one eighth-turn a day: toward its target while approaching (drifting off course
+with chance 1 in twice `MONSTER_TURN_ODDS`), then, once within
+`MONSTER_HOVER_RADIUS`, wandering in long curves (turning with chance 1 in
+`MONSTER_TURN_ODDS`) and steering back whenever its next step would take it
+beyond `MONSTER_WANDER_RADIUS`. Each day every built tile within one tile of it
+is wrecked with chance 1 in `MONSTER_WRECK_ODDS`, or ignited with chance 1 in
+`MONSTER_IGNITE_ODDS`. After `MONSTER_DAYS`, or once wandering with chance 1 in
+`MONSTER_LEAVE_ODDS` per day, it turns toward the nearest map edge and keeps
+walking (and wrecking) until it steps off the map or `MONSTER_LEAVE_DAYS` have
+passed. The disaster ends when it is gone.
 
 ### 9. Floods
 

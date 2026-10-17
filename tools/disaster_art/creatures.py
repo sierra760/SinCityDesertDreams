@@ -74,6 +74,11 @@ def _aim(rig,name,direction):
     return q.to_matrix() @ rest
 
 
+# Upper-arm swing per unit of leg travel; the sign is set so each arm swings
+# forward while the foot on its side is behind the hip.
+ARM_SWING=-.18
+
+
 def monster():
     """Original Tsawhawbitts-inspired canyon giant, not a cultural reconstruction.
 
@@ -278,24 +283,45 @@ def monster():
         # Mounted plain rectangular join, no decorative patterns.
         rigid(c.box('Strap leather join',(s*6.8,7.0,35.5),(2.0,.65,2.9),'weathered_skin',.16),'chest')
     root_rest=rig.data.bones['root'].matrix_local.to_3x3()
+    # Two strides per eight-second loop. Each foot is planted for STANCE of
+    # its cycle and slides back under the hip at constant speed, so a body
+    # moving forward at WALK_SPEED keeps it still on the ground; the lifted
+    # foot then swings forward to strike ahead of the hip again.
+    STANCE=.62;REACH=6.0;CENTER=-.6;LIFT=2.6;CYCLE=4.0
+    WALK_SPEED=2*REACH/(STANCE*CYCLE)  # source metres per second at 1x playback
+    bpy.context.scene['walk_metres_per_second']=WALK_SPEED
+    rest_hip=Vector((5.4,0,24));rest_knee=Vector((6,3.6,12));rest_ankle=Vector((6,-.8,3))
+    l1=(rest_knee-rest_hip).length;l2=(rest_ankle-rest_knee).length
+    def foot(u):
+        if u<STANCE:
+            return CENTER+REACH-2*REACH*u/STANCE,0.0
+        k=(u-STANCE)/(1-STANCE);ease=k*k*(3-2*k)
+        return CENTER-REACH+2*REACH*ease,LIFT*math.sin(math.pi*k)**1.4
     def pose(t):
-        a=TAU*2*t;search=math.sin(TAU*t);sway=.34*math.sin(a)
-        bob=.32*(1-math.cos(2*a));shift=Vector((sway,0,bob))
+        a=TAU*2*t;search=math.sin(TAU*t)
+        # The left foot's cycle; the right foot runs half a cycle behind.
+        uL=(2*t)%1.0
+        mid=TAU*(uL-STANCE/2)
+        # Highest over each planted foot at mid-stance, lowest in double support;
+        # the weight rocks toward the planted side.
+        bob=.42*math.cos(2*mid)-.30
+        sway=-.55*math.cos(mid)
+        shift=Vector((sway,0,bob))
         grab=(.5-.5*math.cos(TAU*t))**3
         result={'root':{'location':tuple(root_rest.inverted()@shift)},
-            'pelvis':{'rotation_euler':(0,.02*math.sin(a),.023*math.sin(a))},
-            'chest':{'rotation_euler':(.025*math.sin(2*a),-.045*math.sin(a),-.045*math.sin(a))},
-            'neck':{'rotation_euler':(.03*math.sin(TAU*t),0,.045*search)},
-            'head':{'rotation_euler':(.06*math.sin(TAU*t+.4),.10*search,.10*search)},
+            'pelvis':{'rotation_euler':(0,.035*math.cos(mid),-.06*math.sin(mid))},
+            'chest':{'rotation_euler':(.09+.02*math.cos(2*mid),-.03*math.cos(mid),.07*math.sin(mid))},
+            'neck':{'rotation_euler':(-.04+.03*math.sin(TAU*t),0,.045*search)},
+            'head':{'rotation_euler':(.06*math.sin(TAU*t+.4)-.03*math.cos(2*mid),.10*search,.10*search)},
             'jaw':{'rotation_euler':(-.055-.15*grab,0,0)},
-            'basket':{'rotation_euler':(.018*math.sin(a-.65),.025*math.sin(a-.9),.018*math.sin(a-.4))}}
+            'basket':{'rotation_euler':(.03*math.cos(2*mid-.6),.035*math.cos(mid-.5),.025*math.sin(mid-.4))}}
         for side,s in [('L',-1),('R',1)]:
-            phase=a+(math.pi if s==1 else 0)
-            hip=Vector((s*5.4,0,24))+shift
-            ankle=Vector((s*6,-.8+2.8*math.cos(phase),3+1.8*max(0,math.sin(phase))**1.5))
-            rest_knee=Vector((s*6,3.6,12));rest_hip=Vector((s*5.4,0,24));rest_ankle=Vector((s*6,-.8,3))
-            l1=(rest_knee-rest_hip).length;l2=(rest_ankle-rest_knee).length
-            d=(ankle-hip).length;direction=(ankle-hip).normalized()
+            u=uL if s==-1 else (uL+.5)%1.0
+            y,lift=foot(u)
+            hip=Vector((s*rest_hip.x,0,rest_hip.z))+shift
+            ankle=Vector((s*6,y,3+lift))
+            d=min((ankle-hip).length,l1+l2-.08);direction=(ankle-hip).normalized()
+            ankle=hip+direction*d
             along=(l1*l1-l2*l2+d*d)/(2*d);height=math.sqrt(max(0,l1*l1-along*along))
             bend=Vector((0,1,0));bend=(bend-direction*bend.dot(direction)).normalized()
             knee=hip+direction*along+bend*height
@@ -304,12 +330,14 @@ def monster():
             result['thigh.'+side]={'rotation_euler':_bone_rot(rig,'thigh.'+side,thigh_rot,root_rest)}
             result['shin.'+side]={'rotation_euler':_bone_rot(rig,'shin.'+side,shin_rot,thigh_rot)}
             result['foot.'+side]={'rotation_euler':_bone_rot(rig,'foot.'+side,foot_rot,shin_rot)}
+            # Arms swing against the legs: forward while the same-side foot is back.
+            leg=(y-CENTER)/REACH
             reach=grab if s==1 else .28*grab
-            result['upperarm.'+side]={'rotation_euler':(.19*math.cos(phase+.3)+.75*reach,.08*math.sin(phase),s*.09*reach)}
-            result['forearm.'+side]={'rotation_euler':(.12+.09*math.sin(phase+.7)+.70*reach,0,-s*.08*reach)}
-            result['hand.'+side]={'rotation_euler':(.07*math.sin(phase+1)+.12*reach,0,s*.12*reach)}
+            result['upperarm.'+side]={'rotation_euler':(ARM_SWING*leg+.75*reach,.06*leg,s*.09*reach)}
+            result['forearm.'+side]={'rotation_euler':(.16-.08*leg+.70*reach,0,-s*.08*reach)}
+            result['hand.'+side]={'rotation_euler':(-.05*leg+.12*reach,0,s*.12*reach)}
             for digit in range(4):
-                curl=.12+.95*reach+.055*math.sin(a+digit*.38)
+                curl=.12+.95*reach+.04*math.sin(a+digit*.38)
                 result[f'finger{digit}.{side}']={'rotation_euler':(-curl,0,0)}
             result['thumb.'+side]={'rotation_euler':(-.12-.26*reach,s*.18*reach,0)}
         return result

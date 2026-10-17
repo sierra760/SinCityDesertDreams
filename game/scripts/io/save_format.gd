@@ -500,7 +500,7 @@ static func _nested_system_problem(key: String, saved: Dictionary) -> String:
 		for entity: Variant in saved.get("entities", []):
 			var problem := _record_problem(entity, {
 				"kind": "", "x": 0, "y": 0, "frame": 0, "heading": 0,
-				"tx": 0, "ty": 0, "arrived": false,
+				"tx": 0, "ty": 0, "arrived": false, "leaving": false, "leave_days": 0,
 			}, "disasters.entities", ["kind", "x", "y", "frame", "heading"])
 			if problem != "": return problem
 			if entity.kind in ["monster", "hurricane", "plane"]:

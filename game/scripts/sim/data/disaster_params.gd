@@ -123,12 +123,21 @@ const TORNADO_DAYS := 30
 const TORNADO_VANISH_ODDS := 48
 
 # ── Monster ──────────────────────────────────────────────────────────────
-const MONSTER_STEP := 3
+## Tiles walked per day: one steady stride the walk animation can keep pace with.
+const MONSTER_STEP := 1
 const MONSTER_HOVER_RADIUS := 6
+## Farthest Tsawhawbitts wanders from its target once it reaches the city.
+const MONSTER_WANDER_RADIUS := 10
+## Farthest from its target it enters, so the walk in stays short on big maps.
+const MONSTER_APPROACH_DISTANCE := 28
+## Chance (1 in N) each day that it drifts one eighth-turn off its course.
+const MONSTER_TURN_ODDS := 4
 const MONSTER_WRECK_ODDS := 2
 const MONSTER_IGNITE_ODDS := 8
-const MONSTER_DAYS := 40
+const MONSTER_DAYS := 60
 const MONSTER_LEAVE_ODDS := 30
+## Days it keeps walking toward the desert after turning away before it is gone.
+const MONSTER_LEAVE_DAYS := 20
 
 # ── Floods ───────────────────────────────────────────────────────────────
 const FLOOD_SEEDS := 4

@@ -34,14 +34,7 @@ func setup(ctx: SimContext) -> void:
 
 
 func daily(ctx: SimContext) -> void:
-	var fresh := _absorb(ctx)
-	if _extra_day == ctx.clock.day:
-		return
-	for story in fresh:
-		if int(story["priority"]) >= NewspaperParams.EXTRA_PRIORITY:
-			_publish(ctx, true)
-			_extra_day = ctx.clock.day
-			return
+	_print_extra(ctx, _absorb(ctx))
 
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
@@ -143,14 +136,21 @@ func advice() -> Array[Dictionary]:
 ## Called by the Simulation at the end of every day, before the event queue
 ## is cleared, so reports made after this system's daily pass still land.
 func absorb(ctx: SimContext) -> void:
-	var fresh := _absorb(ctx)
-	if _extra_day == ctx.clock.day:
-		return
+	_print_extra(ctx, _absorb(ctx))
+
+
+## Print an extra edition when urgent news has just come in. Other urgent news
+## gets at most one extra a day, but a disaster always breaks the moment it
+## starts, so the article is read while the emergency is unfolding.
+func _print_extra(ctx: SimContext, fresh: Array[Dictionary]) -> void:
 	for story in fresh:
-		if int(story["priority"]) >= NewspaperParams.EXTRA_PRIORITY:
-			_publish(ctx, true)
-			_extra_day = ctx.clock.day
-			return
+		if int(story["priority"]) < NewspaperParams.EXTRA_PRIORITY:
+			continue
+		if _extra_day == ctx.clock.day and story["kind"] != &"disaster_started":
+			continue
+		_publish(ctx, true)
+		_extra_day = ctx.clock.day
+		return
 
 
 ## Copy reports not yet seen today into the queue. Returns the stories added.
@@ -265,6 +265,10 @@ func _publish(ctx: SimContext, extra: bool) -> void:
 		archive_list.pop_front()
 	_last_issue = issue
 	ctx.events.notify(&"newspaper", issue)
+	if extra and ctx.events.notices.size() > 1:
+		# The extra leads the day's notices: the paper breaks the news before
+		# any follow-up (such as the Guard arriving) is shown.
+		ctx.events.notices.push_front(ctx.events.notices.pop_back())
 
 
 func _format(ctx: SimContext, kind: StringName, args: Dictionary, priority: int) -> Dictionary:

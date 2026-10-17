@@ -60,8 +60,20 @@ The editable fire master keeps all its separate pieces, curves and UVs.
 
 Source coordinates are meters with +Y forward and +Z up. glTF converts to
 Godot -Z forward and +Y up; the visual applies one 1/16 scale. The simulation
-sets each incident's position and heading. The animation is cosmetic and runs on
-wall-clock time, so it keeps moving while the city clock is paused.
+sets each incident's daily position and heading; the view glides each incident
+from one day's tile to the next over that day's real time and eases its turns.
+The animation is cosmetic and runs on wall-clock time, so it keeps moving while
+the city clock is paused, except Tsawhawbitts' walk.
+
+Tsawhawbitts walks two strides per eight-second loop. Each foot is planted for
+62% of its cycle and slides back under the hip at a constant
+`walk_metres_per_second` (stored on the master's scene, 4.84 source metres a
+second, about 0.30 tiles), so a body moving at that speed keeps the planted foot
+still; the lifted foot swings forward, the hips rise over the planted foot and
+rock toward it, and the arms swing against the legs. In the city the walk is
+stride-locked: the clip advances by the ground the giant has actually covered
+(`CityDisasterVisual3D.walk`), so it stops mid-stride when the city is paused
+and quickens at higher speeds.
 The art adds no collision, save fields or simulation RNG calls.
 
 Fires receive deterministic location-based animation phases. Ongoing fire nodes

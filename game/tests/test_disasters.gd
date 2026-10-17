@@ -634,3 +634,40 @@ func test_all_sixteen_kinds_progress_restore_and_finish() -> void:
 		check(not sys.is_emergency(), "%s ends" % kind)
 		check(sys.entities().is_empty() and sys.crews().is_empty(), "%s releases transient records" % kind)
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## Tsawhawbitts walks: one tile a day, never turning more than an eighth-turn
+## at a time, into the city, around it, and back out toward the desert.
+func test_tsawhawbitts_walks_in_steady_strides_and_walks_away() -> void:
+	var c := flat_city()
+	_fill_houses(c, 50, 50, 28, 28)
+	var h := _make(c, 23)
+	var sys: DisasterSystem = h["sys"]
+	_stats(h).disasters_enabled = false
+	var target := Vector2i(64, 64)
+	check(_request(h, &"monster", target))
+	var e: Dictionary = sys.entities()[0]
+	var pos := Vector2i(int(e.x), int(e.y))
+	var heading := int(e.heading)
+	check(maxi(absi(pos.x - target.x), absi(pos.y - target.y)) <= DisasterParams.MONSTER_APPROACH_DISTANCE,
+		"walks in from the desert nearby rather than from across the map")
+	var arrived := false
+	var days := 0
+	while not sys.entities().is_empty() and days < 200:
+		_advance(h, 1)
+		days += 1
+		if sys.entities().is_empty():
+			break
+		e = sys.entities()[0]
+		var next := Vector2i(int(e.x), int(e.y))
+		check(maxi(absi(next.x - pos.x), absi(next.y - pos.y)) == 1, "one steady stride a day")
+		check(posmod(int(e.heading) - heading, 8) in [0, 1, 7], "turns at most an eighth-turn a day")
+		if maxi(absi(next.x - target.x), absi(next.y - target.y)) <= DisasterParams.MONSTER_HOVER_RADIUS:
+			arrived = true
+		pos = next
+		heading = int(e.heading)
+	check(arrived, "reaches the city")
+	check(sys.entities().is_empty(), "walks away in the end")
+	check_lt(days, DisasterParams.MONSTER_DAYS + DisasterParams.MONSTER_LEAVE_DAYS + 2, "does not linger forever")
+	check(sys.active().is_empty(), "the disaster is over once it has gone")
+	check_gt(_count_in(c, 50, 50, 28, 28, _is_rubble), 0, "it leaves a trail of wreckage")

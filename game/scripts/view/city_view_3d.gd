@@ -7,6 +7,8 @@ class_name CityView3D
 extends CanvasLayer
 
 signal view_changed
+## The player moved the camera themselves (drag, keys, scroll or a pan gesture).
+signal camera_moved_by_player
 signal geometry_rebuilt(revision: int)
 
 const TERRAIN_LAYER := 1
@@ -47,6 +49,8 @@ var livestock: CityLivestock3D
 var traffic: CityTraffic3D
 var active := false
 var center := Vector3(64, 0, 64)
+## How quickly a followed disaster pulls the camera along (per second).
+const FOLLOW_RATE := 3.0
 var quarter_turn := 0
 var camera_size := 64.0
 var input_blocked: Callable
@@ -907,7 +911,7 @@ func _zoom_at(point: Vector2, factor: float) -> void:
 	var shift: Vector3 = before - after
 	shift.y = 0.0
 	if shift.is_finite() and shift.length_squared() > 0.0:
-		_pan(shift)
+		_pan(shift, false)
 
 
 ## Where a screen point's view ray meets the horizontal plane through the
@@ -1049,12 +1053,26 @@ func _process(delta: float) -> void:
 		_pan((camera.global_basis.x * axis.x + forward.normalized() * axis.y) * delta * camera_size * 0.6)
 
 
-func _pan(offset: Vector3) -> void:
+func _pan(offset: Vector3, by_player := true) -> void:
 	center += offset
 	center.x = clampf(center.x, 0.0, City.WIDTH)
 	center.z = clampf(center.z, 0.0, City.HEIGHT)
 	var cell := Vector2i(clampi(int(center.x), 0, City.WIDTH - 1), clampi(int(center.z), 0, City.HEIGHT - 1))
 	center.y = CityGeometry3D.surface_height(city, cell)
+	_update_camera()
+	if by_player:
+		camera_moved_by_player.emit()
+
+
+## Ease the camera toward `point`, such as a moving disaster, keeping the
+## player's zoom and rotation. Called each frame while following.
+func follow_point(point: Vector3, delta: float) -> void:
+	if camera == null or not point.is_finite() or not is_finite(delta) or delta < 0.0:
+		return
+	var target := Vector3(clampf(point.x, 0.0, City.WIDTH), point.y, clampf(point.z, 0.0, City.HEIGHT))
+	if center.distance_to(target) < 0.001:
+		return
+	center = center.lerp(target, 1.0 - exp(-delta * FOLLOW_RATE))
 	_update_camera()
 
 

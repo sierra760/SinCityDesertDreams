@@ -46,6 +46,10 @@ func test_moving_disasters_have_owned_models_and_leave_no_generic_cars() -> void
 		records[0].pos = Vector2(33, 41)
 		feedback.sync_records(records)
 		check_eq(layer.get_child(0), first, "moving incident reuses visual resources")
+		check_eq((first as Node3D).position.x, 30.5, "a new daily position is reached by gliding, not a jump")
+		feedback.advance_disasters(feedback.day_seconds * 0.5)
+		check(absf((first as Node3D).position.x - 32.0) < 0.001, "halfway through the day it is halfway there")
+		feedback.advance_disasters(feedback.day_seconds)
 		check_eq((first as Node3D).position.x, 33.5, "visual follows live position")
 		feedback.sync_records([])
 		check_eq(layer.get_child_count(), 0, "ended disasters disappear immediately")
@@ -74,6 +78,7 @@ func test_plane_and_monster_face_their_clockwise_simulation_heading() -> void:
 	for example: Array in [[2, Vector3.RIGHT], [6, Vector3.LEFT]]:
 		feedback.sync_records([{"kind": &"plane", "pos": Vector2(30, 40), "source": &"disasters", "heading": example[0]},
 			{"kind": &"monster", "pos": Vector2(34, 40), "source": &"disasters", "heading": example[0]}])
+		feedback.advance_disasters(feedback.day_seconds * 20.0)
 		for visual: Node3D in feedback.disaster_visuals.get_children():
 			check((visual.basis * Vector3.FORWARD).is_equal_approx(example[1]), "directional incident faces its travel direction")
 			(visual as CityDisasterVisual3D)._process(0.5)
@@ -202,3 +207,33 @@ func test_imported_flames_retain_the_authored_emission_palette() -> void:
 		var color: Vector3 = CityDisasterVisual3D.fire_material().get_shader_parameter(name)
 		check(color.x > color.z + 0.1, "actual shader palette retains warm emission")
 	visual.free()
+
+
+func test_moving_incidents_turn_gradually_and_the_giant_walks_with_the_ground() -> void:
+	var feedback := CityFeedback3D.new()
+	root.add_child(feedback)
+	feedback.bind_city(flat_city())
+	feedback.day_seconds = 1.0
+	feedback.sync_records([{"kind": &"monster", "pos": Vector2(30, 40), "source": &"disasters", "heading": 0}])
+	var giant := feedback.disaster_visuals.get_child(0) as CityDisasterVisual3D
+	var player := giant.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
+	feedback.sync_records([{"kind": &"monster", "pos": Vector2(31, 39), "source": &"disasters", "heading": 1}])
+	feedback.advance_disasters(0.1)
+	var yaw := giant.rotation.y
+	check(yaw < 0.0 and yaw > -PI / 4.0, "an eighth-turn is eased into, not snapped: %f" % yaw)
+	var before := player.current_animation_position
+	feedback.advance_disasters(0.0)
+	check_eq(player.current_animation_position, before, "a paused city holds Tsawhawbitts mid-stride")
+	for i in 20: feedback.advance_disasters(0.04)
+	check_ne(player.current_animation_position, before, "walking over the ground advances the stride")
+	check(feedback.moving_incident_point().is_finite(), "the camera can find the moving giant")
+	feedback.advance_disasters(0.5)
+	var walked := player.current_animation_position
+	feedback.advance_disasters(0.5)
+	check(absf(player.current_animation_position - walked) < 0.01, "standing at the day's tile, the stride settles instead of running on")
+	feedback.sync_records([{"kind": &"monster", "pos": Vector2(90, 90), "source": &"disasters", "heading": 1}])
+	check_eq(giant.position.x, 90.5, "a jump across the map (a load) cuts rather than glides")
+	feedback.sync_records([])
+	check(not feedback.moving_incident_point().is_finite(), "nothing to follow once it is gone")
+	feedback.free()
+	await process_frame

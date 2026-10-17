@@ -101,10 +101,10 @@ func test_status_bar_follows_the_calendar() -> void:
 func test_notice_opens_a_modal_and_pauses() -> void:
 	_play(PARAMS)
 	check_eq(host.sim.speed, GameClock.Speed.SLOW)
-	host.sim.notice_raised.emit(&"disaster", {"kind": "fire", "x": 30, "y": 30})
+	host.sim.notice_raised.emit(&"fiscal_crisis", {"funds": -1200, "year": 2001})
 	check(host.notice_dialog.is_open(), "notice dialog visible")
 	check(host.notice_dialog.visible)
-	check(host.notice_dialog.title_label.text.contains("Fire"))
+	check(host.notice_dialog.title_label.text.contains("Fiscal"))
 	check(host.is_input_blocked(), "camera input blocked while modal")
 	check_eq(host.sim.speed, GameClock.Speed.PAUSED, "sim paused under the notice")
 	host.sim.notice_raised.emit(&"plant_retired", {"name": "Coal Power Plant", "x": 3, "y": 4})
