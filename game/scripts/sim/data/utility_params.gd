@@ -207,12 +207,22 @@ static func draws_water(id: int) -> bool:
 
 ## Preserve the historic one-unit load for every pre-agriculture consumer.
 static func water_load(id: int) -> int:
+	_build_tables()
+	return _water_load_tbl[id] if id >= 0 and id < _water_load_tbl.size() else _compute_water_load(id)
+
+
+static func _compute_water_load(id: int) -> int:
 	if Buildings.is_agricultural(id):
 		return AgricultureParams.water_load(id)
 	return LOAD_PER_TILE if is_lot(id) and not is_water_facility(id) else 0
 
 
 static func power_load(id: int) -> int:
+	_build_tables()
+	return _power_load_tbl[id] if id >= 0 and id < _power_load_tbl.size() else _compute_power_load(id)
+
+
+static func _compute_power_load(id: int) -> int:
 	if Buildings.is_agricultural(id):
 		return AgricultureParams.power_load(id)
 	return LOAD_PER_TILE if is_lot(id) and not Buildings.is_power_plant(id) else 0
@@ -223,12 +233,14 @@ static func power_load(id: int) -> int:
 ## retain the legacy rule that service reaches them while budget remains.
 static func allocate_network(tiles: PackedInt32Array, bld: PackedInt32Array,
 		budget: int, water: bool, rect: Rect2i = Rect2i(), replacement: int = -1, supplemental: PackedInt32Array = PackedInt32Array()) -> Dictionary:
+	_build_tables()
+	var loads := _water_load_tbl if water else _power_load_tbl
 	var supplied := PackedByteArray()
 	supplied.resize(tiles.size())
 	var consumed := 0
 	for q in tiles.size():
 		var t := tiles[q]
-		var units := water_load(bld[t]) if water else power_load(bld[t])
+		var units := loads[bld[t]]
 		@warning_ignore("integer_division")
 		if replacement >= 0 and rect.has_point(Vector2i(t % City.WIDTH, t / City.WIDTH)):
 			units = replacement
@@ -265,6 +277,8 @@ static var _multi_tile_tbl := PackedByteArray()
 static var _width_tbl := PackedByteArray()
 static var _height_tbl := PackedByteArray()
 static var _conducts_water_code_tbl := PackedByteArray()
+static var _power_load_tbl := PackedInt32Array()
+static var _water_load_tbl := PackedInt32Array()
 
 
 static func _build_tables() -> void:
@@ -281,12 +295,16 @@ static func _build_tables() -> void:
 	_multi_tile_tbl.resize(n)
 	_width_tbl.resize(n)
 	_height_tbl.resize(n)
+	_power_load_tbl.resize(n)
+	_water_load_tbl.resize(n)
 	for id in n:
+		_power_load_tbl[id] = _compute_power_load(id)
+		_water_load_tbl[id] = _compute_water_load(id)
 		_conducts_power_tbl[id] = 1 if conducts_power_building(id) else 0
-		_draws_power_tbl[id] = 1 if draws_power(id) else 0
+		_draws_power_tbl[id] = 1 if _power_load_tbl[id] > 0 else 0
 		_power_plant_tbl[id] = 1 if Buildings.is_power_plant(id) else 0
 		_conducts_water_tbl[id] = 1 if conducts_water_building(id) else 0
-		_draws_water_tbl[id] = 1 if draws_water(id) else 0
+		_draws_water_tbl[id] = 1 if _water_load_tbl[id] > 0 else 0
 		_water_facility_tbl[id] = 1 if is_water_facility(id) else 0
 		_open_ground_tbl[id] = 1 if id == Buildings.NONE or Buildings.is_tree(id) else 0
 		var s := Buildings.size(id)
@@ -460,13 +478,22 @@ static func flood_tiles(seed: int, flags: PackedByteArray, bit: int,
 		var t := tiles[head]
 		head += 1
 		var x := t % City.WIDTH
-		for j in [t - City.WIDTH if t >= City.WIDTH else -1,
-			t - 1 if x > 0 else -1,
-			t + City.WIDTH if t + City.WIDTH < flags.size() else -1,
-			t + 1 if x + 1 < City.WIDTH else -1]:
-			if j >= 0 and marks[j] == 0 and (flags[j] & bit) != 0:
-				marks[j] = 1
-				tiles.append(j)
+		var j := t - City.WIDTH
+		if t >= City.WIDTH and marks[j] == 0 and (flags[j] & bit) != 0:
+			marks[j] = 1
+			tiles.append(j)
+		j = t - 1
+		if x > 0 and marks[j] == 0 and (flags[j] & bit) != 0:
+			marks[j] = 1
+			tiles.append(j)
+		j = t + City.WIDTH
+		if j < flags.size() and marks[j] == 0 and (flags[j] & bit) != 0:
+			marks[j] = 1
+			tiles.append(j)
+		j = t + 1
+		if x + 1 < City.WIDTH and marks[j] == 0 and (flags[j] & bit) != 0:
+			marks[j] = 1
+			tiles.append(j)
 	return tiles
 
 

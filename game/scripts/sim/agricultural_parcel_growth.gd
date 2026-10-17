@@ -19,15 +19,18 @@ func prepare(city: City, fires: Array = []) -> void:
 	var burning := {}
 	for p in fires: burning[p] = true
 	eligible_cells = 0
+	eligible_cells = _eligible.size()
+	var zn := city.zone.data
+	var bld := city.building.data
 	for i in _eligible.size():
-		eligible_cells += 1
+		# Heights are read only for eligible cells (_available/candidate).
+		if (zn[i] & Zones.KIND_MASK) != Zones.AGR_LOW or bld[i] != Buildings.NONE: continue
 		var p := AgriculturalParcels.tile(i)
-		_heights[i] = city.ground_height(p.x,p.y)
 		if p.x < 2 or p.y < 2 or p.x >= 126 or p.y >= 126: continue
-		if city.zone_kind_at(p.x,p.y) != Zones.AGR_LOW or city.building.data[i] != Buildings.NONE: continue
 		if city.agricultural_parcels.id_at(p) != 0 or burning.has(p): continue
 		if city.is_water(p.x,p.y) or not city.is_flat(p.x,p.y) or city.flood_overlay.has(p): continue
 		if city.flags.has_bits(p.x,p.y,TileFlags.LANDMARK): continue
+		_heights[i] = city.ground_height(p.x,p.y)
 		_eligible[i] = 1
 
 func eligible(at: Vector2i) -> bool:

@@ -75,9 +75,9 @@ func test_zero_delta_keeps_particle_buffer_until_time_or_configuration_changes()
 	var particles := service._particles
 	var phase := service._phase
 	# Witnesses detect writes at the owned node and native buffer boundaries.
-	# The dummy headless renderer exposes no MultiMesh buffer; Metal does.
+	# The dummy headless renderer keeps no instance transforms; Metal does.
 	var witness := Transform3D(Basis.IDENTITY,Vector3(100,100,100))
-	var native_buffer := not particles.multimesh.buffer.is_empty()
+	var native_buffer := DisplayServer.get_name() != "headless"
 	particles.transform = witness
 	if native_buffer: particles.multimesh.set_instance_transform(0,witness)
 	for i in 20: service.step(0,false)
@@ -213,7 +213,7 @@ func test_lighting_wind_and_equal_owner_changes_preserve_particle_resources() ->
 	after_light.erase("environment")
 	check_eq(after_light,ids,"lighting and fog do not replace particle resources")
 	var position := service._particles.position
-	var native_buffer := not service._particles.multimesh.buffer.is_empty()
+	var native_buffer := DisplayServer.get_name() != "headless"
 	var before_wind := service._particles.multimesh.get_instance_transform(0)
 	service.apply("weather",1,"wind","gust",{"intensity":.5})
 	var after_wind := _environment_resource_ids(service,camera)
@@ -399,6 +399,34 @@ func test_repeated_refresh_skips_only_unchanged_zero_steps() -> void:
 	check_eq(service.zero_steps,steps_before+2,"actual winner clear invokes zero step")
 	check(not is_instance_valid(service._particles),"removed precipitation winner frees particles")
 	check_eq(service._winners.wind.owner,"owner1","winner clear reveals sorted retained wind owner")
+	service.restore()
+	camera.free()
+	view.free()
+
+func test_particle_buffer_matches_per_instance_poses() -> void:
+	var view := CityView3D.new()
+	var camera := Camera3D.new()
+	camera.environment = Environment.new()
+	var service := ExploreEnvironmentService.new()
+	service.bind(view,camera)
+	for preset: String in ["rain","dust"]:
+		service.apply("weather",1,"precipitation",preset,{})
+		service.apply("weather",1,"wind","gust",{})
+		service.step(.37,false)
+		service.step(.21,false)
+		var multimesh := service._particles.multimesh
+		check_gt(multimesh.instance_count,0)
+		# The dummy headless renderer keeps no instance transforms; native renderers verify every pose.
+		if DisplayServer.get_name() == "headless": continue
+		var phase := service._phase
+		var drift := phase*.45*service._intensity("wind")
+		var exact := true
+		for i in multimesh.instance_count:
+			var x := fposmod(float(i)*.61803398875+drift,1.0)*2.0-1.0
+			var y := fposmod(float(i)*.41421356237-phase*(1.2 if preset == "rain" else .08),1.0)-.5
+			var z := -.25-fposmod(float(i)*.73205080757,1.0)*1.8
+			exact = exact and multimesh.get_instance_transform(i) == Transform3D(Basis.IDENTITY,Vector3(x,y,z))
+		check(exact,"%s buffer poses match per-instance transforms" % preset)
 	service.restore()
 	camera.free()
 	view.free()

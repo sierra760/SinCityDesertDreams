@@ -18,6 +18,7 @@ var _quality := ""
 var _dirty := true
 ## A rebuilt buffer needs its first pose even if active time is frozen.
 var _particles_pose_dirty := false
+var _particle_buffer := PackedFloat32Array()
 var ownership_log: Array[Dictionary] = []
 
 func bind(view: CityView3D, camera: Camera3D) -> void:
@@ -124,12 +125,24 @@ func step(delta: float, indoors: bool) -> void:
 	_phase += maxf(0,delta)
 	var rain := _preset("precipitation","none") == "rain"
 	var speed: float = {"calm":0.0,"breeze":.15,"gust":.45}[_preset("wind","calm")]
+	var drift := _phase*speed*_intensity("wind")
+	var fall := _phase*(1.2 if rain else .08)
 	_particles.position.x = sin(_phase)*speed*_intensity("wind")*.05
-	for i in _particles.multimesh.instance_count:
-		var x := fposmod(float(i)*.61803398875+_phase*speed*_intensity("wind"),1.0)*2.0-1.0
-		var y := fposmod(float(i)*.41421356237-_phase*(1.2 if rain else .08),1.0)-.5
-		var z := -.25-fposmod(float(i)*.73205080757,1.0)*1.8
-		_particles.multimesh.set_instance_transform(i,Transform3D(Basis.IDENTITY,Vector3(x,y,z)))
+	# One buffer write per frame; per-instance transform calls dominate otherwise.
+	# Each TRANSFORM_3D instance is three basis rows with the origin last.
+	var count := _particles.multimesh.instance_count
+	if _particle_buffer.size() != count*12:
+		_particle_buffer.resize(count*12)
+		_particle_buffer.fill(0.0)
+		for i in count:
+			_particle_buffer[i*12] = 1.0
+			_particle_buffer[i*12+5] = 1.0
+			_particle_buffer[i*12+10] = 1.0
+	for i in count:
+		_particle_buffer[i*12+3] = fposmod(float(i)*.61803398875+drift,1.0)*2.0-1.0
+		_particle_buffer[i*12+7] = fposmod(float(i)*.41421356237-fall,1.0)-.5
+		_particle_buffer[i*12+11] = -.25-fposmod(float(i)*.73205080757,1.0)*1.8
+	if count > 0: _particles.multimesh.buffer = _particle_buffer
 	_particles_pose_dirty = false
 
 func _rebuild_particles() -> void:

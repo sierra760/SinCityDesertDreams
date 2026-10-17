@@ -272,6 +272,20 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 				extending.append(lot)
 		if _persist_lot(lot) != OK: return
 	for lot in declining:
+		# Persist exactly the record _change/_persist_lot would write, through the
+		# store's lifecycle update: a mass decline then revalidates each record
+		# alone instead of the whole store per lot. _change finds it current.
+		var current := ctx.city.agricultural_parcels.record(lot.parcel_id) if lot.has("parcel_id") else {}
+		if not current.is_empty() and (current.state != &"dormant" or current.failed_months != lot.failed_months or current.last_month != month):
+			current.state = &"dormant"
+			if current.mode == &"legacy": current.legacy_code = Params.state_id(&"dormant",lot.rect.size.x)
+			current.failed_months = lot.failed_months
+			current.last_month = month
+			var error := ctx.city.agricultural_parcels.put_lifecycle(ctx.city,current)
+			if error != OK:
+				_migration_error = error
+				_repair_error = "Canonical parcel lifecycle update failed."
+				return
 		if _change(lot,&"dormant",month) != OK: return
 		dirty = _merge(dirty,lot.rect)
 		_touch(touched,lot.rect)
@@ -319,7 +333,9 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 		if value.has("members"): grow.reserve(value.members)
 		else: _touch(touched,value.rect)
 	# New preparation needs access but may precede water/power availability.
-	if _raw > 0 and not _emergency():
+	# The scan below acts only on agricultural zone tiles; without any such
+	# byte it would visit every tile and do nothing (no RNG, no counters).
+	if _raw > 0 and not _emergency() and _has_agricultural_zone(ctx.city):
 		# Alternate density priority so a low-density scan cannot consume the
 		# last preparation action every month ahead of high-density land.
 		var kinds := [Zones.AGR_LOW,Zones.AGR_HIGH] if month%2 == 0 else [Zones.AGR_HIGH,Zones.AGR_LOW]
@@ -523,6 +539,13 @@ func _candidate(rect: Rect2i, kind: int, touched: Dictionary) -> bool:
 			elif not Builder._clearable(id): return false
 	return true
 
+static func _has_agricultural_zone(city: City) -> bool:
+	var zn := city.zone.data
+	for kind in [Zones.AGR_LOW,Zones.AGR_HIGH]:
+		for high in 16:
+			if zn.has(kind | (high << 4)): return true
+	return false
+
 func _emergency() -> bool:
 	var disasters := _ctx.system(&"disasters")
 	return disasters != null and disasters.has_method("is_emergency") and bool(disasters.call("is_emergency"))
@@ -611,8 +634,20 @@ func _reconcile(mutate: bool = true) -> Error:
 	if mutate:
 		if not repair_parcels(PackedInt32Array()).get("ok",false): return _migration_error
 	var valid := {}
-	for y in City.HEIGHT:
-		for x in City.WIDTH:
+	# Native prefilter: only tiles holding a square-lot agricultural code can
+	# pass the first test below; visit them in the same row-major order.
+	var candidates := PackedInt32Array()
+	var bld := city.building.data
+	for code in _square_lot_codes():
+		var index := bld.find(code)
+		while index >= 0:
+			candidates.append(index)
+			index = bld.find(code, index + 1)
+	candidates.sort()
+	for index in candidates:
+			@warning_ignore("integer_division")
+			var y := index / City.WIDTH
+			var x := index % City.WIDTH
 			var id := city.building_at(x, y)
 			if not Buildings.is_agricultural(id) or id >= AgriculturalParcelParams.ACTIVE_CODES[&"vegetables"] or city.agricultural_parcels.id_at(Vector2i(x,y)) != 0: continue
 			var kind := city.zone_kind_at(x, y)
@@ -656,6 +691,15 @@ func _reconcile(mutate: bool = true) -> Error:
 	for lot in low: valid.erase(lot.anchor)
 	_lots = valid
 	return _migration_error
+
+static var _square_lot_code_list := PackedInt32Array()
+
+## Building codes the square-lot scan can adopt (flexible parcel cells excluded).
+static func _square_lot_codes() -> PackedInt32Array:
+	if _square_lot_code_list.is_empty():
+		for id in range(AgriculturalParcelParams.ACTIVE_CODES[&"vegetables"]):
+			if Buildings.is_agricultural(id): _square_lot_code_list.append(id)
+	return _square_lot_code_list
 
 func save() -> Dictionary:
 	_reconcile(false)

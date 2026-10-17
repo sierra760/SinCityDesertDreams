@@ -16,6 +16,31 @@ const CAPACITIES := {"road":500,"highway":1500,"rail":2000,"airport":6000,"harbo
 var version := 0
 var _city: City
 var _layers: Array = []
+var _structure: Array = []
+var _index_key: Array = []
+static var _id_interest := PackedByteArray()
+static var _graph_ids := PackedInt32Array()
+
+static func _build_id_tables() -> void:
+	if not _id_interest.is_empty(): return
+	_id_interest.resize(Buildings.COUNT)
+	_graph_ids.resize(Buildings.COUNT)
+	for id in Buildings.COUNT:
+		var key := Buildings.key(id)
+		var bits := 0
+		if RewardParams.ARCOLOGIES.has(key) or key == &"com_corner_store": bits |= 1
+		if TransportParams.is_origin(id): bits |= 2
+		_id_interest[id] = bits
+		_graph_ids[id] = id if TransportParams.surface_class(id) != 0 else 0
+
+static func _graph_layer(bld: PackedInt32Array) -> PackedInt32Array:
+	_build_id_tables()
+	var out := PackedInt32Array()
+	out.resize(bld.size())
+	for i in bld.size(): out[i] = _graph_ids[bld[i]]
+	return out
+var _structure_indexed := false
+var _layers_version_pending := false
 var _transport := TransportSystem.new()
 var _ports := PortSystem.new()
 var _graph := {}
@@ -50,37 +75,61 @@ func refresh(ctx: SimContext, work_budget: int = ROUTE_WORK) -> void:
 	_remaining = _pass_budget
 	if _city == city and _layers == layers and _pending.is_empty() and _waiting.is_empty(): return
 	if _city != city or _layers != layers:
+		# Pure graph inputs: surface-class identity (TransportSystem reads
+		# buildings only through _surface and station equality), tunnels, subway.
+		var structure: Array = [_graph_layer(city.building.data),city.underground.data,city.altitude.data]
+		var same_structure := _city == city and structure == _structure
+		var index_key: Array = [city.building.data,city.zone.data]
+		if not same_structure or index_key != _index_key:
+			_index_key = index_key.duplicate(true)
+			_structure_indexed = false
 		_city = city
 		_layers = layers.duplicate(true)
-		_graph = _transport.target_graph(city)
-		_reverse.clear()
+		if not same_structure:
+			# Packed layers are references: retain a detached copy (raw put() edits mutate in place).
+			_structure = structure.duplicate(true)
+			_graph = _transport.target_graph(city)
+			_reverse.clear()
+			for state: int in _graph: _reverse[state] = PackedInt32Array()
+			for state: int in _graph:
+				for next: int in _graph[state]: _reverse[next].append(state)
+			_frontages.clear()
+			_structure_indexed = false
+		_layers_version_pending = true
 		_trip_searches.clear()
-		for state: int in _graph: _reverse[state] = PackedInt32Array()
-		for state: int in _graph:
-			for next: int in _graph[state]: _reverse[next].append(state)
-		_frontages.clear()
 		_closures.clear()
 		_pending.clear()
 		_waiting.clear()
 		_cache_entries = 0
-		_components()
+		if not same_structure: _components()
 		_ports.setup(ctx)
 		_discover_gateways()
+	if not _structure_indexed:
+		_structure_indexed = true
 		_resident_components.clear()
 		_resident_states.clear()
 		var resident_seen := {}
 		_venue_rects.clear()
-		for i in city.building.data.size():
-			var key := Buildings.key(city.building.data[i])
-			if (RewardParams.ARCOLOGIES.has(key) or key == &"com_corner_store") and UtilityParams.is_anchor_tile(city.building.data,city.zone.data,i):
+		_build_id_tables()
+		var bld := city.building.data
+		var zn := city.zone.data
+		for i in bld.size():
+			var id := bld[i]
+			var interest := _id_interest[id]
+			if interest == 0: continue
+			if (interest & 1) != 0 and UtilityParams.is_anchor_tile(bld,zn,i):
 				var at := PortSystem._tile_of(i)
-				_venue_rects[at] = Rect2i(at,Buildings.size(city.building.data[i]))
-			if TransportParams.is_origin(city.building.data[i]) and UtilityParams.is_anchor_tile(city.building.data,city.zone.data,i):
+				_venue_rects[at] = Rect2i(at,Buildings.size(id))
+			if (interest & 2) != 0 and UtilityParams.is_anchor_tile(bld,zn,i):
 				var at := PortSystem._tile_of(i)
-				for c in _seeds(Rect2i(at,Buildings.size(city.building.data[i]))): _resident_components[c] = true
-				for state in _transport.target_entrances(city,Rect2i(at,Buildings.size(city.building.data[i]))): resident_seen[state] = true
+				var rect := Rect2i(at,Buildings.size(id))
+				var entrances := _transport.target_entrances(city,rect)
+				for c in _seeds(rect,entrances): _resident_components[c] = true
+				for state in entrances: resident_seen[state] = true
 		_resident_states = PackedInt32Array(resident_seen.keys())
 		_resident_states.sort()
+	if _layers_version_pending:
+		_layers_version_pending = false
 		version += 1
 		_stats.graph_builds += 1
 	# Continue older pending searches first, before canonical new requests.
@@ -177,10 +226,10 @@ func _closure(source: int) -> Dictionary:
 		return search.seen
 	return {}
 
-func _seeds(rect: Rect2i) -> PackedInt32Array:
+func _seeds(rect: Rect2i, entrances: Variant = null) -> PackedInt32Array:
 	if _frontages.has(rect): return _frontages[rect]
 	var result := PackedInt32Array()
-	for state in _transport.target_entrances(_city,rect):
+	for state in (entrances if entrances != null else _transport.target_entrances(_city,rect)):
 		var c := int(_component.get(state,-1))
 		if c >= 0 and not result.has(c): result.append(c)
 	_frontages[rect] = result

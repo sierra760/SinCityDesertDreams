@@ -20,7 +20,8 @@ var revision: int = 0
 var _next_id: int = 1
 var _records: Dictionary = {}
 var _owners := PackedInt32Array()
-# Exact detached proofs only; full static validation never consults this cache.
+# Exact detached proofs only; the static validate() never consults this cache.
+# A cut reuses them only for its untouched records' pure layout replay.
 var _layout_proofs: Dictionary = {}
 var _layout_validations := 0
 # Exact successful record proofs for the current occupancy/land snapshot. Packed
@@ -203,11 +204,6 @@ static func _record_data_error(city: City, r: Dictionary) -> String:
 	return ""
 
 
-static func _record_error(city: City, r: Dictionary) -> String:
-	var error := _record_data_error(city,r)
-	return error if not error.is_empty() else AgriculturalParcelGeometry.record_error(r)
-
-
 ## A raw layer write invalidates all proofs before any update can use them.
 ## Owners and the store identity also participate because validation consults
 ## the city's authoritative ownership map, not just the visible building code.
@@ -278,11 +274,20 @@ func _validate_update(city: City, values: Array[Dictionary]) -> bool:
 
 
 static func validate(city: City, values: Array[Dictionary]) -> Dictionary:
+	return _validate_values(city,values,null)
+
+
+## The complete static checks in validate()'s order. With a store, a record whose
+## exact layout signature that store already proved skips only the pure metre-space
+## replay; its land, ownership, occupancy, schema and overlap checks still run.
+static func _validate_values(city: City, values: Array[Dictionary], proofs: AgriculturalParcels) -> Dictionary:
 	if values.size() > CELL_COUNT: return _error("Too many parcels.")
 	var ids := {}
 	var members := {}
 	for r in values:
-		var error := _record_error(city,r)
+		var error := _record_data_error(city,r)
+		if error.is_empty() and (proofs == null or not proofs._has_layout_proof(r)):
+			error = AgriculturalParcelGeometry.record_error(r)
 		if not error.is_empty(): return _error(error)
 		if ids.has(r.id): return _error("Duplicate parcel ID.")
 		ids[r.id] = true
@@ -293,9 +298,30 @@ static func validate(city: City, values: Array[Dictionary]) -> Dictionary:
 	return {"ok":true,"error":""}
 
 
+## Call only after _record_data_error accepted r. Geometry never reads the
+## counters, and the proof is recorded only after record_error accepted it.
+func _has_layout_proof(r: Dictionary) -> bool:
+	var proof: Dictionary = _layout_proofs.get(r.id,{})
+	if proof.is_empty(): return false
+	var signature := r.duplicate(true)
+	for field in ["failed_months","last_month","revision"]: signature.erase(field)
+	return proof == signature
+
+
 ## A normal update may add land and change lifecycle state, but cannot remove
 ## cells, change identity, or refill retained stock. Cuts use a topology transaction.
 func put(city: City, value: Dictionary) -> Error:
+	return _put(city,value,false)
+
+
+## put() for a known lifecycle transition. When only the state, its template code
+## and counters change, the result equals put()'s whole-store transaction while
+## revalidating just this record; any other change takes that transaction.
+func put_lifecycle(city: City, value: Dictionary) -> Error:
+	return _put(city,value,true)
+
+
+func _put(city: City, value: Dictionary, lifecycle: bool) -> Error:
 	if revision >= MAX_ID: return ERR_OUT_OF_MEMORY
 	var unchanged_land := _refresh_record_proofs(city)
 	var error := _cached_record_error(city,value)
@@ -317,6 +343,17 @@ func put(city: City, value: Dictionary) -> Error:
 			if old.revision == MAX_ID: return ERR_OUT_OF_MEMORY
 			r.revision = old.revision+1
 			_publish_counter_update(r,old)
+			return OK
+		# A lifecycle state change keeps every member, module, token and identity.
+		# It rewrites only this parcel's own codes, which no other record's land
+		# checks read, so the retained records stay proven by the unchanged layers.
+		for field in ["state","legacy_code"]: signature[field] = old[field]
+		if lifecycle and signature == old:
+			if old.revision == MAX_ID: return ERR_OUT_OF_MEMORY
+			r.revision = old.revision+1
+			# The same canonical-record recheck the whole-store transaction applies.
+			if not _cached_record_error(city,r,true).is_empty(): return ERR_INVALID_DATA
+			_publish_state_update(city,r,old)
 			return OK
 	if old.is_empty():
 		if id < _next_id or id >= MAX_ID: return ERR_OUT_OF_MEMORY
@@ -394,6 +431,35 @@ func _publish_counter_update(r: Dictionary, old: Dictionary) -> void:
 	var neighbor_ids := neighbors.keys()
 	neighbor_ids.sort()
 	changed.emit({"revision":revision,"ids":[r.id],"old_bounds":bounds(old.members),
+		"new_bounds":bounds(r.members),"neighbor_ids":neighbor_ids})
+
+
+## Commit a state-only replacement exactly as put's transaction would: the same
+## occupancy writes, counters, proofs and notification. Only this record's
+## canonical proof entry changes, so it is re-encoded alone.
+func _publish_state_update(city: City, r: Dictionary, old: Dictionary) -> void:
+	var id: int = r.id
+	var neighbors := {}
+	for i in r.members:
+		var p := tile(i)
+		for step in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+			var neighbor := id_at(p+step)
+			if neighbor != 0 and neighbor != id: neighbors[neighbor] = true
+	var old_bounds := bounds(old.members)
+	_records[id] = r
+	_next_id = maxi(_next_id,id+1)
+	for i in r.members:
+		_owners[i] = id
+		var p := tile(i)
+		city.building.put(p.x,p.y,_code(r))
+		if r.mode != &"legacy": city.zone.put(p.x,p.y,Zones.AGR_LOW)
+	revision += 1
+	_record_proofs[id] = var_to_bytes(r)
+	_remember_proof_layers(city)
+	_canonical_proof[id] = bytes_to_var(var_to_bytes(r))
+	var neighbor_ids := neighbors.keys()
+	neighbor_ids.sort()
+	changed.emit({"revision":revision,"ids":[id],"old_bounds":old_bounds,
 		"new_bounds":bounds(r.members),"neighbor_ids":neighbor_ids})
 
 
@@ -543,8 +609,10 @@ func _cut(city: City, cells: PackedInt32Array, explicit: bool, service_validator
 		var r: Dictionary = staged._records[fragment.record.id]
 		staged._layout_proofs.erase(r.id)
 		for i in r.members: detached.building.data[i] = _code(r)
-	# Complete validation bypasses exact-layout proofs. No partial commit on error.
-	var valid := validate(detached,staged.records())
+	# Complete land validation of every record. Untouched records reuse their exact
+	# detached layout proofs (cut owners' proofs were erased above), so an edit
+	# replays only the changed parcels' layouts. No partial commit on error.
+	var valid := _validate_values(detached,staged.records(),staged)
 	if not valid.ok: return valid
 	if not coverage(detached,staged): return _error("Parcel coverage failed after edit.")
 	_records = staged._records

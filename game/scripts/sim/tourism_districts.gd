@@ -93,6 +93,19 @@ func report() -> Dictionary:
 func district_connected(_city_unused: City, source: Rect2i, destination: Rect2i, reach: int) -> bool:
 	return _distance(source,destination) <= reach and _access.district_connected(source,destination)
 
+static var _interest := PackedByteArray()
+
+## 1 where category != "" or key == city_hall or (commercial and not a resort).
+static func _interest_table() -> PackedByteArray:
+	if _interest.is_empty():
+		_interest.resize(Buildings.COUNT)
+		for code in Buildings.COUNT:
+			var key := Buildings.key(code)
+			var category: StringName = CATEGORIES.get(key,&"")
+			var commercial := Buildings.category(code) == Buildings.Category.COMMERCIAL and not RewardParams.ARCOLOGIES.has(key)
+			_interest[code] = 0 if category == &"" and key != &"city_hall" and not commercial else 1
+	return _interest
+
 func _discover(city: City) -> void:
 	_event_hosts = {"stadium":false,"city_hall":false}
 	_attractions.clear()
@@ -101,8 +114,12 @@ func _discover(city: City) -> void:
 	for at: Vector2i in _fires: fire_set[at] = true
 	# One dirty-layer walk, then bounded bin lookups per venue. Canonical
 	# anchors and complete rectangles work without facility metadata.
+	var interest := _interest_table()
 	for index in _buildings.size():
 		var code := _buildings[index]
+		# Table equals the non-vacant part of the predicate below; NONE always
+		# takes the full test because vacancy also depends on its zone.
+		if code != Buildings.NONE and code >= 0 and code < interest.size() and interest[code] == 0: continue
 		var key := Buildings.key(code)
 		var category: StringName = CATEGORIES.get(key,&"")
 		var kind := Zones.kind(_zones[index])

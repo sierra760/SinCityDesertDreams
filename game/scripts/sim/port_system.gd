@@ -185,19 +185,10 @@ func port_report() -> Array[Dictionary]:
 ## from navigable map-edge water, never vehicle spawning or simulation RNG.
 var _tourism_layers: Array = []
 var _tourism_ports: Array[Dictionary] = []
+var _tourism_sea_layers: Array = []
+var _tourism_sea: Dictionary = {}
 
-func tourism_gateways() -> Array[Dictionary]:
-	if _ctx == null: return []
-	var city := _ctx.city
-	var flooded := PackedInt32Array()
-	for p: Variant in city.flood_overlay:
-		if p is Vector2i and city.in_bounds(p.x,p.y): flooded.append(p.y*City.WIDTH+p.x)
-	flooded.sort()
-	var layers: Array = [city.zone.data,city.building.data,city.flags.data,city.terrain.data,city.altitude.data,flooded]
-	if layers == _tourism_layers: return _tourism_ports.duplicate(true)
-	_tourism_layers = layers.duplicate(true)
-	_tourism_ports.clear()
-	_ensure_ports(city)
+static func _navigable_sea(city: City) -> Dictionary:
 	var sea := {}
 	var queue := PackedInt32Array()
 	for i in City.WIDTH*City.HEIGHT:
@@ -215,6 +206,27 @@ func tourism_gateways() -> Array[Dictionary]:
 			if not sea.has(index) and _navigable(city,next):
 				sea[index] = true
 				queue.append(index)
+	return sea
+
+func tourism_gateways() -> Array[Dictionary]:
+	if _ctx == null: return []
+	var city := _ctx.city
+	var flooded := PackedInt32Array()
+	for p: Variant in city.flood_overlay:
+		if p is Vector2i and city.in_bounds(p.x,p.y): flooded.append(p.y*City.WIDTH+p.x)
+	flooded.sort()
+	var layers: Array = [city.zone.data,city.building.data,city.flags.data,city.terrain.data,city.altitude.data,flooded]
+	if layers == _tourism_layers: return _tourism_ports.duplicate(true)
+	_tourism_layers = layers.duplicate(true)
+	_tourism_ports.clear()
+	_ensure_ports(city)
+	# The navigable-sea flood reads only terrain (is_open_water) and buildings
+	# (_navigable); flags/zones/altitude/flooding affect only the port checks below.
+	var sea_layers: Array = [city.terrain.data,city.building.data]
+	if sea_layers != _tourism_sea_layers:
+		_tourism_sea_layers = sea_layers.duplicate(true)
+		_tourism_sea = _navigable_sea(city)
+	var sea := _tourism_sea
 	for port in _ports:
 		if not port.operating or port.kind == Zones.MILITARY: continue
 		if port.kind == Zones.SEAPORT:

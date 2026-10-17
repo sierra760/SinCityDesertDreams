@@ -20,6 +20,8 @@ var _city: City
 var _buildings := PackedInt32Array()
 var _zones := PackedByteArray()
 var _anchors: Array[Vector2i] = []
+var _validated_input := PackedByteArray()
+var _validated_rows: Array[Dictionary] = []
 
 
 func reconcile(city: City, adopt_legacy: bool = false) -> void:
@@ -173,7 +175,17 @@ static func _legacy_count(value: Variant, capacity: int) -> int:
 func replace_records(rows_to_install: Array[Dictionary]) -> Error:
 	if _city == null or rows_to_install.size() != _rows.size():
 		return ERR_INVALID_DATA
-	var checked := _validate_rows(rows_to_install, false)
+	# _validate_rows is a pure function of its input; exact (type-preserving)
+	# byte equality with the previous accepted input reuses its result.
+	var encoded := var_to_bytes(rows_to_install)
+	var checked: Dictionary
+	if encoded == _validated_input:
+		checked = {"ok": true, "rows": _validated_rows.duplicate(true), "error": ""}
+	else:
+		checked = _validate_rows(rows_to_install, false)
+		if checked.ok:
+			_validated_input = encoded
+			_validated_rows = checked.rows.duplicate(true)
 	if not checked.ok:
 		return ERR_INVALID_DATA
 	var known := {}

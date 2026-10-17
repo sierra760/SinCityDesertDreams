@@ -10,24 +10,30 @@ const WALK_SPEED := 1.2
 # Stable individual pace, 70–100% of the existing maximum (metres/second).
 const MIN_WALK_SPEED := WALK_SPEED * .7
 const PLAYER_RADIUS := .4
+# Coarse square buckets (metres) for the nearest-reachable-node search.
+const ROUTE_BUCKET := 4.0
+# Beyond this the bucket arithmetic is not meaningful; scan exhaustively instead.
+const ROUTE_INDEX_LIMIT := 4096.0
 var _catalog := AgricultureAssetCatalog.new()
 var _rng := RandomNumberGenerator.new()
 var _profile: Dictionary = {}
 var _animals: Array[Dictionary] = []
 var _previous: Array[Dictionary] = []
 var _graphs: Array[AStar2D] = []
+var _indexes: Array[Dictionary] = []
 var _residual := 0.0
 var _radius := 0.0
 
 func configure(profile: Dictionary, seed_value: int) -> void:
 	_profile=profile.duplicate(true)
-	_animals.clear();_previous.clear();_graphs.clear();_residual=0.0
+	_animals.clear();_previous.clear();_graphs.clear();_indexes.clear();_residual=0.0
 	_rng.seed=seed_value
 	if profile.is_empty():return
 	_radius=float(profile["body_radius"])+float(profile["turn_margin"])
 	for pen_index:int in _profile["pens"].size():
 		var pen:Dictionary=_profile["pens"][pen_index]
 		_graphs.append(_graph(pen))
+		_indexes.append(_route_index(_graphs.back()))
 		for spawn:Array in pen["spawns"]:
 			_animals.append({"position":Vector3(spawn[0],pen["ground_y"],spawn[1]),"heading":_rng.randf_range(-PI,PI),"speed":0.0,"preferred_speed":_rng.randf_range(MIN_WALK_SPEED,WALK_SPEED),"activity":"idle","gait_phase":_rng.randf()*TAU,"species":profile["species"],"pen_index":pen_index,"timer":_rng.randf_range(.2,4.0),"stage":0,"route":PackedVector2Array(),"blocked":0.0})
 	_previous=_animals.duplicate(true)
@@ -80,17 +86,88 @@ func _graph(pen:Dictionary)->AStar2D:
 func _route(from:Vector2,to:Vector2,pen_index:int)->PackedVector2Array:
 	var pen:Dictionary=_profile["pens"][pen_index]
 	if _catalog.navigation_segment(from,to,pen,_radius):return PackedVector2Array([to])
-	var graph:=_graphs[pen_index];var a:=-1;var b:=-1;var da:=INF;var db:=INF
-	for id:int in graph.get_point_ids():
-		var p:=graph.get_point_position(id)
-		var d:=from.distance_squared_to(p)
-		if d<da and _catalog.navigation_segment(from,p,pen,_radius):a=id;da=d
-		d=to.distance_squared_to(p)
-		if d<db and _catalog.navigation_segment(to,p,pen,_radius):b=id;db=d
-	if a<0 or b<0:return PackedVector2Array()
+	var graph:=_graphs[pen_index]
+	var a:=_nearest_reachable(from,pen,_indexes[pen_index])
+	if a<0:return PackedVector2Array()
+	var b:=_nearest_reachable(to,pen,_indexes[pen_index])
+	if b<0:return PackedVector2Array()
 	var path:=graph.get_point_path(a,b)
 	if not path.is_empty():path.append(to)
 	return path
+
+## Graph points in AStar2D iteration order, bucketed by position. That order is
+## the tie-break of the exhaustive scan this index replaces.
+func _route_index(graph:AStar2D)->Dictionary:
+	var ids:=graph.get_point_ids()
+	var points:=PackedVector2Array()
+	var buckets:={}
+	var low:=Vector2i.ZERO;var high:=Vector2i(-1,-1)
+	var indexed:=true
+	for order:int in ids.size():
+		var p:=graph.get_point_position(ids[order])
+		points.append(p)
+		if not p.is_finite() or absf(p.x)>ROUTE_INDEX_LIMIT or absf(p.y)>ROUTE_INDEX_LIMIT:indexed=false;continue
+		var key:=Vector2i(floori(p.x/ROUTE_BUCKET),floori(p.y/ROUTE_BUCKET))
+		if order==0:low=key;high=key
+		else:low=low.min(key);high=high.max(key)
+		if not buckets.has(key):buckets[key]=[]
+		buckets[key].append(order)
+	return {"ids":ids,"points":points,"buckets":buckets,"low":low,"high":high,"indexed":indexed}
+
+## The graph point a straight clear segment reaches with the least squared
+## distance, ties going to the earliest point in iteration order: exactly the
+## exhaustive scan's choice. Points are tested nearest first, a bucket ring at
+## a time; a point is tested only once every untested point is provably farther.
+func _nearest_reachable(origin:Vector2,pen:Dictionary,index:Dictionary)->int:
+	var ids:PackedInt64Array=index["ids"]
+	var points:PackedVector2Array=index["points"]
+	if points.is_empty() or not origin.is_finite():return -1
+	# Every segment test starts with this endpoint check.
+	if not _catalog.navigation_clear(origin,pen,_radius):return -1
+	if not index["indexed"] or absf(origin.x)>ROUTE_INDEX_LIMIT or absf(origin.y)>ROUTE_INDEX_LIMIT:
+		var found:=-1;var best:=INF
+		for order:int in points.size():
+			var d:=origin.distance_squared_to(points[order])
+			if d<best and _catalog.navigation_segment(origin,points[order],pen,_radius):found=order;best=d
+		return found if found<0 else int(ids[found])
+	var low:Vector2i=index["low"];var high:Vector2i=index["high"]
+	var centre:=Vector2i(floori(origin.x/ROUTE_BUCKET),floori(origin.y/ROUTE_BUCKET))
+	# Rings nearer than the occupied box are empty; the last ring covers it all.
+	var first:=maxi(maxi(maxi(low.x-centre.x,centre.x-high.x),maxi(low.y-centre.y,centre.y-high.y)),0)
+	var last:=maxi(maxi(centre.x-low.x,high.x-centre.x),maxi(centre.y-low.y,high.y-centre.y))
+	var pending:Array=[]
+	for ring:int in range(first,last+1):
+		for y:int in range(maxi(centre.y-ring,low.y),mini(centre.y+ring,high.y)+1):
+			if y==centre.y-ring or y==centre.y+ring:
+				for x:int in range(maxi(centre.x-ring,low.x),mini(centre.x+ring,high.x)+1):
+					_collect(origin,Vector2i(x,y),index,pending)
+			else:
+				if centre.x-ring>=low.x and centre.x-ring<=high.x:_collect(origin,Vector2i(centre.x-ring,y),index,pending)
+				if centre.x+ring>=low.x and centre.x+ring<=high.x:_collect(origin,Vector2i(centre.x+ring,y),index,pending)
+		# Untested points lie at least ring buckets away along one axis; the margin
+		# covers single-precision rounding of their squared distances.
+		var bound:=INF
+		if ring<last:
+			var reach:=maxf(ring*ROUTE_BUCKET-.01,0.0)
+			bound=reach*reach
+		var due:Array=[];var waiting:Array=[]
+		for entry:Array in pending:
+			if entry[0]<bound:due.append(entry)
+			else:waiting.append(entry)
+		pending=waiting
+		due.sort_custom(func(p:Array,q:Array)->bool:return p[0]<q[0] or (p[0]==q[0] and p[1]<q[1]))
+		for entry:Array in due:
+			if _catalog.navigation_segment(origin,points[entry[1]],pen,_radius):return int(ids[entry[1]])
+	return -1
+
+func _collect(origin:Vector2,key:Vector2i,index:Dictionary,pending:Array)->void:
+	var buckets:Dictionary=index["buckets"]
+	if not buckets.has(key):return
+	var points:PackedVector2Array=index["points"]
+	for order:int in buckets[key]:
+		var d:=origin.distance_squared_to(points[order])
+		# The scan never selects an infinite or undefined distance.
+		if d<INF:pending.append([d,order])
 
 func _choose_route(a:Dictionary)->void:
 	var pen_index:int=a["pen_index"];var pen:Dictionary=_profile["pens"][pen_index]
