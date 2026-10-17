@@ -26,12 +26,26 @@ const QUIET := &"quiet_month"
 const STORIES: Dictionary = {
 	&"tourism_event_announced": {
 		"priority": NOTABLE, "decay": ONCE,
-		"headlines": ["{event} Scheduled For {date}"],
-		"body": ["{city} has announced {event} for {date}. Eligible visitor markets receive a seasonal event boost, subject to available transport, staff, beds, power and water. The event will be cancelled if its qualifying services are lost."]},
+		"headlines": [
+			"{event} Scheduled For {date}",
+			"{city} Books {event} For {date}",
+			"Mark The Calendar: {event} Comes In {date}",
+		],
+		"body": [
+			"{city} has announced {event} for {date}. Eligible visitor markets receive a seasonal event boost, subject to available transport, staff, beds, power and water.",
+			"Organizers warned that the event will be cancelled if its qualifying services are lost before the big day. Hotel managers were already counting rooms.",
+		]},
 	&"tourism_event_cancelled": {
 		"priority": NOTABLE, "decay": ONCE,
-		"headlines": ["{event} Cancelled For {date}"],
-		"body": ["{event} will not bring its advertised visitor boost: qualifying services are no longer available. Completed visitor business remains on the books. The city can qualify again next year."]},
+		"headlines": [
+			"{event} Cancelled For {date}",
+			"No {event} This Time, City Says",
+			"{event} Called Off; Visitors Told To Wait",
+		],
+		"body": [
+			"{event} will not bring its advertised visitor boost: qualifying services are no longer available.",
+			"Completed visitor business remains on the books, and the city can qualify again next year. Vendors who had already ordered extra souvenirs declined to comment.",
+		]},
 	&"generic": {
 		"priority": MINOR, "decay": SLOW,
 		"headlines": [

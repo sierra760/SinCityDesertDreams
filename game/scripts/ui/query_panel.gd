@@ -369,7 +369,10 @@ static func _tourism_figures(out: Dictionary, sim: Simulation, anchor: Vector2i)
 	out["Operating reason"] = "All services and access available" if rec.operating else String(rec.reason)
 	out["Arrivals this month"] = int(rec.arrivals)
 	out["Departures this month"] = int(rec.departures)
-	out["Business period"] = "Completed month %d" % (int(rec.business_month) + 1) if int(rec.business_month) >= 0 else "No completed month"
+	var business_month := int(rec.business_month)
+	@warning_ignore("integer_division")
+	out["Business period"] = "Completed %s %d" % [GameClock.MONTH_NAMES[business_month % GameClock.MONTHS_PER_YEAR],
+		sim.city.founded_year + business_month / GameClock.MONTHS_PER_YEAR] if business_month >= 0 else "No completed month"
 	out["Completed lodging base"] = "$%.2f" % (int(rec.lodging_cents) / 100.0)
 	out["Completed gaming base"] = "$%.2f" % (int(rec.gaming_cents) / 100.0)
 	out["Casino source"] = "%.3f crime units / month" % (float(rec.crime_source_milli) / 1000.0)

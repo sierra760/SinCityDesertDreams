@@ -357,7 +357,12 @@ func refresh(force_full: bool = false) -> void:
 	var terrain_us := Time.get_ticks_usec()-terrain_started
 	var lots_started := Time.get_ticks_usec()
 	var lot_regions := buildings.update_regions(city, catalog, _lot_regions, [] if full else _previous_geometry_state, _geometry_state)
+	# Farm changes flushed here join this refresh's single batch pass and
+	# geometry signal instead of re-entering the deferred change handler.
+	_refresh_agriculture_regions.clear()
+	_refreshing_agriculture = true
 	agriculture.update_regions(_lot_regions)
+	_refreshing_agriculture = false
 	var lots_us := Time.get_ticks_usec()-lots_started
 	var networks_started := Time.get_ticks_usec()
 	var network_regions := networks.update_regions(city, regions, CHUNK_SIZE)
@@ -371,6 +376,8 @@ func refresh(force_full: bool = false) -> void:
 	networks.visible = true
 	var batch_regions: Array[Rect2i] = network_regions.duplicate()
 	batch_regions.append_array(lot_regions)
+	batch_regions.append_array(_refresh_agriculture_regions)
+	_refresh_agriculture_regions.clear()
 	var batches_started := Time.get_ticks_usec()
 	if full:
 		mesh_batches.rebuild([buildings, agriculture, networks])
@@ -1276,9 +1283,15 @@ func set_tile_grid_visible(on: bool) -> void:
 	water_style.material.set_shader_parameter("tile_grid_enabled", on)
 
 
+var _refreshing_agriculture := false
+var _refresh_agriculture_regions: Array[Rect2i] = []
+
 ## Store revisions can change composition without changing any tile code.
 func _agriculture_changed(regions: Array[Rect2i]) -> void:
 	if mesh_batches == null: return
+	if _refreshing_agriculture:
+		_refresh_agriculture_regions.append_array(regions)
+		return
 	mesh_batches.update_regions([buildings,agriculture,networks],regions)
 	_apply_analytics_visibility()
 	_geometry_revision += 1
