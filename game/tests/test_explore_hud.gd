@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-extends "res://tests/test_case.gd"
+extends "res://tests/exploration/async_test_case.gd"
 
 const HUD_PATH := "res://scripts/ui/explore_hud.gd"
 

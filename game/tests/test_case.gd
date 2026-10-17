@@ -42,10 +42,10 @@ func _run_all() -> void:
 		var n: String = m.name
 		if n.begins_with("test_"):
 			_current = n
-			before_each()
 			var before := _failed
-			call(n)
-			after_each()
+			_require_synchronous("before_each", call("before_each"))
+			_require_synchronous(n, call(n))
+			_require_synchronous("after_each", call("after_each"))
 			if _failed == before:
 				_passed += 1
 			else:
@@ -53,6 +53,14 @@ func _run_all() -> void:
 	after_all()
 	print("Results: %d passed, %d failed" % [_passed, _failed])
 	quit(0 if _failed == 0 else 1)
+
+
+## This runner does not wait for frames: a test that awaits would be counted
+## before its checks run, so it fails here instead of passing silently.
+func _require_synchronous(method_name: String, result: Variant) -> void:
+	if result is Object and is_instance_valid(result) and (result as Object).get_class() == "GDScriptFunctionState":
+		_failed += 1
+		print("    %s: %s awaits frames; extend res://tests/exploration/async_test_case.gd so its checks run" % [_current, method_name])
 
 
 func before_all() -> void: pass

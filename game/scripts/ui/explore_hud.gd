@@ -325,7 +325,7 @@ func _build() -> void:
 	use_vehicle.name = "DriveSelectedVehicle"
 	use_vehicle.pressed.connect(func() -> void: vehicle_requested.emit(StringName(picker.get_item_metadata(picker.selected))))
 	column.add_child(use_vehicle)
-	var vehicle_help := UIFactory.make_label("Choose while walking outdoors, not riding a train or inside a station or resort. A connected route and clear space must be nearby, and the helicopter flies from where it is parked. At a marina, use Interact to board a boat. Stop beside the marina or a clear shoreline to exit. Airplanes can't be driven.")
+	var vehicle_help := UIFactory.make_label("Choose while walking outdoors with a connected route and clear space nearby. The helicopter flies from where it is parked. At a marina, use Interact to board a boat; stop beside the marina or a clear shoreline to exit.",UITheme.FONT_SMALL)
 	vehicle_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(vehicle_help)
 	_transit_label = UIFactory.make_label("",UITheme.FONT_SMALL)
