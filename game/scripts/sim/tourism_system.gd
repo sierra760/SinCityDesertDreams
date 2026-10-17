@@ -348,11 +348,7 @@ func monthly(_context: SimContext, _phase: int = 0) -> void:
 	# prospective work and closing attendance use these detached graphs; only
 	# the final accepted overlay causes one established pass per utility.
 	if power != null or water != null:
-		var pb: Dictionary = _calendar_probe_budgets.get("power",{})
-		var wb: Dictionary = _calendar_probe_budgets.get("water",{})
-		if pb.is_empty(): pb=power.admission_budget(_ctx.city) if power!=null else UtilityParams.admission_budget(_ctx.city,false)
-		if wb.is_empty(): wb=water.admission_budget(_ctx.city) if water!=null else UtilityParams.admission_budget(_ctx.city,true)
-		budgets = {"power":pb,"water":wb}
+		budgets = _admission_budgets(_calendar_probe_budgets)
 	var predicted := _forecast(-1,-1,false,budgets)
 	var candidates: Array[Dictionary] = []
 	for value: Dictionary in predicted.rows:
@@ -923,17 +919,26 @@ func _refresh_calendar_capacity(budgets: Dictionary = {}) -> void:
 	var workers := TourismEconomy.workers(_ctx.stats)
 	var other_jobs := maxi(0,_ctx.stats.jobs-_ctx.stats.tourism_jobs)
 	var power := _ctx.system(&"power") as PowerSystem
-	var water := _ctx.system(&"water") as WaterSystem
 	var signature: Array = [city.building.data,city.zone.data,city.flags.data,city.underground.data,city.facilities,city.imported_power_links,rows,workers,other_jobs,_ctx.stats.ordinances,_access.version,power._conservation if power!=null else false]
 	if signature==_calendar_probe_signature: return
 	_calendar_probe_signature=signature.duplicate(true)
 	_calendar_capacity_month=_month_id()
+	_calendar_probe_budgets=_admission_budgets(budgets)
+	_calendar_supported_beds=TourismCalendar.supported_beds(city,rows,workers,other_jobs,{"gateways":_access.gateways()},_calendar_probe_budgets.power,_calendar_probe_budgets.water)
+
+## Pure established budgets, reusing any supplied unchanged pair. Missing
+## budgets for both utilities share one map pass (UtilityParams.admission_budgets).
+func _admission_budgets(budgets: Dictionary) -> Dictionary:
+	var city := _ctx.city
+	var power := _ctx.system(&"power") as PowerSystem
+	var water := _ctx.system(&"water") as WaterSystem
 	var pb: Dictionary = budgets.get("power",{})
 	var wb: Dictionary = budgets.get("water",{})
+	if pb.is_empty() and wb.is_empty():
+		return UtilityParams.admission_budgets(city,power._conservation if power!=null else false)
 	if pb.is_empty(): pb=power.admission_budget(city) if power!=null else UtilityParams.admission_budget(city,false)
 	if wb.is_empty(): wb=water.admission_budget(city) if water!=null else UtilityParams.admission_budget(city,true)
-	_calendar_probe_budgets={"power":pb,"water":wb}
-	_calendar_supported_beds=TourismCalendar.supported_beds(city,rows,workers,other_jobs,{"gateways":_access.gateways()},pb,wb)
+	return {"power":pb,"water":wb}
 
 func calendar_report() -> Dictionary:
 	if _ctx==null: return {}

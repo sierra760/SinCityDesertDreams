@@ -26,6 +26,11 @@ var _attendance: Array = []
 var _attractions: Dictionary = {}
 var _shops: Dictionary = {}
 var _event_hosts := {"stadium":false,"city_hall":false}
+## Tiles whose served bits the last _discover read, and those bits. Discovery
+## reads only buildings, zones, terrain, flooding, fires and these bits; other
+## flag bits, altitude and route versions change only the influence rebuild.
+var _served_tiles := PackedInt32Array()
+var _served_bits := PackedByteArray()
 var _inputs: Dictionary = {}
 var _distribution: Dictionary = {}
 var _summary := {"available_spending_cents":0, "accepted_spending_cents":0, "recipient_capacity_cents":0,
@@ -56,6 +61,8 @@ func refresh(ctx: SimContext, rows: Array[Dictionary], access: TourismAccess = n
 		or _flags != city.flags.data or _terrain != city.terrain.data or _altitude != city.altitude.data or _fires != fires or _flooded != flooded or _access_version != _access.version
 	if not changed and attendance == _attendance:
 		return
+	var discover := changed and (_city != city or _buildings != city.building.data or _zones != city.zone.data \
+		or _terrain != city.terrain.data or _fires != fires or _flooded != flooded or _served(city) != _served_bits)
 	_city = city
 	_attendance = attendance
 	_access_version = _access.version
@@ -67,7 +74,7 @@ func refresh(ctx: SimContext, rows: Array[Dictionary], access: TourismAccess = n
 		_altitude = city.altitude.data.duplicate()
 		_fires = fires.duplicate()
 		_flooded = flooded
-		_discover(city)
+		if discover: _discover(city)
 	_rebuild(city, rows)
 	_access_version = _access.version
 
@@ -106,10 +113,19 @@ static func _interest_table() -> PackedByteArray:
 			_interest[code] = 0 if category == &"" and key != &"city_hall" and not commercial else 1
 	return _interest
 
+func _served(city: City) -> PackedByteArray:
+	var flags := city.flags.data
+	var mask := TileFlags.POWERED | TileFlags.WATERED
+	var bits := PackedByteArray()
+	bits.resize(_served_tiles.size())
+	for k in _served_tiles.size(): bits[k] = flags[_served_tiles[k]] & mask
+	return bits
+
 func _discover(city: City) -> void:
 	_event_hosts = {"stadium":false,"city_hall":false}
 	_attractions.clear()
 	_shops.clear()
+	_served_tiles.clear()
 	var fire_set := {}
 	for at: Vector2i in _fires: fire_set[at] = true
 	# One dirty-layer walk, then bounded bin lookups per venue. Canonical
@@ -132,11 +148,15 @@ func _discover(city: City) -> void:
 		var size := Buildings.size(code)
 		var rect := Rect2i(at,size)
 		if not _complete(city,rect,code): continue
+		# Every served bit _operating may read for this complete footprint.
+		for y in range(rect.position.y,rect.end.y):
+			for x in range(rect.position.x,rect.end.x): _served_tiles.append(y*City.WIDTH+x)
 		if String(key) in _event_hosts and _operating(city,rect,key,fire_set): _event_hosts[String(key)] = true
 		if category != &"":
 			if _operating(city,rect,key,fire_set): _bin_add(_attractions,at,{"rect":rect,"category":category})
 		elif commercial or vacant:
 			if _operating(city,rect,&"shop",fire_set): _bin_add(_shops,at,{"rect":rect,"anchor":at})
+	_served_bits = _served(city)
 
 func _complete(city: City, rect: Rect2i, code: int) -> bool:
 	if not city.in_bounds(rect.end.x-1,rect.end.y-1): return false

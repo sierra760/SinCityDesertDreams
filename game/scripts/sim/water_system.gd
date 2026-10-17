@@ -245,6 +245,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 	var draws := Params.draws_water_table()
 	var facility_tbl := Params.water_facility_table()
 	var multi := Params.multi_tile_table()
+	var loads := Params.water_load_table()
 	var rain := Params.DEFAULT_RAIN if established else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
 
 	# One pass over the map: drop last month's service (tower tiles keep their
@@ -271,7 +272,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 				i += 1
 				continue
 			if draws[id] != 0:
-				total_demand += Params.water_load(id) + _visitors.values[i]
+				total_demand += loads[id] + _visitors.values[i]
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			elif facility_tbl[id] != 0 and (multi[id] == 0 or Params.is_anchor_tile(bld, zn, i)):
@@ -328,7 +329,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			elif facility_tbl[id] != 0:
 				capacity += _output[t]
 			elif draws[id] != 0:
-				demand += Params.water_load(id) + _visitors.values[t]
+				demand += loads[id] + _visitors.values[t]
 		var allocation := Params.allocate_network(_queue.slice(start, tail), bld, mini(demand, capacity), true, Rect2i(), -1, _visitors.values)
 		var served: int = allocation.consumed
 		if demand > capacity:
@@ -411,6 +412,7 @@ func _summarize_saved(city: City, stats: CityStats) -> void:
 	var zn := city.zone.data
 	var draws := Params.draws_water_table()
 	var multi := Params.multi_tile_table()
+	var loads := Params.water_load_table()
 	_consumers.resize(0)
 	var total_demand := 0
 	var storage_capacity := 0
@@ -424,7 +426,7 @@ func _summarize_saved(city: City, stats: CityStats) -> void:
 				if (flags[i] & TileFlags.WATERED) != 0:
 					stored += Params.TOWER_UNITS_PER_TILE
 			elif id != Buildings.NONE and draws[id] != 0:
-				total_demand += Params.water_load(id) + _visitors.values[i]
+				total_demand += loads[id] + _visitors.values[i]
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			i += 1
@@ -476,8 +478,9 @@ func _count_unserved(city: City, bld: PackedInt32Array, flags: PackedByteArray) 
 	var heights := Params.footprint_height_table()
 	var unserved := 0
 	var parcels := {}
+	var owners := city.agricultural_parcels.owners()
 	for a in _consumers:
-		var owner := city.agricultural_parcels.id_at(AgriculturalParcels.tile(a))
+		var owner := owners[a]
 		if owner != 0:
 			if parcels.has(owner): continue
 			parcels[owner] = true

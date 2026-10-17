@@ -46,6 +46,11 @@ static func tile(i: int) -> Vector2i:
 	return Vector2i(i % City.WIDTH, i / City.WIDTH)
 
 
+## Owner parcel id per tile index (id_at for every in-bounds tile).
+func owners() -> PackedInt32Array:
+	return _owners
+
+
 func id_at(p: Vector2i) -> int:
 	if p.x < 0 or p.y < 0 or p.x >= City.WIDTH or p.y >= City.HEIGHT: return 0
 	return _owners[cell(p)]

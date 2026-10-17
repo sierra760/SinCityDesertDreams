@@ -52,15 +52,29 @@ static func summary(ctx: SimContext, record: Dictionary, supplied_city: City) ->
 ## Detached store, source policy, facilities, statistics and network instances.
 ## A list also permits final joint allocation and rollback without live mutations.
 static func project(ctx: SimContext, record: Dictionary = {}, proposals: Array[Dictionary] = []) -> City:
-	var city := ctx.city.duplicate_city()
-	city.imported_power_links = ctx.city.imported_power_links.duplicate()
 	var values := proposals.duplicate()
 	if not record.is_empty(): values.append(record)
-	for value in values:
-		if value.has("members"):
-			if city.agricultural_parcels.put(city,value) != OK: return null
-		else:
-			city.stamp_building(value.anchor.x,value.anchor.y,AgricultureParams.building_id(value.archetype),value.zone_kind)
+	var city := detached_copy(ctx.city,values)
+	if city == null: return null
+	return allocate(ctx,city)
+
+## An unallocated detached copy of `source` with `values` applied in order, or
+## null when a parcel put refuses. A copy of such a copy equals a fresh one.
+static func detached_copy(source: City, values: Array) -> City:
+	var city := source.duplicate_city()
+	city.imported_power_links = source.imported_power_links.duplicate()
+	for value: Dictionary in values:
+		if not apply_value(city,value): return null
+	return city
+
+static func apply_value(city: City, value: Dictionary) -> bool:
+	if value.has("members"):
+		return city.agricultural_parcels.put(city,value) == OK
+	city.stamp_building(value.anchor.x,value.anchor.y,AgricultureParams.building_id(value.archetype),value.zone_kind)
+	return true
+
+## Established allocation of a detached copy, in place; returns `city`.
+static func allocate(ctx: SimContext, city: City) -> City:
 	var detached := SimContext.new()
 	detached.city = city
 	detached.stats = CityStats.new()

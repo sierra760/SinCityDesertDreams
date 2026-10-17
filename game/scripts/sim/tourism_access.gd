@@ -165,53 +165,101 @@ func refresh(ctx: SimContext, work_budget: int = ROUTE_WORK) -> void:
 	_stats.cache_entries = _cache_entries
 
 ## Kosaraju's iterative passes avoid recursion on a map-length highway/rail.
+## Dense packed indices replace per-edge dictionary work; both visit orders,
+## the component numbering and the DAG edge order equal the dictionary passes.
 func _components() -> void:
-	var reverse := {}
-	var visited := {}
-	var order := PackedInt32Array()
+	var slot := PackedInt32Array()
+	slot.resize(TransportSystem.STATES)
+	slot.fill(-1)
+	# Dense nodes in first-seen order: every key and every edge target.
+	var states := PackedInt32Array()
+	var successors: Array[PackedInt32Array] = []
+	var empty := PackedInt32Array()
 	var edges := 0
 	for state: int in _graph:
-		if not reverse.has(state): reverse[state] = PackedInt32Array()
-		for next: int in _graph[state]:
-			if not reverse.has(next): reverse[next] = PackedInt32Array()
-			reverse[next].append(state)
-			edges += 1
+		if slot[state] < 0:
+			slot[state] = states.size()
+			states.append(state)
+			successors.append(empty)
+		var neighbors: PackedInt32Array = _graph[state]
+		successors[slot[state]] = neighbors
+		edges += neighbors.size()
+		for next in neighbors:
+			if slot[next] < 0:
+				slot[next] = states.size()
+				states.append(next)
+				successors.append(empty)
+	var count := states.size()
+	# Predecessor lists in the order the dictionary pass appended them.
+	var reverse_start := PackedInt32Array()
+	reverse_start.resize(count + 1)
 	for state: int in _graph:
-		if visited.has(state): continue
-		var stack: Array = [[state,0]]
-		visited[state] = true
-		while not stack.is_empty():
-			var frame: Array = stack[-1]
-			var neighbors: PackedInt32Array = _graph.get(frame[0],PackedInt32Array())
-			if frame[1] == neighbors.size():
-				order.append(frame[0])
-				stack.pop_back()
+		for next in successors[slot[state]]: reverse_start[slot[next] + 1] += 1
+	for i in count: reverse_start[i + 1] += reverse_start[i]
+	var fill := reverse_start.slice(0, count)
+	var reverse := PackedInt32Array()
+	reverse.resize(edges)
+	for state: int in _graph:
+		var from := slot[state]
+		for next in successors[from]:
+			var to := slot[next]
+			reverse[fill[to]] = from
+			fill[to] += 1
+	var visited := PackedByteArray()
+	visited.resize(count)
+	var order := PackedInt32Array()
+	var stack_node := PackedInt32Array()
+	var stack_next := PackedInt32Array()
+	for state: int in _graph:
+		var root := slot[state]
+		if visited[root] != 0: continue
+		stack_node.append(root)
+		stack_next.append(0)
+		visited[root] = 1
+		while not stack_node.is_empty():
+			var top := stack_node.size() - 1
+			var node := stack_node[top]
+			var neighbors := successors[node]
+			var at := stack_next[top]
+			if at == neighbors.size():
+				order.append(node)
+				stack_node.resize(top)
+				stack_next.resize(top)
 				continue
-			var next := neighbors[frame[1]]
-			frame[1] += 1
-			if not visited.has(next):
-				visited[next] = true
-				stack.append([next,0])
+			stack_next[top] = at + 1
+			var next := slot[neighbors[at]]
+			if visited[next] == 0:
+				visited[next] = 1
+				stack_node.append(next)
+				stack_next.append(0)
+	var component := PackedInt32Array()
+	component.resize(count)
+	component.fill(-1)
+	var assigned := PackedInt32Array()
 	_component.clear()
 	_dag.clear()
 	order.reverse()
-	for state in order:
-		if _component.has(state): continue
+	for start in order:
+		if component[start] >= 0: continue
 		var id := _dag.size()
 		_dag.append(PackedInt32Array())
-		var stack := PackedInt32Array([state])
-		_component[state] = id
+		var stack := PackedInt32Array([start])
+		component[start] = id
+		assigned.append(start)
 		while not stack.is_empty():
 			var node := stack[-1]
 			stack.resize(stack.size()-1)
-			for previous: int in reverse.get(node,PackedInt32Array()):
-				if not _component.has(previous):
-					_component[previous] = id
+			for k in range(reverse_start[node], reverse_start[node + 1]):
+				var previous := reverse[k]
+				if component[previous] < 0:
+					component[previous] = id
+					assigned.append(previous)
 					stack.append(previous)
+	for node in assigned: _component[states[node]] = component[node]
 	for state: int in _graph:
-		var a: int = _component[state]
-		for next: int in _graph[state]:
-			var b: int = _component[next]
+		var a := component[slot[state]]
+		for next in successors[slot[state]]:
+			var b := component[slot[next]]
 			if a != b and not _dag[a].has(b): _dag[a].append(b)
 	_stats.graph_states = _graph.size()
 	_stats.graph_edges = edges

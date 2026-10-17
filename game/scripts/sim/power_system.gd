@@ -72,6 +72,7 @@ func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
 	var plant_tbl := Params.power_plant_table()
 	var draws := Params.draws_power_table()
 	var multi := Params.multi_tile_table()
+	var loads := Params.power_load_table()
 	_plant_tiles.resize(0)
 	_plant_anchors.resize(0)
 	_consumers.resize(0)
@@ -83,7 +84,7 @@ func setup_from_save(ctx: SimContext, data: Dictionary) -> void:
 			var i := y * W + x
 			var id := bld[i]
 			if draws[id] != 0:
-				total_demand += Params.power_load(id) + _visitors.values[i]
+				total_demand += loads[id] + _visitors.values[i]
 				if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 					_consumers.append(i)
 			elif plant_tbl[id] != 0:
@@ -204,11 +205,12 @@ func _refresh_conduction(city: City, rect: Rect2i) -> void:
 	# has_imported_power_link() is false without side effects for an index the
 	# link table lacks; only listed indices need its signature check.
 	var links: Dictionary = city.imported_power_links
+	var check_links := not links.is_empty()
 	for y in range(r.position.y, r.end.y):
 		var i := y * W + r.position.x
 		for _x in r.size.x:
 			var id := bld[i]
-			var imported_link := links.has(i) and city.has_imported_power_link(i)
+			var imported_link := check_links and links.has(i) and city.has_imported_power_link(i)
 			if imported_link or conducts[id] != 0 or (open[id] != 0 and (zn[i] & Zones.KIND_MASK) != 0):
 				flags[i] |= TileFlags.CONDUCTS_POWER
 			else:
@@ -283,6 +285,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 	var plant_tbl := Params.power_plant_table()
 	var draws := Params.draws_power_table()
 	var multi := Params.multi_tile_table()
+	var loads := Params.power_load_table()
 	var rain := Params.DEFAULT_RAIN if established else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
 	var wind := Params.DEFAULT_WIND if established else Params.weather(ctx, &"wind_speed", Params.DEFAULT_WIND)
 	if not established:
@@ -303,7 +306,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			var id := bld[i]
 			if id != Buildings.NONE:
 				if draws[id] != 0:
-					total_demand += Params.power_load(id) + _visitors.values[i]
+					total_demand += loads[id] + _visitors.values[i]
 					if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 						_consumers.append(i)
 				elif plant_tbl[id] != 0:
@@ -357,7 +360,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			if plant_tbl[id] != 0:
 				capacity += _generation[t]
 			elif draws[id] != 0:
-				demand += Params.power_load(id) + _visitors.values[t]
+				demand += loads[id] + _visitors.values[t]
 		var budget := capacity
 		if _conservation:
 			@warning_ignore("integer_division")
@@ -425,8 +428,9 @@ func _count_unserved(city: City, bld: PackedInt32Array, flags: PackedByteArray) 
 	var heights := Params.footprint_height_table()
 	var unserved := 0
 	var parcels := {}
+	var owners := city.agricultural_parcels.owners()
 	for a in _consumers:
-		var owner := city.agricultural_parcels.id_at(AgriculturalParcels.tile(a))
+		var owner := owners[a]
 		if owner != 0:
 			if parcels.has(owner): continue
 			parcels[owner] = true

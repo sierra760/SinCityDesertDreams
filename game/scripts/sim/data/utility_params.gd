@@ -323,6 +323,17 @@ static func conducts_power_table() -> PackedByteArray:
 	return _conducts_power_tbl
 
 
+## Allocator load units per building id (power_load/water_load for valid ids).
+static func power_load_table() -> PackedInt32Array:
+	_build_tables()
+	return _power_load_tbl
+
+
+static func water_load_table() -> PackedInt32Array:
+	_build_tables()
+	return _water_load_tbl
+
+
 ## Building ids that draw power.
 static func draws_power_table() -> PackedByteArray:
 	_build_tables()
@@ -506,6 +517,95 @@ static func has_supplemental_load(supplemental: PackedInt32Array, rect: Rect2i) 
 			var index := y*City.WIDTH+x
 			if index < supplemental.size() and supplemental[index] > 0: return true
 	return false
+
+
+## Both admission budgets from one map pass: equal to
+## {"power":admission_budget(city,false,conservation),"water":admission_budget(city,true)}.
+## Power and water read different conduction bits, so one detached flag copy
+## carries both; seeds keep each utility's column-major order.
+static func admission_budgets(city: City, conservation: bool = false) -> Dictionary:
+	_build_tables()
+	var n := City.WIDTH * City.HEIGHT
+	var bld := city.building.data
+	var zn := city.zone.data
+	var ug := city.underground.data
+	var flags := city.flags.data.duplicate()
+	var power_outputs := PackedInt32Array()
+	power_outputs.resize(n)
+	var water_outputs := PackedInt32Array()
+	water_outputs.resize(n)
+	var power_seeds := PackedInt32Array()
+	var water_seeds := PackedInt32Array()
+	var links: Dictionary = city.imported_power_links
+	var check_links := not links.is_empty()
+	var plant := _power_plant_tbl
+	var power_bits := TileFlags.CONDUCTS_POWER
+	var water_bits := TileFlags.CONDUCTS_WATER
+	for x in City.WIDTH:
+		var t := x
+		for y in City.HEIGHT:
+			var id := bld[t]
+			var f := flags[t]
+			var kind := zn[t] & Zones.KIND_MASK
+			if _conducts_power_tbl[id] != 0 or (_open_ground_tbl[id] != 0 and kind != 0) \
+					or (check_links and links.get(t, Vector2i(-1, -1)) == Vector2i(id, kind)):
+				f |= power_bits
+			else:
+				f &= ~power_bits
+			if _conducts_water_tbl[id] != 0 or _conducts_water_code_tbl[ug[t]] != 0:
+				f |= water_bits
+			else:
+				f &= ~water_bits
+			flags[t] = f
+			if id == Buildings.WATER_TOWER:
+				if (f & TileFlags.WATERED) != 0: water_seeds.append(t)
+			elif id == Buildings.WATER_PUMP or id == Buildings.DESALINATION:
+				if is_anchor_tile(bld, zn, t):
+					var rec := city.facility(Vector2i(x, y))
+					if rec.get("key", &"") == Buildings.key(id) and (f & TileFlags.POWERED) != 0:
+						water_outputs[t] = maxi(0, int(rec.get("output", 0)))
+						if water_outputs[t] > 0: water_seeds.append(t)
+			elif plant[id] != 0:
+				power_seeds.append(t)
+				if is_anchor_tile(bld, zn, t):
+					var rec := city.facility(Vector2i(x, y))
+					if rec.get("key", &"") == Buildings.key(id):
+						power_outputs[t] = maxi(0, int(rec.get("capacity", 0)))
+			t += City.WIDTH
+	return {"power":_budget_components(bld, flags, power_seeds, power_outputs, false, conservation),
+		"water":_budget_components(bld, flags, water_seeds, water_outputs, true, false)}
+
+
+static func _budget_components(bld: PackedInt32Array, flags: PackedByteArray, seeds: PackedInt32Array,
+		outputs: PackedInt32Array, water: bool, conservation: bool) -> Dictionary:
+	var n := City.WIDTH * City.HEIGHT
+	var bit := TileFlags.CONDUCTS_WATER if water else TileFlags.CONDUCTS_POWER
+	var loads := _water_load_tbl if water else _power_load_tbl
+	var labels := PackedInt32Array()
+	labels.resize(n)
+	labels.fill(-1)
+	var visited := PackedByteArray()
+	visited.resize(n)
+	var components: Array = []
+	for seed in seeds:
+		if visited[seed] != 0 or (flags[seed] & bit) == 0: continue
+		var tiles := flood_tiles(seed,flags,bit,visited)
+		var capacity := 0
+		var baseline := 0
+		var label := components.size()
+		for t in tiles:
+			visited[t] = 1
+			labels[t] = label
+			capacity += outputs[t]
+			var id := bld[t]
+			if water and id == Buildings.WATER_TOWER and (flags[t] & TileFlags.WATERED) != 0:
+				capacity += TOWER_UNITS_PER_TILE
+			baseline += loads[id]
+		if not water and conservation:
+			@warning_ignore("integer_division")
+			capacity += capacity / CONSERVATION_BONUS_DIVISOR
+		components.append({"capacity":capacity,"baseline":baseline,"spare":maxi(0,capacity-baseline)})
+	return {"tiles":labels,"components":components}
 
 
 ## Pure admission budget in actual allocator units. Baseline excludes visitors:

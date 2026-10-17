@@ -28,6 +28,21 @@ var _demand_month := -1
 var _phase_months: Array[int] = [-1, -1]
 var _service_map: City
 var _projection_count := 0
+## Monthly trial projections share one unallocated detached copy of the live
+## city with the accepted proposals applied, so each trial copies it and puts
+## only its own value. The last accepted trial's projection also serves the
+## first validation pass. Both are valid only while _projection_key() and the
+## accepted values are unchanged; a live put (recovery, preparation) changes it.
+var _trial_base: City
+var _trial_base_key: Array = []
+var _trial_base_values: Array = []
+var _accepted_trial: Dictionary = {}
+var _trials_open := false
+var _projection_work := {"trials":0,"bases":0,"reused":0}
+## Tests: verify every cached projection against a fresh full projection.
+static var verify_projection_cache := false
+static var projection_cache_checks := 0
+static var projection_cache_mismatches: Array[String] = []
 var _migration_error: Error = OK
 var _repair_error := ""
 var _counts := {"actions":0,"evaluations":0,"admissions":0,"eligible_cells":0}
@@ -125,6 +140,10 @@ func raw_demand() -> int:
 
 func projection_count() -> int:
 	return _projection_count
+
+## Shared-base trials, bases built and validation projections reused this phase.
+func projection_work() -> Dictionary:
+	return _projection_work.duplicate()
 
 func jobs() -> int:
 	_reconcile(false)
@@ -232,8 +251,10 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 		_demand_month = month
 	_phase_months[phase] = month
 	_projection_count = 0
+	_projection_work = {"trials":0,"bases":0,"reused":0}
 	_counts = {"actions":0,"evaluations":0,"admissions":0,"eligible_cells":0}
 	_service_map = null
+	_clear_trials()
 	var grow := AgriculturalParcelGrowth.new()
 	var disasters := ctx.system(&"disasters")
 	var fires: Array = disasters.call("fires") if disasters != null and disasters.has_method("fires") else []
@@ -291,6 +312,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 		_touch(touched,lot.rect)
 	# Reserve one action for formation and, when present, one for extensions.
 	# Failed waiting service checks must not monopolize the shared phase budget.
+	_trials_open = true
 	if _raw > 0 and not _emergency():
 		var waiting_budget := DEVELOPMENT_BUDGET - (2 if not extending.is_empty() else 1)
 		var first := (month*waiting_budget)%waiting.size() if not waiting.is_empty() else 0
@@ -314,7 +336,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			var trial := proposals.duplicate()
 			trial.append(value)
 			var projected := _project_values(trial)
-			if _proposal_served(value,projected): proposals.append(value)
+			if _proposal_served(value,projected): _accept_trial(proposals,value,projected)
 		for offset in extending.size():
 			if _counts.actions >= DEVELOPMENT_BUDGET - 1: break
 			# The saved month rotates first choice without drawing shared RNG.
@@ -327,7 +349,9 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			if not extended.ok: continue
 			var trial := proposals.duplicate()
 			trial.append(extended.record)
-			if _proposal_served(extended.record,_project_values(trial)): proposals.append(extended.record)
+			var projected := _project_values(trial)
+			if _proposal_served(extended.record,projected): _accept_trial(proposals,extended.record,projected)
+	_trials_open = false
 	# Reserve proposed extension members without publishing their occupancy.
 	for value in proposals:
 		if value.has("members"): grow.reserve(value.members)
@@ -391,6 +415,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 		failed.reverse()
 		for i in failed: proposals.remove_at(i)
 		if proposals.is_empty(): break
+	_clear_trials()
 	for value in proposals:
 		if value.has("members"):
 			if ctx.city.agricultural_parcels.put(ctx.city,value) != OK: continue
@@ -479,7 +504,83 @@ func _project_values(values: Array[Dictionary]) -> City:
 	# Every agricultural activation draws water; without any possible existing
 	# source, full detached allocation cannot change its rejection.
 	if not values.is_empty() and not AgriculturalParcelService.has_established_water_source(_ctx): return null
+	var reused := _accepted_projection(values)
+	if reused != null: return reused
+	if _trials_open and not values.is_empty(): return _project_trial(values)
 	return AgriculturalParcelService.project(_ctx,{},values)
+
+## AgriculturalParcelService.project(_ctx,{},values) through the shared trial base.
+func _project_trial(values: Array[Dictionary]) -> City:
+	_projection_work.trials += 1
+	var accepted := values.slice(0,values.size()-1)
+	var value: Dictionary = values[-1]
+	var key := _projection_key()
+	if _trial_base == null or key != _trial_base_key or accepted != _trial_base_values:
+		_projection_work.bases += 1
+		_trial_base = AgriculturalParcelService.detached_copy(_ctx.city,accepted)
+		_trial_base_key = key.duplicate(true)
+		_trial_base_values = accepted.duplicate(true)
+		if _trial_base == null:
+			# A refused accepted value refuses every trial built on it.
+			_trial_base_key = []
+			return _verified(null,values,"trial projection")
+	var city := AgriculturalParcelService.detached_copy(_trial_base,[])
+	if not AgriculturalParcelService.apply_value(city,value): return _verified(null,values,"trial projection")
+	return _verified(AgriculturalParcelService.allocate(_ctx,city),values,"trial projection")
+
+func _accept_trial(proposals: Array[Dictionary], value: Dictionary, projected: City) -> void:
+	proposals.append(value)
+	if _trial_base != null and AgriculturalParcelService.apply_value(_trial_base,value):
+		_trial_base_values.append(value.duplicate(true))
+	else:
+		_trial_base = null
+	_accepted_trial = {"key":_trial_base_key.duplicate(true),"values":proposals.duplicate(true),"city":projected}
+
+## The last accepted trial's projection, once, when it equals the projection
+## of `values` (the first validation pass after an accepted final trial).
+func _accepted_projection(values: Array[Dictionary]) -> City:
+	if _trials_open or _accepted_trial.is_empty() or values != _accepted_trial.values or _projection_key() != _accepted_trial.key:
+		return null
+	_projection_work.reused += 1
+	var city: City = _accepted_trial.city
+	_accepted_trial = {}
+	return _verified(city,values,"reused validation projection")
+
+func _clear_trials() -> void:
+	_trials_open = false
+	_trial_base = null
+	_trial_base_key = []
+	_trial_base_values = []
+	_accepted_trial = {}
+
+## Every live input of a detached projection: the copied layers, parcel store,
+## facilities and links that puts and established allocation read, and the
+## copied supply policy and accepted visitor loads.
+func _projection_key() -> Array:
+	var city := _ctx.city
+	var power := _ctx.system(&"power") as PowerSystem
+	var water := _ctx.system(&"water") as WaterSystem
+	return [city,city.agricultural_parcels,city.agricultural_parcels.revision,city.building.data,city.zone.data,
+		city.flags.data,city.underground.data,city.terrain.data,city.altitude.data,city.facilities,
+		city.imported_power_links,city.flood_overlay,city.sea_level,
+		power._conservation if power != null else null,power._visitors.rows if power != null else null,
+		water._visitors.rows if water != null else null]
+
+func _verified(city: City, values: Array[Dictionary], what: String) -> City:
+	if verify_projection_cache: _check_projection(city,AgriculturalParcelService.project(_ctx,{},values),what)
+	return city
+
+static func _check_projection(cached: City, fresh: City, what: String) -> void:
+	projection_cache_checks += 1
+	if (cached == null) != (fresh == null):
+		projection_cache_mismatches.append("%s: null mismatch" % what)
+		return
+	if cached == null: return
+	for layer in ["building","zone","flags","underground","terrain","altitude"]:
+		if cached.get(layer).data != fresh.get(layer).data: projection_cache_mismatches.append("%s: %s" % [what,layer])
+	if cached.agricultural_parcels.to_dict() != fresh.agricultural_parcels.to_dict(): projection_cache_mismatches.append("%s: parcels" % what)
+	if cached.facilities != fresh.facilities or cached.imported_power_links != fresh.imported_power_links:
+		projection_cache_mismatches.append("%s: facilities" % what)
 
 func _update_demand() -> void:
 	var links := 0

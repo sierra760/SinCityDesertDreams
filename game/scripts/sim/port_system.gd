@@ -187,6 +187,8 @@ var _tourism_layers: Array = []
 var _tourism_ports: Array[Dictionary] = []
 var _tourism_sea_layers: Array = []
 var _tourism_sea: Dictionary = {}
+## Navigable-sea floods computed for tourism gateways (work-bound tests).
+var tourism_sea_floods := 0
 
 static func _navigable_sea(city: City) -> Dictionary:
 	var sea := {}
@@ -220,16 +222,18 @@ func tourism_gateways() -> Array[Dictionary]:
 	_tourism_layers = layers.duplicate(true)
 	_tourism_ports.clear()
 	_ensure_ports(city)
-	# The navigable-sea flood reads only terrain (is_open_water) and buildings
-	# (_navigable); flags/zones/altitude/flooding affect only the port checks below.
-	var sea_layers: Array = [city.terrain.data,city.building.data]
-	if sea_layers != _tourism_sea_layers:
-		_tourism_sea_layers = sea_layers.duplicate(true)
-		_tourism_sea = _navigable_sea(city)
-	var sea := _tourism_sea
 	for port in _ports:
 		if not port.operating or port.kind == Zones.MILITARY: continue
 		if port.kind == Zones.SEAPORT:
+			# The navigable-sea flood reads only terrain (is_open_water) and buildings
+			# (_navigable); flags/zones/altitude/flooding affect only the port checks.
+			# Only an operating seaport's berths read it, so cities without one skip it.
+			var sea_layers: Array = [city.terrain.data,city.building.data]
+			if sea_layers != _tourism_sea_layers:
+				_tourism_sea_layers = sea_layers.duplicate(true)
+				_tourism_sea = _navigable_sea(city)
+				tourism_sea_floods += 1
+			var sea := _tourism_sea
 			var navigable := false
 			for crane: Vector2i in port.crane_tiles:
 				var berth := _berth_of(city,crane)
