@@ -134,23 +134,30 @@ func test_schema3_predecessor_gets_absolute_grace_once_and_expired_grace_stays_e
 func snapshot(ctx: SimContext) -> Dictionary:
 	return {"clock_day":ctx.clock.day,"stats":ctx.stats.to_dict(),"rng_seed":str(ctx.rng.seed_value()),"rng_state":str(ctx.rng.state()),"systems":{"tourism":ctx.system(&"tourism").save(),"budget":ctx.system(&"budget").save()}}
 
-func test_local_continuation_and_atomic_staffing_rejection() -> void:
+func test_local_cloud_continuation_and_atomic_staffing_rejection() -> void:
 	var ctx := start()
 	accept_month(ctx,0)
 	var before := snapshot(ctx)
 	var path := DIR.path_join("staff.sc2d")
 	check_eq(SaveFormat.save(path,ctx.city,before),OK)
+	var store := CloudSaveStore.new(DIR.path_join("cloud"))
+	check_eq(store.open_library("private-test-account"),OK)
+	var staged := store.stage(store.create_slot(),path)
+	check(not staged.is_empty())
+	if staged.is_empty(): return
 	var local := SaveFormat.load(path)
-	check(local.ok)
-	if not local.ok: return
-	var twin := TourismFixture.context(local.city)
+	var cloud := SaveFormat.load(staged.continuation.path)
+	check(local.ok and cloud.ok)
+	if not local.ok or not cloud.ok: return
+	check_eq(JSON.stringify(local.snapshot,"",true),JSON.stringify(cloud.snapshot,"",true))
+	var twin := TourismFixture.context(cloud.city)
 	contexts.append(twin)
-	twin.stats.from_dict(local.snapshot.stats)
+	twin.stats.from_dict(cloud.snapshot.stats)
 	for system: SimSystem in [TourismSystem.new(),BudgetSystem.new()]:
 		twin.systems[system.key] = system
 		system.setup(twin)
-	twin.system(&"budget").load(local.snapshot.systems.budget)
-	check_eq(twin.system(&"tourism").finish_restore(local.snapshot),OK)
+	twin.system(&"budget").load(cloud.snapshot.systems.budget)
+	check_eq(twin.system(&"tourism").finish_restore(cloud.snapshot),OK)
 	check_eq(JSON.stringify(snapshot(twin),"",true),JSON.stringify(before,"",true))
 	for month in range(1,4):
 		accept_month(ctx,month)

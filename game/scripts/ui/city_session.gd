@@ -50,6 +50,7 @@ func start_new_city(params: Dictionary, prebuilt: City = null) -> City:
 		begin_editing(prebuilt, imported_settings)
 		_host.save_path = ""
 		_host.files.mark_generated()
+		if _host.cloud_saves != null: _host.cloud_saves.begin_session()
 		return prebuilt
 	var seed_value: int = int(params.get("seed", randi()))
 	var city := prebuilt
@@ -62,6 +63,7 @@ func start_new_city(params: Dictionary, prebuilt: City = null) -> City:
 	begin_editing(city, settings)
 	_host.save_path = ""
 	_host.files.mark_generated()
+	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
 	return city
 
 
@@ -158,6 +160,7 @@ func regenerate(seed_value: int = -1) -> City:
 		begin_editing(city, settings)
 		_restore_city_options(options)
 		_host.files.mark_generated()
+		if _host.cloud_saves != null: _host.cloud_saves.begin_session()
 		_host.show_message("Imported terrain restored for %s." % city.name)
 		return city
 	if seed_value < 0:
@@ -169,6 +172,7 @@ func regenerate(seed_value: int = -1) -> City:
 	begin_editing(city, settings)
 	_restore_city_options(options)
 	_host.files.mark_generated()
+	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
 	_host.show_message("New land for %s." % city.name)
 	return city
 
@@ -218,7 +222,7 @@ func _restore_mod_progress(result: Dictionary) -> void:
 
 ## Load a native save. Returns false (and shows why) when the file is bad.
 ## An unfounded map returns to the editing stage.
-func load_city(path: String) -> bool:
+func load_city(path: String, personal: bool = true) -> bool:
 	var result := SaveFormat.load(path)
 	var topology: StreetTopology = result.get("topology", null)
 	if not bool(result["ok"]):
@@ -233,7 +237,8 @@ func load_city(path: String) -> bool:
 		_restore_mod_progress(result)
 		_host.save_path = manual_path
 		_host.files.mark_saved()
-		if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(city)
+		if personal and _host.cloud_saves != null: _host.cloud_saves.begin_session(path)
+		if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(city, path)
 		_host.show_message("Loaded the unfounded map %s." % city.name)
 		return true
 	var snapshot: Dictionary = result["snapshot"]
@@ -242,7 +247,8 @@ func load_city(path: String) -> bool:
 	var sim := _host.sim
 	_host.save_path = manual_path
 	_host.files.mark_saved()
-	if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(sim.city)
+	if personal and _host.cloud_saves != null: _host.cloud_saves.begin_session(path)
+	if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(sim.city, path)
 	loaded_speed = sim.speed
 	if sim.budget_review_pending:
 		# Saved during the January review: reopen it, or time never resumes.
@@ -264,12 +270,13 @@ func load_city(path: String) -> bool:
 ## new personal save; the packaged file is never a save destination.
 func open_included_city(path: String) -> bool:
 	loaded_speed = GameClock.Speed.PAUSED
-	if not load_city(path):
+	if not load_city(path, false):
 		return false
 	var sim := _host.sim
 	_host.save_path = ""
 	sim.city.mayor = _mayor_credit()
 	_host.files.forget_saved()
+	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
 	var resume_speed := loaded_speed if loaded_speed != GameClock.Speed.PAUSED else GameClock.Speed.SLOW
 	if _host.modal_depth > 0:
 		# A saved January review is open; it already holds the city paused.
@@ -298,6 +305,7 @@ func import_city(path: String) -> bool:
 	_host.save_path = ""
 	_host.sim.set_speed(GameClock.Speed.PAUSED)
 	_host.speed_before_modal = GameClock.Speed.SLOW
+	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
 	var warnings: Array = result.get("warnings", [])
 	# Import details stay out of the status line; say only that defaults filled gaps.
 	_host.show_message("Imported %s. %s" % [city.name, PAUSED_HINT] if warnings.is_empty() else "Imported %s. Some city details were missing and use defaults. %s" % [city.name, PAUSED_HINT])
@@ -310,6 +318,7 @@ func import_city(path: String) -> bool:
 func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CityStats, topology: StreetTopology = null) -> void:
 	var host := _host
 	var sim := host.sim
+	if host.cloud_saves != null and sim.city != city: host.cloud_saves.end_session()
 	host.street_names.leave()
 	host.files.reset()
 	host.message_seconds_left = 0.0

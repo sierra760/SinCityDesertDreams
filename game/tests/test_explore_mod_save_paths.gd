@@ -37,6 +37,7 @@ func test_all_save_paths_capture_committed_progress() -> void:
 	check_eq(SaveFormat.load(manual).explore_mods,expected,"Save As captures progress before later Save")
 	paths.append(manual)
 	check_eq(host.files.save_city(),OK)
+	var manual_bytes := FileAccess.get_file_as_bytes(manual)
 	check_eq(host.autosave(),OK)
 	paths.append(CityFileFlow.autosave_path())
 	var shared := host.files.prepare_city_share()
@@ -62,7 +63,8 @@ func test_all_save_paths_capture_committed_progress() -> void:
 	check_eq(progress.snapshot(),expected)
 	runtime.stop("test")
 	check(host.load_city(recovery),"recovery/launch load uses normal host authority")
-	check_eq(host.save_path,"")
+	check_eq(host.save_path,manual,"tracked recovery retains its original manual destination")
+	check_eq(FileAccess.get_file_as_bytes(manual),manual_bytes,"recovering continuation leaves the manual checkpoint unchanged")
 	check_eq(host.explore_progress_snapshot(),expected)
 	check(host.exploration.mod_service == null)
 func test_damaged_progress_keeps_valid_city() -> void:
@@ -198,3 +200,22 @@ func _check_dispatch_actors(service: ExploreModService, message: String) -> void
 		roles[String(actor.owner)+":"+String(actor.key)] = String(actor.record.kind)
 	check_eq(roles,{"desert_delivery:courier":"pedestrian","desert_delivery:delivery_car":"van"},message)
 	check(service.runtime.has_owner("desert_delivery"),"dispatch owner remains live")
+
+# A historical recovery file without a matching receipt still starts a personal
+# continuation, while retaining committed mod progress and its original bytes.
+func test_untracked_recovery_still_requires_save_as() -> void:
+	var city := flat_city()
+	city.name = "Legacy untracked recovery fixture"
+	check(host.exploration.mod_progress.commit("legacy_pack",1,"1.0",{"accepted":true}).ok)
+	var expected := host.exploration.mod_progress.snapshot()
+	var recovery := CityFileFlow.application_recovery_path()
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(recovery.get_base_dir()))
+	check_eq(SaveFormat.save(recovery,city,{},SaveFormat.STAGE_PLAY,{},expected),OK)
+	paths.append(recovery)
+	var original := FileAccess.get_file_as_bytes(recovery)
+	check(host.load_city(recovery))
+	check_eq(host.save_path, "", "legacy recovery has no proven manual destination")
+	check_eq(host.explore_progress_snapshot(),expected)
+	check_eq(host.sim.clock.speed,GameClock.Speed.PAUSED)
+	check_eq(FileAccess.get_file_as_bytes(recovery),original)
+	check(host.exploration.mod_service == null)

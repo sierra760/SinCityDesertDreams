@@ -98,8 +98,12 @@ func test_recovery_copy_is_discarded_when_no_longer_needed() -> void:
 	host.load_dialog.close()
 	# A clean return from the background removes it as well.
 	check_eq(SaveFormat.save(recovery, other, {}), OK)
+	var unowned_bytes := FileAccess.get_file_as_bytes(recovery)
 	host.files.discard_recovery_copy()
-	check(not FileAccess.file_exists(recovery))
+	check_eq(FileAccess.get_file_as_bytes(recovery), unowned_bytes, "an unassociated recovery copy survives discard")
+	host.files.note_recovery_copy(other, recovery)
+	host.files.discard_recovery_copy()
+	check(not FileAccess.file_exists(recovery), "the explicitly owned recovery copy is removed")
 
 # Guards against: a newer recovery copy (left when the OS closed the app in
 # the background) deleted because an older manual save of the same city was

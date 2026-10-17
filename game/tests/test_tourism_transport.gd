@@ -363,7 +363,7 @@ func test_many_airports_long_routes_retain_bounded_pending_and_finish_oldest() -
 
 	ctx.systems.clear()
 
-func test_native_local_continuation_keep_fare_and_trip_guards() -> void:
+func test_native_local_and_cloud_continuation_keep_fare_and_trip_guards() -> void:
 	var ctx := trip_context(true)
 	var transport: TransportSystem = ctx.system(&"transport")
 	transport.monthly(ctx)
@@ -378,7 +378,13 @@ func test_native_local_continuation_keep_fare_and_trip_guards() -> void:
 	check_eq(TourismSaveCodec.problem(snapshot,ctx.city),"","detached native tourism validation")
 	check_eq(SaveFormat.validate_snapshot(snapshot),"","general snapshot shape")
 	check_eq(SaveFormat.save(path,ctx.city,snapshot),OK)
+	var store := CloudSaveStore.new(directory.path_join("cloud"))
+	check_eq(store.open_library("private-tourism-transport"),OK)
+	var slot := store.create_slot()
+	var staged := store.stage(slot,path)
+	check(not staged.is_empty(),"same detached validator accepts pending tourist fares in local cloud payload")
 	var paths := [path]
+	if not staged.is_empty(): paths.append(staged.continuation.path)
 	for saved_path: String in paths:
 		var loaded := SaveFormat.load(saved_path)
 		check(loaded.ok,str(loaded.get("detail","")))
@@ -397,7 +403,7 @@ func test_native_local_continuation_keep_fare_and_trip_guards() -> void:
 		var before := tourism.transport_state()
 		var traffic := twin.city.traffic.data.duplicate()
 		trips.monthly(twin)
-		check_eq(tourism.transport_state(),before,"native guard prevents trip replay")
+		check_eq(tourism.transport_state(),before,"native/cloud guard prevents trip replay")
 		check_eq(twin.city.traffic.data,traffic,"same pass cannot decay or publish twice")
 		var budget := BudgetSystem.new()
 		twin.systems[&"budget"] = budget

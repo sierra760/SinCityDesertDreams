@@ -220,4 +220,4 @@ func test_every_platform_preset_includes_native_city_files_only() -> void:
 		check(filters.has("assets/cities/provenance.json"), "%s retains included city provenance" % config.get_value(section, "name", section))
 		check(filters.has("assets/cities/*.sc2d"), "%s ships native included cities" % config.get_value(section, "name", section))
 		check(not filters.has("assets/cities/*.sc2"), "%s leaves classic sources out" % config.get_value(section, "name", section))
-	check_eq(platforms, 6)
+	check_eq(platforms, 7, "Developer ID and Mac App Store have distinct export routes")

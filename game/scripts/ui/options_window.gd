@@ -14,6 +14,7 @@ signal closed
 signal mods_requested
 
 var panel: PanelContainer
+var sync_label: Label
 var checks: Dictionary = {}
 var scale_button: OptionButton
 var quality_button: OptionButton
@@ -89,6 +90,19 @@ func _build() -> void:
 	display_page.add_theme_constant_override("separation",UITheme.VSEP)
 	root_body.add_child(display_page)
 	var body := display_page
+	var cloud_check := CheckBox.new()
+	cloud_check.name = "ICloudSaves"
+	cloud_check.text = "iCloud saves"
+	cloud_check.custom_minimum_size.y = 44
+	cloud_check.hide()
+	cloud_check.toggled.connect(func(on: bool) -> void: _changed(&"icloud_saves", on))
+	checks[&"icloud_saves"] = cloud_check
+	body.add_child(cloud_check)
+	sync_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	sync_label.name = "ICloudStatus"
+	sync_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sync_label.hide()
+	body.add_child(sync_label)
 	body.add_child(UIFactory.make_section_header("Mayor"))
 	body.add_child(UIFactory.make_label("Your name"))
 	mayor_edit = LineEdit.new()
@@ -533,3 +547,10 @@ func capture_event(event: InputEvent) -> bool:
 	cancel_capture()
 	_changed(&"control_bindings",controls.values())
 	return true
+
+
+func set_sync_status(status: Dictionary) -> void:
+	var supported := bool(status.get("supported", false))
+	(checks[&"icloud_saves"] as CheckBox).visible = supported
+	sync_label.visible = supported
+	sync_label.text = LoadDialog.sync_text(status)

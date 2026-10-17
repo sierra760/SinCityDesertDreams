@@ -90,11 +90,13 @@ get separate permission for them.
 
 ## Third-party material
 
-The Apple city-sharing and geometry-kernel libraries include official Godot C++
+The Apple city-sharing, Apple cloud-save and geometry-kernel libraries include official Godot C++
 bindings under their MIT license, included in
-`native/apple-share/GODOT-CPP-LICENSE.md` and
+`native/apple-share/GODOT-CPP-LICENSE.md`,
+`native/apple-cloud/GODOT-CPP-LICENSE.md` and
 `native/geometry-kernel/GODOT-CPP-LICENSE.md` and bundled by their export addons
-as `addons/apple_share/GODOT-CPP-LICENSE.md` and
+as `addons/apple_share/GODOT-CPP-LICENSE.md`,
+`addons/apple_cloud/GODOT-CPP-LICENSE.md` and
 `addons/scdd_geometry/GODOT-CPP-LICENSE.md`.
 `native/geometry-kernel/scdd_sort_array.hpp` is adapted from Godot Engine's
 `core/templates/sort_array.h` and remains under the MIT license stated in that

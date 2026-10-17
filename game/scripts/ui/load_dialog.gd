@@ -10,6 +10,9 @@ signal share_requested(path: String)
 signal browse_requested
 signal load_requested(path: String)
 signal bundled_city_requested(path: String)
+signal manual_load_requested(slot_id: String)
+signal remote_load_requested(slot_id: String)
+signal selection_changed
 signal closed
 
 var item_list: ItemList
@@ -19,6 +22,10 @@ var browse_button: Button
 var share_button: Button
 var empty_label: Label
 var details_label: Label
+var sync_label: Label
+var progress_label: Label
+var manual_button: Button
+var _waiting := false
 var _saves: Array[Dictionary] = []
 ## The credit a city carries when no mayor name was chosen.
 const DEFAULT_MAYOR := "Mayor"
@@ -56,13 +63,31 @@ func _build() -> void:
 	item_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	item_list.add_theme_font_size_override("font_size", UITheme.FONT_BODY)
 	item_list.item_activated.connect(func(_i: int) -> void: confirm())
-	item_list.item_selected.connect(_show_details)
+	item_list.item_selected.connect(func(index: int) -> void:
+		selection_changed.emit()
+		_show_details(index))
+	sync_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	sync_label.name = "SyncStatus"
+	sync_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sync_label.hide()
+	body.add_child(sync_label)
 	body.add_child(item_list)
 	details_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	details_label.name = "SelectedSaveDetails"
 	details_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	details_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(details_label)
+	manual_button = UIFactory.make_button("Load last manual save", "Return to the last time you chose Save")
+	manual_button.name = "LoadManualSave"
+	manual_button.hide()
+	manual_button.pressed.connect(func() -> void:
+		if not manual_button.disabled: manual_load_requested.emit(String(selected_entry().get("slot_id", ""))))
+	body.add_child(manual_button)
+	progress_label = UIFactory.make_label("Downloading city… Cancel to keep your current city.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	progress_label.name = "DownloadProgress"
+	progress_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	progress_label.hide()
+	body.add_child(progress_label)
 	empty_label = UIFactory.make_label("No saved cities yet. Start a New City, or Browse for a .sc2d file.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(empty_label)
@@ -96,6 +121,7 @@ func _build() -> void:
 
 ## Fill personal save headers and optionally append included-city entries.
 func refresh(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void:
+	var identity := _selection_identity()
 	item_list.clear()
 	_saves = saves.duplicate(true)
 	for entry: Dictionary in included:
@@ -122,17 +148,26 @@ func refresh(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void
 			text += " · " + RECOVERY_LABEL
 		elif bool(h.get("automatic_backup", false)):
 			text += " · Automatic backup"
+		if bool(h.get("cloud_owned", false)):
+			if not String(h.get("conflict_origin", "")).is_empty(): text += " · " + conflict_text(h)
+			elif bool(h.get("pending_download", false)): text += " · In iCloud"
+			elif _different_manual(h): text += " · Continuation"
 		item_list.add_item(text)
-		item_list.set_item_tooltip(item_list.item_count - 1, "%s\n%s\nsaved %s" % [text, String(h.get("path", "")).get_file(), saved_text(h)])
+		item_list.set_item_tooltip(item_list.item_count - 1, "%s\n%s\nsaved %s" % [text, ("" if h.get("cloud_owned", false) else String(h.get("path", "")).get_file()), saved_text(h)])
 		paths.append(String(h.get("path", "")))
 	empty_label.visible = _saves.is_empty()
 	load_button.disabled = true
 	share_button.disabled = true
+	manual_button.hide()
 	if not _saves.is_empty():
-		select(0)
+		var next := 0
+		for i in _saves.size():
+			if _entry_identity(_saves[i]) == identity: next = i
+		select(next)
 
 
 func open(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void:
+	set_waiting(false)
 	refresh(saves, included)
 	visible = true
 	UIFactory.contain_modal_focus(self, browse_button if _saves.is_empty() else item_list)
@@ -142,6 +177,7 @@ func close() -> void:
 	if not visible:
 		return
 	visible = false
+	set_waiting(false)
 	closed.emit()
 
 
@@ -165,6 +201,11 @@ func selected_path() -> String:
 
 
 func confirm() -> void:
+	if _waiting or load_button.disabled: return
+	var entry := selected_entry()
+	if bool(entry.get("pending_download", false)):
+		remote_load_requested.emit(String(entry.get("slot_id", "")))
+		return
 	var path := selected_path()
 	if path.is_empty():
 		return
@@ -197,12 +238,15 @@ static func saved_text(header: Dictionary) -> String:
 func _show_details(index: int) -> void:
 	if index < 0 or index >= _saves.size(): return
 	var header := _saves[index]
-	share_button.disabled = bool(header.get("included_city",false))
+	var cloud := bool(header.get("cloud_owned", false))
+	share_button.disabled = _waiting or bool(header.get("included_city",false)) or String(header.get("path", "")).is_empty()
+	manual_button.visible = cloud and _different_manual(header)
+	manual_button.disabled = _waiting
 	var filename := String(header.get("path", "")).get_file()
 	if bool(header.get("included_city", false)):
 		details_label.text = "Included city — make it your own, then save a personal copy.\nFile: %s" % filename
 		details_label.show()
-		load_button.disabled = false
+		load_button.disabled = _waiting
 		return
 	var date := saved_text(header)
 	var stage := "Unfounded map" if String(header.get("stage", SaveFormat.STAGE_PLAY)) == SaveFormat.STAGE_EDITING else "Founded city"
@@ -212,10 +256,65 @@ func _show_details(index: int) -> void:
 	var mayor := String(header.get("mayor", ""))
 	# The default credit "Mayor" says nothing; show only a chosen mayor name.
 	var mayor_line := "" if mayor.is_empty() or mayor == DEFAULT_MAYOR else "Mayor: %s\n" % mayor
-	details_label.text = "%sFile: %s\nSaved: %s\n%s" % [mayor_line, filename, date if not date.is_empty() else "date unavailable", summary]
+	var file_line := "" if cloud else "File: %s\n" % filename
+	details_label.text = "%s%sSaved: %s\n%s" % [mayor_line, file_line, date if not date.is_empty() else "date unavailable", summary]
+	if cloud:
+		if not String(header.get("conflict_origin", "")).is_empty(): details_label.text += "\n" + conflict_text(header) + " — both versions are kept."
+		elif _different_manual(header): details_label.text += "\nContinuation — includes changes after your last manual save."
+		details_label.text += "\n" + sync_text({"state": header.get("sync_state", "pending")})
 	if bool(header.get("suspended_recovery", false)):
 		details_label.text = RECOVERY_LABEL + " — save under a new name to keep it.\n" + details_label.text
 	elif bool(header.get("automatic_backup", false)):
 		details_label.text = "Automatic backup — save under a new name to keep it.\n" + details_label.text
 	details_label.show()
-	load_button.disabled = false
+	load_button.disabled = _waiting
+
+
+func selected_entry() -> Dictionary:
+	var selected := item_list.get_selected_items()
+	return {} if selected.is_empty() else _saves[selected[0]].duplicate(true)
+
+func _selection_identity() -> String:
+	return _entry_identity(selected_entry())
+
+static func _entry_identity(entry: Dictionary) -> String:
+	var id := String(entry.get("slot_id", ""))
+	return "slot:" + id if not id.is_empty() else ("included:" if entry.get("included_city", false) else "file:") + String(entry.get("path", ""))
+
+
+static func _different_manual(entry: Dictionary) -> bool:
+	var manual := String(entry.get("manual_sha256", ""))
+	return not manual.is_empty() and manual != String(entry.get("continuation_sha256", ""))
+
+func set_waiting(waiting: bool) -> void:
+	_waiting = waiting
+	progress_label.visible = waiting
+	browse_button.disabled = waiting
+	if not selected_entry().is_empty(): _show_details(item_list.get_selected_items()[0])
+	if waiting: cancel_button.grab_focus()
+
+func set_sync_status(status: Dictionary) -> void:
+	sync_label.visible = bool(status.get("supported", false))
+	sync_label.text = sync_text(status)
+
+static func sync_text(status: Dictionary) -> String:
+	match String(status.get("state", "")):
+		"synced": return "Up to date"
+		"syncing", "verifying_account", "pending_download": return "Syncing"
+		"pending", "local": return "Saved on this device — sync pending"
+		"disabled": return "iCloud saves are off. Your files stay on this device."
+		"quota": return "iCloud unavailable — storage is full. Free iCloud space to resume syncing."
+		"signed_out": return "iCloud unavailable — sign in to iCloud in your device settings."
+		"permission": return "iCloud unavailable — check iCloud access in your device settings."
+		"local_only": return "A local save is available in Load City; it has not synced."
+		"local_io": return "iCloud sync pending — check free space on this device."
+	return "iCloud unavailable. Your local cities can still be loaded."
+
+
+static func conflict_text(entry: Dictionary) -> String:
+	var device := "Saved copy"
+	match String(entry.get("source_device_label", "")):
+		"macOS": device = "Mac"
+		"iOS": device = "iPhone or iPad"
+	var date := saved_text(entry)
+	return "Conflict copy · %s · %s" % [device, date if not date.is_empty() else "date unavailable"]

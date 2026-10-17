@@ -56,29 +56,37 @@ func earned(ctx: SimContext, month: int) -> void:
 	check_eq(ctx.system(&"tourism").finish_restore({"systems":{"tourism":block,"budget":ctx.system(&"budget").save()}}),OK)
 	check_eq(TourismSaveCodec.problem(snapshot(ctx),ctx.city),"")
 
-func resume_native(ctx: SimContext, tag: String) -> SimContext:
+func resume_native_and_cloud(ctx: SimContext, tag: String) -> SimContext:
 	var path := DIR.path_join(tag+".sc2d")
 	check_eq(SaveFormat.save(path,ctx.city,snapshot(ctx)),OK)
+	var store := CloudSaveStore.new(DIR.path_join(tag+"-cloud"))
+	check_eq(store.open_library("private-test-account"),OK)
+	var slot := store.create_slot()
+	var staged := store.stage(slot,path)
+	check(not staged.is_empty(),"exact fractional payload passes staged cloud validation")
+	if staged.is_empty(): return ctx
 	var local := SaveFormat.load(path)
-	check(local.ok)
-	if not local.ok: return ctx
-	var twin := TourismFixture.context(local.city)
+	var cloud := SaveFormat.load(staged.continuation.path)
+	check(local.ok and cloud.ok)
+	if not local.ok or not cloud.ok: return ctx
+	check_eq(JSON.stringify(local.snapshot,"",true),JSON.stringify(cloud.snapshot,"",true))
+	var twin := TourismFixture.context(cloud.city)
 	contexts.append(twin)
-	twin.stats.from_dict(local.snapshot.stats)
-	twin.rng = SimRng.from_saved_seed(int(local.snapshot.rng_seed))
-	twin.rng.set_state(int(local.snapshot.rng_state))
+	twin.stats.from_dict(cloud.snapshot.stats)
+	twin.rng = SimRng.from_saved_seed(int(cloud.snapshot.rng_seed))
+	twin.rng.set_state(int(cloud.snapshot.rng_state))
 	var tourism := TourismSystem.new()
 	var budget := BudgetSystem.new()
 	twin.systems[&"tourism"] = tourism
 	twin.systems[&"budget"] = budget
 	tourism.setup(twin)
 	budget.setup(twin)
-	budget.load(local.snapshot.systems.budget)
-	check_eq(tourism.finish_restore(local.snapshot),OK)
+	budget.load(cloud.snapshot.systems.budget)
+	check_eq(tourism.finish_restore(cloud.snapshot),OK)
 	check_eq(JSON.stringify(snapshot(twin),"",true),JSON.stringify(snapshot(ctx),"",true))
 	return twin
 
-func test_independent_fractional_rational_reference_survives_years_and_native() -> void:
+func test_independent_fractional_rational_reference_survives_years_and_native_cloud() -> void:
 	var continuous := start()
 	var resumed := start()
 	var cumulative_lodging := 0
@@ -92,7 +100,7 @@ func test_independent_fractional_rational_reference_survives_years_and_native() 
 			ctx.stats.tax_occupancy = rate
 			ctx.stats.tax_gaming = 7
 			earned(ctx,month)
-		if month in [5,12,23]: resumed = resume_native(resumed,"pending-%d"%month)
+		if month in [5,12,23]: resumed = resume_native_and_cloud(resumed,"pending-%d"%month)
 		for ctx in [continuous,resumed]:
 			ctx.clock.day += 1
 			ctx.city.day = ctx.clock.day
@@ -119,7 +127,7 @@ func test_independent_fractional_rational_reference_survives_years_and_native() 
 				check_eq(TourismSaveCodec.problem(snapshot(ctx),ctx.city),"")
 		if month%12 == 11:
 			check_eq(continuous.city.funds,10000+cumulative_lodging/1200000000+cumulative_gaming/1200000000-(month+1)/12,"single rational tax reference less one dollar annual road upkeep")
-		if month in [5,11,23,35]: resumed = resume_native(resumed,"booked-%d"%month)
+		if month in [5,11,23,35]: resumed = resume_native_and_cloud(resumed,"booked-%d"%month)
 		check_eq(JSON.stringify(snapshot(continuous),"",true),JSON.stringify(snapshot(resumed),"",true))
 		check_eq(continuous.city.funds,resumed.city.funds)
 	print("MARKET_RATIONAL months=37 lodging_exact=",cumulative_lodging," gaming_exact=",cumulative_gaming," denominator=1000000 final=",continuous.system(&"budget").save().tourism_residue)

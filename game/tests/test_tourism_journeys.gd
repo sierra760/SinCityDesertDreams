@@ -23,6 +23,8 @@ func after_each() -> void:
 	for other in extra_hosts:
 		if is_instance_valid(other): other.free()
 	extra_hosts.clear()
+	cloud_devices.clear()
+	cloud_service = null
 	host.free()
 	await process_frame
 
@@ -178,6 +180,14 @@ func test_same_anchor_replacement_keeps_only_old_earned_income() -> void:
 	host.sim.advance_day()
 	check_gt(t.venue_report(RESORT).guests,0)
 
+const SharedService := preload("res://tests/helpers/shared_apple_cloud.gd")
+class JourneyCoordinator extends CloudSaveCoordinator:
+	func migrate_personal_saves(_headers: Array[Dictionary]) -> Error:
+		# Independent synthetic devices must not migrate this process's other test files.
+		return OK
+var cloud_service: RefCounted
+var cloud_devices: Array[Dictionary] = []
+var cloud_now := 1000
 var extra_hosts: Array[GameHost] = []
 
 func canonical(value: Variant) -> String:
@@ -185,6 +195,25 @@ func canonical(value: Variant) -> String:
 
 func economic_state(h: GameHost) -> Dictionary:
 	return JSON.parse_string(JSON.stringify({"city":SaveFormat.encode_city(h.sim.city),"simulation":h.sim.snapshot()}))
+
+func cloud_attach(h: GameHost, path: String) -> Dictionary:
+	var store := CloudSaveStore.new(path)
+	check_eq(store.open_library(""),OK)
+	var endpoint = cloud_service.endpoint()
+	var coordinator := JourneyCoordinator.new(store,endpoint)
+	coordinator.jitter = func(): return 0.0
+	h.cloud_saves = CloudSaveSession.new(h,coordinator,store)
+	h.cloud_saves.begin_session()
+	coordinator.set_enabled(true)
+	var device := {"host":h,"store":store,"coordinator":coordinator,"endpoint":endpoint}
+	cloud_devices.append(device)
+	return device
+
+func cloud_pump() -> void:
+	for i in 24:
+		cloud_now += 100
+		for item in cloud_devices: item.coordinator.advance(cloud_now)
+		cloud_service.step()
 
 func restored_host(path: String, name: String) -> GameHost:
 	var twin := Fixture.make_host(self,name)
@@ -201,11 +230,14 @@ func close_review(h: GameHost) -> void:
 		check(not h.sim.budget_review_pending,"closing actual review releases calendar")
 
 ## Catches day17 double admission, day18 double booking and year-end double settlement
-## through local SaveFormat and the actual host.
-func test_local_restore_matches_continuous_host() -> void:
+## through local SaveFormat/host and real cloud coordinator with only transport faked.
+func test_local_and_cloud_restore_matches_continuous_host() -> void:
 	services()
 	host.set_process(false)
-	var directory := "user://tourism-journeys/"+str(Time.get_ticks_usec())
+	var directory := "user://tourism-journeys/"+CloudSaveTypes.uuid()
+	cloud_service = SharedService.new(directory.path_join("service"))
+	cloud_attach(host,directory.path_join("sender"))
+	cloud_pump()
 	for day in [16,17,18,299,300]:
 		run_to(day)
 		var saved := economic_state(host)
@@ -213,16 +245,33 @@ func test_local_restore_matches_continuous_host() -> void:
 		check_eq(SaveFormat.save(path,host.sim.city,host.sim.snapshot()),OK)
 		var local := restored_host(path,"tourism-local-%d"%day)
 		check_state(economic_state(local),saved,"local boundary %d exact state"%day)
+		check_eq(host.cloud_saves.capture(&"test"),OK)
+		cloud_pump()
+		var cloud := Fixture.make_host(self,"tourism-cloud-%d"%day)
+		cloud.set_process(false)
+		cloud.sim.set_process(false)
+		extra_hosts.append(cloud)
+		var receiver := cloud_attach(cloud,directory.path_join("receiver-%d"%day))
+		cloud_pump()
+		var downloaded := ""
+		for row in receiver.store.slots():
+			if row.slot_id == host.cloud_saves.slot_id: downloaded = row.path
+		check(not downloaded.is_empty(),"cloud publishes transported tourism city")
+		if not downloaded.is_empty(): check(cloud.load_city(downloaded))
+		check_state(economic_state(cloud),saved,"cloud boundary %d exact state"%day)
 		# Details, pause and a real hall visit are reads of attendance and earned money.
 		if day == 17:
 			await passive_host_visit()
 			check_state(economic_state(host),saved,"pause/Details/Explore cannot alter economic state")
-		for h in [host,local]: close_review(h)
+		for h in [host,local,cloud]: close_review(h)
 		for step in 1:
-			for h in [host,local]: h.sim.advance_day()
+			for h in [host,local,cloud]: h.sim.advance_day()
 			check_state(economic_state(local),economic_state(host),"continuous/local next day %d"%day)
+			check_state(economic_state(cloud),economic_state(host),"continuous/cloud next day %d"%day)
 		print("HOST_CONTINUATION ",day," tourists=",host.sim.stats.tourists," funds=",host.sim.city.funds," rng=",host.sim.rng.state())
+		cloud_devices.erase(receiver)
 		local.free()
+		cloud.free()
 		extra_hosts.clear()
 
 func passive_host_visit() -> void:
@@ -399,16 +448,16 @@ func advance_hosts_to(hosts: Array, day: int) -> void:
 			close_review(h)
 			h.sim.advance_day()
 
-func test_earned_class_survives_resident_decline_local_without_venues() -> void:
+func test_earned_class_survives_resident_decline_local_and_cloud_without_venues() -> void:
 	await earned_class_continuation(false)
 
-func test_earned_class_survives_resident_decline_local_after_migration() -> void:
+func test_earned_class_survives_resident_decline_local_and_cloud_after_migration() -> void:
 	await earned_class_continuation(true)
 
 func earned_class_continuation(with_legacy_resort: bool) -> void:
 	services(with_legacy_resort)
 	host.set_process(false)
-	var directory := "user://tourism-journeys/earned-class-"+str(Time.get_ticks_usec())
+	var directory := "user://tourism-journeys/earned-class-"+CloudSaveTypes.uuid()
 	if with_legacy_resort:
 		# Adopt an explicit old occupant record before earning the class below.
 		var legacy := host.sim.snapshot().duplicate(true)
@@ -425,6 +474,9 @@ func earned_class_continuation(with_legacy_resort: bool) -> void:
 		check_eq(host.sim.stats.tourist_guests,80)
 	else:
 		check(host.sim.tourism().report().is_empty(),"no tourism venues in resident-only history")
+	cloud_service = SharedService.new(directory.path_join("service"))
+	cloud_attach(host,directory.path_join("sender"))
+	cloud_pump()
 	var promotions: Array = []
 	host.sim.news_published.connect(func(story: Dictionary):
 		if story.kind == &"status_upgrade": promotions.append(story.duplicate(true)))
@@ -452,11 +504,29 @@ func earned_class_continuation(with_legacy_resort: bool) -> void:
 	retain_copy(path,"earned-class-%s.sc2d" % ("migrated" if with_legacy_resort else "no-venues"))
 	var local := restored_host(path,"earned-class-local")
 	check_state(economic_state(local),saved,"local reload preserves earned class after decline")
+	check_eq(host.cloud_saves.capture(&"test"),OK)
+	cloud_pump()
+	var cloud := Fixture.make_host(self,"earned-class-cloud")
+	cloud.set_process(false)
+	cloud.sim.set_process(false)
+	extra_hosts.append(cloud)
+	var receiver := cloud_attach(cloud,directory.path_join("receiver"))
+	cloud_pump()
+	var downloaded := ""
+	for row in receiver.store.slots():
+		if row.slot_id == host.cloud_saves.slot_id: downloaded = row.path
+	check(not downloaded.is_empty(),"cloud transports the declined current-schema city")
+	if downloaded.is_empty(): return
+	check(cloud.load_city(downloaded))
+	check_state(economic_state(cloud),saved,"cloud reload preserves earned class after decline")
 	var local_promotions: Array = []
+	var cloud_promotions: Array = []
 	local.sim.news_published.connect(func(story: Dictionary):
 		if story.kind == &"status_upgrade": local_promotions.append(story.duplicate(true)))
+	cloud.sim.news_published.connect(func(story: Dictionary):
+		if story.kind == &"status_upgrade": cloud_promotions.append(story.duplicate(true)))
 	promotions.clear()
-	var hosts := [host,local]
+	var hosts := [host,local,cloud]
 	advance_hosts_to(hosts,63)
 	for h: GameHost in hosts: seed_residential_buildings(h,6)
 	advance_hosts_to(hosts,64)
@@ -466,7 +536,9 @@ func earned_class_continuation(with_legacy_resort: bool) -> void:
 		check_eq(canonical(h.sim.stats.rewards_offered),rewards,"earned gift survives reload and recovery")
 	check_eq(promotions,[],"recovery never repeats an earned promotion")
 	check_eq(local_promotions,promotions,"local recovery promotion parity")
+	check_eq(cloud_promotions,promotions,"cloud recovery promotion parity")
 	check_state(economic_state(local),economic_state(host),"local recovered state parity")
+	check_state(economic_state(cloud),economic_state(host),"cloud recovered state parity")
 	advance_hosts_to(hosts,88)
 	for h: GameHost in hosts: seed_residential_buildings(h,28)
 	advance_hosts_to(hosts,89)
@@ -475,6 +547,8 @@ func earned_class_continuation(with_legacy_resort: bool) -> void:
 		check_eq(h.sim.city.status,2,"new permanent-resident threshold earns the next class")
 	check_eq(promotions.size(),1,"exactly one genuinely new promotion")
 	check_eq(local_promotions,promotions,"local new promotion event parity")
+	check_eq(cloud_promotions,promotions,"cloud new promotion event parity")
 	check_state(economic_state(local),economic_state(host),"local new-class state parity")
+	check_state(economic_state(cloud),economic_state(host),"cloud new-class state parity")
 	print("EARNED_CLASS_CONTINUATION migrated=",with_legacy_resort,
-		" earned=2160/class1 declined=0/class1 recovered=2160/class1 new=10080/class2 local=compared promotions=",promotions)
+		" earned=2160/class1 declined=0/class1 recovered=2160/class1 new=10080/class2 local/cloud=compared promotions=",promotions)

@@ -105,6 +105,8 @@ func schedule() -> void:
 
 func _measure() -> void:
 	_pending = false
+	if not is_inside_tree() or not is_instance_valid(_host) or not _host.is_inside_tree():
+		return
 	var menu_bar := _host.menu_bar
 	var status_bar := _host.status_bar
 	var toolbar := _host.toolbar

@@ -197,3 +197,53 @@ func test_quit_from_minimized_window_restores_it_before_prompting() -> void:
 	check(host.notice_dialog.is_open(), "the save question is queued in the restored window")
 	host.notice_dialog.dismiss()
 	host.display_layout.mode_override = -1
+
+# A queued chrome measurement must not touch a detached host's CanvasItems.
+# A later attached request must still measure rather than remain stuck pending.
+func test_deferred_chrome_measurement_ignores_detached_shell_and_resumes() -> void:
+	for frame in 3: await process_frame
+	host.menu_bar.offset_top = -1234.0
+	host.shell.schedule()
+	host.remove_child(host.shell)
+	await process_frame
+	check_eq(host.menu_bar.offset_top, -1234.0, "detached chrome keeps its last geometry")
+	check(not host.shell._pending, "the detached request releases its pending latch")
+	host.add_child(host.shell)
+	host.shell.schedule()
+	for frame in 3: await process_frame
+	check(host.menu_bar.offset_top >= 0.0, "an attached request lays out the menu again")
+
+# Closing an actual host cancels outstanding transport work and ends its frame
+# pump; a queued late completion must never reach its disposed UI or session.
+func test_host_free_cancels_cloud_work_and_stops_late_completion_delivery() -> void:
+	var transport := preload("res://tests/helpers/fake_apple_cloud.gd").new()
+	var store := CloudSaveStore.new("user://quit-cloud-" + CloudSaveTypes.uuid())
+	check_eq(store.open_library(""),OK)
+	host.cloud_saves.shutdown()
+	var service := CloudSaveCoordinator.new(store,transport)
+	host.cloud_saves = CloudSaveSession.new(host,service,store)
+	service.set_enabled(true)
+	for frame in 3: await process_frame
+	var request: Dictionary = transport.last("account")
+	check(not request.is_empty(),"ordinary host frames submit the account request")
+	check(not service._active.is_empty(),"transport work is outstanding before exit")
+	var epoch: int = service.status().epoch
+	var cancelled: int = transport.cancellations
+	var session: WeakRef = weakref(host.cloud_saves)
+	host.shell.schedule()
+	host.free()
+	host = null
+	check(transport.cancellations > cancelled,"host exit cancels its transport requests")
+	check(service.status().epoch > epoch,"exit invalidates the request epoch")
+	check(service._active.is_empty(),"no request remains outstanding after exit")
+	check(not service.status().enabled)
+	check_eq(session.get_ref(),null,"the closed host retains no cloud session")
+	var events: Array[Dictionary] = []
+	service.status_changed.connect(func(value: Dictionary) -> void: events.append(value))
+	var requests: int = transport.requests.size()
+	transport.finish(request,{"owner":"late-account"})
+	for frame in 3: await process_frame
+	check_eq(service.status().owner,"","late account completion cannot verify the disposed host")
+	check_eq(events.size(),0,"no later status callback is delivered after host exit")
+	check_eq(transport.requests.size(),requests,"closing the host ends request scheduling")
+	check_eq(transport.completions.size(),1,"the closed host no longer drains native completion queues")

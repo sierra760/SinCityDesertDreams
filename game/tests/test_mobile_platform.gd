@@ -147,7 +147,7 @@ func test_macos_distribution_export_uses_developer_id() -> void:
 	check_eq(presets.load("res://export_presets.cfg"),OK)
 	var section := ""
 	for candidate: String in presets.get_sections():
-		if presets.get_value(candidate,"platform","") == "macOS": section = candidate
+		if presets.get_value(candidate,"platform","") == "macOS" and presets.get_value(candidate,"name","") == "macOS": section = candidate
 	check(not section.is_empty(),"macOS export preset is configured")
 	if section.is_empty(): return
 	var options := section + ".options"
@@ -157,3 +157,14 @@ func test_macos_distribution_export_uses_developer_id() -> void:
 	var identity: String = presets.get_value(options,"codesign/identity","")
 	check(identity.begins_with("Developer ID Application:"),"distribution builds sign with a Developer ID Application identity")
 	check(identity.ends_with("(2LK9LNU9V8)"),"signing identity belongs to the configured team")
+
+	var store_section := ""
+	for candidate: String in presets.get_sections():
+		if presets.get_value(candidate,"platform","") == "macOS" and presets.get_value(candidate,"name","") == "macOS App Store": store_section = candidate
+	check(not store_section.is_empty(),"Mac App Store has its own export route")
+	if store_section.is_empty(): return
+	var store_options := store_section + ".options"
+	check_eq(presets.get_value(store_options,"export/distribution_type",-1),2)
+	check_eq(presets.get_value(store_options,"codesign/apple_team_id",""),"2LK9LNU9V8")
+	check_eq(presets.get_value(store_options,"codesign/identity",""),"Apple Distribution")
+	check_eq(presets.get_value(store_options,"codesign/entitlements/app_sandbox/enabled",false),true)

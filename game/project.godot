@@ -8,6 +8,11 @@
 
 config_version=5
 
+[apple_cloud]
+
+enabled=false
+container_id="iCloud.com.sierraburkhart.sincitydesertdreams"
+
 [application]
 
 config/name="Sin City - Desert Dreams"
@@ -37,7 +42,7 @@ window/handheld/orientation=6
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/apple_share/plugin.cfg", "res://addons/scdd_geometry/plugin.cfg", "res://addons/scdd_explore_lua/plugin.cfg")
+enabled=PackedStringArray("res://addons/apple_share/plugin.cfg", "res://addons/apple_cloud/plugin.cfg", "res://addons/scdd_geometry/plugin.cfg", "res://addons/scdd_explore_lua/plugin.cfg")
 
 [rendering]
 

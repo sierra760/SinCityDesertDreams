@@ -43,6 +43,7 @@ var entity_records: CityEntityRecords
 var shell: GameShellLayout
 var files: CityFileFlow
 var session: CitySession
+var cloud_saves: CloudSaveSession
 var construction: ConstructionFlow
 var prefs: PreferencesController
 var window_manager: WindowManager
@@ -117,6 +118,7 @@ var _query_refresh_pending := false
 var _previous_auto_accept_quit := true
 var _application_suspended := false
 ## False while another application has focus (minimized or behind another window).
+var _cloud_foreground_requested := false
 var _window_in_foreground := true
 var _background_save_error: Error = OK
 
@@ -137,6 +139,11 @@ func _ready() -> void:
 	# A test may supply its own file flow before the host enters the tree.
 	if files == null: files = CityFileFlow.new(self)
 	add_child(files)
+	if cloud_saves == null:
+		var library := CloudSaveStore.new("user://cloud-saves")
+		library.open_library("")
+		var service := CloudSaveCoordinator.new(library, AppleCloudPlatform.new())
+		cloud_saves = CloudSaveSession.new(self, service, library)
 	_previous_auto_accept_quit = get_tree().auto_accept_quit
 	get_tree().auto_accept_quit = false
 	get_window().close_requested.connect(files.quit_game)
@@ -182,6 +189,7 @@ func _ready() -> void:
 	_connect_simulation()
 	_connect_presentation()
 	prefs.apply()
+	files.connect_cloud_library()
 	explore_hud = ExploreHUD.new()
 	explore_hud.controls = controls
 	explore_hud.layer = 8
@@ -270,7 +278,7 @@ func _build_dialogs() -> void:
 	new_city_dialog.closed.connect(pop_modal)
 	modal_layer.add_child(new_city_dialog)
 	load_dialog = LoadDialog.new()
-	load_dialog.load_requested.connect(func(path: String) -> void: run_loading("Loading city…",path.get_file(),session.load_city.bind(path)))
+	load_dialog.load_requested.connect(files.load_selected_path)
 	load_dialog.bundled_city_requested.connect(func(path: String) -> void: run_loading("Opening included city…",path.get_file().get_basename(),session.open_included_city.bind(path)))
 	load_dialog.share_requested.connect(files.request_city_share)
 	load_dialog.closed.connect(pop_modal)
@@ -470,13 +478,30 @@ func suspend_for_background(recovery_path: String = "") -> Error:
 		return _background_save_error
 	sim.set_speed(GameClock.Speed.PAUSED)
 	var path := CityFileFlow.application_recovery_path() if recovery_path.is_empty() else recovery_path
+	if cloud_saves != null and cloud_saves.prepare_application_recovery(path) != OK:
+		# If optional identity metadata cannot be invalidated, retain the old
+		# authenticated copy and put latest playable progress in a bounded file.
+		path = CityFileFlow.application_recovery_fallback_path()
 	_background_save_error = SaveFormat.save(path, sim.city, {}, SaveFormat.STAGE_EDITING, editing_params, explore_progress_snapshot()) if stage == Stage.EDITING else SaveFormat.save(path, sim.city, sim.snapshot(), SaveFormat.STAGE_PLAY, {}, explore_progress_snapshot())
 	if _background_save_error == OK and is_instance_valid(files) and CityFileFlow.is_application_recovery_path(path):
-		files.note_recovery_copy(sim.city)
+		files.note_recovery_copy(sim.city, path)
+	var cloud_error: Error = cloud_saves.capture_background(path if _background_save_error == OK else "") if cloud_saves != null else OK
+	if _background_save_error == OK and cloud_error == OK and is_instance_valid(files) and CityFileFlow.is_tracked_application_recovery_path(path):
+		files.retire_fallback_recovery()
 	return _background_save_error
 
 
+func _refresh_foreground_cloud() -> void:
+	# Focus-in and resumed can describe one return, even before _process runs.
+	# Background notifications reset this latch, so long suspension never relies
+	# on a stale scheduler timestamp to recognize a genuinely new return.
+	if cloud_saves == null or _cloud_foreground_requested: return
+	_cloud_foreground_requested = true
+	cloud_saves.coordinator.refresh(&"foreground")
+
+
 func resume_from_background() -> void:
+	_refresh_foreground_cloud()
 	if is_instance_valid(new_city_dialog) and new_city_dialog.is_open(): new_city_dialog.resume_online_work()
 	if not _application_suspended: return
 	_application_suspended = false
@@ -497,6 +522,8 @@ func resume_from_background() -> void:
 
 
 func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]: _cloud_foreground_requested = false
+	if what in [NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_APPLICATION_RESUMED]: _refresh_foreground_cloud()
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT \
 			or what == NOTIFICATION_WM_CLOSE_REQUEST:
 		prefs.flush()
@@ -508,6 +535,7 @@ func _notification(what: int) -> void:
 		_window_in_foreground = what == NOTIFICATION_APPLICATION_FOCUS_IN
 		if is_instance_valid(sim): sync_keep_screen_on()
 	if not Platform.is_mobile():
+		if cloud_saves != null and what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]: cloud_saves.capture_background()
 		# Switching to another window keeps terrain downloads going; only an
 		# OS-level pause stops them. A hidden or background window renders
 		# slowly to spare the laptop battery; the simulation clock uses delta.
@@ -1332,7 +1360,12 @@ func sync_3d_cursor() -> void:
 
 
 func _process(delta: float) -> void:
-	if loading_screen != null and loading_screen.visible: return
+	if loading_screen != null and loading_screen.visible:
+		# Revocation must advance during presented-frame waits; periodic
+		# checkpoint time and all ordinary host work remain paused below.
+		if cloud_saves != null: cloud_saves.coordinator.advance(Time.get_ticks_msec())
+		return
+	if cloud_saves != null: cloud_saves.tick(delta)
 	files.resume_waiting_quit()
 	if message_seconds_left > 0.0:
 		message_seconds_left = maxf(0.0, message_seconds_left - maxf(delta, 0.0))
@@ -1369,6 +1402,7 @@ func save_preferences() -> void:
 
 
 func _exit_tree() -> void:
+	if cloud_saves != null: cloud_saves.shutdown()
 	if get_window().close_requested.is_connected(files.quit_game): get_window().close_requested.disconnect(files.quit_game)
 	get_tree().auto_accept_quit = _previous_auto_accept_quit
 	explore_switch.dispose()

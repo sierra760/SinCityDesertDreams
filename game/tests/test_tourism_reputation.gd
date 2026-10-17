@@ -181,14 +181,19 @@ func test_schema_source_weights_malformed_atomic_and_earlier_phase_neutral() -> 
 		tourism.monthly(ctx)
 		check_eq(snapshot(ctx),restored,"migration never replays completed month")
 
-func test_native_year_boundary_continuation_and_fraction() -> void:
+func test_native_cloud_year_boundary_continuation_and_fraction() -> void:
 	var ctx := start(11)
 	var tourism := ctx.system(&"tourism") as TourismSystem
 	advance_host(ctx,11)
 	var good := snapshot(ctx)
 	var path := DIR.path_join("december.sc2d")
 	check_eq(SaveFormat.save(path,ctx.city,good),OK)
-	var loaded := SaveFormat.load(path)
+	var store := CloudSaveStore.new(DIR.path_join("cloud"))
+	check_eq(store.open_library("private-reputation-account"),OK)
+	var staged := store.stage(store.create_slot(),path)
+	check(not staged.is_empty())
+	if staged.is_empty(): return
+	var loaded := SaveFormat.load(staged.continuation.path)
 	check(loaded.ok)
 	if not loaded.ok: return
 	check_eq(tourism.finish_restore(loaded.snapshot),OK)
@@ -199,7 +204,7 @@ func test_native_year_boundary_continuation_and_fraction() -> void:
 	check_eq(tourism.finish_restore(good),OK)
 	ctx.system(&"budget").load(good.systems.budget)
 	advance_host(ctx,12)
-	check_eq(tourism.save(),expected,"native replay produces exact next-year continuation")
+	check_eq(tourism.save(),expected,"native/cloud replay produces exact next-year continuation")
 
 func test_reputation_graph_units_and_history() -> void:
 	check_eq(GraphsWindow.GraphCanvas.value_text(&"tourist_reputation",63120),"63.12")
@@ -253,7 +258,7 @@ func test_real_accepted_utility_displacement_lowers_score_and_preserves_history(
 	fixture.after_each()
 	fixture.free()
 
-func test_fraction_survives_native_and_reject_bad_source_proofs() -> void:
+func test_fraction_survives_native_cloud_and_both_reject_bad_source_proofs() -> void:
 	var ctx := start()
 	advance_host(ctx,0)
 	var tourism := ctx.system(&"tourism") as TourismSystem
@@ -265,7 +270,12 @@ func test_fraction_survives_native_and_reject_bad_source_proofs() -> void:
 	check_eq(tourism.finish_restore(saved),OK)
 	var path := DIR.path_join("fraction.sc2d")
 	check_eq(SaveFormat.save(path,ctx.city,snapshot(ctx)),OK)
-	var loaded := SaveFormat.load(path)
+	var store := CloudSaveStore.new(DIR.path_join("fraction-cloud"))
+	check_eq(store.open_library("private-reputation-fraction"),OK)
+	var staged := store.stage(store.create_slot(),path)
+	check(not staged.is_empty())
+	if staged.is_empty(): return
+	var loaded := SaveFormat.load(staged.continuation.path)
 	check(loaded.ok)
 	if not loaded.ok: return
 	check_eq(tourism.finish_restore(loaded.snapshot),OK)
@@ -279,6 +289,7 @@ func test_fraction_survives_native_and_reject_bad_source_proofs() -> void:
 		var bad_path := DIR.path_join("invalid-"+String(mutation[0])+".sc2d")
 		check_eq(SaveFormat._write_replacement(bad_path,JSON.stringify(doc).to_utf8_buffer()),OK)
 		check(not SaveFormat.load(bad_path).ok,"native rejects malformed reputation proof")
+		check(store.stage(store.create_slot(),bad_path).is_empty(),"cloud boundary rejects same malformed payload")
 		check_eq(snapshot(ctx),original,"save validation is detached")
 	for bad: Dictionary in [{"value_milli":60000,"empty_months":false},{"value_milli":true,"empty_months":0}]:
 		check(not TourismReputation.decode(bad,saved.systems.tourism,0).ok,"legacy placeholders still reject booleans")

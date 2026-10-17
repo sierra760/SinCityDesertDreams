@@ -66,6 +66,12 @@ func set_option(key: StringName, value: Variant) -> void:
 		&"tile_grid":
 			view.set_tile_grid_visible(bool(value))
 			set_value("tile_grid",bool(value))
+		&"icloud_saves":
+			var settings := _host.preferences.duplicate()
+			settings["icloud_saves"] = value
+			var enabled: bool = ViewPreferences.sanitize(settings).icloud_saves
+			set_value("icloud_saves", enabled)
+			if _host.cloud_saves != null: _host.cloud_saves.coordinator.set_enabled(enabled and _host.cloud_saves.coordinator.supported())
 		&"pause_in_background":
 			set_value("pause_in_background",bool(value))
 		&"offer_ramps":
@@ -111,6 +117,7 @@ func set_option(key: StringName, value: Variant) -> void:
 func option_values() -> Dictionary:
 	var preferences := _host.preferences
 	return {
+		"icloud_saves": preferences.get("icloud_saves", true),
 		"mayor_name": preferences.get("mayor_name",""),
 		"control_bindings": _host.controls.values(),
 		"explore_character": preferences.get("explore_character","woman"),
@@ -145,6 +152,7 @@ func refresh_options_window(display_metrics: Variant = null) -> void:
 	if options == null:
 		return
 	options.set_values(option_values())
+	if _host.cloud_saves != null: options.set_sync_status(_host.cloud_saves.coordinator.status())
 	if display_metrics != null:
 		options.set_display_metrics(display_metrics)
 
@@ -152,6 +160,7 @@ func refresh_options_window(display_metrics: Variant = null) -> void:
 ## Push the loaded preferences into the view, toolbar and menus.
 func apply() -> void:
 	var preferences := _host.preferences
+	if _host.cloud_saves != null: _host.cloud_saves.coordinator.set_enabled(bool(preferences.get("icloud_saves", true)) and _host.cloud_saves.coordinator.supported())
 	var view := _host.city_view_3d
 	var menu_bar := _host.menu_bar
 	_host.title_screen.set_mayor_name(String(preferences.get("mayor_name","")))

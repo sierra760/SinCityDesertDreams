@@ -196,12 +196,17 @@ func test_calendar_schema_rejects_malformed_and_duplicate_dates_atomically() -> 
 	check_eq(tourism.save().activity,good.systems.tourism.activity)
 	check_eq(tourism.save().features.migration,good.systems.tourism.features.migration)
 
-func test_native_announcement_continuation_and_newspaper_text() -> void:
+func test_native_cloud_announcement_continuation_and_newspaper_text() -> void:
 	var ctx := start()
 	advance(ctx,2)
 	var path := DIR.path_join("march.sc2d")
 	check_eq(SaveFormat.save(path,ctx.city,snapshot(ctx)),OK)
-	var loaded := SaveFormat.load(path)
+	var store := CloudSaveStore.new(DIR.path_join("cloud"))
+	check_eq(store.open_library("private-calendar-account"),OK)
+	var staged := store.stage(store.create_slot(),path)
+	check(not staged.is_empty())
+	if staged.is_empty(): return
+	var loaded := SaveFormat.load(staged.continuation.path)
 	check(loaded.ok)
 	if not loaded.ok: return
 	var tourism := ctx.system(&"tourism") as TourismSystem

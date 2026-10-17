@@ -35,6 +35,9 @@ var _failed_save_name := ""
 ## copy. Only that city's named save supersedes the copy: another session's
 ## (possibly newer) copy of a city with the same name is never deleted.
 var _recovery_city: WeakRef = null
+var _recovery_path := ""
+var _cloud_load_intent: Dictionary = {}
+var _cloud_refresh_queued := false
 
 
 func _init(host: GameHost) -> void:
@@ -57,17 +60,135 @@ func open_load_dialog() -> void:
 	if _host.title_screen.visible: _host.window_manager.close_all()
 	_host.modal_layer.move_child(dialog, _host.modal_layer.get_child_count() - 1)
 	_host.push_modal()
+	dialog.set_sync_status(_host.cloud_saves.coordinator.status())
+	dialog.open(_load_entries(), BundledCities.entries())
+	_host.cloud_saves.coordinator.refresh(&"visible")
+
+
+func _load_entries() -> Array[Dictionary]:
 	var saves := SaveFormat.list_saves()
 	var backup := SaveFormat.read_header(autosave_path())
 	if not backup.is_empty():
 		backup["automatic_backup"] = true
 		saves.append(backup)
-	var recovery := SaveFormat.read_header(application_recovery_path())
-	if not recovery.is_empty():
-		recovery["suspended_recovery"] = true
-		saves.append(recovery)
+	for path in [application_recovery_path(), application_recovery_fallback_path()]:
+		var recovery := SaveFormat.read_header(path)
+		if not recovery.is_empty():
+			recovery["suspended_recovery"] = true
+			saves.append(recovery)
 	saves.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["saved_at"]) > int(b["saved_at"]))
-	dialog.open(saves, BundledCities.entries())
+	return _host.cloud_saves.coordinator.library_entries(saves)
+
+
+func connect_cloud_library() -> void:
+	var service := _host.cloud_saves.coordinator
+	service.library_changed.connect(_queue_cloud_refresh)
+	service.status_changed.connect(_sync_status_changed)
+	_host.load_dialog.remote_load_requested.connect(_request_cloud_load)
+	_host.load_dialog.manual_load_requested.connect(restore_last_manual_save)
+	_host.load_dialog.selection_changed.connect(_cancel_cloud_load)
+	_host.load_dialog.closed.connect(func() -> void:
+		_cancel_cloud_load()
+		service.refresh(&"hidden"))
+
+
+func _sync_status_changed(status: Dictionary) -> void:
+	_host.load_dialog.set_sync_status(status)
+	var options := _host.windows.get("options") as OptionsWindow
+	if options != null: options.set_sync_status(status)
+	_queue_cloud_refresh()
+
+
+func _queue_cloud_refresh() -> void:
+	if _cloud_refresh_queued: return
+	_cloud_refresh_queued = true
+	_refresh_cloud_library.call_deferred()
+
+
+func _refresh_cloud_library() -> void:
+	_cloud_refresh_queued = false
+	if not _host.load_dialog.is_open(): return
+	var status := _host.cloud_saves.coordinator.status()
+	if not _cloud_load_intent.is_empty() and not _valid_cloud_intent(_cloud_load_intent): _cancel_cloud_load()
+	_host.load_dialog.set_sync_status(status)
+	_host.load_dialog.refresh(_load_entries(), BundledCities.entries())
+	if _cloud_load_intent.is_empty(): return
+	var entry := _cloud_entry(_cloud_load_intent.slot_id)
+	if entry.is_empty():
+		_cancel_cloud_load()
+		return
+	if entry.get("download_failed", false):
+		_cancel_cloud_load()
+		return
+	if not entry.get("path", "").is_empty():
+		var intent := _cloud_load_intent.duplicate(true)
+		_cancel_cloud_load()
+		_host.load_dialog.close()
+		_host.run_loading("Loading city…", String(entry.get("name", "City")), _load_cloud_intent.bind(intent))
+	elif not String(status.get("error", "")).is_empty():
+		_cancel_cloud_load()
+
+
+func _cloud_entry(id: String) -> Dictionary:
+	for entry in _host.cloud_saves.coordinator.library_entries([]):
+		if entry.get("slot_id", "") == id: return entry
+	return {}
+
+
+func _valid_cloud_intent(intent: Dictionary) -> bool:
+	var status := _host.cloud_saves.coordinator.status()
+	return not intent.get("owner", "").is_empty() and status.owner == intent.owner and status.epoch == intent.epoch and status.enabled
+
+
+func _request_cloud_load(id: String) -> void:
+	var service := _host.cloud_saves.coordinator
+	var status := service.status()
+	if not service.select_download(id, status.owner, status.epoch): return
+	_cloud_load_intent = {"slot_id": id, "owner": status.owner, "epoch": status.epoch}
+	_host.load_dialog.set_waiting(true)
+
+
+func _cancel_cloud_load() -> void:
+	_cloud_load_intent = {}
+	_host.cloud_saves.coordinator.cancel_selected_download()
+	_host.load_dialog.set_waiting(false)
+
+
+func _load_cloud_intent(intent: Dictionary) -> bool:
+	# A completion may arrive on the final draw boundary, before _process.
+	_host.cloud_saves.coordinator.advance(Time.get_ticks_msec())
+	if not _valid_cloud_intent(intent): return false
+	var entry := _cloud_entry(intent.slot_id)
+	var path := String(entry.get("path", ""))
+	if path.is_empty(): return false
+	return _host.session.load_city(path)
+
+
+func load_selected_path(path: String) -> void:
+	var entry := _host.load_dialog.selected_entry()
+	if entry.get("cloud_owned", false):
+		var status := _host.cloud_saves.coordinator.status()
+		var intent := {"slot_id": entry.slot_id, "owner": status.owner, "epoch": status.epoch}
+		_host.run_loading("Loading city…", String(entry.get("name", "City")), _load_cloud_intent.bind(intent))
+	else:
+		_host.run_loading("Loading city…", path.get_file(), _host.session.load_city.bind(path))
+
+
+func restore_last_manual_save(id: String) -> void:
+	var status := _host.cloud_saves.coordinator.status()
+	var intent := {"slot_id": id, "owner": status.owner, "epoch": status.epoch}
+	var entry := _cloud_entry(id)
+	if not _valid_cloud_intent(intent) or entry.get("manual", {}).is_empty(): return
+	_host.load_dialog.close()
+	_host.run_loading("Loading last manual save…", String(entry.get("name", "City")), _restore_cloud_manual.bind(intent))
+
+
+func _restore_cloud_manual(intent: Dictionary) -> Error:
+	_host.cloud_saves.coordinator.advance(Time.get_ticks_msec())
+	if not _valid_cloud_intent(intent): return ERR_UNAUTHORIZED
+	var error := _host.cloud_saves.restore_selected_manual(intent.slot_id, intent.owner, intent.epoch)
+	if error != OK: _host.notices.show("Cannot Load", "The last manual save could not be restored. Your current city is still open.")
+	return error
 
 
 ## Write a share copy without changing the manual save path/checkpoint.
@@ -285,6 +406,11 @@ func mark_saved() -> void:
 	_saved_content = save_content()
 
 
+## Restore the explicit manual baseline when loading a newer continuation.
+func set_saved_content(content: Dictionary) -> void:
+	_saved_content = content.duplicate(true)
+
+
 ## Treat the current city as never saved.
 func forget_saved() -> void:
 	_saved_content = {}
@@ -330,7 +456,10 @@ func request_city_action(action: StringName) -> void:
 		[["Cancel", &"cancel"], ["Don't Save", &"discard"], ["Save", &"save"]],
 		func(choice: StringName) -> void:
 			_pending_city_action = &""
-			if choice == &"discard": _perform_city_action(action)
+			if choice == &"discard":
+				var error: Error = _host.cloud_saves.discard() if _host.cloud_saves != null else OK
+				if error == OK: _perform_city_action(action)
+				else: _host.notices.show("Cannot Discard Yet", "Your local save choice could not be recorded. Check free space and try again.")
 			elif choice == &"save":
 				_after_save_action = action
 				if _host.save_path.is_empty(): open_save_dialog()
@@ -434,7 +563,9 @@ func save_city() -> Error:
 		return ERR_UNAVAILABLE
 	var path := _host.save_path if not _host.save_path.is_empty() else save_path_for(_host.sim.city.name)
 	var error := write_save(path)
-	if error == OK: _host.save_path = path
+	if error == OK:
+		_host.save_path = path
+		if _host.cloud_saves != null: _host.cloud_saves.manual_saved(path)
 	return error
 
 
@@ -446,6 +577,7 @@ func save_city_as(save_name: String) -> String:
 	if write_save(path) != OK:
 		return ""
 	_host.save_path = path
+	if _host.cloud_saves != null: _host.cloud_saves.manual_saved(path, true)
 	return path
 
 
@@ -479,35 +611,51 @@ static func autosave_path() -> String:
 static func application_recovery_path() -> String:
 	return "user://recovery/suspended.sc2d"
 
+static func application_recovery_fallback_path() -> String:
+	return "user://recovery/suspended-untracked.sc2d"
+
+## A newer canonical write is already durable before retiring this old fallback.
+func retire_fallback_recovery() -> void:
+	var path := application_recovery_fallback_path()
+	if FileAccess.file_exists(path): DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 ## Remove the background recovery copy once it is no longer needed: the app
 ## came back cleanly, or the city it holds was saved under a name.
 func discard_recovery_copy() -> void:
 	_recovery_city = null
-	var path := application_recovery_path()
+	var path := _recovery_path
+	_recovery_path = ""
+	if path.is_empty(): return
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 ## Remember that `city` is the one in the background recovery copy: this
 ## session loaded it from there, or just wrote it there.
-func note_recovery_copy(city: City) -> void:
+func note_recovery_copy(city: City, path: String = "") -> void:
 	_recovery_city = weakref(city) if city != null else null
+	_recovery_path = application_recovery_path() if path.is_empty() else path
 
 
 ## True when the background recovery copy holds this session's `city`.
 func holds_recovery_copy(city: City) -> bool:
 	if city == null or _recovery_city == null or _recovery_city.get_ref() != city:
 		return false
-	return FileAccess.file_exists(application_recovery_path())
+	return not _recovery_path.is_empty() and FileAccess.file_exists(_recovery_path)
 
 
 static func is_application_recovery_path(path: String) -> bool:
-	return ProjectSettings.globalize_path(path).simplify_path() == ProjectSettings.globalize_path(application_recovery_path()).simplify_path()
+	return is_tracked_application_recovery_path(path) or _same_recovery_path(path, application_recovery_fallback_path())
+
+static func is_tracked_application_recovery_path(path: String) -> bool:
+	return _same_recovery_path(path, application_recovery_path())
+
+static func _same_recovery_path(a: String, b: String) -> bool:
+	return not a.is_empty() and not b.is_empty() and ProjectSettings.globalize_path(a).simplify_path() == ProjectSettings.globalize_path(b).simplify_path()
 
 
 static func is_managed_recovery_path(path: String) -> bool:
 	var absolute := ProjectSettings.globalize_path(path).simplify_path()
-	for managed in [autosave_path(), application_recovery_path()]:
+	for managed in [autosave_path(), application_recovery_path(), application_recovery_fallback_path()]:
 		if absolute == ProjectSettings.globalize_path(managed).simplify_path(): return true
 	return false

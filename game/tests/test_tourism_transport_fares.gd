@@ -42,7 +42,7 @@ func remove_tree(path: String) -> void:
 func after_all() -> void:
 	remove_tree(DIR)
 
-func test_never_processed_positive_fare_refuses_local_and_atomic_restore() -> void:
+func test_never_processed_positive_fare_refuses_local_cloud_and_atomic_restore() -> void:
 	var ctx := fare_context()
 	var tourism: TourismSystem = ctx.system(&"tourism")
 	var saved := snapshot(ctx)
@@ -66,9 +66,12 @@ func test_never_processed_positive_fare_refuses_local_and_atomic_restore() -> vo
 	var incoming := DIR.path_join("incoming.sc2d")
 	check_eq(SaveFormat._write_replacement(incoming,JSON.stringify(doc).to_utf8_buffer()),OK)
 	check(not SaveFormat.load(incoming).ok,"local native reader rejects genuine malformed transport payload")
+	var store := CloudSaveStore.new(DIR.path_join("invalid-cloud"))
+	check_eq(store.open_library("private-fare-account"),OK)
+	check(store.stage(store.create_slot(),incoming).is_empty(),"local cloud continuation validation rejects the same bytes")
 	ctx.systems.clear()
 
-func test_unclaimed_periods_survive_attendance_and_claimed_local_continuation() -> void:
+func test_unclaimed_periods_survive_attendance_and_claimed_local_cloud_continuation() -> void:
 	var ctx := fare_context()
 	var tourism: TourismSystem = ctx.system(&"tourism")
 	var transport: TransportSystem = ctx.system(&"transport")
@@ -100,7 +103,12 @@ func test_unclaimed_periods_survive_attendance_and_claimed_local_continuation() 
 	for claimed in [false,true]:
 		var path := DIR.path_join("claimed.sc2d" if claimed else "unclaimed.sc2d")
 		check_eq(SaveFormat.save(path,ctx.city,saved),OK)
+		var store := CloudSaveStore.new(DIR.path_join("claimed-cloud" if claimed else "unclaimed-cloud"))
+		check_eq(store.open_library("private-fare-account"),OK)
+		var staged := store.stage(store.create_slot(),path)
+		check(not staged.is_empty())
 		var paths := [path]
+		if not staged.is_empty(): paths.append(staged.continuation.path)
 		for input_path: String in paths:
 			var loaded := SaveFormat.load(input_path)
 			check(loaded.ok,str(loaded.get("detail","")))
@@ -193,7 +201,12 @@ func test_compacted_delayed_claim_roundtrip_and_malformed_period_evidence() -> v
 		check_eq(JSON.stringify(bad),raw,"validation never normalizes into its input")
 	var path := DIR.path_join("compacted.sc2d")
 	check_eq(SaveFormat.save(path,ctx.city,saved),OK)
+	var store := CloudSaveStore.new(DIR.path_join("compacted-cloud"))
+	check_eq(store.open_library("private-fare-account"),OK)
+	var staged := store.stage(store.create_slot(),path)
+	check(not staged.is_empty())
 	var paths := [path]
+	if not staged.is_empty(): paths.append(staged.continuation.path)
 	for source: String in paths:
 		var loaded := SaveFormat.load(source)
 		check(loaded.ok,str(loaded.get("detail","")))

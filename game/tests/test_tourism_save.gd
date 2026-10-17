@@ -681,7 +681,7 @@ func serve_all(sim: Simulation) -> void:
 	for row: Dictionary in sim.tourism().report():
 		TourismFixture.set_served(sim.city, row.anchor, true, true)
 
-func test_previous_roster_native_and_annual_continuation_preserve_earned_state() -> void:
+func test_previous_roster_native_cloud_and_annual_continuation_preserve_earned_state() -> void:
 	for version in [1, 2]:
 		for month in [0, 11]:
 			var city := flat_city()
@@ -714,6 +714,12 @@ func test_previous_roster_native_and_annual_continuation_preserve_earned_state()
 			if not loaded.ok:
 				sim.free()
 				continue
+			var store := CloudSaveStore.new(DIR.path_join("cloud-%d-%d" % [version, month]))
+			check_eq(store.open_library("private-test-account"), OK)
+			var slot := store.create_slot()
+			var staged := store.stage(slot, path)
+			check(not staged.is_empty(), "old native save passes local cloud payload validation")
+			if not staged.is_empty(): check(SaveFormat.load(staged.continuation.path).ok)
 			var twin := Simulation.new()
 			twin.setup(loaded.city, 73, null, loaded.snapshot)
 			serve_all(twin)
