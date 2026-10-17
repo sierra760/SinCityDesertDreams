@@ -7,6 +7,7 @@
 class_name HelpWindow
 extends Control
 
+signal privacy_requested
 signal closed
 
 ## Rows whose title starts with "#" are section headers. A third element
@@ -52,12 +53,13 @@ const ROWS: Array = [
 	["Enter a resort", "In Explore, walk up to the front doors of a Gaming Resort and press {interact_touch} to step onto its casino floor. The mat by the door leads back outside."],
 	["Play a table", "Walk up to a table or machine and press {interact_touch} to sit down; the city pauses while you play. Pick a chip and a spot, then play. Rules explains the game; Leave table (Escape) returns you to the floor between rounds.", "desktop"],
 	["Play a table", "Walk up to a table or machine and press {interact_touch} to sit down. On iPhone choose a denomination and betting spot, then tap + to add that chip or − to remove it; selecting alone does not bet. iPad keeps individual chip buttons. Rules explains the game; Leave returns you to the floor between rounds.", "touch"],
+	["Virtual funds", "Casino funds are virtual city money. They cannot be purchased with real money, withdrawn, exchanged or redeemed for prizes. Wins and losses affect only your simulated city treasury."],
 	["Limits and the treasury", "Each resort has its own table minimum and maximum, and a bet can never exceed the treasury. The city treasury pays every bet and collects every win; the Desert Dispatch notices big nights."],
 	["#Where to find things"],
 	["Settings → Controls", "Change keyboard bindings, look sensitivity and vertical inversion. Play with keyboard and mouse or touch; game controllers are not supported."],
 	["Reports", "Review your budget, graphs, population, industries, ordinances, newspaper, maps and neighbors."],
 	["View", "Choose zoom and overlays; show or hide traffic, labels and the minimap."],
-	["Help → Secret Codes", "Try your luck in a founded city. DOUBLEDOWN bets a tenth of the treasury; HIGHROLLER brings cash and permits; MARKER is real debt; CHAPEL is just for fun."],
+	["Help → Secret Codes", "Try your luck in a founded city. DOUBLEDOWN bets a tenth of the virtual treasury; HIGHROLLER brings city funds and permits; MARKER adds simulated city debt; CHAPEL is just for fun."],
 	["iPhone layout", "Tools opens the tool drawer; choosing a tool closes it. Inspect selects tile inspection; beside the portrait camera use Menu → Inspect. Menu contains the city, view and report commands. Details expands the status; Alerts opens current warnings.", "touch"],
 	["iPhone / iPad files", "Copy .sc2 or .sc2d files into On My iPhone or On My iPad → SC2D in the Files app. Import Classic City or Load City → Browse opens the app folder.", "touch"],
 ]
@@ -102,6 +104,9 @@ func _build() -> void:
 	sources_button = UIFactory.make_button("Terrain Data Sources")
 	sources_button.pressed.connect(func() -> void: sources_dialog.open())
 	body.add_child(sources_button)
+	var privacy := UIFactory.make_button("Privacy")
+	privacy.pressed.connect(func() -> void: privacy_requested.emit())
+	body.add_child(privacy)
 	var done := UIFactory.make_button("Done")
 	done.pressed.connect(close)
 	(chrome["actions"] as HBoxContainer).add_child(done)

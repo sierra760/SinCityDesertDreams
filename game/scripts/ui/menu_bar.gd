@@ -231,6 +231,7 @@ func _build() -> void:
 	var help := _menu("Help")
 	_item(help, "Playing the Game…", &"help")
 	_item(help, "Secret Codes…", &"cheats")
+	_item(help, "Privacy…", &"privacy")
 	_item(help, "About", &"about")
 
 

@@ -33,6 +33,10 @@ const DEFAULT := {
 		"enabled":true,
 		"url":"https://nominatim.openstreetmap.org/search?format=jsonv2&limit={limit}&q={query}",
 		"format":"nominatim",
+		"autocomplete":false,
+		"debounce_ms":550,
+		"min_chars":3,
+		"attribution_url":"",
 		"min_interval_ms":NOMINATIM_MIN_INTERVAL_MS,
 		"attribution":"Search © OpenStreetMap contributors · Nominatim",
 	},
@@ -181,6 +185,13 @@ static func validate(data: Variant) -> Dictionary:
 	search.url=_text(s.get("url",""),512)
 	search.format=_text(s.get("format","nominatim"),16)
 	search.attribution=_text(s.get("attribution",""),160)
+	search.autocomplete=s.get("autocomplete",false)
+	search.debounce_ms=_int(s.get("debounce_ms"),200,2000,550)
+	search.min_chars=_int(s.get("min_chars"),2,6,3)
+	search.attribution_url=_text(s.get("attribution_url",""),512)
+	if not search.autocomplete is bool or search.debounce_ms==null or search.min_chars==null: return refuse.call("invalid autocomplete settings")
+	if not search.attribution_url.is_empty() and not _https_url(search.attribution_url): return refuse.call("search.attribution_url must be https")
+	if search.autocomplete and host(search.url)==NOMINATIM_HOST: return refuse.call("public Nominatim does not allow autocomplete")
 	search.min_interval_ms=_int(s.get("min_interval_ms"),0,60000,NOMINATIM_MIN_INTERVAL_MS)
 	if search.min_interval_ms==null: return refuse.call("search.min_interval_ms out of range")
 	if search.enabled:

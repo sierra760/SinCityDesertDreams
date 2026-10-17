@@ -15,6 +15,7 @@ signal load_requested
 signal import_requested
 signal settings_requested
 signal help_requested
+signal privacy_requested
 signal license_requested
 signal quit_requested
 
@@ -28,9 +29,11 @@ var help_button: Button
 ## Main supplies whether a dialog, picker or loading screen owns input; the
 ## title's keyboard shortcuts wait while it returns true.
 var shortcuts_blocked: Callable
+var privacy_button: Button
 var license_button: Button
 var developer_credit: Label
 var copyright_credit: Label
+var _legal_actions: BoxContainer
 var _panel: PanelContainer
 var _poster: PanelContainer
 var _content_margin: MarginContainer
@@ -184,7 +187,14 @@ func _build() -> void:
 	credits.add_child(copyright_credit)
 	for credit: Label in [developer_credit,copyright_credit]:
 		credit.resized.connect(func() -> void: _reflow.call_deferred())
-	license_button = _button(footer, "License", func() -> void: license_requested.emit())
+	_legal_actions = BoxContainer.new()
+	_legal_actions.add_theme_constant_override("separation", 8)
+	_legal_actions.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	footer.add_child(_legal_actions)
+	privacy_button = _button(_legal_actions, "Privacy", func() -> void: privacy_requested.emit())
+	privacy_button.size_flags_horizontal = Control.SIZE_FILL
+	privacy_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	license_button = _button(_legal_actions, "License", func() -> void: license_requested.emit())
 	license_button.size_flags_horizontal = Control.SIZE_FILL
 	license_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
@@ -214,7 +224,8 @@ func _reflow() -> void:
 		_content_margin.add_theme_constant_override("margin_" + side, padding)
 	# Establish wrapped credit widths before the panel's minimum height is
 	# measured. A fresh label's zero width otherwise counts every letter.
-	var credit_width := maxf(1.0,wanted.x-float(padding)*2.0-license_button.get_combined_minimum_size().x-12.0)
+	_legal_actions.vertical = wanted.x < 400
+	var credit_width := maxf(1.0,wanted.x-float(padding)*2.0-_legal_actions.get_combined_minimum_size().x-12.0)
 	developer_credit.size.x = credit_width
 	copyright_credit.size.x = credit_width
 	_header.visible = not short

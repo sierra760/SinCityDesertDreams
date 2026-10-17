@@ -54,3 +54,8 @@ The iOS preset includes both the iPhone and iPad device families. Testing on a
 physical iPhone should cover real safe areas and keyboards, how the touch
 controls feel, rotation, Files, background recovery and performance in
 representative cities.
+
+Privacy opens from the title screen or Help menu and works offline. On iOS,
+unavailable desktop Lua Mods controls are hidden. Compatible configured search
+providers can show terrain-location suggestions after typing pauses; public
+Nominatim remains unavailable on iOS. No provider key is stored in the app.

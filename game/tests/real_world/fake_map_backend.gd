@@ -16,7 +16,7 @@ class Backend extends Node:
   controller.pending.append(self)
   controller.active+=1
   controller.peak_active=maxi(controller.peak_active,controller.active)
-  controller.peak_tile_active=maxi(controller.peak_tile_active,controller.pending.filter(func(b: Node) -> bool: return is_instance_valid(b) and b.active and b.url.ends_with(".png")).size())
+  controller.peak_tile_active=maxi(controller.peak_tile_active,controller.pending.filter(func(b: Variant) -> bool: return is_instance_valid(b) and b.active and b.url.ends_with(".png")).size())
   return OK
  func abort() -> void:
   if active:

@@ -29,13 +29,14 @@ const RETRY_MS := 30000
 ## finished(result, code, headers, body), like an HTTPRequest wrapper.
 class NativeBackend extends Node:
 	signal finished(result: int, code: int, headers: PackedStringArray, body: PackedByteArray)
+	var max_redirects := 2
 	var http: HTTPRequest
 	func start(url: String, headers: PackedStringArray) -> int:
 		http=HTTPRequest.new()
 		add_child(http)
 		http.timeout=TIMEOUT
 		http.body_size_limit=MAX_BODY
-		http.max_redirects=2
+		http.max_redirects=max_redirects
 		http.request_completed.connect(func(result: int, code: int, response_headers: PackedStringArray, body: PackedByteArray) -> void: finished.emit(result,code,response_headers,body))
 		return http.request(url,headers)
 	func abort() -> void:

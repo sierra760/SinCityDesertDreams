@@ -5,7 +5,9 @@ const CONFIG := "res://addons/scdd_explore_lua/scdd_explore_lua.cfg"
 const NATIVE_CLASS := &"SCDDExploreLua"
 var _native: RefCounted
 static func supported_platform() -> bool:
-	return OS.get_name() == "macOS" or (OS.get_name() == "Windows" and OS.has_feature("x86_64"))
+	return supported_environment(OS.get_name(),OS.has_feature("x86_64"))
+static func supported_environment(os_name: String, windows_x64: bool) -> bool:
+	return os_name == "macOS" or (os_name == "Windows" and windows_x64)
 static func available() -> bool:
 	if not supported_platform(): return false
 	if ClassDB.class_exists(NATIVE_CLASS): return true

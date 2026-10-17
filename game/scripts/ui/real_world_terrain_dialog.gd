@@ -52,7 +52,10 @@ var _exaggeration_edit_dirty := false
 var _exaggeration_typed_text := ""
 var _exaggeration_typed_caret := 0
 var _search_status_query := ""
+var _place_reveal_pending := false
 var _search_configured := false
+var _autocomplete_timer: Timer
+var _search_provider_link: LinkButton
 
 func _init() -> void:
  name="RealWorldTerrainDialog"
@@ -95,12 +98,28 @@ func _init() -> void:
  search_field.max_length=TerrainPlaceSearch.MAX_QUERY
  search_field.select_all_on_focus=true
  search_row.add_child(search_field)
+ search_field.text_changed.connect(_search_text_changed)
+ _autocomplete_timer=Timer.new()
+ _autocomplete_timer.one_shot=true
+ add_child(_autocomplete_timer)
+ _autocomplete_timer.timeout.connect(func() -> void:
+  if is_visible_in_tree() and place_search.autocomplete_enabled(): search_place())
  search_field.text_submitted.connect(func(_text: String) -> void: search_place())
  search_button=_button(search_row,"Search",search_place)
  search_status=_label(body,"")
+ _search_provider_link=LinkButton.new()
+ _search_provider_link.text="Powered by Geoapify"
+ _search_provider_link.add_theme_color_override("font_color",UITheme.HEADER)
+ _search_provider_link.add_theme_color_override("font_hover_color",UITheme.TEXT_PRIMARY)
+ _search_provider_link.tooltip_text="Visit the search provider"
+ _search_provider_link.custom_minimum_size.y=44
+ _search_provider_link.pressed.connect(func() -> void:
+  var url := place_search.attribution_url()
+  if TerrainMapConfig._https_url(url): OS.shell_open(url))
  search_results=VBoxContainer.new()
  search_results.name="PlaceResults"
  body.add_child(search_results)
+ body.add_child(_search_provider_link)
  basemap=TerrainBasemap.new()
  add_child(basemap)
  place_search=TerrainPlaceSearch.new()
@@ -284,6 +303,7 @@ func close() -> void:
  sources_dialog.close()
  cancel_work()
  basemap.set_active(false)
+ _autocomplete_timer.stop()
  place_search.cancel()
  _clear_pending_search_status()
  _sync_search_button()
@@ -312,6 +332,7 @@ func suspend() -> void:
  sources_dialog.close()
  cancel_work()
  basemap.set_active(false)
+ _autocomplete_timer.stop()
  place_search.cancel()
  _clear_pending_search_status()
  _sync_search_button()
@@ -452,18 +473,33 @@ func apply_map_config(value: Dictionary) -> void:
  search_field.editable=searchable
  _sync_search_button()
  search_field.placeholder_text="Search for a place" if searchable else "Place search is unavailable"
+ _search_provider_link.visible=searchable and not place_search.attribution_url().is_empty()
+ _search_provider_link.text="Powered by Geoapify" if TerrainMapConfig.host(place_search.attribution_url())=="www.geoapify.com" else "Search provider"
  if search_changed or not _search_configured:
+  _autocomplete_timer.stop()
   _search_status_query=""
   _clear_places(place_search.attribution() if searchable else "Place search is turned off. Drag the map or type coordinates instead.")
  _search_configured=true
  extent_map.request_tiles()
  extent_map.queue_redraw()
 
-## Search on explicit submit; results list below the field.
+## Clear obsolete suggestions and debounce only when the provider permits it.
+func _search_text_changed(_text: String) -> void:
+ _autocomplete_timer.stop()
+ place_search.cancel()
+ _search_status_query=""
+ _clear_places(place_search.attribution())
+ _sync_search_button()
+ if not is_visible_in_tree() or not place_search.autocomplete_enabled(): return
+ if TerrainPlaceSearch.normalize(search_field.text).length()<place_search.min_chars(): return
+ _autocomplete_timer.start(float(place_search.debounce_ms())/1000.0)
+
+## Explicit submit is available as well as debounced compatible-provider search.
 func search_place() -> void:
+ _autocomplete_timer.stop()
  if not place_search.enabled(): return
  var query := TerrainPlaceSearch.normalize(search_field.text)
- if query.length()<2:
+ if query.length()<place_search.min_chars():
   _clear_places("Type a place name to search.")
   return
  _search_status_query=query
@@ -498,7 +534,24 @@ func _places_found(query: String,results: Array) -> void:
   button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
   search_results.add_child(button)
   button.pressed.connect(choose_place.bind(result))
- _ensure_focus_visible.call_deferred()
+ if not _place_reveal_pending:
+  _place_reveal_pending=true
+  get_tree().process_frame.connect(_reveal_place_results.bind(1),CONNECT_ONE_SHOT)
+func _reveal_place_results(frames_left: int) -> void:
+ if not is_visible_in_tree() or search_results.get_child_count()==0:
+  _place_reveal_pending=false
+  return
+ if frames_left>0:
+  get_tree().process_frame.connect(_reveal_place_results.bind(frames_left-1),CONNECT_ONE_SHOT)
+  return
+ _place_reveal_pending=false
+ var focused := get_viewport().gui_get_focus_owner()
+ if focused not in [search_field,search_button]: return
+ var scroll: ScrollContainer=panel.get_meta("window_chrome").body_scroll
+ # Reveal the first result while keeping the query/caret in view. The full
+ # list remains scrollable and no suggestion takes focus while typing.
+ scroll.ensure_control_visible(search_results.get_child(0))
+ scroll.ensure_control_visible(search_field)
 func _place_search_failed(query: String,detail: String) -> void:
  if not _complete_search_status(query): return
  _clear_places(detail+". The map and square still work.")

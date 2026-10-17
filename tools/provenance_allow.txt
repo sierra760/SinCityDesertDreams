@@ -59,3 +59,7 @@ tools/build_neighborhood_resort_icons.py:13
 # Ikurrina red RGB literal in material authoring and its color checker.
 tools/blender_exploration/build_neighborhood_resorts.py:521
 tools/blender_exploration/check_neighborhood_resorts.py:157
+
+# A placeholder for the verified template hash and an Apple technote number.
+docs/release/apple-cloud-saves.md:194
+docs/release/apple-cloud-saves.md:253

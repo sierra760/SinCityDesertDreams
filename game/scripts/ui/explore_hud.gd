@@ -26,6 +26,7 @@ var invert_y := false
 var _chrome_top := 0.0
 var _chrome_bottom := 0.0
 var _layout: DisplayLayout
+var _mods_button: Button
 var _phone_summary: Label
 var _phone_details: Label
 var _status_panel: PanelContainer
@@ -364,10 +365,10 @@ func _build() -> void:
 	var settings := UIFactory.make_button("Control settings")
 	settings.pressed.connect(func() -> void: settings_requested.emit())
 	column.add_child(settings)
-	var mods := UIFactory.make_button("Explore Mods")
-	mods.name = "ExploreMods"
-	mods.pressed.connect(func() -> void: mods_requested.emit())
-	column.add_child(mods)
+	_mods_button = UIFactory.make_button("Explore Mods")
+	_mods_button.name = "ExploreMods"
+	_mods_button.pressed.connect(func() -> void: mods_requested.emit())
+	column.add_child(_mods_button)
 	touch_controls=ExploreTouchControls.new()
 	touch_controls.name="ExploreTouchControls"
 	add_child(touch_controls)
@@ -452,9 +453,15 @@ func _phone_status_text(full: bool = false) -> String:
 	if lines.is_empty(): lines.append(_actor_label.text)
 	return "\n".join(lines)
 
+func mods_available() -> bool:
+	var platform := String(_layout.metrics.get("platform_name","")) if is_instance_valid(_layout) else ""
+	if platform.is_empty(): platform = OS.get_name()
+	return ExploreLuaBridge.supported_environment(platform,OS.has_feature("x86_64"))
+
 func _reflow() -> void:
 	if not is_instance_valid(_panel) or not is_instance_valid(_status_panel):
 		return
+	_mods_button.visible = mods_available()
 	var available := _usable_rect()
 	_place_hint()
 	if is_instance_valid(touch_controls): touch_controls.set_usable_rect(available)

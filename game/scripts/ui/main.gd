@@ -270,6 +270,7 @@ func _build_dialogs() -> void:
 	title_screen.import_requested.connect(func() -> void: files.request_city_action(&"import"))
 	title_screen.quit_requested.connect(files.quit_game)
 	title_screen.settings_requested.connect(func() -> void: window_manager.open("options"))
+	title_screen.privacy_requested.connect(func() -> void: window_manager.open("privacy"))
 	title_screen.license_requested.connect(func() -> void: window_manager.open("license"))
 	title_screen.help_requested.connect(func() -> void: window_manager.open("help"))
 	title_screen.shortcuts_blocked = func() -> bool: return modal_depth > 0 or files.picker_modal or loading_screen.visible
@@ -994,6 +995,7 @@ func _on_menu_action(action: StringName, value: Variant) -> void:
 		&"options": window_manager.open("options")
 		&"help": window_manager.open("help")
 		&"cheats": open_cheat_dialog()
+		&"privacy": window_manager.open("privacy")
 		&"about": open_about()
 
 
@@ -1438,6 +1440,7 @@ func close_mod_dialogue() -> void:
 
 
 func open_explore_mods() -> void:
+	if not explore_hud.mods_available(): return
 	if is_exploring(): exploration._suspend(true)
 	window_manager.open("explore_mods")
 

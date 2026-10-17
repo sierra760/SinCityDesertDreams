@@ -15,5 +15,7 @@ func test_fresh_phone_title_keeps_credits_and_new_city_inside_safe_bounds() -> v
 		check(bounds.grow(.1).encloses(title._panel.get_global_rect()),"title fits from its first layout")
 		check(bounds.grow(.1).encloses(title.new_button.get_global_rect()),"New City remains visible")
 		check(bounds.grow(.1).encloses(title.license_button.get_global_rect()),"License remains reachable")
+		check(bounds.grow(.1).encloses(title.privacy_button.get_global_rect()),"Privacy remains reachable")
+		check(title.privacy_button.size.y >= 44,"Privacy preserves its touch target")
 		check(title.developer_credit.get_line_count()<=4,"credit text wraps as words")
 		title.free()

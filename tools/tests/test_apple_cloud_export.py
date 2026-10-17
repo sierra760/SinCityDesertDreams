@@ -9,6 +9,8 @@ import unittest
 import struct
 import hashlib
 import tempfile
+import html
+import re
 import plistlib
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -276,5 +278,13 @@ class ExportTests(unittest.TestCase):
                             self.assertTrue(self.check.inspect_pack(path, executable_path=executable))
                         override.unlink()
                     self.assertEqual([], self.check.inspect_pack(path, executable_path=executable))
+
+    def test_offline_and_html_cloud_disclosure_are_kept_in_step(self):
+        offline = (ROOT / 'game/legal/PRIVACY.txt').read_text()
+        draft = html.unescape((ROOT / 'docs/release/app-store-draft/privacy.html').read_text().replace('<br>', '\n'))
+        draft = re.sub('<[^>]+>', '', draft)
+        def cloud_section(text):
+            return text.split('iCloud Saves\n', 1)[1].split('Optional online terrain', 1)[0].split()
+        self.assertEqual(cloud_section(offline), cloud_section(draft))
 
 if __name__ == '__main__': unittest.main()

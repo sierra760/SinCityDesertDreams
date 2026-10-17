@@ -4,8 +4,8 @@
 
 class_name TerrainPlaceSearch
 extends Node
-## Place-name search for the terrain chooser, on explicit submit only (the
-## public Nominatim policy forbids search-as-you-type). The provider comes from
+## Place-name search for the terrain chooser. Autocomplete is opt-in for
+## compatible providers; public Nominatim stays submit-only. The provider comes from
 ## TerrainMapConfig; requests keep its minimum interval (one second or more for
 ## public Nominatim) and repeated queries are answered from memory. Results only
 ## move the chooser's map and square; they are never saved with a city.
@@ -19,6 +19,7 @@ const CACHE_ENTRIES := 32
 
 static var default_request_factory: Callable
 var request_factory: Callable
+var platform_name: String = OS.get_name()
 var _clock: Callable = Time.get_ticks_msec
 var _cache := {}
 var _backend: Node
@@ -42,7 +43,15 @@ func configure_provider(search: Dictionary) -> bool:
 	_provider=search.duplicate(true)
 	return true
 
-func enabled() -> bool: return bool(_provider.get("enabled",false))
+func enabled() -> bool:
+	# The public endpoint limits the entire app to one request per second;
+	# per-device throttling cannot meet that limit for an App Store release.
+	return bool(_provider.get("enabled",false)) and not (platform_name == "iOS" and TerrainMapConfig.host(str(_provider.get("url",""))) == TerrainMapConfig.NOMINATIM_HOST)
+func autocomplete_enabled() -> bool:
+	return enabled() and bool(_provider.get("autocomplete",false)) and TerrainMapConfig.host(str(_provider.get("url",""))) != TerrainMapConfig.NOMINATIM_HOST
+func debounce_ms() -> int: return int(_provider.get("debounce_ms",550))
+func min_chars() -> int: return int(_provider.get("min_chars",3)) if autocomplete_enabled() else 2
+func attribution_url() -> String: return str(_provider.get("attribution_url",""))
 func attribution() -> String: return str(_provider.get("attribution",""))
 func min_interval_ms() -> int: return int(_provider.get("min_interval_ms",TerrainMapConfig.NOMINATIM_MIN_INTERVAL_MS))
 
@@ -61,8 +70,8 @@ func search(text: String) -> void:
 	if not enabled():
 		failed.emit(query,"Place search is turned off")
 		return
-	if query.length()<2:
-		failed.emit(query,"Type at least two characters")
+	if query.length()<min_chars():
+		failed.emit(query,"Type at least %d characters" % min_chars())
 		return
 	# Nominatim ignores case, so the memory cache does too.
 	if _cache.has(query.to_lower()):
@@ -99,6 +108,9 @@ func _try_start() -> void:
 	if _backend==null:
 		_finish_failure("Search could not be requested")
 		return
+	# A configured endpoint must not redirect around the iOS host restriction.
+	if platform_name == "iOS" and _backend is TerrainBasemap.NativeBackend:
+		_backend.max_redirects = 0
 	add_child(_backend)
 	_backend.finished.connect(_finished.bind(_query,_backend),CONNECT_ONE_SHOT)
 	var headers := TerrainBasemap.request_headers()
@@ -114,6 +126,11 @@ func _finish_failure(detail: String) -> void:
 
 func _finished(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray, query: String, backend: Node) -> void:
 	if backend!=_backend or query!=_query: return
+	if code == 429:
+		var answer: Variant = TerrainMapConfig.parse_json(body.get_string_from_utf8())
+		var daily: bool = answer is Dictionary and answer.get("error") is Dictionary and answer.error.get("code") == "daily_limit"
+		_finish_failure("Search capacity reached. Try tomorrow or enter coordinates" if daily else "Search is busy. Try again shortly or enter coordinates")
+		return
 	if result!=HTTPRequest.RESULT_SUCCESS or code!=200 or body.size()>MAX_BODY:
 		_finish_failure("Search unavailable (%d/%d)"%[result,code])
 		return
@@ -178,7 +195,7 @@ static func _parse_geojson(decoded: Variant) -> Dictionary:
 		if longitude==null or latitude==null: continue
 		var properties: Dictionary=feature.get("properties") if feature.get("properties") is Dictionary else {}
 		var name := ""
-		for candidate in [feature.get("place_name"),properties.get("label"),properties.get("display_name"),properties.get("name")]:
+		for candidate in [feature.get("place_name"),properties.get("formatted"),properties.get("label"),properties.get("display_name"),properties.get("name")]:
 			if candidate is String and not candidate.strip_edges().is_empty():
 				name=candidate.strip_edges()
 				break

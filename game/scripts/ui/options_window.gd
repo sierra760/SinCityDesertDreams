@@ -25,6 +25,7 @@ const QUALITY_VALUES := ["high", "balanced", "performance"]
 const RESOLUTION_VALUES := [100, 75, 50]
 var effective_label: Label
 var done_button: Button
+var mods_button: Button
 const SCALE_VALUES := [0,100,125,150,175,200]
 var _updating := false
 var _mobile_display := MobilePlatform.is_mobile()
@@ -125,10 +126,11 @@ func _build() -> void:
 	checks[&"offer_ramps"] = ramps_check
 	body.add_child(ramps_check)
 	body.add_child(UIFactory.make_section_header("Explore"))
-	var mods := UIFactory.make_button("Explore Mods")
-	mods.name = "ExploreMods"
-	mods.pressed.connect(func() -> void: mods_requested.emit())
-	body.add_child(mods)
+	mods_button = UIFactory.make_button("Explore Mods")
+	mods_button.name = "ExploreMods"
+	mods_button.visible = ExploreLuaBridge.supported_platform()
+	mods_button.pressed.connect(func() -> void: mods_requested.emit())
+	body.add_child(mods_button)
 	body.add_child(UIFactory.make_label("Pedestrian character"))
 	character_button = OptionButton.new()
 	character_button.name = "PedestrianCharacter"

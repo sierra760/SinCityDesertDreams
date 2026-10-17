@@ -13,6 +13,7 @@ const SCRIPTS := {
 	"graphs": preload("res://scripts/ui/graphs_window.gd"),
 	"help": preload("res://scripts/ui/help_window.gd"),
 	"industries": preload("res://scripts/ui/industries_window.gd"),
+	"privacy": preload("res://scripts/ui/privacy_window.gd"),
 	"license": preload("res://scripts/ui/license_window.gd"),
 	"neighbors": preload("res://scripts/ui/neighbors_window.gd"),
 	"newspaper": preload("res://scripts/ui/newspaper_window.gd"),
@@ -22,7 +23,7 @@ const SCRIPTS := {
 	"population": preload("res://scripts/ui/population_window.gd"),
 }
 ## Windows that can open before the city is founded.
-const EDITING_WINDOWS: Array[String] = ["options", "help", "license", "explore_mods"]
+const EDITING_WINDOWS: Array[String] = ["options", "help", "license", "privacy", "explore_mods"]
 
 ## name -> window, created on first use.
 var windows: Dictionary = {}
@@ -38,6 +39,7 @@ func _init(host: GameHost) -> void:
 ## Show a window and bring it to the front. Returns null, with a status
 ## message, when the window does not exist or cannot open yet.
 func open(window_name: String) -> Control:
+	if window_name == "explore_mods" and not _host.explore_hud.mods_available(): return null
 	if _host.is_exploring(): _host.exploration.suspend()
 	if _host.stage == GameHost.Stage.EDITING and not EDITING_WINDOWS.has(window_name):
 		_host.show_message("%s opens once the city is founded." % String(GameMenuBar.WINDOW_TITLES.get(window_name, window_name.replace("_", " ").capitalize())))
@@ -54,6 +56,7 @@ func open(window_name: String) -> Control:
 		w.call("bind", _host.sim)
 	if w is OptionsWindow:
 		_host.prefs.refresh_options_window(_host.display_layout.metrics)
+		(w as OptionsWindow).mods_button.visible = _host.explore_hud.mods_available() if is_instance_valid(_host.explore_hud) else ExploreLuaBridge.supported_platform()
 	if w.has_method("refresh"):
 		w.call("refresh")
 	w.call("open")
@@ -89,6 +92,7 @@ func window(window_name: String) -> Control:
 	elif w is CityMapsWindow:
 		(w as CityMapsWindow).bind_presentation(_host.presentation)
 	elif w is HelpWindow:
+		(w as HelpWindow).privacy_requested.connect(func() -> void: open("privacy"))
 		(w as HelpWindow).sources_dialog.visibility_changed.connect(_host.sync_help_sources_hold)
 	_host.shell.register_chrome(w)
 	_host.shell.apply_popups(w)
