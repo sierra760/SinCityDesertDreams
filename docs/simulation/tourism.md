@@ -103,7 +103,8 @@ average guest-month lodging and $0.50 per visitor-month gaming. These are busine
 bases, not gross wagers or treasury credits. Mayor gambling stays in the separate
 casino ledger and never changes these bases or visitors' odds.
 
-Day18 books completed activity once at the current rates. Exact twelfth-cent
+Day18 books completed activity once at the rates recorded with it on day17, the
+rates that shaped its demand (older saved pending business uses current rates). Exact twelfth-cent
 units plus subunit residue are obtained from
 `(business_numerator*rate*12+opening_residue)/1000000`. Quotient enters existing
 Budget carry; remainder0–999,999 is saved separately per tax and persists through

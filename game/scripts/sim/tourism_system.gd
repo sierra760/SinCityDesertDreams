@@ -159,10 +159,14 @@ static func validate_period(block: Dictionary, month_id: int, budget: Dictionary
 		var expected_cost := int(safety.get("cost_half_cents", 0))
 		if not TourismState._integer(pending.get("program_half_cents", 0), expected_cost, expected_cost):
 			return {"ok": false}
+		# Saves from before demand rates were recorded book at the current rates.
+		for field in ["occupancy_rate","gaming_rate"]:
+			if pending.has(field) and not TourismState._integer(pending[field], TourismParams.TAX_MIN, TourismParams.TAX_MAX):
+				return {"ok": false}
 		if int(pending.month_id) <= int(booked):
 			pending = {}
 	var normalized: Dictionary = pending.duplicate(true)
-	for field in ["month_id","lodging_cents","gaming_cents","lodging_numerator","gaming_numerator","program_half_cents"]:
+	for field in ["month_id","lodging_cents","gaming_cents","lodging_numerator","gaming_numerator","program_half_cents","occupancy_rate","gaming_rate"]:
 		if normalized.has(field): normalized[field] = int(normalized[field])
 	return {"ok": true, "pending": normalized}
 
@@ -390,7 +394,11 @@ func monthly(_context: SimContext, _phase: int = 0) -> void:
 	_features.safety.cost_half_cents = half_cents if active else 0
 	_pending = {"month_id": month, "profile":TourismMarkets.PROFILE,"lodging_numerator":lodging_numerator,"gaming_numerator":gaming_numerator,
 		"lodging_cents": lodging_numerator/TourismMarkets.BUSINESS_DENOMINATOR, "gaming_cents": gaming_numerator/TourismMarkets.BUSINESS_DENOMINATOR,
-		"program_half_cents": _features.safety.cost_half_cents}
+		"program_half_cents": _features.safety.cost_half_cents,
+		# Business is taxed at the rates that shaped this month's demand, so a
+		# rate change before the next day's booking cannot avoid the trade-off.
+		"occupancy_rate": clampi(_ctx.stats.tax_occupancy, TourismParams.TAX_MIN, TourismParams.TAX_MAX),
+		"gaming_rate": clampi(_ctx.stats.tax_gaming, TourismParams.TAX_MIN, TourismParams.TAX_MAX)}
 	# Publish the atomic attendance/reservation/business snapshot before either
 	# utility reads its overlay. Callbacks cannot reconcile or recursively admit.
 	_admission_busy = true

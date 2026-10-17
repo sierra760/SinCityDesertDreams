@@ -176,7 +176,8 @@ See [Agriculture](agriculture.md).
 `taxes_occupancy` and `taxes_gaming` are separate income accounts. The controls
 are **Occupancy tax %** and **Gaming revenue tax %**, each 0–20 in one-point
 steps, default 7. Day 17 computes completed visitor business; day 18 books its
-bases exactly once at the rates then in force. The base is $1 lodging per average guest
+bases exactly once at the rates recorded with that business on day 17, the rates
+that shaped its demand; older saved pending business uses the rates in force. The base is $1 lodging per average guest
 month and $0.50 gaming per visitor month after payouts, weighted by immutable
 venue-tier and visitor-segment factors. These business bases
 are not treasury credits. Annual settlement credits the taxes with the other

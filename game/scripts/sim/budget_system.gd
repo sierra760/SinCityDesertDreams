@@ -418,16 +418,20 @@ func _book_tourism(ctx: SimContext) -> void:
 		return
 	if month > ctx.clock.day / GameClock.DAYS_PER_MONTH:
 		return
+	# Tax at the rates that shaped the month's demand; older pending business
+	# without them books at the current rates.
+	var occupancy_rate := clampi(int(pending.get("occupancy_rate", ctx.stats.tax_occupancy)),
+		TourismParams.TAX_MIN, TourismParams.TAX_MAX)
+	var gaming_rate := clampi(int(pending.get("gaming_rate", ctx.stats.tax_gaming)),
+		TourismParams.TAX_MIN, TourismParams.TAX_MAX)
 	# Completed bases are multiples of 25 cents, so rate * 12 / 100 is exact.
-	var occupancy := int(pending.lodging_cents) * clampi(ctx.stats.tax_occupancy,
-		TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
-	var gaming := int(pending.gaming_cents) * clampi(ctx.stats.tax_gaming,
-		TourismParams.TAX_MIN, TourismParams.TAX_MAX) * 12 / 100
+	var occupancy := int(pending.lodging_cents) * occupancy_rate * 12 / 100
+	var gaming := int(pending.gaming_cents) * gaming_rate * 12 / 100
 	var proof := {}
 	if pending.get("profile","") == TourismMarkets.PROFILE:
 		_tourism_money_profile = TourismMarkets.PROFILE
 		proof = {"profile":TourismMarkets.PROFILE,"activity":tourism.save().activity.duplicate(true)}
-		for pair in [["occupancy","lodging_numerator",ctx.stats.tax_occupancy],["gaming","gaming_numerator",ctx.stats.tax_gaming]]:
+		for pair in [["occupancy","lodging_numerator",occupancy_rate],["gaming","gaming_numerator",gaming_rate]]:
 			var name: String = pair[0]
 			var rate := clampi(int(pair[2]),TourismParams.TAX_MIN,TourismParams.TAX_MAX)
 			var opening := int(_tourism_residue[name])

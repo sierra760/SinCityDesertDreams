@@ -87,6 +87,10 @@ func test_paid_store_and_resort_host_journey() -> void:
 	retain_host("paid-day17")
 	var pending := tourism.pending_bases()
 	check_gt(int(pending.get("lodging_cents",0)),0)
+	var demand_occupancy := host.sim.stats.tax_occupancy
+	var demand_gaming := host.sim.stats.tax_gaming
+	check_eq(int(pending.get("occupancy_rate",-1)),demand_occupancy,"completed business records its demand occupancy rate")
+	check_eq(int(pending.get("gaming_rate",-1)),demand_gaming,"completed business records its demand gaming rate")
 	var budget := host.open_window("budget") as BudgetWindow
 	budget._tax_spinners[&"occupancy"].value = 9
 	budget._tax_spinners[&"gaming"].value = 11
@@ -96,8 +100,14 @@ func test_paid_store_and_resort_host_journey() -> void:
 	budget.close()
 	host.sim.advance_day()
 	var books := host.sim.get_system(&"budget")
-	check_eq(int(books.save().carry.taxes_occupancy),int(pending.lodging_numerator)*9*12/1000000,"day18 uses selected occupancy rate")
-	check_eq(int(books.save().carry.taxes_gaming),int(pending.gaming_numerator)*11*12/1000000,"day18 uses selected gaming rate")
+	# Rates chosen after the visitor pass shape next month's demand; this
+	# month's business is taxed at the rates its visitors responded to.
+	check_eq(int(books.save().carry.taxes_occupancy),int(pending.lodging_numerator)*demand_occupancy*12/1000000,"day18 books at the demand occupancy rate")
+	check_eq(int(books.save().carry.taxes_gaming),int(pending.gaming_numerator)*demand_gaming*12/1000000,"day18 books at the demand gaming rate")
+	run_to(host.sim.clock.day+GameClock.DAYS_PER_MONTH-1)
+	var next_pending := tourism.pending_bases()
+	check_eq(int(next_pending.get("occupancy_rate",-1)),9,"selected occupancy rate applies to the next visitor month")
+	check_eq(int(next_pending.get("gaming_rate",-1)),11,"selected gaming rate applies to the next visitor month")
 	var store := Vector2i(-1,-1)
 	while host.sim.clock.day < 1500:
 		run_to(host.sim.clock.day+1)
