@@ -64,6 +64,7 @@ func _enter() -> bool:
 	host.toolbar.hide()
 	host.shell.phone_tools_open = false
 	host.shell.update_phone_tools()
+	host.shell.schedule()
 	host.shell.update_minimap_visibility()
 	_set_menus_enabled(false)
 	return true
@@ -80,6 +81,7 @@ func leave() -> void:
 	_snapshot.clear()
 	host.shell.phone_tools_open = false
 	host.shell.update_phone_tools()
+	host.shell.schedule()
 	host.shell.update_minimap_visibility()
 	host.select_tool(int(snapshot.get("tool",GameHost.NO_TOOL)))
 	host.presentation.restore_state(snapshot.get("presentation",{}))

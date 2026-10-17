@@ -47,6 +47,7 @@ static var animation_scale := 1.0
 
 ## Automatic cash-out targets offered before a trajectory launch.
 const AUTO_TARGETS: Array[float] = [0.0, 1.5, 2.0, 3.0, 5.0, 10.0]
+const PHONE_GAME_NAMES := {&"roulette":"Roulette",&"faro":"Faro",&"money_wheel":"Money wheel",&"chuck_a_luck":"Chuck-a-luck",&"blackjack":"Blackjack",&"slots":"Slots",&"video_poker":"Video poker",&"baccarat":"Baccarat",&"trajectory":"Trajectory"}
 const VOICE_NAMES := {
 	&"shopkeeper": "The shopkeeper",
 	&"assayer": "The assayer",
@@ -84,6 +85,9 @@ var _line_rng: CasinoRng
 var _root: VBoxContainer
 var _table_area: Control
 var _side: PanelContainer
+var _side_column: VBoxContainer
+var _patter_panel: PanelContainer
+var _patter_scroll: ScrollContainer
 var _rules_close: Button
 var _committed := 0
 var _settled := false
@@ -151,8 +155,12 @@ func _init() -> void:
 	side_face.set_content_margin_all(6)
 	_side.add_theme_stylebox_override("panel", side_face)
 	_side.visible = false
+	_side_column = VBoxContainer.new()
+	_side_column.add_theme_constant_override("separation",6)
+	_side.add_child(_side_column)
 	middle.add_child(_side)
 	var patter_panel := PanelContainer.new()
+	_patter_panel = patter_panel
 	patter_panel.name = "Patter"
 	var patter_face := StyleBoxFlat.new()
 	patter_face.bg_color = Color(UITheme.PANEL_FACE, 0.95)
@@ -167,8 +175,18 @@ func _init() -> void:
 	patter_label.name = "PatterLine"
 	# The dealer's line wraps on narrow displays instead of cutting off.
 	patter_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	patter_panel.add_child(patter_label)
+	_patter_scroll = ScrollContainer.new()
+	_patter_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_patter_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	patter_panel.add_child(_patter_scroll)
+	patter_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_patter_scroll.add_child(patter_label)
 	bet_bar = CasinoBetBar.new()
+	bet_bar.spot_selected.connect(func(spot: StringName) -> void:
+		if game == null or game.state == CasinoGame.PLAYING or not spot in stage.spot_order(): return
+		stage.selected_spot = spot
+		stage.queue_redraw()
+		_refresh())
 	bet_bar.chip_pressed.connect(press_chip)
 	bet_bar.step_pressed.connect(step_bet)
 	bet_bar.action_pressed.connect(func(action: StringName) -> void: perform_action(action))
@@ -214,6 +232,8 @@ func _build_rules() -> void:
 ## Fit the table to the display's safe area as it changes.
 func bind_layout(layout: DisplayLayout) -> void:
 	_layout = layout
+	layout.register_popup(bet_bar.spot_picker.get_popup())
+	layout.register_popup(bet_bar.chip_picker.get_popup())
 	if not layout.metrics_changed.is_connected(_on_metrics_changed):
 		layout.metrics_changed.connect(_on_metrics_changed)
 	_apply_bounds()
@@ -255,7 +275,7 @@ func open(table_sim: Simulation, resort_key: StringName, game_kind: StringName, 
 	stage.event_started.connect(_on_event_started)
 	stage.event_finished.connect(_on_event_finished)
 	stage.idle.connect(_refresh)
-	chrome.setup(palette, ResortThemes.resort_name(resort), ResortThemes.floor_name(resort), ResortThemes.game_name(resort, kind))
+	chrome.setup(palette, ResortThemes.resort_name(resort), ResortThemes.floor_name(resort), ResortThemes.game_name(resort, kind),PHONE_GAME_NAMES.get(kind,ResortThemes.game_name(resort,kind)))
 	chrome.rules_button.set_pressed_no_signal(false)
 	rules_panel.visible = false
 	rules_label.text = rules_text(kind, resort, game.limits)
@@ -277,6 +297,7 @@ func open(table_sim: Simulation, resort_key: StringName, game_kind: StringName, 
 	if int(game.limits["maximum"]) < table_maximum:
 		# The treasury caps the bet below the table's own maximum; say so.
 		_patter = _patter.trim_suffix(".") + "; the treasury covers up to %s." % CasinoLines.money(int(game.limits["maximum"]))
+	_patter_scroll.scroll_vertical = 0
 	bet_bar.set_selected_chip(0)
 	visible = true
 	_apply_bounds()
@@ -514,6 +535,7 @@ func step_bet(direction: int) -> void:
 		add_to_spot(spot, amount)
 		return
 	var current := int(game.bets().get(spot, 0))
+	if bet_bar.selected_chip()==CasinoBetBar.MAX_CHIP: amount=current
 	if current <= 0:
 		return
 	game.remove_bet(spot)
@@ -837,6 +859,7 @@ func _say_message(text: String) -> void:
 func _refresh() -> void:
 	if game == null or not visible or not is_instance_valid(stage):
 		return
+	bet_bar.set_spots(stage,_layout != null and DisplayLayout.is_phone(_layout.metrics))
 	var minimum := int(game.limits["minimum"])
 	var maximum := int(game.limits["maximum"])
 	var betting := game.state != CasinoGame.PLAYING
@@ -858,9 +881,12 @@ func _refresh() -> void:
 	if on_spot > 0:
 		spot_text += " · " + CasinoLines.money(on_spot) + " on it"
 	bet_bar.set_readout(spot_text, "Bet %s · limits %s to %s" % [CasinoLines.money(game.total_staked()), CasinoLines.money(minimum), CasinoLines.money(maximum)])
+	if _layout != null and DisplayLayout.is_phone(_layout.metrics):
+		bet_bar.total_label.text = "Treasury %s · Bet %s" % [CasinoLines.money(_shown_funds),CasinoLines.money(game.total_staked())]
 	var in_play := _committed if game.state == CasinoGame.PLAYING else 0
 	chrome.set_treasury(_shown_funds, _shown_net, in_play)
 	chrome.set_leave_enabled(can_leave(), CasinoLines.ROUND_OPEN)
+	var previous_feedback := patter_label.text
 	if not _message.is_empty():
 		patter_label.text = _message
 		patter_label.add_theme_color_override("font_color", UITheme.MONEY_NEGATIVE)
@@ -868,6 +894,8 @@ func _refresh() -> void:
 		var voice_name := String(VOICE_NAMES.get(ResortThemes.voice(resort), ""))
 		patter_label.text = ("%s · %s" % [voice_name, _patter]) if not voice_name.is_empty() and _patter_voiced else _patter
 		patter_label.add_theme_color_override("font_color", palette.ink if palette != null else UITheme.TEXT_PRIMARY)
+	if patter_label.text != previous_feedback: _patter_scroll.scroll_vertical = 0
+	_schedule_bounds()
 	_keep_focus()
 	if kind in OriginalSignatureStage.KINDS:
 		_schedule_bounds()
@@ -896,12 +924,15 @@ func _show_rules(shown: bool) -> void:
 	rules_panel.visible = shown
 	chrome.rules_button.set_pressed_no_signal(shown)
 	if shown:
+		if game != null:
+			rules_label.text = "Treasury %s · This sitting %s\n\n%s\n\n%s" % [CasinoLines.money(_shown_funds),UIFactory.format_money(_shown_net),patter_label.text,rules_text(kind,resort,game.limits)]
 		_rules_close.grab_focus()
 	UIFactory.contain_modal_focus(self, _rules_close if shown else chrome.rules_button)
 
 
 func _on_metrics_changed(_metrics: Dictionary) -> void:
 	_apply_bounds()
+	_refresh()
 
 
 func _schedule_bounds() -> void:
@@ -927,10 +958,19 @@ func _apply_bounds() -> void:
 	_root.position = inner.position
 	_root.size = inner.size
 	var short := inner.size.y < 520.0
-	chrome.apply_layout(inner.size.x < 520.0, short)
+	var phone := _layout != null and DisplayLayout.is_phone(_layout.metrics)
+	chrome.apply_layout(inner.size.x < 520.0, short, _layout != null and DisplayLayout.is_phone(_layout.metrics))
+	if is_instance_valid(stage): bet_bar.set_spots(stage,_layout != null and DisplayLayout.is_phone(_layout.metrics))
+	_side.custom_minimum_size.x = 200 if _layout != null and DisplayLayout.is_phone(_layout.metrics) else 124
 	var signature_four_actions := kind in OriginalSignatureStage.KINDS and game != null and game.actions().size() >= 4
-	bet_bar.apply_layout(inner.size.x, short, _side if short and inner.size.x >= 480.0 and not signature_four_actions else null)
-	_side.visible = bet_bar.actions_parent() == _side
+	bet_bar.apply_layout(inner.size.x, short, _side_column if short and inner.size.x >= 480.0 and (not signature_four_actions or phone) else null)
+	_side.visible = bet_bar.actions_parent() == _side_column
+	# Limits and selected stake remain in the bet bar; optional welcome patter
+	# yields space on phones. Errors and round feedback stay visible.
+	patter_label.add_theme_font_size_override("font_size",UITheme.FONT_SMALL if phone else UITheme.FONT_BODY)
+	_patter_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if phone else ScrollContainer.SCROLL_MODE_DISABLED
+	_patter_scroll.custom_minimum_size.y = 44 if phone else 0
+	_patter_panel.visible = not phone or not _message.is_empty() or _confirm_stake>0
 
 
 # ── Keyboard ─────────────────────────────────────────────────────────────

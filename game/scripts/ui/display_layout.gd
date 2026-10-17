@@ -27,6 +27,7 @@ var _last_screen := -1
 var _last_backing := 0.0
 var _last_mode := -1
 var _mobile := false
+var _platform_name := ""
 var _safe_area_px := Rect2i()
 var _keyboard_height_px := 0
 const PLATFORM := preload("res://scripts/platform/mobile_platform.gd")
@@ -315,6 +316,7 @@ func refresh_metrics() -> void:
 		return
 	var readings: Dictionary = PLATFORM.display_readings(_window)
 	_mobile = readings.mobile
+	_platform_name = OS.get_name()
 	_safe_area_px = readings.safe_area_px
 	_keyboard_height_px = readings.keyboard_height_px
 	var mode := window_mode()
@@ -340,20 +342,22 @@ func _apply_min_size(backing: float) -> void:
 		_window.min_size = minimum
 
 ## Injectable display readings allow deterministic DPI/fullscreen tests.
-func refresh_with_metrics(drawable_px: Vector2i, backing_scale: float, safe_area_px: Rect2i = Rect2i(), keyboard_height_px: int = 0, mobile: bool = false) -> void:
+func refresh_with_metrics(drawable_px: Vector2i, backing_scale: float, safe_area_px: Rect2i = Rect2i(), keyboard_height_px: int = 0, mobile: bool = false, platform_name: String = "") -> void:
 	_injected = true
 	_mobile = mobile
+	_platform_name = platform_name
 	_safe_area_px = safe_area_px
 	_keyboard_height_px = keyboard_height_px
 	_update(drawable_px,backing_scale)
 
-func refresh_with_mobile_metrics(drawable_px: Vector2i, backing_scale: float, safe_area_px: Rect2i, keyboard_height_px: int = 0) -> void:
-	refresh_with_metrics(drawable_px,backing_scale,safe_area_px,keyboard_height_px,true)
+func refresh_with_mobile_metrics(drawable_px: Vector2i, backing_scale: float, safe_area_px: Rect2i, keyboard_height_px: int = 0, platform_name: String = "") -> void:
+	refresh_with_metrics(drawable_px,backing_scale,safe_area_px,keyboard_height_px,true,platform_name)
 
 func _update(drawable_px: Vector2i, backing_scale: float) -> void:
 	var next := resolve_scale(drawable_px,backing_scale,ui_scale,_safe_area_px,_keyboard_height_px,_mobile)
 	if next.is_empty():
 		return
+	next["platform_name"] = _platform_name
 	# A maximized or fullscreen drawable is not the size to restore later.
 	if not fullscreen and not maximized and not _mobile:
 		windowed_size = Vector2(drawable_px) / float(next["backing_scale"])
@@ -364,9 +368,11 @@ func _update(drawable_px: Vector2i, backing_scale: float) -> void:
 	if changed:
 		WindowDrag.cancel_all()
 		_fit_registered()
-		for popup in _popups.duplicate():
+		for index in range(_popups.size()-1,-1,-1):
+			var popup: Window = _popups[index]
 			if not is_instance_valid(popup):
-				_popups.erase(popup)
+				# A typed Array cannot erase a freed object by value in 4.7.
+				_popups.remove_at(index)
 			elif popup.visible:
 				apply_popup(popup)
 		metrics_changed.emit(metrics)

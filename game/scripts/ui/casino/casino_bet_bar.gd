@@ -5,11 +5,14 @@
 ## The bet bar: chips worth one, two, five and ten times the table minimum
 ## and Max, minus and plus for the selected spot, the automatic cash-out of a
 ## trajectory launch, and one button per game action. Wide tables keep chips
-## and actions on one row; narrow ones stack and wrap them.
+## and actions on one row; narrow ones stack and wrap them. Phones use a
+## denomination chooser and minus/plus instead of the five-chip bank; choosing
+## a denomination or a precise table spot never places a bet.
 class_name CasinoBetBar
 extends PanelContainer
 
 ## A chip was pressed: `index` 0–3 for the denominations, 4 for Max.
+signal spot_selected(spot: StringName)
 signal chip_pressed(index: int)
 ## Minus (-1) or plus (+1) for the selected spot.
 signal step_pressed(direction: int)
@@ -25,6 +28,10 @@ var plus_button: Button
 var auto_button: Button
 ## Action id -> button.
 var action_buttons: Dictionary = {}
+var chip_picker: OptionButton
+var spot_picker: OptionButton
+var _phone := false
+var _spot_ids: Array[StringName] = []
 var spot_label: Label
 var total_label: Label
 
@@ -56,6 +63,15 @@ func _init() -> void:
 	_readout = BoxContainer.new()
 	_readout.add_theme_constant_override("separation", 12)
 	_column.add_child(_readout)
+	spot_picker = OptionButton.new()
+	spot_picker.name = "BetSpot"
+	spot_picker.custom_minimum_size = Vector2(44,44)
+	spot_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spot_picker.fit_to_longest_item = false
+	spot_picker.hide()
+	spot_picker.item_selected.connect(func(index: int) -> void:
+		if index>=0 and index<spot_picker.item_count: spot_selected.emit(StringName(spot_picker.get_item_metadata(index))))
+	_readout.add_child(spot_picker)
 	spot_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_PRIMARY)
 	spot_label.name = "SpotReadout"
 	spot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -82,6 +98,14 @@ func _init() -> void:
 	_actions.add_theme_constant_override("h_separation", 6)
 	_actions.add_theme_constant_override("v_separation", 6)
 	_row.add_child(_actions)
+	chip_picker = OptionButton.new()
+	chip_picker.name = "ChipDenomination"
+	chip_picker.custom_minimum_size = Vector2(128,44)
+	chip_picker.fit_to_longest_item = false
+	chip_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chip_picker.hide()
+	chip_picker.item_selected.connect(func(index: int) -> void: set_selected_chip(index))
+	_chips.add_child(chip_picker)
 	for i in MAX_CHIP + 1:
 		var chip := UIFactory.make_button("")
 		chip.name = "Chip%d" % i
@@ -106,10 +130,14 @@ func _init() -> void:
 
 ## Chip labels and colors for a table minimum; `max_value` is the Max chip.
 func set_chips(values: Array[int], max_value: int, minimum: int) -> void:
+	if chip_picker.item_count==0:
+		for i in MAX_CHIP+1: chip_picker.add_item("")
 	for i in chip_buttons.size():
 		var chip := chip_buttons[i]
 		var amount := max_value if i == MAX_CHIP else (values[i] if i < values.size() else 0)
 		chip.text = "Max" if i == MAX_CHIP else CasinoPalette.chip_label(amount)
+		chip.visible = not _phone
+		chip_picker.set_item_text(i,"Chip: Max " + CasinoLines.money(amount) if i==MAX_CHIP else "Chip: " + CasinoLines.money(amount))
 		chip.tooltip_text = ("Bet up to the maximum, %s (5)" % CasinoLines.money(amount)) if i == MAX_CHIP else ("%s chip (%d)" % [CasinoLines.money(amount), i + 1])
 		chip.set_meta("chip_value", amount)
 		chip.set_meta("chip_color", CasinoPalette.CHIP_FACES.size() - 1 if i == MAX_CHIP else CasinoPalette.chip_index(amount, minimum))
@@ -118,6 +146,7 @@ func set_chips(values: Array[int], max_value: int, minimum: int) -> void:
 
 func set_selected_chip(index: int) -> void:
 	_selected_chip = clampi(index, 0, MAX_CHIP)
+	if chip_picker.item_count>_selected_chip: chip_picker.select(_selected_chip)
 	for i in chip_buttons.size():
 		_style_chip(i)
 
@@ -170,6 +199,8 @@ func selected_chip() -> int:
 
 ## Enable the chips and steppers (only while bets can change).
 func set_betting_enabled(enabled: bool) -> void:
+	chip_picker.disabled = not enabled
+	spot_picker.disabled = not enabled
 	for chip in chip_buttons:
 		chip.disabled = not enabled
 	minus_button.disabled = not enabled
@@ -194,11 +225,13 @@ func set_actions(actions: Array[Dictionary], hidden: Array[StringName], shortcut
 				button.queue_free()
 			button = UIFactory.make_primary_button("") if primary else UIFactory.make_button("")
 			button.name = "Action_%s" % String(id)
-			button.custom_minimum_size = Vector2(96, 44)
+			button.custom_minimum_size = Vector2(84 if _phone else 96, 44)
 			button.set_meta("primary", primary)
 			button.pressed.connect(func() -> void: action_pressed.emit(id))
 			_actions.add_child(button)
 			action_buttons[id] = button
+		button.add_theme_font_size_override("font_size",UITheme.FONT_SMALL if _phone else UITheme.FONT_BODY)
+		button.custom_minimum_size.x = 84 if _phone else 96
 		button.text = String(action["label"])
 		button.disabled = not bool(action.get("enabled", true))
 		var key := String(shortcuts.get(id, ""))
@@ -237,8 +270,34 @@ func set_auto(value: float, shown: bool) -> void:
 ## Wide bars keep chips and actions side by side. Short displays hide the
 ## readout row and, given `side`, stack the actions there (beside the table)
 ## so the table keeps its height.
+func set_spots(table: CasinoStage, phone: bool) -> void:
+	_phone = phone
+	chip_picker.visible = phone
+	for chip: Button in chip_buttons: chip.visible = not phone
+	var ids := table.spot_order()
+	spot_picker.visible = phone and ids.size()>1 and not table is OriginalSignatureStage
+	spot_label.visible = not phone
+	if ids != _spot_ids:
+		_spot_ids = ids.duplicate()
+		spot_picker.clear()
+		for id: StringName in ids:
+			spot_picker.add_item("Bet on " + table.spot_label(id))
+			spot_picker.set_item_metadata(spot_picker.item_count-1,id)
+	var selected := ids.find(table.selected_spot)
+	for index in ids.size():
+		var info := table.spot_info(ids[index])
+		var text := "Bet on " + table.spot_label(ids[index])
+		if info.has("odds"): text += " · " + String(info.odds)
+		if spot_picker.get_item_text(index)!=text: spot_picker.set_item_text(index,text)
+	if selected>=0:
+		spot_picker.select(selected)
+		var info := table.spot_info(table.selected_spot)
+		var amount := int(table.game.bets().get(table.selected_spot,0))
+		spot_picker.text = "%s · %s%s" % [table.spot_label(table.selected_spot),CasinoLines.money(amount)," · "+String(info.odds) if info.has("odds") else ""]
+
 func apply_layout(width: float, short: bool, side: Container = null) -> void:
-	_readout.visible = not short
+	_readout.visible = not short or _phone
+	total_label.visible = not short or _phone
 	_wide = width >= WIDE
 	# Narrow bars let the spot caption wrap instead of cutting it short.
 	spot_label.autowrap_mode = TextServer.AUTOWRAP_OFF if _wide else TextServer.AUTOWRAP_WORD_SMART
@@ -252,6 +311,10 @@ func apply_layout(width: float, short: bool, side: Container = null) -> void:
 	var actions_target: Container = side if short and side != null else chips_target
 	if _chips.get_parent() != chips_target:
 		_chips.reparent(chips_target, false)
+	var picker_target: Container = side if short and side != null else _readout
+	if spot_picker.get_parent() != picker_target:
+		spot_picker.reparent(picker_target,false)
+	if picker_target==side: side.move_child(spot_picker,0)
 	if _actions.get_parent() != actions_target:
 		_actions.reparent(actions_target, false)
 	_row.visible = _wide

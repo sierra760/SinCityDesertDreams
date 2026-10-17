@@ -8,6 +8,7 @@
 class_name ExploreHUD
 extends CanvasLayer
 
+signal suspension_changed
 signal vehicle_requested(kind: StringName)
 signal destination_selected(station_id: int, destination_id: int)
 signal resume_requested
@@ -25,6 +26,8 @@ var invert_y := false
 var _chrome_top := 0.0
 var _chrome_bottom := 0.0
 var _layout: DisplayLayout
+var _phone_summary: Label
+var _phone_details: Label
 var _status_panel: PanelContainer
 var _status_scroll: ScrollContainer
 var _critical_scroll: ScrollContainer
@@ -116,12 +119,14 @@ func show_session(on: bool) -> void:
 ## `focus_resume` gives Resume keyboard focus so Enter/Space resumes; it is
 ## off when a modal took the input, so the modal keeps its own focus.
 func set_suspended(on: bool, focus_resume: bool = true) -> void:
+	var changed := _suspended != on
 	_suspended=on
 	if is_instance_valid(touch_controls): touch_controls.set_suspended(on)
 	if is_instance_valid(_panel):
 		_panel.visible = on and not (is_instance_valid(navigation) and navigation.expanded)
 	_update_hint()
 	_reflow()
+	if changed: suspension_changed.emit()
 	if on and focus_resume and not _touch_enabled and is_instance_valid(_resume_button) and _resume_button.is_visible_in_tree():
 		_resume_button.grab_focus()
 
@@ -197,8 +202,8 @@ func set_status(status: Dictionary) -> void:
 	for objective: Dictionary in journal:
 		if tracked.is_empty() and objective.status == "active": tracked = String(objective.text).replace("\n"," ").replace("\r"," ")
 		lines.append("%s: %s" % [String(objective.status).capitalize(),String(objective.text)])
-	_set_label_text(_objective_label,tracked)
-	_set_visible(_objective_label,not tracked.is_empty())
+	var changed := _set_label_text(_objective_label,tracked)
+	changed = _set_visible(_objective_label,not tracked.is_empty()) or changed
 	_set_label_text(_journal_label,"Journal\n"+"\n".join(lines))
 	_set_visible(_journal_label,not lines.is_empty())
 	if not is_instance_valid(_actor_label):
@@ -214,7 +219,6 @@ func set_status(status: Dictionary) -> void:
 	var speed := float(status.get("speed", 0.0))
 	var altitude := float(status.get("altitude", 0.0))
 	_base_speed_text = "Speed: %.1f m/s" % (maxf(0.0, speed) * ExploreActorProfile.METRES_PER_TILE)
-	var changed := false
 	# Passenger text belongs to the transit status. Keep it between the
 	# controller's paired updates instead of flipping to Walking every tick.
 	if not _transit_passenger or mode != ExploreActorProfile.Mode.WALK:
@@ -280,6 +284,13 @@ func _build() -> void:
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status_scroll.add_child(_message_label)
+	_phone_summary = UIFactory.make_label("",UITheme.FONT_SMALL)
+	_phone_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_phone_summary.max_lines_visible = 4
+	_phone_summary.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_phone_summary.clip_text = false
+	_phone_summary.hide()
+	_status_panel.add_child(_phone_summary)
 	_status_panel.minimum_size_changed.connect(_reflow)
 	_panel = UIFactory.make_panel()
 	_panel.name = "ExplorePanel"
@@ -301,6 +312,10 @@ func _build() -> void:
 		button.pressed.connect(func() -> void: emit_signal(row[1]))
 		column.add_child(button)
 		if row[0] == "Resume": _resume_button = button
+	_phone_details = UIFactory.make_label("",UITheme.FONT_SMALL)
+	_phone_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_phone_details.hide()
+	column.add_child(_phone_details)
 	_panel_hint_label = UIFactory.make_label("",UITheme.FONT_SMALL)
 	_panel_hint_label.name = "ExplorePanelControlsHint"
 	_panel_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -417,6 +432,26 @@ func _usable_rect() -> Rect2:
 	available.size.y -= reserved_top + reserved_bottom
 	return available
 
+func _phone_status_text(full: bool = false) -> String:
+	var lines := PackedStringArray()
+	if full or _mode != ExploreActorProfile.Mode.WALK or _transit_passenger:
+		lines.append(_actor_label.text + " · " + _speed_label.text.trim_prefix("Speed: "))
+	if _mode == ExploreActorProfile.Mode.FLY: lines.append(_altitude_label.text)
+	if not full and _transit_passenger and _transit_label.visible:
+		var transit_lines := _transit_label.text.split("\n")
+		for line: String in transit_lines:
+			if line.begins_with("Doors:"): lines.append(line)
+		for line: String in transit_lines:
+			if line.begins_with("Next:"): lines.append(line)
+	else:
+		for label: Label in [_prompt_label,_transit_label,_message_label,_objective_label]:
+			if label.visible and not label.text.is_empty():
+				var text := label.text
+				if not full: text = text.replace("Interact to ","Interact: ").replace("nearby vehicle","vehicle")
+				lines.append(text)
+	if lines.is_empty(): lines.append(_actor_label.text)
+	return "\n".join(lines)
+
 func _reflow() -> void:
 	if not is_instance_valid(_panel) or not is_instance_valid(_status_panel):
 		return
@@ -424,7 +459,16 @@ func _reflow() -> void:
 	_place_hint()
 	if is_instance_valid(touch_controls): touch_controls.set_usable_rect(available)
 	var margin := 8.0
-	var phone := is_instance_valid(_layout) and DisplayLayout.is_phone(_layout.metrics)
+	var phone := _touch_enabled and is_instance_valid(_layout) and DisplayLayout.is_phone(_layout.metrics)
+	touch_controls.set_phone_layout(phone)
+	if is_instance_valid(navigation): navigation.phone_layout = phone
+	_critical_scroll.visible = not phone
+	_phone_summary.visible = phone
+	_phone_details.visible = phone and _suspended
+	if phone:
+		_set_label_text(_phone_summary,_phone_status_text())
+		_set_label_text(_phone_details,_phone_status_text(true)+"\nLeft thumb: move · Drag the right side to look.")
+	_status_panel.visible = not (is_instance_valid(navigation) and navigation.expanded) and not (phone and _suspended)
 	_critical_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if phone else ScrollContainer.SCROLL_MODE_DISABLED
 	# Put the current interaction directly after actor identity on phones;
 	# metrics and longer transit feedback remain in the same touch scroll.
@@ -454,11 +498,26 @@ func _reflow() -> void:
 		var status_style := _status_panel.get_theme_stylebox(&"panel")
 		var status_chrome := status_style.get_minimum_size().y if status_style != null else 0.0
 		status_height = minf(status_height,maxf(44.0,(status_column as Control).get_combined_minimum_size().y+status_chrome))
+	if phone:
+		var face := UITheme.window_stylebox()
+		face.set_content_margin_all(6)
+		_status_panel.add_theme_stylebox_override("panel",face)
+		status_width = maxf(100,available.size.x-172)
+		if available.size.x>=600: status_width=minf(360,status_width)
+		_phone_summary.size.x = status_width-12
+		_phone_summary.get_minimum_size()
+		var font := _phone_summary.get_theme_font("font")
+		var line_height := font.get_height(_phone_summary.get_theme_font_size("font_size"))
+		var line_count := mini(4,maxi(1,_phone_summary.get_line_count()))
+		status_height = ceilf(line_height*line_count + _phone_summary.get_theme_constant("line_spacing")*maxi(0,line_count-1))+12
+		_phone_summary.custom_minimum_size.y = status_height-12
+	else:
+		_status_panel.add_theme_stylebox_override("panel",UITheme.window_stylebox())
 	_status_panel.size = Vector2(status_width, status_height)
 	if is_instance_valid(navigation):
 		navigation.apply_layout(available,_status_panel.get_rect(),_touch_enabled)
 		if _touch_enabled and is_instance_valid(touch_controls._look_label):
-			touch_controls._look_label.visible = not _suspended and not touch_controls._look_label.get_rect().intersects(navigation._compact.get_rect())
+			touch_controls._look_label.visible = not phone and not _suspended and not touch_controls._look_label.get_rect().intersects(navigation._compact.get_rect())
 	if is_instance_valid(touch_controls): touch_controls.set_status_rect(_status_panel.get_rect())
 	var width := minf(390.0, available.size.x - margin * 2.0)
 	# The paused panel is as tall as its content, up to the usable height;
@@ -499,7 +558,7 @@ func _panel_content_height(width: float) -> float:
 	return column.get_combined_minimum_size().y + chrome
 
 func panel_touch_reflow(available: Rect2, margin: float, width: float, height: float) -> void:
-	var top := _status_panel.get_rect().end.y+margin
+	var top := _status_panel.get_rect().end.y+margin if _status_panel.visible else available.position.y+margin
 	var room := maxf(0.0,available.end.y-margin-top)
 	height=minf(height,room)
 	# Usable iPad portrait and narrow canvases have room below status. On

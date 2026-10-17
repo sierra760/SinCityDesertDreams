@@ -24,7 +24,12 @@ var _top: HBoxContainer
 var _money: VBoxContainer
 var _bottom: HBoxContainer
 var _narrow := false
+var _sign_font: Font
+var _place_full := ""
+var _phone_game_name := ""
+var _roomy_face: StyleBoxFlat
 var _name_font_size := UITheme.FONT_TITLE + 4
+var _phone_face: StyleBoxFlat
 
 
 func _init() -> void:
@@ -76,10 +81,13 @@ func _init() -> void:
 
 
 ## Resort name, floor and game, with the resort's lettering and accent rule.
-func setup(colors: CasinoPalette, resort_name: String, floor_name: String, game_name: String) -> void:
+func setup(colors: CasinoPalette, resort_name: String, floor_name: String, game_name: String, phone_game_name: String = "") -> void:
 	resort_label.text = colors.sign_text(resort_name)
+	_sign_font = colors.sign_font
 	resort_label.add_theme_font_override("font", colors.sign_font)
-	place_label.text = "%s · %s" % [floor_name, game_name] if not floor_name.is_empty() else game_name
+	_place_full = "%s · %s" % [floor_name, game_name] if not floor_name.is_empty() else game_name
+	_phone_game_name = phone_game_name if not phone_game_name.is_empty() else game_name
+	place_label.text = _place_full
 	var face := StyleBoxFlat.new()
 	face.bg_color = UITheme.PANEL_FACE
 	face.border_color = colors.accent
@@ -90,6 +98,13 @@ func setup(colors: CasinoPalette, resort_name: String, floor_name: String, game_
 	face.content_margin_right = 8
 	face.content_margin_top = 4
 	face.content_margin_bottom = 6
+	_roomy_face = face
+	_phone_face = face.duplicate()
+	_phone_face.content_margin_left = 8
+	_phone_face.content_margin_right = 6
+	_phone_face.content_margin_top = 2
+	_phone_face.content_margin_bottom = 2
+	_phone_face.border_width_bottom = 1
 	add_theme_stylebox_override("panel", face)
 
 
@@ -113,10 +128,20 @@ func set_leave_enabled(enabled: bool, reason: String = "") -> void:
 
 ## Narrow headers put the money and the buttons on their own row; short
 ## ones use a smaller name.
-func apply_layout(narrow: bool, short: bool = false) -> void:
-	_name_font_size = UITheme.FONT_TITLE + (0 if short or narrow else 4)
+func apply_layout(narrow: bool, short: bool = false, phone: bool = false) -> void:
+	resort_label.add_theme_font_override("font",UITheme.DISPLAY_FONT if phone or _sign_font==null else _sign_font)
+	_name_font_size = 14 if phone else UITheme.FONT_TITLE + (0 if short or narrow else 4)
 	resort_label.add_theme_font_size_override("font_size",_name_font_size)
 	_fit_resort_name.call_deferred()
+	place_label.add_theme_font_size_override("font_size",12 if phone else UITheme.FONT_SMALL)
+	place_label.text = _phone_game_name if phone else _place_full
+	_money.visible = not phone
+	leave_button.text = "Leave" if phone else CasinoLines.LEAVE_TABLE
+	_top.add_theme_constant_override("separation",6 if phone else 10)
+	for button: Button in [rules_button,leave_button]:
+		button.add_theme_font_size_override("font_size",UITheme.FONT_SMALL if phone else UITheme.FONT_BODY)
+	if _roomy_face != null: add_theme_stylebox_override("panel",_phone_face if phone else _roomy_face)
+	narrow = narrow and not phone
 	if narrow == _narrow:
 		return
 	_narrow = narrow

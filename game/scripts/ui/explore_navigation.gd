@@ -13,6 +13,7 @@ var _active := false
 var _usable := Rect2(0,0,1280,800)
 var _status_rect := Rect2()
 var _touch := false
+var phone_layout := false
 var _compact: PanelContainer
 var _expanded: PanelContainer
 var _shade: ColorRect
@@ -134,9 +135,17 @@ func apply_layout(usable: Rect2, status_rect: Rect2, touch: bool) -> void:
 	_small_map.size = Vector2(side,side)
 	# A 44-unit target remains available even on the narrowest phone. On very
 	# short views the card reduces to its button rather than covering a thumb.
-	_small_map.visible = map_visible and (not touch or usable.size.y >= side+324) and right_room >= 80
+	_small_map.visible = not phone_layout and map_visible and (not touch or usable.size.y >= side+324) and right_room >= 80
 	_compact.size = Vector2(side+compact_margin*2,0)
 	_compact.position = Vector2(usable.end.x-_compact.size.x-8,usable.position.y+(64 if touch else 8))
+	if phone_layout:
+		style.set_content_margin_all(0)
+		_compact.add_theme_stylebox_override("panel",style)
+		_open_button.custom_minimum_size = Vector2(64,44)
+		_compact.size = Vector2(64,44)
+		_compact.position = Vector2(usable.end.x-156,usable.position.y+8)
+	else:
+		_open_button.custom_minimum_size = Vector2(0,44)
 	var width := minf(720,maxf(1,usable.size.x-16))
 	_caption.visible = usable.size.y >= 300
 	_legend.visible = usable.size.y >= 360

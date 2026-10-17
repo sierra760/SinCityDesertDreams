@@ -15,6 +15,11 @@ signal tools_requested
 signal inspect_requested
 
 const BAR_HEIGHT := 44
+const PHONE_INSPECT_ID := 1000000
+# iOS exposes a rectangular safe area, but no camera rectangle. Leave a
+# conservative 220pt center guard for wide notches and Dynamic Island alike.
+const CAMERA_GUARD_POINTS := 220.0
+const CAMERA_VERTICAL_PADDING_POINTS := 8.0
 
 const WINDOW_NAMES: Array[String] = ["budget", "graphs", "population", "industries",
 	"ordinances", "newspaper", "city_maps", "neighbors"]
@@ -39,6 +44,9 @@ var _phone_menu: MenuButton
 var phone_tools_button: Button
 var phone_inspect_button: Button
 var _phone := false
+var _camera_wings := false
+var _tools_open := false
+var _inspect_available := false
 
 ## Reuse the desktop PopupMenus and action registry in the phone menu.
 ## Reparenting keeps radio/check/disabled states and dynamic captions intact.
@@ -63,6 +71,8 @@ func set_phone_layout(on: bool) -> void:
 		_phone_menu.custom_minimum_size = Vector2(80,44)
 		_phone_menu.theme = UITheme.control_theme()
 		_phone_menu.get_popup().about_to_popup.connect(func() -> void: popup_opened.emit())
+		_phone_menu.get_popup().id_pressed.connect(func(id: int) -> void:
+			if id == PHONE_INSPECT_ID and _inspect_available: inspect_requested.emit())
 		_phone_row.add_child(_phone_menu)
 		add_child(_phone_row)
 	for popup: PopupMenu in _menus.values(): popup.hide()
@@ -81,9 +91,52 @@ func set_phone_layout(on: bool) -> void:
 
 func set_phone_build_available(on: bool, tools_open: bool = false, inspect_on: bool = true) -> void:
 	if _phone_row == null: return
+	_tools_open = tools_open
+	_inspect_available = on and inspect_on
 	phone_tools_button.disabled = not on
-	phone_inspect_button.disabled = not on or not inspect_on
-	phone_tools_button.text = "Close tools" if tools_open else "Tools"
+	phone_inspect_button.disabled = not _inspect_available
+	phone_tools_button.text = "Close tools" if tools_open and not _camera_wings else "Tools"
+	phone_tools_button.tooltip_text = "Close tools" if tools_open else "Open tools"
+	_sync_phone_inspect()
+
+func _sync_phone_inspect() -> void:
+	var popup := _phone_menu.get_popup()
+	var index := popup.get_item_index(PHONE_INSPECT_ID)
+	if _camera_wings:
+		if index < 0:
+			popup.add_item("Inspect",PHONE_INSPECT_ID)
+			index = popup.get_item_index(PHONE_INSPECT_ID)
+		popup.set_item_disabled(index,not _inspect_available)
+	elif index >= 0:
+		popup.remove_item(index)
+
+## Only the iPhone shell uses camera wings. Popups and the city drawer still
+## use the OS safe rectangle; landscape buttons stay inside its side insets.
+func apply_display_layout(metrics: Dictionary) -> Rect2:
+	var safe: Rect2 = metrics.get("logical_rect",get_viewport_rect())
+	var full: Rect2 = metrics.get("full_logical_rect",safe)
+	var edge_phone := _phone and String(metrics.get("platform_name","")) == "iOS"
+	var multiplier := float(metrics.get("scale",1.0)) / float(metrics.get("backing_scale",1.0))
+	var corner := 16.0 / multiplier
+	var wing_width := (full.size.x-CAMERA_GUARD_POINTS/multiplier)*.5-corner
+	_camera_wings = edge_phone and full.size.y>full.size.x and safe.position.y*multiplier>=44.0 and wing_width>=60.0
+	var bar := Rect2(safe.position,Vector2(safe.size.x,BAR_HEIGHT))
+	if edge_phone:
+		bar.position = full.position
+		bar.size.x = full.size.x
+		bar.size.y = maxf(safe.position.y,BAR_HEIGHT+2.0*CAMERA_VERTICAL_PADDING_POINTS/multiplier) if _camera_wings else safe.position.y+BAR_HEIGHT
+	if _phone_row != null:
+		phone_inspect_button.visible = not _camera_wings
+		phone_tools_button.add_theme_font_size_override("font_size",UITheme.FONT_SMALL if _camera_wings else UITheme.FONT_BODY)
+		_phone_menu.add_theme_font_size_override("font_size",UITheme.FONT_SMALL if _camera_wings else UITheme.FONT_BODY)
+		phone_tools_button.custom_minimum_size.x = 60 if _camera_wings else 44
+		_phone_menu.custom_minimum_size.x = 60 if _camera_wings else 80
+		_phone_row.offset_left = corner if _camera_wings else safe.position.x-bar.position.x
+		_phone_row.offset_right = -corner if _camera_wings else safe.end.x-bar.end.x
+		_phone_row.offset_top = (bar.size.y-BAR_HEIGHT)*.5 if _camera_wings else safe.position.y-bar.position.y
+		_phone_row.offset_bottom = _phone_row.offset_top+BAR_HEIGHT-bar.size.y
+		set_phone_build_available(not phone_tools_button.disabled,_tools_open,_inspect_available)
+	return bar
 
 
 func _init() -> void:

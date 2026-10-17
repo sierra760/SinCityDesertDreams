@@ -202,8 +202,9 @@ func clear_selection() -> void:
 func refresh_layout() -> void:
 	if not _active: return
 	var bounds := _host.display_layout.logical_rect()
-	bounds.position.y += _host.menu_bar.size.y
-	bounds.size.y -= _host.menu_bar.size.y+_host.status_bar.size.y
+	var top := maxf(bounds.position.y,_host.menu_bar.get_global_rect().end.y)
+	bounds.size.y -= top-bounds.position.y+_host.status_bar.size.y
+	bounds.position.y = top
 	panel.apply_layout(bounds,bool(_host.display_layout.metrics.get("compact",false)))
 
 func structural_changed() -> void:

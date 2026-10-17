@@ -11,7 +11,7 @@ func after_each() -> void:
  await process_frame
 func test_small_phone_tourism_legend_fits_actual_plot() -> void:
  root.size=Vector2i(320,568)
- host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,320,548),0)
+ host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,320,548),0,"iOS")
  var graphs := host.open_window("graphs") as GraphsWindow
  await Fixture.settle(self,8)
  var canvas := graphs._canvas
@@ -27,7 +27,7 @@ func test_small_phone_tourism_legend_fits_actual_plot() -> void:
   check_eq(graphs._series_boxes[key].text,GraphsWindow.SERIES_LABELS[key],"picker retains full explicit label")
 func test_small_phone_endpoint_values_do_not_overlap() -> void:
  root.size=Vector2i(320,568)
- host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,320,548),0)
+ host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,320,548),0,"iOS")
  var graphs := host.open_window("graphs") as GraphsWindow
  await Fixture.settle(self,8)
  var canvas := graphs._canvas
@@ -53,7 +53,7 @@ func test_small_phone_endpoint_values_do_not_overlap() -> void:
    for j in range(i): check(not bounds.intersects(labels[j].rect),"endpoint labels never overlap")
 func test_landscape_inspector_reveals_tourism_rows_and_preserves_controls() -> void:
  root.size=Vector2i(844,390)
- host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(47,0,750,369),0)
+ host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(47,0,750,369),0,"iOS")
  var a:=Vector2i(40,40)
  host.sim.city.stamp_building(a.x,a.y,Buildings.id_of(&"arcology_boddy"))
  host.sim.tourism().reconcile_now()
@@ -71,14 +71,14 @@ func test_landscape_inspector_reveals_tourism_rows_and_preserves_controls() -> v
   check(host.display_layout.logical_rect().grow(.5).encloses(button.get_global_rect()))
  check(panel.get_global_rect().end.y<=host.status_bar.get_global_rect().position.y,"inspector leaves adjacent population/tourists face clear")
  root.size=Vector2i(390,844)
- host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763),0)
+ host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763),0,"iOS")
  await Fixture.settle(self,10)
  check(panel.rename_button.get_global_rect().position.y>panel.body_scroll.get_global_rect().position.y,"portrait restores footer actions")
 
 func test_budget_tourism_compact_comparison_disclosure_and_large_values_fit() -> void:
  for profile in [Vector2i(390,844),Vector2i(320,568),Vector2i(844,390),Vector2i(768,1024),Vector2i(1024,768),Vector2i(1280,800)]:
   root.size=profile
-  host.display_layout.refresh_with_mobile_metrics(profile,1,Rect2i(Vector2i.ZERO,profile),0)
+  host.display_layout.refresh_with_mobile_metrics(profile,1,Rect2i(Vector2i.ZERO,profile),0,"iOS")
   var budget:=host.open_window("budget") as BudgetWindow
   await Fixture.settle(self,10)
   var title: Control=budget._root.get_meta("window_chrome").title_bar
@@ -113,7 +113,7 @@ func test_budget_tourism_compact_comparison_disclosure_and_large_values_fit() ->
 
 func test_budget_tourism_refresh_preserves_typing_focus_and_scroll() -> void:
  root.size=Vector2i(390,844)
- host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763),0)
+ host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763),0,"iOS")
  var budget:=host.open_window("budget") as BudgetWindow
  await Fixture.settle(self,10)
  var details:=budget.find_child("TourismDetails",true,false) as Button

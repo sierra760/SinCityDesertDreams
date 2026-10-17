@@ -15,6 +15,7 @@ signal menu_requested
 const PAD_SIZE := 132.0
 const PAD_RADIUS := 48.0
 const DEAD_ZONE := .08
+var _phone := false
 var _enabled := false
 var _active := false
 var _suspended := false
@@ -70,6 +71,12 @@ func _ready() -> void:
 	add_child(_move_label)
 	_look_label=_make_world_caption("Drag to look")
 	add_child(_look_label)
+	_refresh()
+
+func set_phone_layout(on: bool) -> void:
+	if _phone == on: return
+	clear_input()
+	_phone = on
 	_refresh()
 
 func set_enabled(on: bool) -> void:
@@ -319,9 +326,11 @@ func _refresh() -> void:
 	visible=_enabled and _active
 	_rects.clear()
 	var short := _usable.size.y < 360.0
-	_pad_size = 108.0 if short else PAD_SIZE
-	_pad_radius = 40.0 if short else PAD_RADIUS
+	_pad_size = 108.0 if short or _phone else PAD_SIZE
+	_pad_radius = 40.0 if short or _phone else PAD_RADIUS
 	_rects[&"menu"]=Rect2(_usable.position+Vector2(_usable.size.x-104,8),Vector2(96,48))
+	if _phone:
+		_rects[&"menu"]=Rect2(_usable.position+Vector2(_usable.size.x-84,8),Vector2(76,44))
 	_rects[&"move"]=Rect2(Vector2(_usable.position.x+16,_usable.end.y-_pad_size-16),Vector2(_pad_size,_pad_size))
 	if is_instance_valid(_joystick) and _joystick.is_inside_tree():
 		_joystick_viewport.size=Vector2i(_pad_size,_pad_size)
@@ -335,8 +344,11 @@ func _refresh() -> void:
 	var right := _usable.end-Vector2(108,64)
 	_rects[&"interact"]=Rect2(right,Vector2(100,48))
 	var actions := _mode_actions()
+	if _phone:
+		right = _usable.end-Vector2(92,52)
+		_rects[&"interact"]=Rect2(right,Vector2(84,44))
 	for index: int in actions.size()-1:
-		_rects[actions[index]]=Rect2(right-Vector2(0,56*(index+1)),Vector2(100,48))
+		_rects[actions[index]]=Rect2(right-Vector2(0,(52 if _phone else 56)*(index+1)),Vector2(84,44) if _phone else Vector2(100,48))
 	if short:
 		for index in actions.size():
 			var at := Vector2(_usable.end.x-8.0-float(actions.size()-index)*92.0,_usable.end.y-60.0)
@@ -358,13 +370,13 @@ func _refresh() -> void:
 		_move_label.size=Vector2(_pad_size,28)
 		if _move_label.get_rect().intersects(_status_rect):
 			_move_label.position.y = control_rect(&"move").position.y+8.0
-		_move_label.visible=not _suspended
+		_move_label.visible=not _suspended and not _phone
 		var look_width := minf(200,_usable.size.x*.5-16)
 		_look_label.position=Vector2(_usable.get_center().x+(_usable.size.x*.5-16-look_width)*.5,_usable.position.y+64)
 		_look_label.size=Vector2(look_width,28)
 		if _look_label.get_rect().intersects(_status_rect):
 			_look_label.position.y = _status_rect.end.y+8.0
-		_look_label.visible=not _suspended
+		_look_label.visible=not _suspended and not _phone
 	_sync_action_feedback()
 	queue_redraw()
 

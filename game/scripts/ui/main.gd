@@ -197,6 +197,7 @@ func _ready() -> void:
 	explore_hud.invert_y = preferences["explore_invert_y"]
 	add_child(explore_hud)
 	explore_hud.bind_layout(display_layout)
+	explore_hud.suspension_changed.connect(func() -> void: shell.schedule())
 	explore_hud.settings_requested.connect(func() -> void:
 		var options := window_manager.open("options") as OptionsWindow
 		if options != null: options.tabs.current_tab = 1)

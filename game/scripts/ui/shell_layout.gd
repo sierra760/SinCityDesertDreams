@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## Places the in-game chrome (menu bar, toolbar, footer, minimap and
-## inspector) inside the display's safe bounds, shows or hides it with the
-## city, and runs the phone layout's collapsible Tools drawer.
+## Places city chrome against the display's safe bounds, with iPhone menu
+## actions beside the camera; shows it with the city and runs the Tools drawer.
 class_name GameShellLayout
 extends Node
 
@@ -114,13 +113,20 @@ func _measure() -> void:
 	var metrics := _host.display_layout.metrics
 	var bounds := _host.display_layout.logical_rect()
 	var full: Rect2 = metrics.get("full_logical_rect",bounds)
-	menu_bar.offset_left = bounds.position.x
-	menu_bar.offset_right = bounds.end.x - full.size.x
-	menu_bar.offset_top = bounds.position.y
-	menu_bar.offset_bottom = bounds.position.y + GameMenuBar.BAR_HEIGHT
+	var immersive := phone_layout and _host.is_exploring() and not _host.exploration.is_suspended()
+	menu_bar.visible = not immersive
+	status_bar.visible = _host.in_game and not immersive
+	var menu_rect := menu_bar.apply_display_layout(metrics)
+	menu_bar.offset_left = menu_rect.position.x
+	menu_bar.offset_right = menu_rect.end.x-full.size.x
+	menu_bar.offset_top = menu_rect.position.y
+	menu_bar.offset_bottom = menu_rect.end.y
+	var menu_inset := maxf(0.0,menu_rect.end.y-bounds.position.y)
+	var top_inset := 0.0 if immersive else menu_inset
+	var bottom_inset := 0.0 if immersive else status_bar.size.y
 	status_bar.offset_left = bounds.position.x
 	status_bar.offset_right = bounds.end.x - full.size.x
-	status_bar.apply_phone_height_limit(maxf(109.0,bounds.size.y-menu_bar.size.y-200.0))
+	status_bar.apply_phone_height_limit(maxf(109.0,bounds.size.y-menu_inset-200.0))
 	# Anchored size includes the previous safe/keyboard inset. Always measure
 	# content so dismissing a keyboard or wrapped row restores natural height.
 	var footer_height := maxf(StatusBar.BAR_HEIGHT,status_bar.get_combined_minimum_size().y)
@@ -135,24 +141,24 @@ func _measure() -> void:
 	status_bar.set_bottom_edge_fill(footer_edge_fill)
 	toolbar.offset_left = bounds.position.x
 	toolbar.offset_right = bounds.position.x + toolbar.custom_minimum_size.x
-	toolbar.offset_top = bounds.position.y + menu_bar.size.y
+	toolbar.offset_top = bounds.position.y + menu_inset
 	toolbar.offset_bottom = bounds.end.y - full.size.y - status_bar.size.y
-	if is_instance_valid(_host.explore_hud): _host.explore_hud.set_chrome_insets(menu_bar.size.y,status_bar.size.y)
+	if is_instance_valid(_host.explore_hud): _host.explore_hud.set_chrome_insets(top_inset,bottom_inset)
 	update_explore_camera_chrome()
-	_host.mini_map.apply_layout(bounds, menu_bar.size.y, status_bar.size.y, toolbar.size.x if toolbar.visible else 0.0)
+	_host.mini_map.apply_layout(bounds, menu_inset, status_bar.size.y, toolbar.size.x if toolbar.visible else 0.0)
 	if _host.city_view_3d != null and _host.city_view_3d.underground_legend != null:
 		var legend := _host.city_view_3d.underground_legend
 		var left := toolbar.custom_minimum_size.x if toolbar.visible else 0.0
 		var width := minf(340.0,maxf(44.0,bounds.size.x-left-16.0))
 		legend.custom_minimum_size = Vector2(width,0)
 		legend.size = Vector2(width,0)
-		legend.position = bounds.position + Vector2(left+8,menu_bar.size.y+8)
+		legend.position = bounds.position + Vector2(left+8,menu_inset+8)
 	query_panel.offset_right = bounds.end.x - full.size.x - 8
 	query_panel.set_meta("display_usable_rect",bounds)
 	var compact_inspector := phone_layout and bounds.size.x >= 560 and bounds.size.y < 500
 	query_panel.set_compact_header(compact_inspector)
 	query_panel.offset_left = query_panel.offset_right - minf(640 if compact_inspector else QueryPanel.PANEL_WIDTH,maxf(44,bounds.size.x - 16))
-	query_panel.offset_top = bounds.position.y + menu_bar.size.y + 8
+	query_panel.offset_top = bounds.position.y + menu_inset + 8
 	# The inspector is as tall as its rows, so no half row shows above its
 	# buttons; it scrolls only when they need more than the room above the footer.
 	var natural := query_panel.get_combined_minimum_size().y + query_panel.rows.get_combined_minimum_size().y
@@ -187,7 +193,8 @@ func update_explore_camera_chrome() -> void:
 	var scale := float(view.viewport.size.y) / maxf(view.container.size.y,1.0)
 	var bounds := _host.display_layout.logical_rect()
 	var full: Rect2 = _host.display_layout.metrics.get("full_logical_rect",bounds)
-	exploration.camera_rig.set_chrome_insets((bounds.position.y + _host.menu_bar.size.y) * scale,(full.size.y - bounds.end.y + _host.status_bar.size.y) * scale)
+	var top := maxf(bounds.position.y,_host.menu_bar.get_global_rect().end.y) if _host.menu_bar.visible else bounds.position.y
+	exploration.camera_rig.set_chrome_insets(top * scale,(full.size.y - bounds.end.y + (0.0 if not _host.status_bar.visible else _host.status_bar.size.y)) * scale)
 
 
 ## Register every window panel under `node` with the display layout, once.

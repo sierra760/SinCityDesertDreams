@@ -264,7 +264,7 @@ func test_phone_tablet_controls_fit_and_unsupported_options_stay_local() -> void
 	for profile in [[Vector2i(640,1136), Rect2i(0,40,640,1096)], [Vector2i(1536,2048), Rect2i(0,48,1536,1960)]]:
 		root.min_size = Vector2i(1,1)
 		root.size = profile[0]
-		host.display_layout.refresh_with_mobile_metrics(profile[0], 2.0, profile[1], 0)
+		host.display_layout.refresh_with_mobile_metrics(profile[0], 2.0, profile[1], 0, "iOS")
 		var dialog := host.load_dialog
 		dialog.open([{"name":"Test Town", "slot_id":"layout", "cloud_owned":true, "path":"user://private.sc2d", "continuation_sha256":"new", "manual_sha256":"old", "manual":{"path":"user://manual.sc2d"}}])
 		dialog.set_sync_status({"supported":true, "state":"pending"})
