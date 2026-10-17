@@ -122,7 +122,7 @@ func test_names_are_literal_in_hud_and_cached_route_options() -> void:
 	check_eq(panel.info["Name mode"],"Custom")
 	var found := false
 	for row: Node in panel.rows.get_children():
-		if row is VBoxContainer and row.get_child_count()==2 and row.get_child(0).text=="Name":
+		if row is HBoxContainer and row.get_child_count()==2 and row.get_child(0).text=="Name":
 			check(row.get_child(1) is Label)
 			check_eq(row.get_child(1).text,title); found=true
 	check(found,"Query mounted value is plain text")

@@ -8,7 +8,6 @@ func _candidate() -> Dictionary:
  return RealWorldTerrain.convert(Fixtures.conversion_packet("provenance"), Fixtures.controls(), Fixtures.metadata())
 
 func test_origin_roundtrip_deep_copy_and_old_city() -> void:
- check_eq(SaveFormat.VERSION, 1)
  var candidate := _candidate()
  check(candidate.ok)
  var city: City = candidate.city
@@ -28,6 +27,15 @@ func test_origin_roundtrip_deep_copy_and_old_city() -> void:
  check_eq(city.get("terrain_origin").controls.trees, 0)
  document.erase("terrain_origin")
  check_eq(SaveFormat.decode_city(document).city.get("terrain_origin"), {})
+ # Version 1 files predate both terrain_origin and 16-bit building codes.
+ var old_document: Dictionary = document.duplicate(true)
+ var old_codes := PackedByteArray()
+ for code in city.building.data: old_codes.append(code)
+ old_document.layers.building = SaveFormat.encode_bytes(old_codes)
+ var old_loaded := SaveFormat.decode_city(old_document, 1)
+ check_eq(old_loaded.error, "", "version 1 city without an origin still loads")
+ check_eq(old_loaded.city.get("terrain_origin"), {})
+ check_eq(old_loaded.city.building.data, city.building.data, "version 1 one-byte building codes")
 
 func test_unknown_oversized_and_url_origin_ignored() -> void:
  var candidate := _candidate()

@@ -203,7 +203,7 @@ func test_native_and_recovery_paths_preserve_order_snapshot_rng_and_city() -> vo
 		check_eq(SaveFormat.save(path,city,snapshot),OK)
 		var text := FileAccess.get_file_as_string(path)
 		var wire: Dictionary = JSON.parse_string(text)
-		check_eq(int(wire.version),1)
+		check_eq(int(wire.version),SaveFormat.VERSION,"new saves carry the current format version")
 		var loaded := SaveFormat.load(path)
 		check(loaded.ok,loaded.error)
 		if loaded.ok:

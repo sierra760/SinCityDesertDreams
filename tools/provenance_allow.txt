@@ -14,6 +14,8 @@ game/tests/test_sc2_import.gd
 game/tests/test_imported_power_links.gd
 game/tests/test_imported_rewards.gd
 docs/design/file-formats.md
+# A tourism save test imports a classic-city fixture by its altitude chunk tag.
+game/tests/test_tourism_save.gd:356
 
 # Real-world elevation/land-cover tile names are latitude/longitude cells
 # that look like hex addresses to the scanner.
@@ -34,9 +36,12 @@ game/tests/test_file_flow_usability.gd:69
 tools/tests/test_check_provenance.py
 
 # Xcode/macOS SDK build numbers recorded by Godot's macOS export preset.
-game/export_presets.cfg:48
-game/export_presets.cfg:50
-game/export_presets.cfg:53
+game/export_presets.cfg:56
+game/export_presets.cfg:58
+game/export_presets.cfg:61
+game/export_presets.cfg:977
+game/export_presets.cfg:979
+game/export_presets.cfg:982
 # The data credits name a public USGS global elevation dataset (2010 release).
 game/data/real_world_terrain_notices.txt:51
 game/data/real_world_terrain_notices.txt:53
@@ -44,9 +49,9 @@ game/data/real_world_terrain_notices.txt:53
 game/scripts/terrain/real_world/terrain_zlib.gd
 
 # Authored planning-palette RGB hex literals: ochre/brown and deep red.
-# These six exact lines contain color tokens, not source-address identifiers.
-game/scripts/core/zones.gd:50
-game/scripts/core/zones.gd:52
+# These exact lines contain color tokens, not source-address identifiers.
+game/scripts/core/zones.gd:54
+game/scripts/core/zones.gd:56
 game/tests/test_city_overlay_sampler.gd:79
 game/tests/test_city_overlay_sampler.gd:81
 docs/design/zone-colors.md:13
@@ -63,3 +68,14 @@ tools/blender_exploration/check_neighborhood_resorts.py:157
 # A placeholder for the verified template hash and an Apple technote number.
 docs/release/apple-cloud-saves.md:194
 docs/release/apple-cloud-saves.md:253
+tools/check_apple_cloud_export.py:47
+
+# Agriculture enclosure checksum constant (a SHA-256 name, not an address)
+# and the generator line that rewrites it.
+game/scripts/core/agricultural_parcel_geometry.gd:10
+game/scripts/core/agricultural_parcel_geometry.gd:41
+tools/blender_exploration/build_agriculture.py:479
+# Authored livestock and farm material RGB literals.
+tools/model_art/livestock.py:30
+tools/model_art/livestock.py:31
+tools/blender_exploration/build_agriculture.py:29
