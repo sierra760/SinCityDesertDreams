@@ -98,6 +98,17 @@ The save assets include city/mayor names, terrain, layout, facilities, custom
 signs and street names, simulation and financial history, gameplay state and
 saved mod progress when present. Local synchronization journals retain parent
 archives, change tokens and account-separated state outside portable saves.
+If the private zone disappears (CloudKit reports it missing), it is created
+again and inventory restarts from an empty cursor; pending work on this device
+then uploads normally. If the player deleted this game's iCloud data in
+Settings, the zone is not recreated automatically, because that would upload
+again the data they chose to remove: syncing pauses, recorded per account so a
+relaunch keeps the pause, Load City says the iCloud saves were deleted, and
+local saves keep working. Turning iCloud saves off and on again is the consent
+that lets the next verified account recreate the zone. A save or download whose
+record no longer exists is resolved by fetching the authoritative record, not by
+retrying the request.
+
 Turning synchronization off does not delete cloud data. The application makes
 no end-to-end encryption or Apple retention guarantee.
 

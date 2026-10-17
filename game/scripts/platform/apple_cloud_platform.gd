@@ -6,7 +6,7 @@ extends RefCounted
 const CONFIG := "res://addons/apple_cloud/apple_cloud.cfg"
 const CONTAINER := "iCloud.com.sierraburkhart.sincitydesertdreams"
 const OPS := ["account", "prepare_zone", "changes", "fetch_record", "download", "save"]
-const CODES := ["unavailable", "signed_out", "transient", "quota", "conflict", "token_expired", "cancelled", "invalid", "permission"]
+const CODES := ["unavailable", "signed_out", "transient", "quota", "conflict", "token_expired", "cancelled", "invalid", "permission", "zone_missing", "zone_deleted", "record_missing"]
 const STAGING := "user://apple-cloud-staging"
 ## Completions settled per drain; native bounds outstanding requests, so a larger
 ## batch (account notifications) is held and settled over the next drains.

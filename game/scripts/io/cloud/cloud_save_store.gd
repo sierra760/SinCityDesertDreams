@@ -509,6 +509,22 @@ func commit_change_token(token: PackedByteArray) -> Error:
 	next.change_token = token.duplicate()
 	return _commit(next)
 
+## The person deleted this account's iCloud data in Settings. The coordinator
+## keeps the zone deleted, across launches, until they turn iCloud saves off
+## and on again. The old zone's cursor is cleared with it.
+func zone_deleted() -> bool:
+	return _state.get("zone_deleted", false) == true
+
+func set_zone_deleted(value: bool) -> Error:
+	if _state.is_empty(): return ERR_UNCONFIGURED
+	if zone_deleted() == value and (not value or _state.change_token.is_empty()): return OK
+	var next := _state.duplicate(true)
+	if value:
+		next.zone_deleted = true
+		next.change_token = PackedByteArray()
+	else: next.erase("zone_deleted")
+	return _commit(next)
+
 ## Authoritative server deletion, after any local branch/pin is reconciled.
 ## Named manual files are outside the private payload store and remain intact.
 func remove_remote(slot_id: String) -> Error:

@@ -6,7 +6,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-static const NSUInteger MAX_ASSET = 67108864, MAX_ARCHIVE = 1048576;
+static const NSUInteger MAX_ASSET = 67108864, MAX_ARCHIVE = 1048576,
+                        MAX_METADATA = 65536, MAX_PAGE = 256;
+// Completions the adapter settles per drain. Accepted requests plus queued
+// completions leave one place for the coalesced account_changed event.
+static const NSUInteger MAX_QUEUE = 64, MAX_REQUESTS = 8;
 static NSString *const ZONE = @"SCDDCloudSavesV1", *const TYPE =
                                                        @"SCDDCitySaveV1";
 static BOOL string(id x, NSUInteger bound, BOOL empty = NO) {
@@ -115,7 +119,7 @@ static NSDictionary *remote(CKRecord *r) {
       !string(r.recordChangeTag ?: @"", 128, YES))
     return nil;
   NSData *data = r[@"metadata"];
-  if (![data isKindOfClass:NSData.class] || data.length > 65536)
+  if (![data isKindOfClass:NSData.class] || data.length > MAX_METADATA)
     return nil;
   NSDictionary *m = [NSJSONSerialization JSONObjectWithData:data
                                                     options:0
@@ -176,6 +180,17 @@ static NSString *code(NSError *e) {
     return @"invalid";
   case CKErrorAccountTemporarilyUnavailable:
     return @"unavailable";
+  // The zone is gone: the coordinator prepares it again and refetches from an
+  // empty token. A zone the person deleted in Settings is reported separately
+  // because recreating it re-uploads data they chose to remove.
+  case CKErrorZoneNotFound:
+    return @"zone_missing";
+  case CKErrorUserDeletedZone:
+    return @"zone_deleted";
+  // A save or download target no longer exists. Retrying the same request
+  // cannot succeed; the coordinator asks for the authoritative record instead.
+  case CKErrorUnknownItem:
+    return @"record_missing";
   default:
     return @"transient";
   }
@@ -311,6 +326,8 @@ static NSString *copyAsset(NSString *path, NSString *directory,
                 if (!s)
                   return;
                 @synchronized(s) {
+                  // cancelAll empties the queue, so repeated notifications
+                  // leave exactly one event for this epoch.
                   [s cancelAll];
                   s.requiresAccount = YES;
                   s.invalidatedEpoch = s.epoch;
@@ -433,7 +450,15 @@ static NSString *copyAsset(NSString *path, NSString *directory,
     }
     _operations[r[@"id"]] = operation;
     operation.configuration.qualityOfService = NSQualityOfServiceUtility;
-    [_factory submit:operation];
+    NSError *refused = nil;
+    @try {
+      refused = [_factory submit:operation];
+    } @catch (NSException *) {
+      refused = invalid();
+    }
+    // A refused operation never calls back; settle its request now.
+    if (refused)
+      [self finish:r generation:g result:nil error:refused];
   }
 }
 - (BOOL)startRequest:(NSDictionary *)incoming {
@@ -457,7 +482,12 @@ static NSString *copyAsset(NSString *path, NSString *directory,
     if (_requiresAccount && (![op isEqual:@"account"] ||
                              [r[@"epoch"] longLongValue] <= _invalidatedEpoch))
       return NO;
-    if (_requests.count >= 8 || _queue.count >= 64 || _requests[r[@"id"]] ||
+    // Every accepted request finishes exactly once, so outstanding requests
+    // plus queued completions stay below one drain, with room for one
+    // account_changed event.
+    if (_requests.count >= MAX_REQUESTS ||
+        _queue.count + _requests.count >= MAX_QUEUE - 1 ||
+        _requests[r[@"id"]] ||
         [r[@"epoch"] longLongValue] < _epoch)
       return NO;
     if ([r[@"epoch"] longLongValue] > _epoch) {
@@ -529,7 +559,7 @@ static NSString *copyAsset(NSString *path, NSString *directory,
   NSDictionary *a = r[@"args"];
   NSData *data = a[@"token"];
   if (![data isKindOfClass:NSData.class] || data.length > MAX_ARCHIVE ||
-      !integer(a[@"limit"]) || [a[@"limit"] integerValue] != 256) {
+      !integer(a[@"limit"]) || [a[@"limit"] integerValue] != MAX_PAGE) {
     [self finish:r generation:g result:nil error:invalid()];
     return;
   }
@@ -549,7 +579,7 @@ static NSString *copyAsset(NSString *path, NSString *directory,
   CKFetchRecordZoneChangesConfiguration *config =
       [CKFetchRecordZoneChangesConfiguration new];
   config.previousServerChangeToken = token;
-  config.resultsLimit = 256;
+  config.resultsLimit = MAX_PAGE;
   config.desiredKeys = keys();
   CKFetchRecordZoneChangesOperation *o =
       (id)[_factory operation:CKFetchRecordZoneChangesOperation.class];
@@ -563,15 +593,28 @@ static NSString *copyAsset(NSString *path, NSString *directory,
   __block long long pageRetryAfter = 0;
   __block NSData *nextToken = [NSData data];
   __block BOOL more = NO, zoneFinished = NO;
+  // Records this page passes over. They count toward the page bound, so a
+  // page can never deliver or skip more than one CloudKit page of items.
+  __block NSUInteger skipped = 0;
   NSObject *pageLock = [NSObject new];
   __weak SCDDCloudTransport *weak = self;
+  // A CloudKit error retries the whole page from the same token. A record that
+  // arrives but fails validation (for example metadata written by a newer
+  // version, or a foreign record type) is skipped, so one bad record cannot
+  // stop every device's inventory. Local copies of a skipped slot are left as
+  // they are; a later valid revision of that slot is delivered normally.
   o.recordWasChangedBlock = ^(CKRecordID *rid, CKRecord *record, NSError *e) {
     @synchronized(pageLock) {
       pageRetryAfter = MAX(pageRetryAfter, retry(e).longLongValue);
-      NSDictionary *value = remote(record);
-      if (e || !value || ![rid isEqual:record.recordID] ||
-          [ids containsObject:rid.recordName] || ids.count >= 256) {
+      if (e || ids.count + skipped >= MAX_PAGE ||
+          (rid.recordName && [ids containsObject:rid.recordName])) {
         pageError = e ?: invalid();
+        return;
+      }
+      NSDictionary *value =
+          [rid isEqual:record.recordID] ? remote(record) : nil;
+      if (!value) {
+        skipped++;
         return;
       }
       [ids addObject:rid.recordName];
@@ -580,9 +623,13 @@ static NSString *copyAsset(NSString *path, NSString *directory,
   };
   o.recordWithIDWasDeletedBlock = ^(CKRecordID *rid, NSString *type) {
     @synchronized(pageLock) {
-      if (!sameZone(rid) || ![type isEqual:TYPE] ||
-          [ids containsObject:rid.recordName] || ids.count >= 256) {
+      if (ids.count + skipped >= MAX_PAGE ||
+          (rid.recordName && [ids containsObject:rid.recordName])) {
         pageError = invalid();
+        return;
+      }
+      if (!sameZone(rid) || ![type isEqual:TYPE]) {
+        skipped++;
         return;
       }
       [ids addObject:rid.recordName];
@@ -783,11 +830,20 @@ static NSString *copyAsset(NSString *path, NSString *directory,
     [self finish:r generation:g result:nil error:invalid()];
     return;
   }
+  // remote() refuses metadata above this bound on every device, so a larger
+  // record would be uploaded and then skipped by everyone's inventory.
+  NSData *json = nil;
+  @try {
+    json = [NSJSONSerialization dataWithJSONObject:m options:0 error:nil];
+  } @catch (NSException *) {
+  }
+  if (!json || json.length > MAX_METADATA) {
+    [self finish:r generation:g result:nil error:invalid()];
+    return;
+  }
   record[@"commit_id"] = p[@"commit_id"];
   record[@"tombstone"] = p[@"tombstone"];
-  record[@"metadata"] = [NSJSONSerialization dataWithJSONObject:m
-                                                        options:0
-                                                          error:nil];
+  record[@"metadata"] = json;
   for (NSString *key in @[ @"continuation", @"manual" ]) {
     NSDictionary *payload = p[key];
     BOOL absent =
@@ -859,6 +915,19 @@ BOOL SCDDCloudConfigurationAllows(NSDictionary *info, NSString *container) {
          [info[@"SCDDCloudKitEnabled"] boolValue] &&
          [info[@"SCDDCloudKitContainer"] isEqual:container];
 }
+// Signing information is untrusted input: any value may have any type.
+BOOL SCDDCloudEntitlementsAllow(id entitlements, NSString *container) {
+  if (![entitlements isKindOfClass:NSDictionary.class] ||
+      ![container isKindOfClass:NSString.class])
+    return NO;
+  id services = entitlements[@"com.apple.developer.icloud-services"];
+  id containers =
+      entitlements[@"com.apple.developer.icloud-container-identifiers"];
+  return [services isKindOfClass:NSArray.class] &&
+         [services containsObject:@"CloudKit"] &&
+         [containers isKindOfClass:NSArray.class] &&
+         [containers containsObject:container];
+}
 BOOL SCDDCloudRuntimeConfigured(NSString *container) {
   if (!SCDDCloudConfigurationAllows(NSBundle.mainBundle.infoDictionary,
                                     container))
@@ -881,15 +950,14 @@ BOOL SCDDCloudRuntimeConfigured(NSString *container) {
   if (status != errSecSuccess || !infoRef)
     return NO;
   NSDictionary *info = CFBridgingRelease(infoRef);
-  NSDictionary *entitlements =
-      info[(__bridge NSString *)kSecCodeInfoEntitlementsDict];
-  NSNumber *flags = info[(__bridge NSString *)kSecCodeInfoFlags];
-  return valid == errSecSuccess && flags &&
-         !(flags.unsignedIntValue & kSecCodeSignatureAdhoc) &&
-         [entitlements[@"com.apple.developer.icloud-services"]
-             containsObject:@"CloudKit"] &&
-         [entitlements[@"com.apple.developer.icloud-container-identifiers"]
-             containsObject:container];
+  if (![info isKindOfClass:NSDictionary.class])
+    return NO;
+  id flags = info[(__bridge NSString *)kSecCodeInfoFlags];
+  return valid == errSecSuccess && [flags isKindOfClass:NSNumber.class] &&
+         !([flags unsignedIntValue] & kSecCodeSignatureAdhoc) &&
+         SCDDCloudEntitlementsAllow(
+             info[(__bridge NSString *)kSecCodeInfoEntitlementsDict],
+             container);
 #endif
 }
 #ifndef SCDD_CLOUD_TEST_ONLY
@@ -899,18 +967,41 @@ BOOL SCDDCloudRuntimeConfigured(NSString *container) {
 @property NSUInteger accountGeneration;
 @end
 @implementation SCDDRealCloudFactory
+// CloudKit raises instead of returning an error when the signed application
+// lacks the container entitlement. Fail closed with a permission result.
 - (CKContainer *)activeContainer {
   @synchronized(self) {
-    if (!_container)
-      _container = [CKContainer containerWithIdentifier:_identifier];
+    if (!_container) {
+      @try {
+        _container = [CKContainer containerWithIdentifier:_identifier];
+      } @catch (NSException *) {
+        _container = nil;
+      }
+    }
     return _container;
   }
+}
+static NSError *entitlementError() {
+  return [NSError errorWithDomain:CKErrorDomain
+                             code:CKErrorMissingEntitlement
+                         userInfo:nil];
 }
 - (CKDatabaseOperation *)operation:(Class)kind {
   return [kind new];
 }
-- (void)submit:(CKDatabaseOperation *)operation {
-  [[self activeContainer].privateCloudDatabase addOperation:operation];
+- (NSError *)submit:(CKDatabaseOperation *)operation {
+  CKContainer *container = [self activeContainer];
+  if (!container)
+    return entitlementError();
+  @try {
+    CKDatabase *database = container.privateCloudDatabase;
+    if (!database)
+      return entitlementError();
+    [database addOperation:operation];
+  } @catch (NSException *) {
+    return invalid();
+  }
+  return nil;
 }
 - (void)cancelAccountRequests {
   @synchronized(self) {
@@ -923,40 +1014,52 @@ BOOL SCDDCloudRuntimeConfigured(NSString *container) {
     generation = _accountGeneration;
   }
   CKContainer *container = [self activeContainer];
-  [container accountStatusWithCompletionHandler:^(CKAccountStatus status,
-                                                  NSError *error) {
-    @synchronized(self) {
-      if (generation != self.accountGeneration)
+  if (!container) {
+    completion(nil, entitlementError());
+    return;
+  }
+  @try {
+    [container accountStatusWithCompletionHandler:^(CKAccountStatus status,
+                                                    NSError *error) {
+      @synchronized(self) {
+        if (generation != self.accountGeneration)
+          return;
+      }
+      if (error) {
+        completion(nil, error);
         return;
-    }
-    if (error) {
-      completion(nil, error);
-      return;
-    }
-    if (status != CKAccountStatusAvailable) {
-      NSInteger code = status == CKAccountStatusNoAccount
-                           ? CKErrorNotAuthenticated
-                           : (status == CKAccountStatusRestricted
-                                  ? CKErrorPermissionFailure
-                                  : CKErrorAccountTemporarilyUnavailable);
-      completion(nil, [NSError errorWithDomain:CKErrorDomain
-                                          code:code
-                                      userInfo:nil]);
-      return;
-    }
-    @synchronized(self) {
-      if (generation != self.accountGeneration)
+      }
+      if (status != CKAccountStatusAvailable) {
+        NSInteger code = status == CKAccountStatusNoAccount
+                             ? CKErrorNotAuthenticated
+                             : (status == CKAccountStatusRestricted
+                                    ? CKErrorPermissionFailure
+                                    : CKErrorAccountTemporarilyUnavailable);
+        completion(nil, [NSError errorWithDomain:CKErrorDomain
+                                            code:code
+                                        userInfo:nil]);
         return;
-      [container fetchUserRecordIDWithCompletionHandler:^(CKRecordID *recordID,
-                                                          NSError *e) {
-        @synchronized(self) {
-          if (generation != self.accountGeneration)
-            return;
+      }
+      @synchronized(self) {
+        if (generation != self.accountGeneration)
+          return;
+        @try {
+          [container fetchUserRecordIDWithCompletionHandler:^(
+                         CKRecordID *recordID, NSError *e) {
+            @synchronized(self) {
+              if (generation != self.accountGeneration)
+                return;
+            }
+            completion(recordID.recordName, e);
+          }];
+        } @catch (NSException *) {
+          completion(nil, entitlementError());
         }
-        completion(recordID.recordName, e);
-      }];
-    }
-  }];
+      }
+    }];
+  } @catch (NSException *) {
+    completion(nil, entitlementError());
+  }
 }
 @end
 id<SCDDCloudOperationFactory> SCDDCreateRealFactory(NSString *container) {

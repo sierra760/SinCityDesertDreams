@@ -7,6 +7,8 @@
 @interface FakeFactory : NSObject <SCDDCloudOperationFactory>
 @property NSMutableArray<CKDatabaseOperation *> *operations;
 @property(copy) void (^accountCompletion)(NSString *, NSError *);
+@property NSError *submitError;
+@property BOOL submitThrows;
 @end
 @implementation FakeFactory
 - (instancetype)init {
@@ -17,10 +19,15 @@
 - (CKDatabaseOperation *)operation:(Class)kind {
   return [kind new];
 }
-- (void)submit:(CKDatabaseOperation *)operation {
+- (NSError *)submit:(CKDatabaseOperation *)operation {
+  if (_submitThrows)
+    [NSException raise:NSInternalInconsistencyException format:@"refused"];
+  if (_submitError)
+    return _submitError;
   @synchronized(self) {
     [_operations addObject:operation];
   }
+  return nil;
 }
 - (void)cancelAccountRequests {
 }
@@ -102,6 +109,21 @@ static NSDictionary *next(SCDDCloudTransport *t) {
 }
 static NSError *error(NSInteger c) {
   return [NSError errorWithDomain:CKErrorDomain code:c userInfo:nil];
+}
+static NSError *partial(CKRecordID *rid, NSError *child) {
+  return [NSError errorWithDomain:CKErrorDomain
+                             code:CKErrorPartialFailure
+                         userInfo:@{CKPartialErrorsByItemIDKey : @{rid : child}}];
+}
+static CKRecord *named(NSString *name) {
+  CKRecord *r = [[CKRecord alloc]
+      initWithRecordType:@"SCDDCitySaveV1"
+                recordID:[[CKRecordID alloc] initWithRecordName:name
+                                                         zoneID:zone()]];
+  CKRecord *base = record();
+  for (NSString *k in base.allKeys)
+    r[k] = base[k];
+  return r;
 }
 static SCDDCloudTransport *transport(FakeFactory *f, NSString *root) {
   return [[SCDDCloudTransport alloc] initWithFactory:f
@@ -585,6 +607,224 @@ int main() {
     dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
     received += [t drainCompletions].count;
     CHECK(received == 8);
+    // A missing or Settings-deleted zone has its own codes, so the coordinator
+    // can prepare the zone again (or ask first) instead of retrying forever.
+    [t cancelAll];
+    [f.operations removeAllObjects];
+    [t startRequest:request(@"changes",
+                            @{@"token" : [NSData data], @"limit" : @256})];
+    CKFetchRecordZoneChangesOperation *gone = (id)last(f);
+    if (gone) {
+      gone.recordZoneFetchCompletionBlock(zone(), nil, nil, NO,
+                                          error(CKErrorZoneNotFound));
+      gone.fetchRecordZoneChangesCompletionBlock(
+          [NSError errorWithDomain:CKErrorDomain
+                              code:CKErrorPartialFailure
+                          userInfo:@{
+                            CKPartialErrorsByItemIDKey :
+                                @{zone() : error(CKErrorZoneNotFound)}
+                          }]);
+      NSDictionary *c = next(t);
+      CHECK(![c[@"ok"] boolValue]);
+      CHECK([c[@"code"] isEqual:@"zone_missing"]);
+    }
+    pending[@"baseline"] = fields(record());
+    for (NSArray *pair in @[
+           @[ @(CKErrorZoneNotFound), @"zone_missing" ],
+           @[ @(CKErrorUserDeletedZone), @"zone_deleted" ],
+           @[ @(CKErrorUnknownItem), @"record_missing" ]
+         ]) {
+      [f.operations removeAllObjects];
+      CHECK([t startRequest:request(@"save", @{
+                 @"pending" : pending,
+                 @"metadata" : @{@"name" : @"Test"}
+               })]);
+      CKModifyRecordsOperation *op = (id)last(f);
+      CHECK(op != nil);
+      if (!op)
+        continue;
+      op.modifyRecordsCompletionBlock(
+          nil, nil,
+          partial(op.recordsToSave.firstObject.recordID,
+                  error([pair[0] integerValue])));
+      NSDictionary *c = next(t);
+      CHECK([c[@"code"] isEqual:pair[1]]);
+      CHECK([c[@"result"] count] == 0);
+    }
+    // A download whose record vanished after inventory listed it.
+    CKRecord *listed = record();
+    listed[@"continuation_sha256"] = hash(bytes);
+    listed[@"continuation"] =
+        [[CKAsset alloc] initWithFileURL:[NSURL fileURLWithPath:source]];
+    [f.operations removeAllObjects];
+    [t startRequest:request(@"download", @{
+         @"remote" : expected,
+         @"max_bytes" : @67108864
+       })];
+    CKFetchRecordsOperation *vanished = (id)last(f);
+    if (vanished) {
+      CKRecordID *rid = vanished.recordIDs.firstObject;
+      vanished.perRecordCompletionBlock(nil, rid, error(CKErrorUnknownItem));
+      vanished.fetchRecordsCompletionBlock(
+          nil, partial(rid, error(CKErrorUnknownItem)));
+      NSDictionary *c = next(t);
+      CHECK(![c[@"ok"] boolValue]);
+      CHECK([c[@"code"] isEqual:@"record_missing"]);
+      CHECK(c[@"result"][@"downloaded"] == nil);
+    }
+    // One record that fails validation is skipped; the rest of the page and
+    // its token still arrive. CloudKit item errors still fail the page.
+    [f.operations removeAllObjects];
+    [t startRequest:request(@"changes",
+                            @{@"token" : [NSData data], @"limit" : @256})];
+    CKFetchRecordZoneChangesOperation *mixed = (id)last(f);
+    if (mixed) {
+      CKRecord *big = named(@"big");
+      big[@"metadata"] = [NSMutableData dataWithLength:65537];
+      CKRecord *untyped = named(@"untyped");
+      untyped[@"commit_id"] = nil;
+      CKRecord *foreign = [[CKRecord alloc]
+          initWithRecordType:@"Other"
+                    recordID:[[CKRecordID alloc] initWithRecordName:@"other"
+                                                             zoneID:zone()]];
+      mixed.recordWasChangedBlock(big.recordID, big, nil);
+      mixed.recordWasChangedBlock(untyped.recordID, untyped, nil);
+      mixed.recordWasChangedBlock(foreign.recordID, foreign, nil);
+      mixed.recordWasChangedBlock(named(@"elsewhere").recordID, record(), nil);
+      mixed.recordWasChangedBlock(named(@"good").recordID, named(@"good"), nil);
+      mixed.recordWithIDWasDeletedBlock(
+          [[CKRecordID alloc] initWithRecordName:@"other-type" zoneID:zone()],
+          @"Other");
+      mixed.recordWithIDWasDeletedBlock(
+          [[CKRecordID alloc] initWithRecordName:@"removed" zoneID:zone()],
+          @"SCDDCitySaveV1");
+      CKServerChangeToken *token = nil;
+      mixed.recordZoneFetchCompletionBlock(zone(), token, nil, NO, nil);
+      mixed.fetchRecordZoneChangesCompletionBlock(nil);
+      NSDictionary *c = next(t);
+      CHECK([c[@"ok"] boolValue]);
+      CHECK([c[@"result"][@"records"] count] == 1);
+      CHECK([[c[@"result"][@"records"] firstObject][@"slot_id"]
+          isEqual:@"good"]);
+      CHECK([c[@"result"][@"deleted_ids"] isEqual:@[ @"removed" ]]);
+    }
+    [f.operations removeAllObjects];
+    [t startRequest:request(@"changes",
+                            @{@"token" : [NSData data], @"limit" : @256})];
+    CKFetchRecordZoneChangesOperation *twice = (id)last(f);
+    if (twice) {
+      twice.recordWasChangedBlock(named(@"good").recordID, named(@"good"), nil);
+      twice.recordWasChangedBlock(named(@"good").recordID, named(@"good"), nil);
+      twice.recordZoneFetchCompletionBlock(zone(), nil, nil, NO, nil);
+      twice.fetchRecordZoneChangesCompletionBlock(nil);
+      CHECK([next(t)[@"code"] isEqual:@"invalid"]);
+    }
+    // Skipped records still count toward the 256-item page bound.
+    [f.operations removeAllObjects];
+    [t startRequest:request(@"changes",
+                            @{@"token" : [NSData data], @"limit" : @256})];
+    CKFetchRecordZoneChangesOperation *flood = (id)last(f);
+    if (flood) {
+      CKRecord *bad = named(@"bad");
+      bad[@"commit_id"] = nil;
+      for (int i = 0; i < 256; i++)
+        flood.recordWasChangedBlock(bad.recordID, bad, nil);
+      flood.recordWasChangedBlock(named(@"good").recordID, named(@"good"), nil);
+      flood.recordZoneFetchCompletionBlock(zone(), nil, nil, NO, nil);
+      flood.fetchRecordZoneChangesCompletionBlock(nil);
+      CHECK([next(t)[@"code"] isEqual:@"invalid"]);
+    }
+    // Metadata that remote() would refuse on every device is never uploaded.
+    // Control characters are one UTF-8 byte but six bytes once JSON-escaped.
+    NSMutableDictionary *wide = [NSMutableDictionary new];
+    NSString *escaped = [@"" stringByPaddingToLength:256
+                                          withString:@"\x01"
+                                     startingAtIndex:0];
+    for (int i = 0; i < 64; i++)
+      wide[[NSString stringWithFormat:@"key%02d", i]] = escaped;
+    [f.operations removeAllObjects];
+    CHECK([t startRequest:request(@"save",
+                                  @{@"pending" : pending, @"metadata" : wide})]);
+    NSDictionary *tooWide = next(t);
+    CHECK([tooWide[@"code"] isEqual:@"invalid"]);
+    CHECK(f.operations.count == 0);
+    [wide removeObjectsForKeys:[wide.allKeys subarrayWithRange:NSMakeRange(0, 32)]];
+    [f.operations removeAllObjects];
+    CHECK([t startRequest:request(@"save",
+                                  @{@"pending" : pending, @"metadata" : wide})]);
+    CHECK(last(f) != nil);
+    [t cancelAll];
+    // An operation the factory cannot add settles its request instead of
+    // stranding it or raising through the caller.
+    f.submitError = error(CKErrorMissingEntitlement);
+    [f.operations removeAllObjects];
+    CHECK([t startRequest:request(@"fetch_record", @{@"slot_id" : @"slot"})]);
+    NSDictionary *refused = next(t);
+    CHECK([refused[@"code"] isEqual:@"permission"]);
+    CHECK(f.operations.count == 0);
+    f.submitError = nil;
+    f.submitThrows = YES;
+    threw = NO;
+    @try {
+      CHECK([t startRequest:request(@"prepare_zone", @{})]);
+    } @catch (NSException *) {
+      threw = YES;
+    }
+    CHECK(!threw);
+    CHECK([next(t)[@"code"] isEqual:@"invalid"]);
+    f.submitThrows = NO;
+    // Entitlement values come from the signature and may have any type.
+    NSString *cloud = @"iCloud.com.sierraburkhart.sincitydesertdreams";
+    CHECK(SCDDCloudEntitlementsAllow(@{
+      @"com.apple.developer.icloud-services" : @[ @"CloudKit" ],
+      @"com.apple.developer.icloud-container-identifiers" : @[ cloud ]
+    },
+                                     cloud));
+    for (id services in @[ @"CloudKit", @1, @{@"CloudKit" : @YES}, NSNull.null ])
+      CHECK(!SCDDCloudEntitlementsAllow(@{
+        @"com.apple.developer.icloud-services" : services,
+        @"com.apple.developer.icloud-container-identifiers" : @[ cloud ]
+      },
+                                        cloud));
+    CHECK(!SCDDCloudEntitlementsAllow(@{
+      @"com.apple.developer.icloud-services" : @[ @"CloudKit" ],
+      @"com.apple.developer.icloud-container-identifiers" : cloud
+    },
+                                      cloud));
+    CHECK(!SCDDCloudEntitlementsAllow(@[ @"CloudKit" ], cloud));
+    CHECK(!SCDDCloudEntitlementsAllow(nil, cloud));
+    CHECK(!SCDDCloudEntitlementsAllow(@{}, cloud));
+    // Completions stay within one adapter drain: accepted work plus queued
+    // results leave room for exactly one coalesced account_changed event.
+    [t cancelAll];
+    NSUInteger accepted = 0;
+    for (int i = 0; i < 100; i++) {
+      [f.operations removeAllObjects];
+      if (![t startRequest:request(@"fetch_record", @{@"slot_id" : @"slot"})])
+        break;
+      accepted++;
+      CKFetchRecordsOperation *op = (id)last(f);
+      if (op)
+        op.fetchRecordsCompletionBlock(@{record().recordID : record()}, nil);
+    }
+    CHECK(accepted == 63);
+    NSArray *full = [t drainCompletions];
+    CHECK(full.count == 63);
+    for (int i = 0; i < 8; i++)
+      CHECK([t startRequest:request(@"fetch_record", @{@"slot_id" : @"slot"})]);
+    CHECK(![t startRequest:request(@"fetch_record", @{@"slot_id" : @"slot"})]);
+    for (int i = 0; i < 100; i++)
+      [[NSNotificationCenter defaultCenter]
+          postNotificationName:CKAccountChangedNotification
+                        object:nil];
+    NSArray *changed = [t drainCompletions];
+    CHECK(changed.count == 1);
+    CHECK([changed.firstObject[@"op"] isEqual:@"account_changed"]);
+    testEpoch++;
+    CHECK([t startRequest:request(@"account", @{})]);
+    if (f.accountCompletion)
+      f.accountCompletion(@"fourth-account", nil);
+    CHECK([next(t)[@"ok"] boolValue]);
     [t cancelAll];
     [[NSFileManager defaultManager] removeItemAtPath:root error:nil];
     printf("Results: %d passed, %d failed\n", passed, failed);

@@ -144,3 +144,9 @@ func test_invalid_server_conflict_releases_adapter_and_coordinator_lane() -> voi
 		check(_last_native(native, "save").id != save.id, "pending work is dispatched again after reconciliation")
 	coordinator.shutdown()
 	_remove_private_tree(root)
+
+func test_zone_and_record_codes_cross_the_native_boundary() -> void:
+	for pair: Array in [["changes", "zone_missing"], ["save", "zone_deleted"], ["save", "record_missing"], ["download", "record_missing"]]:
+		var failure := {"id": "request", "epoch": 1, "op": pair[0], "ok": false, "code": pair[1], "result": {}, "retry_after_ms": 0}
+		check(AppleCloudPlatform.valid_completion(failure), "%s %s" % pair)
+	check(not AppleCloudPlatform.valid_completion({"id": "request", "epoch": 1, "op": "save", "ok": false, "code": "zone_gone", "result": {}, "retry_after_ms": 0}))

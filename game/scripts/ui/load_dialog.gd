@@ -304,12 +304,13 @@ func set_sync_status(status: Dictionary) -> void:
 static func sync_text(status: Dictionary) -> String:
 	match String(status.get("state", "")):
 		"synced": return "Up to date"
-		"syncing", "verifying_account", "pending_download": return "Syncing"
+		"syncing", "verifying_account", "pending_download", "zone_missing", "record_missing": return "Syncing"
 		"pending", "local": return "Saved on this device — sync pending"
 		"disabled": return "iCloud saves are off. Your files stay on this device."
 		"quota": return "iCloud unavailable — storage is full. Free iCloud space to resume syncing."
 		"signed_out": return "iCloud unavailable — sign in to iCloud in your device settings."
 		"permission": return "iCloud unavailable — check iCloud access in your device settings."
+		"zone_deleted": return "iCloud saves were deleted in Settings. Turn iCloud saves off and on again to upload this device's cities."
 		"local_only": return "A local save is available in Load City; it has not synced."
 		"local_io": return "iCloud sync pending — check free space on this device."
 	return "iCloud unavailable. Your local cities can still be loaded."

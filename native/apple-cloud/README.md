@@ -81,11 +81,17 @@ A record's name is its slot ID. Fields are `commit_id`, `continuation_sha256`,
 entries, with finite numbers. System-field archives and change-token archives
 are opaque secure archives, each bounded to 1 MiB. Inventory/fetch desired keys
 exclude both assets. Change inventory uses one explicit page of at most 256
-records/deletions and returns the opaque cursor and `more` flag.
+records/deletions and returns the opaque cursor and `more` flag. A record that
+arrives but fails validation (wrong type, missing or oversized fields) is
+skipped rather than failing the page, so one bad record cannot stop every
+device's inventory; skipped items still count toward the 256-item bound. A
+CloudKit error for any item still fails the whole page and keeps the cursor.
 
 A save decodes the actual baseline's system fields, checks its slot, zone, type
 and change tag, and uses `CKRecordSaveIfServerRecordUnchanged`. New slots have no
-baseline. Assets are copied from validated, bounded, hash-checked regular files
+baseline. Metadata whose JSON encoding exceeds 64 KiB, the bound every reader
+applies, is refused before upload. Assets are copied from validated, bounded,
+hash-checked regular files
 into immutable private uploads asynchronously. Each asset is at most 64 MiB.
 Tombstones clear continuation and may retain the manual asset. A conflict
 returns the actual server Remote; device timestamps never select a winner.
@@ -105,6 +111,15 @@ protect requests, operation ownership, generations and queue draining; duplicate
 or stale callbacks cannot complete a retired request. Destruction cancels CK
 operations and removes only the instance's generated staging child directory.
 
+At most 8 requests are outstanding, and outstanding requests plus queued
+completions stay below 64 (one adapter drain) with room for the single
+account-change event; repeated notifications cancel the queue and leave one
+event. A factory that cannot add an operation (CKContainer raises without the
+container entitlement, or the database refuses it) settles the request at once
+with `permission` or `invalid` instead of raising or stranding it. macOS
+entitlement values are type-checked before use, so a malformed signature fails
+closed.
+
 `CKAccountChangedNotification` immediately invalidates/cancels current work and
 blocks new ordinary requests until a newer-epoch account query succeeds and
 queues `{id:"", epoch:current_epoch, op:"account_changed", ok:true, code:"",
@@ -116,6 +131,13 @@ results and prevent a cancelled status lookup from starting a subsequent user-ID
 lookup. Actual CK database operations receive `cancel` immediately.
 
 Errors use the shared stable codes: unavailable, signed_out, transient, quota,
-conflict, token_expired, cancelled, invalid and permission. Single-record partial
-errors are unwrapped; server Retry-After is preserved with saturating arithmetic.
-Only an authoritative unknown-item fetch becomes an empty Remote.
+conflict, token_expired, cancelled, invalid, permission, zone_missing,
+zone_deleted and record_missing. Single-record partial errors are unwrapped;
+server Retry-After is preserved with saturating arithmetic. Only an
+authoritative unknown-item fetch becomes an empty Remote; an unknown item on a
+save or download is `record_missing`, which the coordinator answers with an
+authoritative fetch rather than a retry of the same request. `zone_missing`
+(CKErrorZoneNotFound) makes the coordinator prepare the zone again and refetch
+from an empty cursor. `zone_deleted` (CKErrorUserDeletedZone) means the person
+deleted the data in Settings; the zone is not recreated until they turn iCloud
+saves off and on again (see the design notes).

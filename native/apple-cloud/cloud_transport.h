@@ -4,7 +4,9 @@
 // Injected tests construct operation objects but never construct CKContainer.
 @protocol SCDDCloudOperationFactory <NSObject>
 - (CKDatabaseOperation *)operation:(Class)kind;
-- (void)submit:(CKDatabaseOperation *)operation;
+// Returns nil once the operation is owned by CloudKit. An error means the
+// operation was never added and none of its callbacks will run.
+- (NSError *)submit:(CKDatabaseOperation *)operation;
 - (void)cancelAccountRequests;
 - (void)account:(void (^)(NSString *, NSError *))completion;
 @end
@@ -19,3 +21,4 @@
 id<SCDDCloudOperationFactory> SCDDCreateRealFactory(NSString *container);
 BOOL SCDDCloudRuntimeConfigured(NSString *container);
 BOOL SCDDCloudConfigurationAllows(NSDictionary *info, NSString *container);
+BOOL SCDDCloudEntitlementsAllow(id entitlements, NSString *container);

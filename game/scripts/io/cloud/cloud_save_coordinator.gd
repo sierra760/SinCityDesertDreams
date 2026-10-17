@@ -53,6 +53,10 @@ var _failed_at := 0
 ## Personal files already migrated in this verified epoch: path key -> stamp.
 var _migrated: Dictionary = {}
 var _migration_signature := ""
+## A zone the person deleted in Settings is not recreated automatically: that
+## would upload again the data they chose to remove. Turning iCloud saves off
+## and on again is the consent; the next verified account clears the pause.
+var _zone_consent := false
 
 func _init(store: CloudSaveStore, platform: RefCounted) -> void:
 	_store = store
@@ -68,6 +72,7 @@ func enabled() -> bool:
 
 func set_enabled(enabled: bool) -> void:
 	if _closed or enabled == _enabled: return
+	if not enabled: _zone_consent = true
 	_enabled = enabled
 	_invalidate()
 	_emit_status()
@@ -176,6 +181,9 @@ func _schedule() -> void:
 		if not _has("account"): _send("account", {})
 		return
 	if not _zone:
+		if _store.zone_deleted():
+			_error = "zone_deleted"
+			return
 		if not _has("prepare_zone"): _send("prepare_zone", {})
 		return
 	if _library_visible and _now - _last_refresh >= REFRESH_INTERVAL_MS: _refresh = true
@@ -258,6 +266,11 @@ func _complete(value: Dictionary) -> void:
 			if _store.open_library(result.owner) != OK or _store.repair_adoptions() != OK:
 				_fail("local_io", 0)
 				return
+			if _zone_consent:
+				if _store.set_zone_deleted(false) != OK:
+					_fail("local_io", 0)
+					return
+				_zone_consent = false
 			_set_owner(result.owner)
 			library_changed.emit()
 		"prepare_zone": _zone = true
@@ -362,6 +375,29 @@ func _failure(request: Dictionary, completion: Dictionary) -> void:
 		_failures = failures
 		_server_retry_at = server_retry
 		_fail("signed_out", retry)
+		return
+	if code in ["zone_missing", "zone_deleted"]:
+		# The zone and all its records are gone. Rows already listed describe
+		# the old zone; pending work and pins stay durable and reconcile
+		# against the zone prepared again and an inventory from an empty token.
+		_zone = false
+		_page.clear()
+		_fetched_remotes.clear()
+		_initial_inventory_complete = false
+		_refresh = true
+		var reset := _store.set_zone_deleted(true) if code == "zone_deleted" else _store.commit_change_token(PackedByteArray())
+		_fail(code if reset == OK else "local_io", retry)
+		return
+	if code == "record_missing":
+		# The target no longer exists, so the same request cannot succeed. A
+		# save keeps its pin, which _schedule resolves with fetch_record; a
+		# download turns its page item into a removal the page re-verifies.
+		if request.op == "download":
+			var slot_id: String = request.context.remote.slot_id
+			if not _page.is_empty() and not _page.items.is_empty() and _page.items[0].slot_id == slot_id:
+				_page.items[0] = {"deleted": true, "slot_id": slot_id}
+				_page.erase("removal_verified")
+		_fail(code, retry)
 		return
 	if request.op == "changes":
 		_refresh = true
