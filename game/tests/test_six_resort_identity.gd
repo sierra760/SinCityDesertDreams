@@ -3,7 +3,8 @@ extends "res://tests/test_case.gd"
 
 const KEYS := [&"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"]
 const COSTS := [320000, 140000, 220000, 500000, 60000, 95000]
-const CAPACITIES := [35000, 30000, 30000, 45000, 35000, 40000]
+## Overnight guest capacities: construction cost / 100 (docs/simulation/tourism.md).
+const CAPACITIES := [3200, 1400, 2200, 5000, 600, 950]
 
 func _city() -> City:
 	var city := City.new()
@@ -30,6 +31,7 @@ func test_all_build_demolish_and_classify() -> void:
 		check(UtilityParams.draws_power(256 + i))
 		check(UtilityParams.draws_water(256 + i))
 		check_eq(RewardParams.ARCOLOGIES[KEYS[i]].capacity, CAPACITIES[i])
+		check_eq(CAPACITIES[i], COSTS[i] / 100, "guest capacity scales with construction cost")
 		check_eq(Tools.available_year(tool, stats), 2050)
 		var removed := builder.apply(Tools.Kind.BULLDOZE, Vector2i(15, 15))
 		check(removed.ok, str(removed))

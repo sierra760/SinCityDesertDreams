@@ -7,8 +7,15 @@ extends "res://tests/exploration/async_test_case.gd"
 const MainScene := preload("res://scenes/main.tscn")
 class ReleaseHost extends GameHost:
 	var fail_autosave := false
+	## When set, the automatic backup is written as this named save instead,
+	## at the same moment Main writes its backup, so tests can reload it.
+	var backup_name := ""
+	var backup_paths: Array[String] = []
 	func autosave() -> Error:
-		return ERR_CANT_CREATE if fail_autosave else OK
+		if fail_autosave: return ERR_CANT_CREATE
+		if not backup_name.is_empty():
+			backup_paths.append(files.save_city_as(backup_name))
+		return OK
 
 class ReleaseFiles extends CityFileFlow:
 	var fail_save := false
@@ -245,13 +252,23 @@ func test_city_saved_during_budget_review_reopens_review_on_load() -> void:
 	cleanup_paths.append(path)
 	host.sim.stats.auto_budget = false
 	var year_end := GameClock.DAYS_PER_YEAR - 1
-	host.sim.clock.day = year_end
-	host.sim.city.day = year_end
 	host.sim.set_speed(GameClock.Speed.FAST)
-	# The automatic backup is written while the year-end day is being reported.
-	host.sim.budget_review_pending = true
-	check_eq(host.files.save_city_as("ui-release-review"), path)
-	host.sim.budget_review_pending = false
+	# The automatic backup is written while the year-end day is being reported,
+	# after the year's books have settled; the year is played to its review.
+	var reported := []
+	host.sim.budget_review_due.connect(func(_year: int) -> void:
+		reported.append([host.sim.budget_review_pending, host.sim.clock.day]), CONNECT_ONE_SHOT)
+	host.backup_name = "ui-release-review"
+	while host.sim.clock.day <= year_end and not host.sim.budget_review_pending:
+		host.sim.advance_day()
+	host.backup_name = ""
+	check_eq(reported, [[true, year_end]], "the review is reported on the year-end day")
+	check_eq(host.backup_paths, [path], "the city is saved during its January review")
+	check(host.sim.budget_review_pending, "the year ran up to its review")
+	check(host.windows.has("budget") and host.windows.budget.visible, "the review opened before loading")
+	if host.windows.has("budget"): host.windows.budget.close()
+	check(not host.sim.budget_review_pending)
+	check_eq(host.modal_depth, 0)
 	check(host.load_city(path))
 	check(host.sim.budget_review_pending, "loaded city is still in its January review")
 	check_eq(host.sim.clock.day, year_end + 1, "the year-end day that already ran is not run again")

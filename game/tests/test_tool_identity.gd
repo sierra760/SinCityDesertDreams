@@ -34,7 +34,8 @@ func test_gaming_resorts_are_listed_by_ascending_cost() -> void:
 		position[tool] = node.get_index()
 	var listed: Array = position.keys()
 	listed.sort_custom(func(a: int, b: int) -> bool: return position[a] < position[b])
-	check_eq(listed, [Tools.Kind.ARCOLOGY_LAST, Tools.Kind.ARCOLOGY_DUST, Tools.Kind.ARCOLOGY_COMSTOCK,
+	check_eq(listed, [Tools.Kind.ARCOLOGY_BODDY, Tools.Kind.ARCOLOGY_WOOLIER,
+		Tools.Kind.ARCOLOGY_STOCKGROWERS, Tools.Kind.ARCOLOGY_FREMONT, Tools.Kind.ARCOLOGY_LAST, Tools.Kind.ARCOLOGY_DUST, Tools.Kind.ARCOLOGY_COMSTOCK,
 		Tools.Kind.ARCOLOGY_JUNCTION, Tools.Kind.ARCOLOGY_ALIBI, Tools.Kind.ARCOLOGY_BOULDER,
 		Tools.Kind.ARCOLOGY_ORBIT, Tools.Kind.ARCOLOGY_VELVET, Tools.Kind.ARCOLOGY_FIX,
 		Tools.Kind.ARCOLOGY_AFTERGLOW])

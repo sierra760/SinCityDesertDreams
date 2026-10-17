@@ -97,14 +97,20 @@ func test_reset_preserves_metadata_and_original_seed() -> void:
   var settings := RealWorldManifest.editing_settings(candidate)
   settings.terrain_origin={}
   settings.merge(Fixtures.metadata())
+  # The founding year is chosen in New City before shaping begins (the dialog
+  # labels the preview city and its settings); the editing session's budget
+  # and tourism calendar start from it.
+  settings.founded_year=2001
+  candidate.city.founded_year=2001
   seed(7654)
   var expected_next := randi()
   seed(7654)
   var city := host.start_new_city(settings, candidate.city)
   check_eq(randi(), expected_next, "imported start consumes no global RNG")
+  check_eq(city.founded_year,2001)
+  check(Fixtures.metadata().founded_year!=2001, "the year differs from the imported default")
   city.name="Edited name"
   city.difficulty=2
-  city.founded_year=2001
   city.mayor="Local Mayor"
   check_eq(SaveFormat.save(SAVE, host.sim.city, host.sim.snapshot(), SaveFormat.STAGE_EDITING, host.editing_params), OK)
   check(host.load_city(SAVE))

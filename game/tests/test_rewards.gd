@@ -95,9 +95,20 @@ func _count_zone(c: City, kind: int) -> int:
 	return n
 
 
+## Visitors arrive through a regional gateway, so the frontage road runs
+## beside the lot up to the north map edge (docs/simulation/tourism.md).
 func _serve(c: City, x: int, y: int) -> void:
 	TourismFixture.set_served(c, Vector2i(x, y), true, true)
-	c.stamp_building(x - 1, y, Buildings.ROAD_FIRST)
+	for row in range(y + 1):
+		c.building.put(x - 1, row, Buildings.ROAD_FIRST)
+
+
+## Ordinary residents of working age staff the resorts; tourism shares this
+## resident labor pool (docs/simulation/tourism.md), so the synthetic
+## population is given matching workers.
+func _populate(ctx: SimContext, residents: int) -> void:
+	ctx.stats.population = residents
+	ctx.stats.cohorts[PopulationParams.WORK_COHORT_MIN] = residents
 
 
 # ── Milestones and gifts ─────────────────────────────────────────────────
@@ -463,7 +474,7 @@ func test_powered_resort_fills_with_tourists_only() -> void:
 	_register(ctx, [rewards])
 	c.stamp_building(10, 10, Buildings.ARCOLOGY_COMSTOCK)
 	_serve(c, 10, 10)
-	ctx.stats.population = 100000
+	_populate(ctx, 100000)
 	var tourism := ctx.system(&"tourism") as TourismSystem
 	tourism.reconcile_now()
 	check_eq(rewards.arcology_report()[0].tourists, 0)
@@ -504,7 +515,7 @@ func test_high_taxes_slow_intake() -> void:
 	_register(ctx, [rewards])
 	c.stamp_building(10, 10, Buildings.ARCOLOGY_ORBIT)
 	_serve(c, 10, 10)
-	ctx.stats.population = 200000
+	_populate(ctx, 200000)
 	ctx.stats.tax_occupancy = 20
 	ctx.stats.tax_gaming = 20
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
@@ -515,7 +526,7 @@ func test_high_taxes_slow_intake() -> void:
 	_register(ctx2, [rewards2])
 	c2.stamp_building(10, 10, Buildings.ARCOLOGY_ORBIT)
 	_serve(c2, 10, 10)
-	ctx2.stats.population = 200000
+	_populate(ctx2, 200000)
 	_run_days(ctx2, [rewards2], GameClock.DAYS_PER_YEAR)
 	var untaxed := int(rewards2.arcology_report()[0].residents)
 	check_lt(taxed, untaxed, "visitor taxes deter tourists")
@@ -528,7 +539,7 @@ func test_demolished_arcology_leaves_the_census() -> void:
 	_register(ctx, [rewards])
 	c.stamp_building(10, 10, Buildings.ARCOLOGY_COMSTOCK)
 	_serve(c, 10, 10)
-	ctx.stats.population = 100000
+	_populate(ctx, 100000)
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
 	check_gt(ctx.stats.tourists, 0)
 	c.clear_footprint(10, 10)
@@ -638,7 +649,7 @@ func test_all_six_new_resorts_join_tourist_reports() -> void:
 	for i in 6:
 		city.stamp_building(12 + i * 5, 12, 256 + i)
 		_serve(city, 12 + i * 5, 12)
-	ctx.stats.population = 200000
+	_populate(ctx, 200000)
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_YEAR)
 	var reports := rewards.arcology_report()
 	check_eq(reports.size(), 6)

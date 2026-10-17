@@ -34,9 +34,14 @@ func test_live_picking_and_camera_controls() -> void:
 	await process_frame
 	check(view.active and view.layer == -1, "3D view appears behind the existing interface")
 	# Every building code from the first 1x1 lot through the last resort has a model.
-	var covered := view.catalog.entries.size() == Buildings.COUNT - Buildings.RES_1X1_FIRST
+	var authored := 0
+	var covered := true
 	for code: int in range(Buildings.RES_1X1_FIRST, Buildings.COUNT):
+		# Flexible farm cells are drawn by the agriculture view, not catalog models.
+		if Buildings.is_agricultural_cell(code): continue
+		authored += 1
 		covered = covered and view.catalog.entries.has(code)
+	covered = covered and view.catalog.entries.size() == authored
 	check(covered and view.buildings.missing.is_empty(), "the complete authored catalog is available")
 	check(not view.notice.visible, "complete models do not display a placeholder warning")
 	check(view.viewport.size.x > 0 and view.viewport.size.y > 0, "viewport has usable dimensions")

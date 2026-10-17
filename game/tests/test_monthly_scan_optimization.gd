@@ -28,6 +28,9 @@ func test_capacity_tables_and_custom_zone_owner() -> void:
 			var expected := ZoneParams.population_of(id) if use_zones else 0
 			if expected <= 0:
 				expected = PopulationParams.lot_capacity(id)
+			# Agricultural lots carry their farm jobs from the agriculture roster.
+			if Buildings.is_agricultural(id):
+				expected = AgricultureParams.jobs_of(id)
 			check_eq(capacities[id], expected, "capacity matches public owner and fallback")
 	var city := flat_city()
 	city.building.put(10, 10, Buildings.RES_1X1_FIRST)
@@ -38,6 +41,19 @@ func test_capacity_tables_and_custom_zone_owner() -> void:
 	owner.setup(ctx)
 	owner._run_census(ctx)
 	check_eq(owner.residents(), 33, "custom zone calls remain per-lot and ordered")
+	# Farm jobs come only from the agriculture system, never the RCI census.
+	var farm := flat_city()
+	for id: int in Buildings.COUNT:
+		if Buildings.is_agricultural(id):
+			farm.stamp_building(10, 10, id)
+			break
+	check(Buildings.is_agricultural(farm.building_at(10, 10)), "a farm lot is standing")
+	var farm_ctx := _context(farm)
+	var farm_owner := PopulationSystem.new()
+	farm_owner.setup(farm_ctx)
+	farm_owner._run_census(farm_ctx)
+	check_eq(farm_owner.residents(), 0, "farm lots house nobody")
+	check_eq(farm_ctx.stats.jobs, 0, "farm lots add no commercial or industrial jobs")
 
 class CustomZones extends SimSystem:
 	var count := 0

@@ -99,10 +99,26 @@ func _walk_to(point: Vector3) -> void:
 	await _frames(2)
 
 
+## Explicit current tourism fixture: patrons follow the venue's simulated
+## attendance and an empty resort has none (tourism design, Explore crowds).
+func _author_attendance(guests: int) -> void:
+	TourismFixture.set_served(host.sim.city, ANCHOR, true, true)
+	var tourism := host.sim.tourism()
+	tourism.reconcile_now()
+	var state: TourismState = tourism.get("_state")
+	var rows := state.records()
+	rows[0].guests = guests
+	TourismFixture.segment_rows(rows)
+	check_eq(state.replace_records(rows), OK, "explicit fixture attendance validates")
+	tourism.reconcile_now()
+	check_eq(int(tourism.venue_report(ANCHOR).tourists), guests, "the resort has visitors")
+
+
 ## Found the resort city, enter Explore on its road and walk in the door.
 ## False (after a failed check) when any step of the way is unavailable.
-func _walk_inside() -> bool:
+func _walk_inside(visitors: int = 0) -> bool:
 	host.begin_city(_resort_city(), {}, 7, CityStats.new())
+	if visitors > 0: _author_attendance(visitors)
 	host.sim.set_speed(GameClock.Speed.SLOW)
 	host.exploration.casino_table_requested.connect(func(resort: StringName, game: StringName, table: Dictionary) -> void:
 		requests.append([resort, game, table]))
@@ -143,11 +159,12 @@ func _sit_down() -> bool:
 
 
 func test_walk_in_play_a_hand_walk_out_and_keep_the_ledger() -> void:
-	if not await _walk_inside(): return
+	if not await _walk_inside(16): return
 	var world := host.exploration.resort_service.world_for({"anchor":ANCHOR,"code":251,"key":COMSTOCK})
 	var crowd := world.get_node_or_null("Patrons")
 	check(crowd != null,"the real casino session has patrons")
 	if crowd == null: return
+	check(not (crowd.call("states") as Array).is_empty(), "visitors are on the floor")
 	if not await _sit_down(): return
 	var overlay := host.casino_overlay
 	check_eq(host.modal_depth, 1)

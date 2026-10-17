@@ -10,10 +10,10 @@
 extends RefCounted
 
 const HASHES := {
-	"monthly_scan/economy": "6c85443e6fcd43742a82e1627efe7f69e0309761f6ede461357f520c49c09447",
-	"monthly_scan/population": "8a76fa3d99038d65a1b4e714c8b48dbfa058d20fc5619e734ad9f9684c883102",
-	"monthly_scan/budget": "747d4a4edc9df901ac59f6f18b695695ef13278baa55ba6c23db2fad34373f29",
-	"monthly_scan/disaster": "9b753d9357b0be043f9508ed8a21b5abcf03563397fc1f85416570aff775cd06",
+	"monthly_scan/economy": "699123f18f935f95484170166e683597b4425ca2d664dffcd927a6231cbc6a25",
+	"monthly_scan/population": "e56e7054a2ce978be74efd15ee1b8456f426b0e33b2f13d4d5395fbf7653e852",
+	"monthly_scan/budget": "7005cf2678ddd55a74381c9fa1c52a9c8d2e16d5c387bf29d73fd402c3982987",
+	"monthly_scan/disaster": "0c88115ef6b5c6f8cdc1abbbb069144ec9d53489197b5e4aebd27ff6a4c84365",
 	"network_physics/mixed_far_city": "5728ec5de76280b583340b09f3a7aad9fe039a622973190da6b43011bb4961fa",
 	"resolve/curved_floor_walls_boxes": "2ddd1309c5d607b68c0050bfa6ba7cc5b2a9e3ed81e336f216dc32cf9f4717df",
 	"resolve/multigroup": "8d894ae1211036592b2cc9637958a48e3935ec70380765f158fb64734b6b2f52",

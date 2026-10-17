@@ -26,24 +26,69 @@ func test_road_layers_close_their_exposed_edges_on_flat_and_creased_ground() -> 
 				check(_hit(layer._faces,at-Vector3.RIGHT*.009,at+Vector3.RIGHT*.009),"visible edge closes below raised surface slope=%s x=%s z=%s"%[sloped,probe.x,z])
 		layer.free()
 
-func test_bend_shoulders_close_between_arc_segments() -> void:
-	var city := flat_city()
+## Hit a grounded wall facing `normal` (horizontal); tile-border walls between
+## neighboring pieces cannot stand in for a missing diagonal edge.
+func _wall_hit(faces: PackedVector3Array, a: Vector3, b: Vector3, normal: Vector2) -> bool:
+	for i: int in range(0,faces.size(),3):
+		var n := (faces[i+1]-faces[i]).cross(faces[i+2]-faces[i])
+		var flat := Vector2(n.x,n.z)
+		if flat.length()<.000001 or absf(n.y)>flat.length()*.001 or absf(flat.normalized().dot(normal))<.999: continue
+		if Geometry3D.segment_intersects_triangle(a,b,faces[i],faces[i+1],faces[i+2]) != null: return true
+	return false
+
+## Bend tiles are straight diagonal strips between their saved edge intercepts.
+## The shoulder (.60 pavement plus .075) meets each tile border .1625 and .8375
+## from the turn corner; both diagonal edges must stay solid down to the terrain.
+func _shoulder_edges_closed(city: City, region: Rect2i, edges: Array, label: String) -> void:
+	var layer := CityNetworks3D.new()
+	layer._build_region(city,region)
+	for edge: Array in edges:
+		var from: Vector2 = edge[0]
+		var to: Vector2 = edge[1]
+		var normal := (to-from).normalized().orthogonal()
+		var stops: Array[float] = [.0005,.002,.9980,.9995]
+		for i: int in 48: stops.append((i+.5)/48.0)
+		for join: float in edge.slice(2):
+			for side: float in [-.002,-.0005,.0005,.002]: stops.append(join+side)
+		for t: float in stops:
+			var p := from.lerp(to,t)
+			var cell := Vector2i(floori(p.x),floori(p.y)).clamp(region.position,region.end-Vector2i.ONE)
+			var at := CityGeometry3D.point_on_ground(city,cell,p-Vector2(cell))+Vector3.UP*.028
+			var across := Vector3(normal.x,0,normal.y)*.004
+			check(_wall_hit(layer._faces,at-across,at+across,normal),"bend shoulder has continuous solid edge %s edge=%s->%s t=%.4f"%[label,from,to,t])
+	layer.free()
+
+func test_bend_shoulders_close_along_straight_diagonals() -> void:
 	var cell := Vector2i(20,20)
-	for mask: int in [3,6,9,12]:
-		city.building.putv(cell,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,mask))
-		var layer := CityNetworks3D.new()
-		layer._build_region(city,Rect2i(cell,Vector2i.ONE))
-		var pivot: Vector2 = {3:Vector2(1,0),6:Vector2(1,1),12:Vector2(0,1),9:Vector2(0,0)}[mask]
-		var angle: float = {3:PI,6:-PI/2,12:0.0,9:PI/2}[mask]
-		for i: int in 16:
-			var a := angle-(i+.5)*PI/32
-			var radial := Vector2(cos(a),sin(a))
-			# Straight chords are the actual authored boundary of each segment.
-			var p := pivot+radial*.8375*cos(PI/64)
-			var at := CityGeometry3D.point_on_ground(city,cell,p)+Vector3.UP*.028
-			var across := Vector3(radial.x,0,radial.y)*.004
-			check(_hit(layer._faces,at-across,at+across),"bend shoulder has continuous solid outer edge mask=%d segment=%d"%[mask,i])
-		layer.free()
+	for sloped: bool in [false,true]:
+		for mask: int in [3,6,9,12]:
+			var city := flat_city()
+			if sloped:
+				city.terrain_surface = TerrainSurface.new(4)
+				city.terrain_surface.set_vertex(21,21,5)
+			city.building.putv(cell,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,mask))
+			var corner: Vector2 = Vector2(cell)+{3:Vector2(1,0),6:Vector2(1,1),12:Vector2(0,1),9:Vector2(0,0)}[mask]
+			var first: Vector2 = {3:Vector2.LEFT,6:Vector2.UP,12:Vector2.RIGHT,9:Vector2.DOWN}[mask]
+			var last: Vector2 = {3:Vector2.DOWN,6:Vector2.LEFT,12:Vector2.UP,9:Vector2.RIGHT}[mask]
+			var edges: Array = []
+			for offset: float in [.1625,.8375]:
+				edges.append([corner+first*offset,corner+last*offset])
+			_shoulder_edges_closed(city,Rect2i(cell,Vector2i.ONE),edges,"mask=%d sloped=%s"%[mask,sloped])
+
+func test_alternating_bends_join_into_one_closed_diagonal() -> void:
+	# A south-west bend above a north-east bend: one straight diagonal whose
+	# shoulder edges continue across the shared border without a gap.
+	for sloped: bool in [false,true]:
+		var city := flat_city()
+		if sloped:
+			city.terrain_surface = TerrainSurface.new(4)
+			city.terrain_surface.set_vertex(21,21,5)
+		city.building.put(20,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,NetworkShapes.SOUTH|NetworkShapes.WEST))
+		city.building.put(20,21,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,NetworkShapes.NORTH|NetworkShapes.EAST))
+		# Each line is one tile's long edge continuing as the other's short edge;
+		# the extra entry is the parameter of the shared border crossing.
+		_shoulder_edges_closed(city,Rect2i(20,20,1,2),[[Vector2(20,20.1625),Vector2(21,21.1625),.8375],
+			[Vector2(20,20.8375),Vector2(21,21.8375),.1625]],"corridor sloped=%s"%sloped)
 
 func test_sloping_authored_lot_has_support_below_its_actual_base() -> void:
 	var city := flat_city()
@@ -116,15 +161,16 @@ func test_road_grounding_has_identical_visible_and_physical_sidewalls() -> void:
 
 func test_utility_pole_bases_reach_terrain_on_open_ground_and_crossings() -> void:
 	var city := flat_city()
-	for code: int in [NetworkShapes.shape_id(NetworkShapes.Family.POWER,5),NetworkShapes.CROSS_POWER_EW_ROAD_NS]:
-		city.building.put(20,20,code)
+	for entry: Array in [[NetworkShapes.shape_id(NetworkShapes.Family.POWER,5),1],[NetworkShapes.CROSS_POWER_EW_ROAD_NS,2]]:
+		city.building.put(20,20,entry[0])
 		var layer := CityNetworks3D.new();layer._build_region(city,Rect2i(20,20,1,1))
 		var poles := 0
 		for box: Dictionary in layer._physical_boxes:
-			if box.size.y<.5: continue
+			# Poles are the slender posts that carry the wire, whatever its height.
+			if not is_equal_approx(box.size.x,CityNetworks3D.POWER_POLE_WIDTH) or box.size.y<.2: continue
 			poles+=1
 			var bottom: Vector3=box.transform.origin-Vector3.UP*box.size.y*.5
 			var ground := CityGeometry3D.point_on_ground(city,Vector2i(20,20),Vector2(bottom.x-20,bottom.z-20))
 			check(bottom.y<=ground.y+.00001,"pole extends down to terrain instead of floating on a generic road offset")
-		check(poles>0,"pole fixture exercised")
+		check_eq(poles,entry[1],"pole fixture exercised")
 		layer.free()

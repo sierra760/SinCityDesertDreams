@@ -267,7 +267,11 @@ func test_industries_table_and_sector_tax() -> void:
 func test_budget_shows_network_condition() -> void:
 	var text := BudgetWindow.condition_text(sim)
 	check(text.begins_with("Condition: "), text)
-	check_eq(text, "Condition: all networks in good repair", "fully funded networks are not listed one by one")
+	var lines := text.split("\n")
+	check_eq(lines[0], "Condition: all networks in good repair", "fully funded networks are not listed one by one")
+	# Visitor trips are reported beside network condition, apart from resident commutes.
+	check_eq(lines.size(), 2, text)
+	check_eq(lines[lines.size() - 1], "Visitor trips: 0 completed; 0 pending; 0 unsampled. Resident commutes are counted separately.", text)
 	check(BudgetWindow.condition_text(null).is_empty())
 
 

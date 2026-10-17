@@ -288,6 +288,7 @@ func test_patron_clocks_follow_explore_pause_and_cached_hall_presence() -> void:
 	var state: TourismState = _patron_authority.tourism().get("_state")
 	var rows := state.records()
 	rows[0].guests = 16
+	TourismFixture.segment_rows(rows)
 	check_eq(state.replace_records(rows),OK)
 	_patron_authority.tourism().reconcile_now()
 	session.resort_service.bind(view,session.traversal,session.pedestrian,hud,_patron_authority)

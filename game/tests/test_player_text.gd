@@ -24,21 +24,21 @@ func _all_headlines(kind: StringName, args: Dictionary, mayor: String = "Ada") -
 
 # ── Gaming resort launch ─────────────────────────────────────────────────
 
-func test_resort_launch_counts_residents_not_resorts() -> void:
-	var args := {"resorts": 1, "residents": 4200, "refund": 10000}
+func test_resort_launch_counts_tourists_not_resorts() -> void:
+	var args := {"resorts": 1, "tourists": 4200, "residents": 4200, "refund": 10000}
 	var notice := NoticeLines.render(&"exodus", args, "Dry Gulch", "Ada", 2051)
-	check(String(notice["body"]).contains("taking 4,200 residents"), notice["body"])
+	check(String(notice["body"]).contains("taking 4,200 tourists"), notice["body"])
 	check_eq(NewsStories.template_key(&"resort_launch"), &"resort_launch", "its own story")
 	check_eq(NewsStories.headline_variants(&"resort_launch").size(), NewsStories.headline_variants(&"exodus").size(),
 		"the headline pick draws from the same range as before")
 	check_eq(NewsStories.priority_of(&"resort_launch"), NewsStories.priority_of(&"exodus"))
 	check_eq(NewsStories.decay_of(&"resort_launch"), NewsStories.decay_of(&"exodus"))
 	var body := NewsStories.body(&"resort_launch", args, _values(&"resort_launch", args))
-	check(body.contains("carrying 4,200 residents"), body)
+	check(body.contains("carrying 4,200 tourists"), body)
 	check(not body.contains("Families"), body)
 	for h in _all_headlines(&"resort_launch", args):
 		check(not h.contains("Families"), h)
-	check(_all_headlines(&"resort_launch", args).has("4,200 Residents Depart Aboard Departing Resorts"))
+	check(_all_headlines(&"resort_launch", args).has("4,200 Tourists Depart Aboard Departing Resorts"))
 
 
 # ── Unnamed mayor ────────────────────────────────────────────────────────

@@ -32,14 +32,14 @@ const BASELINES := {
 	"network 89 true": "92a3157357ad50a68cc434c8a289c6c31f48ae82e1070240a97b31d11cc800c7",
 	"network 92 false": "57c3c358d304d7eb43660379ec77c19a6a9e9993f282b91d1427faef576e9505",
 	"network 92 true": "11e24a4750ddfc812250ff78ee3b0376dabf377c6a023dadefb2dbe19d3f9533",
-	"network 101 false": "4cf6e6c3c11c9c504b71aeeb8e55c31e9e70533fa005dd989ad2827469b1cf2e",
-	"network 101 true": "4cf6e6c3c11c9c504b71aeeb8e55c31e9e70533fa005dd989ad2827469b1cf2e",
-	"network 102 false": "390374e6355672056cbc795e0e84c60232fb8ed514be602d7fb4da60d2c59e97",
-	"network 102 true": "390374e6355672056cbc795e0e84c60232fb8ed514be602d7fb4da60d2c59e97",
-	"network 103 false": "9b431ae997e8badfbaf679def780398d1be78af91be8bc3d2281b1f5a66a165d",
-	"network 103 true": "9b431ae997e8badfbaf679def780398d1be78af91be8bc3d2281b1f5a66a165d",
-	"network 104 false": "ce2b4a91b6f4de1b04e17e43b624c621884cf29a4e14c3ae29bf24dd5f212126",
-	"network 104 true": "ce2b4a91b6f4de1b04e17e43b624c621884cf29a4e14c3ae29bf24dd5f212126",
+	"network 101 false": "bb356a6f543cc4ce5220e27ced9ff04ed9bb2a1fdb82ffaaa006e3738eb97ca2",
+	"network 101 true": "bb356a6f543cc4ce5220e27ced9ff04ed9bb2a1fdb82ffaaa006e3738eb97ca2",
+	"network 102 false": "03c7ced96332abc5617016f5432c09fc51afcd7fe53c8bc3c4d99710cde92b21",
+	"network 102 true": "03c7ced96332abc5617016f5432c09fc51afcd7fe53c8bc3c4d99710cde92b21",
+	"network 103 false": "149a667f2cb703bf47ab36f26a8cec696499aafb408ada79c808deb616851129",
+	"network 103 true": "149a667f2cb703bf47ab36f26a8cec696499aafb408ada79c808deb616851129",
+	"network 104 false": "34036a37bf3ed377b33608fb4e6ed41290ee36e6cfafd700160485e3ff55c925",
+	"network 104 true": "34036a37bf3ed377b33608fb4e6ed41290ee36e6cfafd700160485e3ff55c925",
 	"network 75 false": "3dfef1760482cbc2f9f1a5c33267f1c3407b07a3ae3b1407b4343be58f378d98",
 	"network 75 true": "3dfef1760482cbc2f9f1a5c33267f1c3407b07a3ae3b1407b4343be58f378d98",
 	"network 76 false": "2cd208579ad6b607953c6d4a84814728c3513b5c6c5e25595d00bc26b881418f",
@@ -162,13 +162,27 @@ func test_imported_highway_turns_and_bridge_axes() -> void:
 				if code in [87,89]:
 					check(absf(sample(data.physical_floor_faces,Vector2(anchor)+Vector2(.5,.5))-(4*CityGeometry3D.HEIGHT+.04+(.65 if code==89 else 0.0)))<.00001,"bridge 89 lift is applied exactly once")
 				if code>=101:
+					# A saved turn block draws two straight, parallel diagonal
+					# carriageways. Each joins the block's edge intercepts .5 and
+					# 1.5 from the turn corner; .92 lanes are measured on the
+					# block border, where they meet the adjoining straight tiles.
 					var pivot: Vector2=Vector2(anchor)+[Vector2(2,0),Vector2(2,2),Vector2(0,2),Vector2.ZERO][code-101]
 					var angle: float=[PI,-PI/2,0,PI/2][code-101]
+					var first:=Vector2(cos(angle),sin(angle));var last:=Vector2(cos(angle-PI/2),sin(angle-PI/2))
 					for radius: float in [.5,1.5]:
-						for step: int in 65:
-							var p:=pivot+Vector2(cos(angle-step*PI/128),sin(angle-step*PI/128))*radius
-							check(not is_nan(sample(data.physical_floor_faces,p)),"connected turn floor code=%d axis=%s radius=%s step=%d point=%s" % [code,axis,radius,step,p])
-							check(not is_nan(sample(data.physical_obstacle_faces,p,false)),"connected turn underside code=%d axis=%s radius=%s step=%d point=%s" % [code,axis,radius,step,p])
+						for lateral: float in [-.44,0.0,.44]:
+							for step: int in 65:
+								var p:=pivot+first.lerp(last,step/64.0)*(radius+lateral)
+								check(not is_nan(sample(data.physical_floor_faces,p)),"connected turn floor code=%d axis=%s radius=%s lateral=%s step=%d point=%s" % [code,axis,radius,lateral,step,p])
+								check(not is_nan(sample(data.physical_obstacle_faces,p,false)),"connected turn underside code=%d axis=%s radius=%s lateral=%s step=%d point=%s" % [code,axis,radius,lateral,step,p])
+					# Every pier stands beneath the pavement and meets its underside.
+					var piers:=0
+					for box: Dictionary in data.physical_boxes:
+						var top: Vector3=box.transform.origin+Vector3.UP*box.size.y*.5
+						var floor_height:=sample(data.physical_floor_faces,Vector2(top.x,top.z))
+						piers+=1
+						check(not is_nan(floor_height) and absf(floor_height-.05-top.y)<.0001,"turn pier meets the carriageway above it code=%d axis=%s pier=%s" % [code,axis,top])
+					check_eq(piers,4,"two piers under each straight carriageway")
 				for box: Dictionary in data.physical_boxes:
 					check(box.transform.is_finite() and box.size.is_finite(),"physical boxes finite")
 					if code in [75,76]:

@@ -65,11 +65,17 @@ func test_full_runtime_catalog_contains_every_authored_model() -> void:
 	var catalog := CityModelCatalog.new()
 	check_eq(catalog.load_manifest(CityModelCatalog.ROOT + "catalog.json"), OK)
 	check_eq(catalog.errors, PackedStringArray())
-	check_eq(catalog.entries.size(), Buildings.COUNT - Buildings.RES_1X1_FIRST)
+	var authored := 0
 	for code: int in range(Buildings.RES_1X1_FIRST, Buildings.COUNT):
+		# Flexible farm cells are drawn by the agriculture view, not catalog models.
+		if Buildings.is_agricultural_cell(code):
+			check(not catalog.entries.has(code), "farm cell %d stays procedural" % code)
+			continue
+		authored += 1
 		check(catalog.entries.has(code), "model %d is shipped" % code)
 		if catalog.entries.has(code):
 			check(catalog.valid_entry(catalog.entries[code]))
+	check_eq(catalog.entries.size(), authored)
 
 
 func test_nested_import_colliders_cannot_intercept_city_queries() -> void:
