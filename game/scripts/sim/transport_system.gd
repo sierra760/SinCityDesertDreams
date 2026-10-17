@@ -567,6 +567,61 @@ func target_graph(city: City) -> Dictionary:
 	_unbind()
 	return graph
 
+## Same keys, values and insertion order as target_graph(city). A tile's states
+## and edges read only its own and its four neighbours' surface id, tunnel and
+## subway bytes, so unchanged neighbourhoods reuse the previous edge arrays.
+func target_graph_update(city: City, previous: Dictionary, old_layer: PackedInt32Array,
+		old_underground: PackedByteArray, old_altitude: PackedInt32Array, new_layer: PackedInt32Array) -> Dictionary:
+	_buildings = city.building.data
+	_underground = city.underground.data
+	_altitude = city.altitude.data
+	var dirty := PackedByteArray()
+	dirty.resize(TILES)
+	for i in TILES:
+		if old_layer[i] != new_layer[i] or old_underground[i] != _underground[i] or old_altitude[i] != _altitude[i]:
+			dirty[i] = 1
+			@warning_ignore("integer_division")
+			var y := i / WIDTH
+			var x := i - y * WIDTH
+			if x > 0: dirty[i - 1] = 1
+			if x < WIDTH - 1: dirty[i + 1] = 1
+			if y > 0: dirty[i - WIDTH] = 1
+			if y < HEIGHT - 1: dirty[i + WIDTH] = 1
+	var graph := {}
+	for tile in TILES:
+		var cls := _surface[_buildings[tile]]
+		var car := (cls & (TransportParams.SURFACE_ROAD | TransportParams.SURFACE_RAMP)) != 0 or _has_tunnel(tile)
+		var highway := (cls & (TransportParams.SURFACE_HIGHWAY | TransportParams.SURFACE_RAMP)) != 0
+		var rail := (cls & (TransportParams.SURFACE_RAIL | TransportParams.SURFACE_PORTAL)) != 0
+		var subway := _is_subway(tile)
+		var station := (cls & TransportParams.SURFACE_STATION) != 0
+		if not (car or highway or rail or subway or station): continue
+		var modes: Array[int] = []
+		if car:
+			modes.append(MODE_CAR)
+			modes.append(MODE_BUS)
+		if highway: modes.append(MODE_HIGHWAY)
+		if rail: modes.append(MODE_RAIL)
+		if subway: modes.append(MODE_SUBWAY)
+		if station: modes.append(MODE_STATION)
+		if dirty[tile] == 0:
+			for mode in modes:
+				var state := mode * TILES + tile
+				graph[state] = previous[state]
+			continue
+		for mode in modes:
+			var state := mode * TILES + tile
+			var edges := PackedInt32Array()
+			@warning_ignore("integer_division")
+			var at := Vector2i(tile % WIDTH, tile / WIDTH)
+			for d in 4:
+				var next := at + Vector2i(DX[d],DY[d])
+				if not city.in_bounds(next.x,next.y): continue
+				for step: Array in _target_steps(state,next.y * WIDTH + next.x): edges.append(step[0])
+			graph[state] = edges
+	_unbind()
+	return graph
+
 ## All valid entrances around the actual footprint. Explicit routing never
 ## allows an earlier isolated road to hide another frontage's station.
 func target_entrances(city: City, rect: Rect2i) -> PackedInt32Array:

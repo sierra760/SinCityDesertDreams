@@ -62,6 +62,11 @@ var _venues := {}
 var _venue_rects := {}
 var _frontages := {}
 var _resident_components := {}
+## target_entrances(rect) reads only the surface-class layer inside rect.grow(ENTRANCE_REACH);
+## entries survive structure changes outside that ring.
+var _entrance_cache := {}
+## Edge mouths of the current graph (before port gateways); rebuilt with the graph.
+var _mouths: Array[Dictionary] = []
 var _stats := {"graph_builds":0,"graph_states":0,"graph_edges":0,"route_work":0,"pending_sources":0,"cache_entries":0,"trip_evictions":0}
 
 func refresh(ctx: SimContext, work_budget: int = ROUTE_WORK) -> void:
@@ -86,9 +91,14 @@ func refresh(ctx: SimContext, work_budget: int = ROUTE_WORK) -> void:
 		_city = city
 		_layers = layers.duplicate(true)
 		if not same_structure:
+			_invalidate_entrances(city, structure[0])
+			var previous_structure := _structure
 			# Packed layers are references: retain a detached copy (raw put() edits mutate in place).
 			_structure = structure.duplicate(true)
-			_graph = _transport.target_graph(city)
+			if previous_structure.size() == 3 and not _graph.is_empty():
+				_graph = _transport.target_graph_update(city, _graph, previous_structure[0], previous_structure[1], previous_structure[2], _structure[0])
+			else:
+				_graph = _transport.target_graph(city)
 			_reverse.clear()
 			for state: int in _graph: _reverse[state] = PackedInt32Array()
 			for state: int in _graph:
@@ -101,8 +111,13 @@ func refresh(ctx: SimContext, work_budget: int = ROUTE_WORK) -> void:
 		_pending.clear()
 		_waiting.clear()
 		_cache_entries = 0
-		if not same_structure: _components()
-		_ports.setup(ctx)
+		if not same_structure:
+			_components()
+			_mouths = _graph_mouths()
+		# Tourism reads only port gateways; the private instance never spawns
+		# vehicles, so skip PortSystem.setup's city-centre scan.
+		_ports._ctx = ctx
+		_ports._ports_valid = false
 		_discover_gateways()
 	if not _structure_indexed:
 		_structure_indexed = true
@@ -123,7 +138,11 @@ func refresh(ctx: SimContext, work_budget: int = ROUTE_WORK) -> void:
 			if (interest & 2) != 0 and UtilityParams.is_anchor_tile(bld,zn,i):
 				var at := PortSystem._tile_of(i)
 				var rect := Rect2i(at,Buildings.size(id))
-				var entrances := _transport.target_entrances(city,rect)
+				var entrances: PackedInt32Array
+				if _entrance_cache.has(rect): entrances = _entrance_cache[rect]
+				else:
+					entrances = _transport.target_entrances(city,rect)
+					_entrance_cache[rect] = entrances
 				for c in _seeds(rect,entrances): _resident_components[c] = true
 				for state in entrances: resident_seen[state] = true
 		_resident_states = PackedInt32Array(resident_seen.keys())
@@ -235,8 +254,35 @@ func _seeds(rect: Rect2i, entrances: Variant = null) -> PackedInt32Array:
 	_frontages[rect] = result
 	return result
 
+func _invalidate_entrances(city: City, graph_layer: PackedInt32Array) -> void:
+	if _city != city or _structure.is_empty() or _entrance_cache.is_empty():
+		_entrance_cache.clear()
+		return
+	var old: PackedInt32Array = _structure[0]
+	if old == graph_layer: return
+	var lo := Vector2i(City.WIDTH, City.HEIGHT)
+	var hi := Vector2i(-1, -1)
+	for i in old.size():
+		if old[i] != graph_layer[i]:
+			var p := PortSystem._tile_of(i)
+			lo = Vector2i(mini(lo.x, p.x), mini(lo.y, p.y))
+			hi = Vector2i(maxi(hi.x, p.x), maxi(hi.y, p.y))
+	var changed := Rect2i(lo, hi - lo + Vector2i.ONE)
+	for rect: Rect2i in _entrance_cache.keys():
+		if rect.grow(TransportParams.ENTRANCE_REACH).intersects(changed): _entrance_cache.erase(rect)
+
 func _discover_gateways() -> void:
 	_gateways.clear()
+	for mouth in _mouths: _gateways.append(mouth.duplicate(true))
+	_gateways.append_array(_ports.call("tourism_gateways"))
+	for gateway in _gateways:
+		var components := {}
+		for state: int in gateway.states:
+			if _component.has(state): components[_component[state]] = true
+		gateway["components"] = components
+
+func _graph_mouths() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
 	var mouths := {}
 	for state: int in _graph:
 		@warning_ignore("integer_division")
@@ -267,13 +313,8 @@ func _discover_gateways() -> void:
 		else: road.states = remaining
 	var ids := mouths.keys()
 	ids.sort()
-	for id: String in ids: _gateways.append(mouths[id])
-	_gateways.append_array(_ports.call("tourism_gateways"))
-	for gateway in _gateways:
-		var components := {}
-		for state: int in gateway.states:
-			if _component.has(state): components[_component[state]] = true
-		gateway["components"] = components
+	for id: String in ids: result.append(mouths[id])
+	return result
 
 func _access(rect: Rect2i) -> Dictionary:
 	var sources := _seeds(rect)

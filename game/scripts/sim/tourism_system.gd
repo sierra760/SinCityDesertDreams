@@ -16,6 +16,18 @@ var _last_month := -1
 var _pending: Dictionary = {}
 ## Encoded immutable rows for the last completed month, including removed lots.
 var _activity: Dictionary = {}
+## validate_activity is pure; _publish revalidates only when its inputs change.
+var _activity_check_key: Array = []
+var _activity_check: Dictionary = {}
+## Every input reconcile_now reads and every value it writes, captured after the
+## last completed reconcile. Equal inputs make a further reconcile a no-op.
+var _reconciled_inputs: Array = []
+## Tests set verify_skips to run every skipped reconcile anyway and collect
+## any difference it would have made.
+static var verify_skips := false
+static var skip_checks := 0
+static var skip_mismatches: Array[String] = []
+const SKIP_REVISION_FIELD := 0
 var _activity_profile := TourismParams.CURRENT_PROFILE
 var _loaded: Dictionary = {}
 var _finished := false
@@ -240,9 +252,63 @@ func networks_changed(_context: SimContext, _rect: Rect2i) -> void:
 
 ## Native layer comparisons cache venue discovery; per-day work visits venues
 ## and their footprints, never every city tile in a script loop or every frame.
+func _reconcile_inputs() -> Array:
+	var city := _ctx.city
+	var s := _ctx.stats
+	var fires: Array = []
+	var disasters := _ctx.system(&"disasters")
+	if disasters != null and disasters.has_method("fires"): fires = disasters.call("fires")
+	var power := _ctx.system(&"power") as PowerSystem
+	var water := _ctx.system(&"water") as WaterSystem
+	return [_state.revision, city, city.building.data, city.zone.data, city.flags.data, city.underground.data,
+		city.altitude.data, city.terrain.data, city.land_value.data, city.crime.data, city.pollution.data,
+		city.flood_overlay, city.facilities, city.imported_power_links, fires, _month_id(), _ctx.clock.founded_year,
+		s.jobs, s.tourism_jobs, s.population, s.cohorts, s.ordinances, s.tax_occupancy, s.tax_gaming,
+		s.average_traffic, s.average_pollution, s.average_land_value, s.average_crime, s.economy_phase,
+		s.neighbor_populations, s.arcology_population, s.tourists, s.tourist_guests, s.tourist_day_visitors,
+		s.tourist_capacity, s.tourist_occupancy, s.tourist_lodging_cents, s.tourist_gaming_cents,
+		s.tourist_reputation_milli, _features, _activity, _last_month, _pending, _activity_profile,
+		_restoring_calendar, _state._next_instance, _state._rows, _published_attendance,
+		power._conservation if power != null else null, power._visitors.rows if power != null else null,
+		water._visitors.rows if water != null else null, _calendar_supported_beds, _calendar_probe_signature, _access.version]
+
 func reconcile_now() -> void:
 	if not _finished or _admission_busy:
 		return
+	# Pending budgeted route work advances on every refresh; never skip it.
+	if not _reconciled_inputs.is_empty() and _access._pending.is_empty() and _access._waiting.is_empty() \
+			and _reconcile_inputs() == _reconciled_inputs:
+		if verify_skips: _verify_skip()
+		return
+	_reconcile_body()
+	_reconciled_inputs = _reconcile_inputs().duplicate(true)
+
+## Test check for the skip above: runs the body anyway and records any input,
+## news, notice, dirty area or attendance signal it would have changed.
+func _verify_skip() -> void:
+	var news_before: Array = _ctx.events.news.duplicate(true)
+	var notices_before: Array = _ctx.events.notices.duplicate(true)
+	var dirty_before = _ctx.events.map_dirty
+	var emitted := [0]
+	var probe := func(_anchors: Array[Vector2i]) -> void: emitted[0] += 1
+	attendance_changed.connect(probe)
+	_reconcile_body()
+	attendance_changed.disconnect(probe)
+	skip_checks += 1
+	var after := _reconcile_inputs()
+	var problems: Array[String] = []
+	for i in after.size():
+		# The revision counts replace_records calls; it only keys forecast caches.
+		if i != SKIP_REVISION_FIELD and after[i] != _reconciled_inputs[i]: problems.append("input %d" % i)
+	if _ctx.events.news != news_before: problems.append("news")
+	if _ctx.events.notices != notices_before: problems.append("notices")
+	if _ctx.events.map_dirty != dirty_before: problems.append("map_dirty")
+	if emitted[0] != 0: problems.append("attendance_changed")
+	if not problems.is_empty():
+		skip_mismatches.append("day %d: %s" % [_ctx.clock.day, ", ".join(problems)])
+	_reconciled_inputs = after.duplicate(true)
+
+func _reconcile_body() -> void:
 	_state.reconcile(_ctx.city)
 	var rows := _environment_rows()
 	for row in rows:
@@ -651,7 +717,11 @@ func _publish() -> void:
 			stats.tourist_capacity += int(row.capacity)
 	stats.tourists = stats.tourist_guests + stats.tourist_day_visitors
 	stats.tourist_occupancy = stats.tourist_guests * 100 / stats.tourist_capacity if stats.tourist_capacity > 0 else 0
-	var business := validate_activity(_activity, _last_month, _activity_profile)
+	var check_key: Array = [_activity, _last_month, _activity_profile]
+	if check_key != _activity_check_key:
+		_activity_check_key = check_key.duplicate(true)
+		_activity_check = validate_activity(_activity, _last_month, _activity_profile)
+	var business := _activity_check
 	stats.tourist_lodging_cents = int(business.lodging_cents)
 	stats.tourist_gaming_cents = int(business.gaming_cents)
 	# Publish accepted inputs only; allocation stays with the coordinated utility pass.
