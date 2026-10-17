@@ -351,6 +351,12 @@ func _process(delta: float) -> void:
 # ── Input ────────────────────────────────────────────────────────────────
 
 func _gui_input(event: InputEvent) -> void:
+	# Native touches own table presses. Godot also sends an emulated mouse
+	# press for the first finger, before the touch: handling both toggles a
+	# poker hold back off, doubles chips and can repeat signature decisions.
+	if event is InputEventMouse and event.device == InputEvent.DEVICE_ID_EMULATION:
+		accept_event()
+		return
 	var point := Vector2.ZERO
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
