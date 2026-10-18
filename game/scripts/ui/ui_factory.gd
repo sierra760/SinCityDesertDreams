@@ -320,8 +320,13 @@ class ResponsivePanel:
 		var fit_content := chrome.has("body_scroll") and chrome.has("body") and _is_modal_dialog()
 		if chrome.has("body_scroll"):
 			var column := (chrome.body_scroll as Control).get_parent() as VBoxContainer
-			chrome_height = get_theme_stylebox("panel").get_minimum_size().y + float(column.get_theme_constant("separation"))*2.0
-			chrome_height += (chrome.title_bar as Control).get_combined_minimum_size().y + (chrome.actions as Control).get_combined_minimum_size().y
+			chrome_height = get_theme_stylebox("panel").get_minimum_size().y
+			var visible_children := 0
+			for child: Control in column.get_children():
+				if not child.visible: continue
+				visible_children += 1
+				if child != chrome.body_scroll: chrome_height += child.get_combined_minimum_size().y
+			chrome_height += float(column.get_theme_constant("separation")) * maxi(0, visible_children - 1)
 		if fit_content:
 			# A dialog shows its whole body, including fields below the text,
 			# and grows past its preferred height up to the usable rect. It
@@ -434,6 +439,8 @@ class ResponsiveTable:
 	extends GridContainer
 	var has_headers := true
 	var headings: Array[String] = []
+	var narrow_width := 560.0
+	var caption_width := 96.0
 	var _original: Array[Control] = []
 	var _cards: Array[Control] = []
 	var _wide_columns := 1
@@ -471,10 +478,10 @@ class ResponsiveTable:
 				var longest_word := 0.0
 				for word: String in caption.text.split(" "):
 					longest_word = maxf(longest_word,caption.get_theme_font("font").get_string_size(word,HORIZONTAL_ALIGNMENT_LEFT,-1,UITheme.FONT_SMALL).x)
-				caption.custom_minimum_size.x = maxf(ceilf(longest_word),minf(96.0,available-cell.get_combined_minimum_size().x-row.get_theme_constant("separation")))
+				caption.custom_minimum_size.x = maxf(ceilf(longest_word),minf(caption_width,available-cell.get_combined_minimum_size().x-row.get_theme_constant("separation")))
 	func _reflow() -> void:
 		if not is_inside_tree() or not is_instance_valid(_scroll) or _original.is_empty(): return
-		var narrow := _scroll.size.x < 560.0
+		var narrow := _scroll.size.x < narrow_width
 		if narrow == _narrow:
 			if narrow: _fit_captions()
 			return

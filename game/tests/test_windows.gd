@@ -67,6 +67,7 @@ func _mount(w: Control) -> Control:
 func _all_windows() -> Array[Control]:
 	var out: Array[Control] = []
 	out.append(BudgetWindow.new())
+	out.append(TourismWindow.new())
 	out.append(GraphsWindow.new())
 	out.append(PopulationWindow.new())
 	out.append(IndustriesWindow.new())
@@ -435,7 +436,7 @@ func test_every_window_refreshes_on_month_end_while_open() -> void:
 	sim.advance_months(1)
 	var budget: BudgetWindow = _mounted[0]
 	check(budget.funds_text().contains(UIFactory.commafy(city.funds)), "budget followed the month: " + budget.funds_text())
-	var paper: NewspaperWindow = _mounted[5]
+	var paper := _mounted.filter(func(w: Control) -> bool: return w is NewspaperWindow).front() as NewspaperWindow
 	check_eq(paper.current_index(), paper.issue_count() - 1, "newspaper followed the month")
 	for w in _mounted:
 		var closed := [0]

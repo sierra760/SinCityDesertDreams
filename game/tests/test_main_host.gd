@@ -94,7 +94,7 @@ func test_status_bar_follows_the_calendar() -> void:
 	check(before.contains("1950"))
 	host.sim.advance_days(30)
 	check_ne(host.status_bar.date_label.text, before, "date text updated after a month")
-	check(host.status_bar.date_label.text.begins_with("February"))
+	check(host.status_bar.date_label.text.begins_with("Feb"), "date shows February in full or compact layout")
 	check_eq(host.status_bar.speed_label.text, "Slow")
 
 
@@ -213,7 +213,8 @@ func test_query_and_escape_drop_the_tool() -> void:
 	host.select_tool(Tools.Kind.ZONE_RES_LOW)
 	host.open_query(Vector2i(40, 40))
 	check(host.query_panel.is_open())
-	check(host.query_panel.lines().size() > 5)
+	check(host.query_panel.lines().size() > 0)
+	check(host.query_panel.lines().size() <= 8, "ground selection is digestible")
 	host.escape()
 	check(not host.query_panel.is_open(), "escape closes the query panel first")
 	host.escape()

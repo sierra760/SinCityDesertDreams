@@ -61,11 +61,17 @@ func test_landscape_inspector_reveals_tourism_rows_and_preserves_controls() -> v
  await Fixture.settle(self,12)
  var panel:=host.query_panel
  check_ge(panel.body_scroll.size.y,80,"landscape body can show multiple unwrapped tourism rows")
- for label in panel.rows.find_children("*","Label",true,false):
-  if label.text in ["Destination reputation","Resident effects","Completed gaming base","Completed lodging base","Tourists","Casino source","Casino safety","Nightlife exposure","District appeal","Resort variety","District access","Retail support","External access","Arrival capacity","Local day access","Visitor segments","Tier yields","Visitor power","Visitor water","Utility support"]:
-   panel.body_scroll.ensure_control_visible(label)
-   await Fixture.settle(self,3)
-   check(panel.body_scroll.get_global_rect().grow(.5).encloses(label.get_global_rect()),"entire tourism label can be revealed")
+ var labels:=panel.rows.find_children("*","Label",true,false)
+ for caption in ["Status","Guests","Day visitors","Staffing","Power","Water"]:
+  var matches:=labels.filter(func(label: Label) -> bool: return label.text==caption)
+  check_eq(matches.size(),1,"curated resort fact appears once: "+caption)
+  if matches.is_empty(): continue
+  var label:=matches[0] as Label
+  panel.body_scroll.ensure_control_visible(label)
+  await Fixture.settle(self,3)
+  check(panel.body_scroll.get_global_rect().grow(.5).encloses(label.get_global_rect()),"entire resort fact can be revealed")
+ for label: Label in labels:
+  check(label.text not in ["Casino source","Nightlife exposure","District appeal","Tier yields","Visitor power","Visitor water","Utility support"],"raw tourism counters are excluded from Query")
  for button in [panel.rename_button,panel.demolish_button,panel.close_button]:
   check_ge(button.size.y,44)
   check(host.display_layout.logical_rect().grow(.5).encloses(button.get_global_rect()))
@@ -75,39 +81,36 @@ func test_landscape_inspector_reveals_tourism_rows_and_preserves_controls() -> v
  await Fixture.settle(self,10)
  check(panel.rename_button.get_global_rect().position.y>panel.body_scroll.get_global_rect().position.y,"portrait restores footer actions")
 
-func test_budget_tourism_compact_comparison_disclosure_and_large_values_fit() -> void:
+func test_separate_tourism_comparison_disclosure_and_large_values_fit() -> void:
  for profile in [Vector2i(390,844),Vector2i(320,568),Vector2i(844,390),Vector2i(768,1024),Vector2i(1024,768),Vector2i(1280,800)]:
   root.size=profile
   host.display_layout.refresh_with_mobile_metrics(profile,1,Rect2i(Vector2i.ZERO,profile),0,"iOS")
   var budget:=host.open_window("budget") as BudgetWindow
+  budget.select_page("Taxes")
   await Fixture.settle(self,10)
   var title: Control=budget._root.get_meta("window_chrome").title_bar
   check_ge(title.get_global_rect().position.y,host.menu_bar.get_global_rect().end.y,"Budget title stays below actual menu end")
   check(budget._root.get_global_rect().end.y<=host.display_layout.logical_rect().end.y,"Budget footer stays within safe bounds")
-  var section:=budget.find_child("TourismSection",true,false) as Control
-  var details:=budget.find_child("TourismDetails",true,false) as Button
-  var body:=budget.find_child("TourismDetailBody",true,false) as Control
-  var scroll:=UIFactory.report_scroll(section)
+  for key in [&"occupancy",&"gaming"]:
+   var field:=budget._tax_spinners[key] as TouchNumberField
+   for control in [field._minus,field._plus,field.get_line_edit()]: check_ge(control.size.y,44)
+  var report:=host.open_window("tourism") as TourismWindow
+  await Fixture.settle(self,8)
+  var details:=report.find_child("TourismDetails",true,false) as Button
+  var body:=report.find_child("TourismDetailBody",true,false) as Control
+  var scroll:=UIFactory.report_scroll(details)
   check(not body.visible,"newly opened details are collapsed")
-  var collapsed:=section.size.y
-  scroll.scroll_vertical+=int(section.get_global_rect().position.y-scroll.get_global_rect().position.y)
-  await Fixture.settle(self,3)
-  if profile==Vector2i(390,844):
-   var estimate:=budget.find_child("TourismTaxEstimate",true,false) as Control
-   check(scroll.get_global_rect().grow(.5).encloses(estimate.get_global_rect()),"phone shows rates/comparison/city tax estimate together from section heading")
+  var collapsed:=report._body.size.y
   for expanded in [false,true]:
    details.button_pressed=expanded
    host.sim.stats.tourist_guests=123456789
    host.sim.stats.tourist_day_visitors=987654321
-   budget.refresh()
+   report.refresh()
    await Fixture.settle(self,8)
    check_eq(body.visible,expanded,"refresh retains disclosure")
    check(scroll.get_h_scroll_bar().max_value<=scroll.get_h_scroll_bar().page+1,"no horizontal scrolling: "+str(profile))
    check_ge(details.size.y,44)
-   for key in [&"occupancy",&"gaming"]:
-    var field:=budget._tax_spinners[key] as TouchNumberField
-    for control in [field._minus,field._plus,field.get_line_edit()]: check_ge(control.size.y,44)
-   if expanded: check_gt(section.size.y,collapsed,"only explicit disclosure adds explanation height")
+   if expanded: check_gt(report._body.size.y,collapsed,"only explicit disclosure adds explanation height")
   details.button_pressed=false
   host.window_manager.close_all()
 
@@ -116,7 +119,8 @@ func test_budget_tourism_refresh_preserves_typing_focus_and_scroll() -> void:
  host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763),0,"iOS")
  var budget:=host.open_window("budget") as BudgetWindow
  await Fixture.settle(self,10)
- var details:=budget.find_child("TourismDetails",true,false) as Button
+ budget.select_page("Taxes")
+ await Fixture.settle(self,4)
  var field:=budget._tax_spinners[&"gaming"] as TouchNumberField
  var edit:=field.get_line_edit()
  var scroll:=UIFactory.report_scroll(edit)
@@ -136,9 +140,12 @@ func test_budget_tourism_refresh_preserves_typing_focus_and_scroll() -> void:
  edit.text="7"
  edit.text_changed.emit("7")
  field.apply()
+ var report:=host.open_window("tourism") as TourismWindow
+ var details:=report.find_child("TourismDetails",true,false) as Button
+ await Fixture.settle(self,4)
  details.grab_focus()
  details.button_pressed=true
- budget.refresh()
+ report.refresh()
  await Fixture.settle(self,4)
  check_eq(root.gui_get_focus_owner(),details,"keyboard disclosure retains focus")
  check_eq(host.sim.snapshot(),before,"disclosure remains simulation-pure")

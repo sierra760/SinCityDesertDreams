@@ -14,6 +14,7 @@ signal demolish_requested(tile: Vector2i)
 signal rename_requested(tile: Vector2i)
 signal sign_edit_requested(tile: Vector2i)
 signal closed
+signal report_requested(window_name: String, page: String)
 
 const PANEL_WIDTH := 320
 ## Record fields never listed as counters.
@@ -38,6 +39,9 @@ var _column: VBoxContainer
 var _title_row: HBoxContainer
 var _actions: HBoxContainer
 var _compact_header := false
+var _details_open := false
+var details_button: Button
+var tourism_button: Button
 var _scroll_restore_revision := -1
 
 
@@ -109,7 +113,16 @@ func _build() -> void:
 			demolish_requested.emit(tile))
 	actions.add_child(demolish_button)
 	WindowDrag.enable(bar,self)
-	size = Vector2(PANEL_WIDTH,480)
+	details_button = UIFactory.make_button("More details", "Show secondary information about this site")
+	column.add_child(details_button)
+	details_button.hide()
+	details_button.toggle_mode = true
+	details_button.toggled.connect(set_details)
+	tourism_button = UIFactory.make_button("Tourism", "Citywide visitor attendance and services")
+	column.add_child(tourism_button)
+	tourism_button.hide()
+	tourism_button.pressed.connect(func() -> void: report_requested.emit("tourism", ""))
+	size = Vector2(PANEL_WIDTH, 300)
 
 
 ## Short landscape viewports put the same 44-point actions beside the title,
@@ -126,6 +139,7 @@ func set_compact_header(compact: bool) -> void:
 func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
 	var next := describe(city, sim, at, underground_view)
 	var same_tile := tile == at
+	if not same_tile: _details_open = false
 	if same_tile and next == info:
 		visible = true
 		return
@@ -133,30 +147,9 @@ func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
 	tile = at
 	info = next
 	_content_revision += 1
-	for child in rows.get_children():
-		rows.remove_child(child)
-		child.queue_free()
-	title_label.text = String(info.get("Building", "Inspect"))
+	_render_rows()
+	title_label.text = String(presentation_info(info).get("Building", "Inspect"))
 	title_label.tooltip_text = title_label.text
-	for key in info:
-		var value: Variant = info[key]
-		if String(key).begins_with("_"):
-			continue
-		if String(key).begins_with("#"):
-			rows.add_child(UIFactory.make_section_header(String(key).substr(1)))
-			continue
-		# Label and value share a line so the details read like a short table.
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		var k := UIFactory.make_label(String(key), UITheme.FONT_BODY, UITheme.TEXT_MUTED)
-		k.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		k.custom_minimum_size.x = 120
-		row.add_child(k)
-		var v := UIFactory.make_label(value_text(value), UITheme.FONT_BODY)
-		v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(v)
-		rows.add_child(row)
 	demolish_button.disabled = not bool(info.get("_demolishable", false))
 	var buried := String(info.get("_removes_underground", ""))
 	demolish_button.text = "Remove " + buried.to_lower() if not buried.is_empty() else "Demolish"
@@ -171,6 +164,110 @@ func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
 	_scroll_restore_revision = _content_revision
 	set_process_input(true)
 	_restore_scroll.call_deferred(reading_position, _content_revision)
+
+
+func details_open() -> bool:
+	return _details_open
+
+func set_details(on: bool) -> void:
+	_details_open = on
+	_content_revision += 1
+	_render_rows()
+
+func _render_rows() -> void:
+	var keep_focus := details_button.has_focus()
+	for button in [details_button, tourism_button]:
+		if rows.is_ancestor_of(button): button.reparent(_column)
+		button.hide()
+	for child in rows.get_children():
+		rows.remove_child(child)
+		child.queue_free()
+	var shown := presentation_info(info, _details_open)
+	for key: String in shown:
+		if key == "Building": continue # Already the title.
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var caption := UIFactory.make_label(key, UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+		caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		caption.custom_minimum_size.x = 104
+		row.add_child(caption)
+		var value := UIFactory.make_label(value_text(shown[key]), UITheme.FONT_SMALL)
+		value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(value)
+		rows.add_child(row)
+	var secondary := UIFactory.WrappingActions.new()
+	rows.add_child(secondary)
+	if info.has("Lodging capacity"):
+		tourism_button.reparent(secondary)
+		tourism_button.show()
+	if presentation_info(info, true) != presentation_info(info, false):
+		details_button.set_pressed_no_signal(_details_open)
+		details_button.text = "Fewer details" if _details_open else "More details"
+		details_button.reparent(secondary)
+		details_button.show()
+	if keep_focus and details_button.visible: details_button.grab_focus()
+	_fit_content.call_deferred()
+
+## Explicit presentation contract. Unknown fields never enter either view.
+static func presentation_info(full: Dictionary, expanded: bool = false) -> Dictionary:
+	var out: Dictionary = {}
+	for key in ["Building", "Name", "Sign"]:
+		if full.has(key): out[key] = full[key]
+	var natural := String(full.get("Building", "")) in ["Open ground", "Open water"] or bool(full.get("_natural", false))
+	var zoned := String(full.get("Zone", "Unzoned")) != "Unzoned"
+	var category := int(full.get("_category", -1))
+	var network := category in [Buildings.Category.ROAD, Buildings.Category.RAIL, Buildings.Category.HIGHWAY, Buildings.Category.BRIDGE, Buildings.Category.TUNNEL, Buildings.Category.POWER_LINE]
+	if full.has("Farm type") or full.has("Agricultural state"):
+		if full.has("Farm type"): out["Building"] = String(full["Farm type"]) + " farm"
+		for key in ["Farm type", "Agricultural state", "Agricultural jobs", "Livestock"]:
+			if full.has(key): out[key.replace("Agricultural ", "").capitalize()] = full[key]
+		var reason := String(full.get("Development reason", ""))
+		if not reason.is_empty() and reason != "All development requirements met.": out["Status"] = reason
+		for key in ["Water supply", "Power supply"]:
+			if full.has(key): out[key] = full[key]
+	elif full.has("Lodging capacity"):
+		out["Status"] = "Operating" if full.get("Operating", "No") == "Yes" else full.get("Operating reason", "Not operating")
+		var support := String(full.get("Utility support", ""))
+		if full.get("Operating", "No") == "Yes" and support.contains("limited by "):
+			out["Status"] = "Limited by " + support.get_slice("limited by ", 1)
+		out["Guests"] = "%s / %s beds" % [UIFactory.commafy(int(full.get("Guests", 0))), UIFactory.commafy(int(full["Lodging capacity"]))]
+		out["Day visitors"] = full.get("Day visitors", 0)
+		if full.has("Staffing"): out["Staffing"] = String(full.Staffing).get_slice(";", 0)
+		for key in ["Power", "Water"]:
+			if full.has(key): out[key] = full[key]
+	else:
+		if zoned: out["Zone"] = full.Zone
+		if not network and not bool(full.get("_natural", false)) and (not natural or zoned):
+			for key in ["Residents", "Jobs", "Power", "Water"]:
+				if key == "Water" and category == Buildings.Category.PLANT: continue
+				if key == "Residents" and category in [Buildings.Category.COMMERCIAL, Buildings.Category.INDUSTRIAL]: continue
+				if key == "Jobs" and category == Buildings.Category.RESIDENTIAL: continue
+				if full.has(key): out[key] = full[key]
+		if category == Buildings.Category.POWER_LINE and full.has("Power"): out["Power"] = full.Power
+		elif network and full.has("Traffic"): out["Traffic"] = full.Traffic
+		for key in ["Output", "Stored", "Powered", "Inmates", "Capacity", "Utilization", "Age"]:
+			if full.has(key): out[key] = full[key]
+		if not full.has("Output") and full.has("Land Value"): out["Land value"] = full["Land Value"]
+		if natural and full.has("Height"): out["Elevation"] = full.Height
+		for key in ["Pollution", "Crime", "Traffic"]:
+			if full.get(key, "None") in ["High", "Very high"]: out[key] = full[key]
+	if full.has("Underground"): out["Underground"] = full.Underground
+	if full.get("Location", "") == "outside the city": out["Status"] = "Outside the city"
+	if expanded:
+		var shown_keys: Array = out.keys().map(func(key: String) -> String: return key.to_lower())
+		for key in ["Built", "Age", "Zone", "Land Value", "Pollution", "Crime", "Traffic", "Police Coverage", "Fire Coverage", "Parcel area", "Farm type", "Livestock", "Riders this year", "Guards", "Escapes", "Casino floor", "Mayor's play this year"]:
+			if full.has(key) and not shown_keys.has(key.to_lower()): out[key] = full[key]
+	return out
+
+func content_height() -> float:
+	return get_combined_minimum_size().y + rows.get_combined_minimum_size().y - body_scroll.get_combined_minimum_size().y
+
+func _fit_content() -> void:
+	if not is_inside_tree(): return
+	# The host places its inspector from the same content height and safe bounds.
+	if has_meta("display_usable_rect"): return
+	size.y = minf(ceilf(content_height()), get_viewport_rect().size.y - 16.0)
 
 
 ## Called after completed simulation updates; a hidden inspector stays hidden.
@@ -243,6 +340,8 @@ static func describe(city: City, sim: Simulation, at: Vector2i, underground_laye
 		out["Location"] = "outside the city"
 		return out
 	var id := city.building_at(at.x, at.y)
+	out["_natural"] = Buildings.is_tree(id)
+	out["_category"] = Buildings.category(id)
 	var anchor := city.anchor_of(at.x, at.y)
 	var zone_kind := city.zone_kind_at(at.x, at.y)
 	out["#Site"] = ""
@@ -525,11 +624,8 @@ static func underground_text(code: int) -> String:
 ## The visible rows as "label: value" strings.
 func lines() -> Array[String]:
 	var out: Array[String] = []
-	for key in info:
-		var k := String(key)
-		if k.begins_with("_") or k.begins_with("#"):
-			continue
-		out.append("%s: %s" % [k, value_text(info[key])])
+	var shown := presentation_info(info, _details_open)
+	for key: String in shown: out.append("%s: %s" % [key, value_text(shown[key])])
 	return out
 
 

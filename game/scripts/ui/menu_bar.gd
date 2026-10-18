@@ -21,10 +21,10 @@ const PHONE_INSPECT_ID := 1000000
 const CAMERA_GUARD_POINTS := 220.0
 const CAMERA_VERTICAL_PADDING_POINTS := 8.0
 
-const WINDOW_NAMES: Array[String] = ["budget", "graphs", "population", "industries",
+const WINDOW_NAMES: Array[String] = ["budget", "tourism", "graphs", "population", "industries",
 	"ordinances", "newspaper", "city_maps", "neighbors"]
 const WINDOW_TITLES := {
-	"budget": "Budget", "graphs": "Graphs", "population": "Population",
+	"budget": "Budget", "tourism": "Tourism", "graphs": "Graphs", "population": "Population",
 	"industries": "Industries", "ordinances": "Ordinances", "newspaper": "Newspaper",
 	"city_maps": "City Maps", "neighbors": "Neighbors",
 }

@@ -1,7 +1,7 @@
 # Windows
 
 The information windows under `game/scripts/ui/` are the mayor's reports:
-Budget, Graphs, Population, Industries, Ordinances, Newspaper, City Maps and
+Budget, Tourism, Graphs, Population, Industries, Ordinances, Newspaper, City Maps and
 Neighbors. They read the simulation through `Simulation`, `CityStats` and the
 system getters, write only the settings the player owns (tax rates, funding
 levels, sector taxes, ordinance switches, bonds, auto-budget) and never touch
@@ -33,32 +33,33 @@ their own container that is emptied and refilled on every refresh.
 
 ## Budget (`BudgetWindow`)
 
-- Title "Budget". Treasury and date at the top; a note beginning "Year-end
-  budget review for <year>" appears while `Simulation.budget_review_pending`
-  is set.
-- Tax rates: three `TouchNumberField` controls (minus, value, plus) 0..20
-  writing `stats.tax_residential`, `stats.tax_commercial` and
-  `stats.tax_industrial`.
-- Funding: one `HSlider` 0..100 per service, grouped as Services (police,
-  fire, health, schools, colleges) and Transportation (roads, highways,
-  bridges, rail, subway, tunnels), each writing `stats.set_funding(key, pct)`.
-- Books: a three-column table (Account, Year to date, Year-end estimate).
-  Year to date comes from `stats.ledger`; the estimate from
-  `budget.estimated_ledger()`. Income and expense totals, last year's net and
-  the estimated net come from `budget.review_summary()`.
-- Bonds: a table of outstanding bonds (principal, rate, issued year), an
-  amount `TouchNumberField` (bond minimum..maximum, step 1000) whose quote
-  label reads `budget.bond_quote(amount)` live, an Issue button
-  (`budget.issue_bond`), and a "Repay oldest" button (`budget.repay_bond(0)`)
-  enabled only when the treasury covers the oldest principal.
-- "Auto budget" `CheckBox` writing `stats.auto_budget`.
-- Done button: `close()`. The host connects `closed` to
-  `sim.finish_budget_review()` for the January review.
+Fixed Summary / Taxes / Funding / Debt tabs use `ReportPages` above the single
+scroll body. Treasury and any annual-review notice remain visible; Auto budget
+and Done stay in the footer. The initial Summary shows annual estimated income,
+expenses and net, plus the previous settled year's result. Account breakdown is
+collapsed initially; its period selector shows Year to date, Previous year, or
+Year-end estimate with one amount column and income/expense subtotals.
 
-Public helpers for the host and tests: `set_tax(kind, rate)`,
-`set_funding(service, pct)`, `set_bond_amount(amount)`, `issue_bond()`,
-`repay_oldest()`, `set_auto_budget(on)`, `ledger_text(account)`,
-`quote_text()`, `funds_text()`, `totals_text()`.
+Taxes groups four property rates and the independent occupancy/gaming rates,
+all 0–20%, with links to Tourism and industry-sector taxes. Funding selects
+Services or Transportation and retains existing sliders and condition reporting.
+Debt shows principal, annual interest, the quote and issue/repay actions.
+
+The January review explicitly starts on Summary and remains held while following
+report links or changing pages. Only Budget's existing close/Done behavior
+finishes it. Report instances, tab selection, and page scroll are reused.
+Existing financial helpers remain; `select_page(name)` and `selected_page()`
+provide named navigation.
+
+## Tourism (`TourismWindow`)
+
+Reports → Tourism presents current monthly attendance beside its supported
+forecast, occupancy, physical beds, estimated annual city taxes, the main limit,
+and the next announced event. Collapsed Visitors and jobs, Access and utilities,
+Reputation and events, and Income sections contain selected useful results.
+Only one section opens at once. Accrued taxes and completed business tax bases
+are distinct from projections and city cash. Reads do not advance the simulation.
+Adjust visitor taxes returns to Budget → Taxes; Ordinances opens policy controls.
 
 ## Graphs (`GraphsWindow`)
 
@@ -102,13 +103,26 @@ Public helpers for the host and tests: `set_tax(kind, rate)`,
 
 ## Ordinances (`OrdinancesWindow`)
 
-- Three groups (Finance, Safety, City) from `ordinances.catalog()`, each row a
-  `CheckBox` with the ordinance name, a muted description and its estimated
-  yearly amount (income positive, cost negative). Toggling calls
-  `ordinances.set_enabled(key, on)`.
-- Totals: yearly income, yearly cost and net from `stats.ordinance_income`
-  and `stats.ordinance_cost`.
-- Helpers: `set_ordinance(key, on)`, `is_checked(key)`, `totals_text()`.
+Fixed Finance / Safety / City tabs show one category. Enacted only filters its
+rows without changing the fixed summary of all enacted city policies. Compact
+rows show a labelled switch, full policy name, signed yearly amount and short
+effect. A disclosure opens one full description at a time. Empty filtered
+categories offer Show all policies. Policy application and yearly settlement are
+unchanged; `select_group`, `set_enacted_only` and existing helpers support callers.
+
+## Query (`QueryPanel`)
+
+The inspector shows an explicit summary selected for the tile type, typically
+four to eight useful facts. Local service and development blockers stay visible.
+More details offers a curated secondary set; arbitrary numeric facility record
+fields never appear. Citywide counters, raw scoring and tourism bookkeeping do
+not enter the ordinary Query interface. `describe` and `info` retain full factual
+readers for diagnostics and tests; `lines` reflects player-facing content.
+
+The panel sizes to its content, capped at the host's safe bounds, with fixed
+close and available edit/demolition actions. Same-tile updates preserve reading
+state; new selections collapse details. Surface/underground targeting, sign
+editing and naming retain their established behavior.
 
 ## Newspaper (`NewspaperWindow`)
 

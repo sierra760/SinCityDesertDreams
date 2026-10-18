@@ -1272,6 +1272,7 @@ func present_budget_review() -> void:
 		return
 	push_modal()
 	var w := window_manager.window("budget")
+	(w as BudgetWindow).begin_review()
 	window_manager.open("budget")
 	if not w.is_connected("closed", _finish_budget_review):
 		w.connect("closed", _finish_budget_review, CONNECT_ONE_SHOT)

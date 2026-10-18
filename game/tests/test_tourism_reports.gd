@@ -68,25 +68,26 @@ func test_budget_forecast_repeated_reads_are_pure() -> void:
 	var before := sim.snapshot().duplicate(true)
 	var funds := sim.city.funds
 	var facilities := sim.city.facilities.duplicate(true)
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	for i in 4:
 		w.refresh()
 		w.close()
 		w.open()
-	w._tourism_details.button_pressed=true
+	w._buttons["Reputation and events"].button_pressed=true
 	check(w._tourism_calendar.is_visible_in_tree(),"season and event are organized under Details")
-	check(w._tourism_calendar.text.begins_with("Season: 115%"))
-	check(labels(w).contains("this month’s season/events ×12"),"annual estimate discloses its current-month basis")
+	check(labels(w).contains("Seasonal demand: 115%"))
+	check(labels(w).contains("annual estimate uses this month’s pace"),"annual estimate discloses its current-month basis")
 	check(labels(w).contains("Current"),"current attendance distinct")
-	check(labels(w).contains("Last plan:"),"staff plan distinct")
-	check(labels(w).contains("Supported estimate:"),"supported estimate explicit")
+	check(labels(w).contains("Staff support:"),"staff plan distinct")
+	check(labels(w).contains("Forecast: supported estimate"),"supported estimate explicit")
 	check(labels(w).contains("last accepted utility support"),"market/staff forecast cannot promise unavailable utility-supported attendance")
-	check(labels(w).contains("Completed monthly taxable bases: lodging $%.2f; gaming after payouts $%.2f" % [sim.stats.tourist_lodging_cents / 100.0, sim.stats.tourist_gaming_cents / 100.0]),"completed actual business remains separate from projection")
+	check(labels(w).contains("Completed monthly taxable business: lodging $%.2f; gaming after payouts $%.2f" % [sim.stats.tourist_lodging_cents / 100.0, sim.stats.tourist_gaming_cents / 100.0]),"completed actual business remains separate from projection")
 	check_eq(sim.snapshot(),before,"report reads do not book, admit or draw RNG")
 	check_eq(sim.city.funds,funds)
 	check_eq(sim.city.facilities,facilities)
 	var baseline := sim.snapshot().duplicate(true)
-	w.set_tax(&"occupancy",20)
+	var rates := window(BudgetWindow.new()) as BudgetWindow
+	rates.set_tax(&"occupancy",20)
 	baseline.stats.tax_occupancy = 20
 	check_eq(sim.snapshot(),baseline,"changing a rate only writes that prospective rate")
 
@@ -182,7 +183,7 @@ func test_save_dialog_optional_count_input_and_unknown_tourists() -> void:
 	check(not dialog.counts_label.visible,"standalone callers do not invent counts")
 
 func test_tourism_compact_disclosure_and_tax_estimate_are_pure() -> void:
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	var details := w.find_child("TourismDetails", true, false) as Button
 	check(details != null, "tourism has a touch and keyboard disclosure")
 	if details == null: return
@@ -211,11 +212,12 @@ func test_structured_tourism_current_forecast_and_income_follow_both_rates() -> 
 	sim.city.day = 16
 	sim.tourism().monthly(sim._ctx)
 	sim.get_system(&"budget").monthly(sim._ctx)
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
+	var rates_window := window(BudgetWindow.new()) as BudgetWindow
 	var before := sim.snapshot().duplicate(true)
 	for rates in [Vector2i(0, 7), Vector2i(12, 17), Vector2i(20, 0), Vector2i(7, 7)]:
-		w.set_tax(&"occupancy", rates.x)
-		w.set_tax(&"gaming", rates.y)
+		rates_window.set_tax(&"occupancy", rates.x)
+		rates_window.set_tax(&"gaming", rates.y)
 		var projection := sim.tourism().supported_forecast()
 		var estimate: Dictionary = sim.get_system(&"budget").call("estimated_ledger")
 		check_eq(w._tourism_values.guests[0].text, UIFactory.commafy(before.stats.tourist_guests))
@@ -233,9 +235,10 @@ func test_safety_details_and_inspect_explain_live_source_and_program_estimate() 
 	sim.stats.ordinances[&"casino_safety"] = true
 	sim.clock.day = 16
 	sim.tourism().monthly(sim._ctx)
-	var w := window(BudgetWindow.new()) as BudgetWindow
-	w._tourism_details.button_pressed=true
-	check(labels(w).contains("Casino crime source"), "Details explains pressure rather than hiding it in tax income")
+	var w := window(TourismWindow.new()) as TourismWindow
+	w._buttons["Income"].button_pressed=true
+	check(labels(w).contains("Casino Safety Program"), "program costs remain available")
+	check(not labels(w).contains("Casino crime source"), "raw crime fractions leave player reports")
 	check(labels(w).contains("estimate if enabled"), "explicit expense estimate")
 	var shown := QueryPanel.describe(sim.city, sim, Vector2i(10, 10))
 	check(shown.has("Casino source"))
@@ -249,8 +252,8 @@ func test_district_details_and_inspect_share_authoritative_commercial_fields() -
 	sim.clock.day=16
 	sim.tourism().monthly(sim._ctx)
 	var before:=sim.snapshot().duplicate(true)
-	var w:=window(BudgetWindow.new()) as BudgetWindow
-	w._tourism_details.button_pressed=true
+	var w:=window(TourismWindow.new()) as TourismWindow
+	w._buttons["Visitors and jobs"].button_pressed=true
 	check(labels(w).contains("Retail support"))
 	check(labels(w).contains("Business support is not city cash"))
 	check(labels(w).contains("Arrival capacity:"))
@@ -263,8 +266,8 @@ func test_district_details_and_inspect_share_authoritative_commercial_fields() -
 
 func test_gateway_capacity_and_reason_are_visible_without_routing_on_reads() -> void:
 	var before := sim.tourism().access_routes().report()
-	var w := window(BudgetWindow.new()) as BudgetWindow
-	w._tourism_details.button_pressed=true
+	var w := window(TourismWindow.new()) as TourismWindow
+	w._buttons["Access and utilities"].button_pressed=true
 	check(labels(w).contains("Arrival capacity"),"budget exposes shared gateway seats")
 	# Ordinary report and forecast reads must not advance pending search work.
 	for i in 5:
@@ -299,7 +302,7 @@ func test_accepted_zero_water_support_is_the_primary_limiter() -> void:
 	t._features.utilities.rows=TourismUtilities.snapshot(rows)
 	for support: Dictionary in t._features.utilities.rows: support.limiting_reason="water"
 	t._publish()
-	var w:=window(BudgetWindow.new()) as BudgetWindow
+	var w:=window(TourismWindow.new()) as TourismWindow
 	check_eq(w._tourism_limiter.text,"Main limit: Local power or water capacity")
 	check_eq(w._tourism_values.guests[1].text,"0")
 	check_gt(t.supported_forecast().physical_capacity,0)
@@ -326,7 +329,7 @@ func limiter_stores(count: int, accepted: bool = true) -> void:
 func test_budget_limiter_accepted_day_only_is_not_a_service_failure() -> void:
 	limiter_stores(1)
 	var before := sim.snapshot()
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	limiter_quote_oracle()
 	check_eq(w._tourism_limiter.text,"Main limit: Demand at current taxes and season")
 	var quote := sim.tourism().supported_forecast(-1,-1,true)
@@ -347,7 +350,7 @@ func test_budget_limiter_mixed_accepted_and_fresh_is_awaiting_not_utility() -> v
 	TourismFixture.venue(sim.city,&"arcology_boddy",Vector2i(30,30))
 	TourismFixture.set_served(sim.city,Vector2i(30,30),true,true)
 	sim.tourism().reconcile_now()
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	limiter_quote_oracle()
 	check_eq(w._tourism_limiter.text,"Main limit: Awaiting monthly support plan")
 	var quote := sim.tourism().supported_forecast(-1,-1,true)
@@ -358,7 +361,7 @@ func test_budget_limiter_mixed_accepted_and_fresh_is_awaiting_not_utility() -> v
 
 func test_budget_limiter_distinguishes_absent_stock_and_closed_stock() -> void:
 	limiter_stores(0)
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	limiter_quote_oracle()
 	check_eq(w._tourism_limiter.text,"Main limit: No tourism venues")
 	TourismFixture.venue(sim.city,&"com_corner_store",Vector2i(10,10))
@@ -376,7 +379,7 @@ func test_budget_limiter_day_only_staff_shortfall() -> void:
 	limiter_stores(12)
 	sim.stats.population=100000
 	sim.stats.neighbor_populations=PackedInt32Array([100000,100000,100000,100000])
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	limiter_quote_oracle()
 	check_eq(w._tourism_limiter.text,"Main limit: Available staff")
 	var quote := sim.tourism().supported_forecast(-1,-1,true)
@@ -393,7 +396,7 @@ func test_budget_limiter_genuine_zero_water_is_not_awaiting() -> void:
 	tourism._features.utilities.rows[0].supported_days=0
 	tourism._features.utilities.rows[0].limiting_reason="water"
 	tourism._publish()
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	limiter_quote_oracle()
 	check_eq(w._tourism_limiter.text,"Main limit: Local power or water capacity")
 	var quote := tourism.supported_forecast(-1,-1,true)
@@ -416,7 +419,7 @@ func test_budget_limiter_day_capacity_is_distinct_from_beds() -> void:
 	sim.stats.tax_gaming=0
 	sim.stats.average_land_value=255
 	sim.city.land_value.put(5,5,255)
-	var w := window(BudgetWindow.new()) as BudgetWindow
+	var w := window(TourismWindow.new()) as TourismWindow
 	var quote := sim.tourism().supported_forecast(-1,-1,true)
 	check_eq(quote.capacity,0)
 	check_gt(quote.day_capacity,0)

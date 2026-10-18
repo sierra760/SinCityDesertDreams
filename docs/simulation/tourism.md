@@ -121,12 +121,13 @@ unweighted50/25/50-cent formulas, their completed amounts and their six/three
 unit occupancy/gaming quantum checks. Only a valid segmented booking permits
 the finer money profile; old schema validation is not globally relaxed.
 
-Budget groups the two tourism rates, current/forecast attendance and occupancy,
-physical beds, the last accepted guest/day support, current-month annualized city
-tax estimate and one primary limiter. Details organizes actual accrued/completed
-business, supported estimates, visitor mix, staff, access/services, reputation/events
-and explicit Casino Safety Program costs. Static mechanics live in Help. There is
-one ordinary outer vertical scroll and no separate tourism scroll region.
+Budget → Taxes owns the two visitor tax rates and a compact city-tax estimate.
+Reports → Tourism owns current/forecast attendance, occupancy, capacity, the main
+limit, events and the optional visitor/jobs, access/utilities, reputation and
+income breakdowns. Completed taxable business and accrued taxes are distinguished
+from estimated annual city income. Ordinary Inspect shows a compact local venue
+summary. Static mechanics live in Help; raw planning/scoring counters stay out
+of these player-facing summaries. Each report has one outer vertical scroll.
 
 ## Identity, restoration and city effects
 
@@ -475,8 +476,8 @@ completed business, taxes, calendar events or migration grace. Detached native
 validation checks bounded integral fields, periods, exposure against
 completed activity, and exact transition consistency before installation.
 
-Budget Details and Inspect share authoritative current/following-factor and
-completed-experience reporting. The monthly graph stores milli-points and
+The Tourism report shows reputation and completed experience using authoritative
+read-only reporting. Full factual inspection remains available to tests. The monthly graph stores milli-points and
 presents 0–100 scores. Residents receive tourism's existing jobs, nearby commercial
 support, real traffic/fares, crime and local nightlife consequences through their
 ordinary systems. There is no additional global tourism happiness penalty,

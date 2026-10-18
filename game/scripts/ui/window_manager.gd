@@ -9,6 +9,7 @@ extends RefCounted
 
 const SCRIPTS := {
 	"budget": preload("res://scripts/ui/budget_window.gd"),
+	"tourism": preload("res://scripts/ui/tourism_window.gd"),
 	"city_maps": preload("res://scripts/ui/city_maps_window.gd"),
 	"graphs": preload("res://scripts/ui/graphs_window.gd"),
 	"help": preload("res://scripts/ui/help_window.gd"),
@@ -31,6 +32,7 @@ var windows: Dictionary = {}
 ## Open windows, front-most last.
 var open_windows: Array[Control] = []
 var _host: GameHost
+var _report_bounds_bound := false
 
 
 func _init(host: GameHost) -> void:
@@ -68,6 +70,7 @@ func open(window_name: String) -> Control:
 	if w.get_parent() != layer: w.reparent(layer)
 	_place(w)
 	layer.move_child(w, layer.get_child_count() - 1)
+	_schedule_report_bounds(w)
 	return w
 
 
@@ -83,6 +86,8 @@ func window(window_name: String) -> Control:
 	_host.ui_layer.add_child(w)
 	_place(w)
 	w.connect("closed", _on_window_closed.bind(w))
+	if w.has_signal("report_requested"):
+		w.connect("report_requested", _open_report)
 	if w is OptionsWindow:
 		(w as OptionsWindow).option_changed.connect(_host.prefs.set_option)
 		(w as OptionsWindow).mods_requested.connect(func() -> void:
@@ -99,8 +104,38 @@ func window(window_name: String) -> Control:
 		(w as HelpWindow).sources_dialog.visibility_changed.connect(_host.sync_help_sources_hold)
 	_host.shell.register_chrome(w)
 	_host.shell.apply_popups(w)
+	if not _report_bounds_bound and (w is OrdinancesWindow or w is TourismWindow):
+		_report_bounds_bound = true
+		_host.display_layout.metrics_changed.connect(func(_metrics: Dictionary) -> void: _schedule_all_report_bounds())
+		_host.menu_bar.item_rect_changed.connect(_schedule_all_report_bounds)
 	windows[window_name] = w
 	return w
+
+
+## Report links reuse existing windows and preserve Budget's annual-review hold.
+func _open_report(window_name: String, page: String) -> void:
+	var target := open(window_name)
+	if target == null: return
+	if target.has_method("select_page") and not page.is_empty(): target.call("select_page", page)
+	if target is OrdinancesWindow and not page.is_empty(): target.call("select_group", page)
+
+
+func _schedule_report_bounds(w: Control) -> void:
+	if is_instance_valid(w) and (w is OrdinancesWindow or w is TourismWindow):
+		_fit_report_bounds.call_deferred(w)
+
+func _schedule_all_report_bounds() -> void:
+	for w: Control in windows.values(): _schedule_report_bounds(w)
+
+func _fit_report_bounds(w: Control) -> void:
+	if not is_instance_valid(w): return
+	var panel := w.get("_root") as Control
+	var bounds := _host.display_layout.logical_rect()
+	if _host.menu_bar.visible:
+		var top := maxf(bounds.position.y, _host.menu_bar.get_global_rect().end.y)
+		bounds = Rect2(Vector2(bounds.position.x, top), Vector2(bounds.size.x, maxf(0.0, bounds.end.y - top)))
+	panel.set_meta("display_usable_rect", bounds)
+	panel.call("_schedule_fit")
 
 
 ## Give a window the whole layer when it asked for full-rect anchors (its

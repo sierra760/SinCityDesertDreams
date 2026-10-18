@@ -9,6 +9,7 @@ class_name BudgetWindow
 extends Control
 
 signal closed
+signal report_requested(window_name: String, page: String)
 
 const TAX_MAX := 20
 const BOND_STEP := 1000
@@ -50,17 +51,15 @@ var _syncing := false
 var _status_label: Label
 var _funds_label: Label
 var _review_label: Label
-var _tourism_label: Label
-var _tourism_section: VBoxContainer
-var _tourism_values: Dictionary = {}
-var _tourism_capacity: Label
-var _tourism_tax: Label
-var _tourism_accrued: Label
-var _tourism_calendar: Label
-var _tourism_limiter: Label
-var _tourism_detail_sections: Dictionary = {}
-var _tourism_details: Button
-var _tourism_detail_body: VBoxContainer
+var _pages: ReportPages
+var _summary_values: Array[Label] = []
+var _visitor_tax: Label
+var _ledger_period: OptionButton
+var _ledger_body: VBoxContainer
+var _ledger_subtotals: Dictionary = {}
+var _funding_pages: Array[VBoxContainer] = []
+var _funding_picker: OptionButton
+var _review_showing := false
 var _tax_spinners: Dictionary = {}       ## kind -> TouchNumberField
 var _funding_sliders: Dictionary = {}    ## service -> HSlider
 var _funding_values: Dictionary = {}     ## service -> Label
@@ -84,6 +83,9 @@ func _ready() -> void:
 	var chrome := UIFactory.make_window_chrome("Budget")
 	_root = chrome["root"]
 	_body = chrome["body"]
+	_root.size = Vector2(640, 500)
+	_root.set_meta("preferred_size", Vector2(640, 500))
+	_pages = ReportPages.new(chrome, ["Summary", "Taxes", "Funding", "Debt"])
 	_actions = chrome["actions"]
 	var close_button: Button = chrome["close_button"]
 	close_button.pressed.connect(close)
@@ -122,6 +124,7 @@ func _fit_below_menu() -> void:
 	var host:=_layout_host()
 	if host==null or not is_instance_valid(_root): return
 	var bounds:=host.display_layout.logical_rect()
+	_status_label.visible = bounds.size.y >= 500
 	if host.menu_bar.visible:
 		var top:=maxf(bounds.position.y,host.menu_bar.get_global_rect().end.y)
 		bounds=Rect2(Vector2(bounds.position.x,top),Vector2(bounds.size.x,maxf(0.0,bounds.end.y-top)))
@@ -161,7 +164,19 @@ func bind(sim: Simulation) -> void:
 	refresh()
 
 
+func select_page(page_name: String) -> void:
+	_pages.select(page_name)
+
+func selected_page() -> String:
+	return _pages.selected()
+
+func begin_review() -> void:
+	_pages.select("Summary")
+
 func open() -> void:
+	var review := _sim != null and _sim.budget_review_pending
+	if review and not _review_showing: begin_review()
+	_review_showing = review
 	show()
 	refresh()
 	_fit_below_menu.call_deferred()
@@ -185,7 +200,7 @@ func refresh() -> void:
 		_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()]
 		_funds_label.text = "Treasury: " + UIFactory.format_signed_amount(_sim.city.funds)
 		_review_label.visible = _sim.budget_review_pending
-		_review_label.text = "Year-end budget review for %d. The city is paused; adjust taxes and funding, then press Done to continue." % _sim.clock.year()
+		_review_label.text = "Review for %d · City paused until Done." % _sim.clock.year()
 	var stats := _sim.stats if _sim != null else CityStats.new()
 	_tax_spinners[&"residential"].value = stats.tax_residential
 	_tax_spinners[&"commercial"].value = stats.tax_commercial
@@ -202,7 +217,7 @@ func refresh() -> void:
 	_auto_budget.button_pressed = stats.auto_budget
 	_condition_label.text = condition_text(_sim)
 	_refresh_ledger(stats)
-	_refresh_tourism()
+	_refresh_visitor_tax()
 	_refresh_bonds(stats)
 	_syncing = false
 
@@ -260,7 +275,7 @@ static func refresh_other_windows(from: Control) -> void:
 	if parent == null:
 		return
 	for w: Node in parent.get_children():
-		if w != from and (w is BudgetWindow or w is IndustriesWindow) and (w as Control).visible:
+		if w != from and (w is BudgetWindow or w is IndustriesWindow or w is TourismWindow or w is OrdinancesWindow) and (w as Control).visible:
 			w.call("refresh")
 
 
@@ -332,34 +347,45 @@ func totals_text() -> String:
 
 func _build() -> void:
 	_status_label = UIFactory.make_label("No city loaded", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_funds_label = UIFactory.make_label("Treasury: $0", UITheme.FONT_HEADER, UITheme.MONEY_POSITIVE)
-	_review_label = UIFactory.make_label("", UITheme.FONT_BODY, UITheme.ACCENT_BRASS)
-	_review_label.visible = false
-	_review_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_review_label.custom_minimum_size = Vector2(0, 0)
-	_body.add_child(_status_label)
-	_body.add_child(_funds_label)
-	_body.add_child(_review_label)
-
-	var columns := UIFactory.ResponsiveColumns.new()
-	columns.add_theme_constant_override("separation", UITheme.MARGIN * 2)
-	_body.add_child(columns)
-
-	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", UITheme.VSEP)
-	left.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	columns.add_child(left)
-	_build_taxes(left)
-	_build_funding(left)
-
-	var right := VBoxContainer.new()
-	right.add_theme_constant_override("separation", UITheme.VSEP)
-	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	columns.add_child(right)
-	_build_ledger(right)
-	_build_bonds(right)
-
-	var bottom := _actions
+	_funds_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_review_label = _wrapped("", UITheme.ACCENT_BRASS)
+	_review_label.hide()
+	_pages.header.add_child(_status_label)
+	_pages.header.add_child(_funds_label)
+	_pages.header.add_child(_review_label)
+	var summary := _pages.page(0)
+	var cards := UIFactory.ResponsiveColumns.new()
+	cards.add_theme_constant_override("separation", 8)
+	for title in ["Annual income", "Annual expenses", "Surplus / deficit"]:
+		var card := VBoxContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_child(UIFactory.make_label(title, UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
+		var value := UIFactory.make_label("$0", UITheme.FONT_TITLE)
+		value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card.add_child(value)
+		_summary_values.append(value)
+		cards.add_child(card)
+	summary.add_child(cards)
+	summary.add_child(_wrapped("Estimates for the full year. Income and expenses settle each January.", UITheme.TEXT_MUTED))
+	_last_year_label = _wrapped("Last year: no books yet", UITheme.TEXT_MUTED)
+	summary.add_child(_last_year_label)
+	_totals_label = Label.new() # Stable textual reader; the three figures above are the presentation.
+	_totals_label.hide()
+	summary.add_child(_totals_label)
+	var breakdown := UIFactory.make_button("Account breakdown", "Show income and expenses by account")
+	breakdown.name = "AccountBreakdown"
+	breakdown.toggle_mode = true
+	summary.add_child(breakdown)
+	_ledger_body = VBoxContainer.new()
+	_ledger_body.hide()
+	summary.add_child(_ledger_body)
+	breakdown.toggled.connect(func(on: bool) -> void: _ledger_body.visible = on)
+	_build_ledger(_ledger_body)
+	_build_taxes(_pages.page(1))
+	_build_funding(_pages.page(2))
+	_build_bonds(_pages.page(3))
 	_auto_budget = CheckBox.new()
 	_auto_budget.text = "Auto budget"
 	_auto_budget.tooltip_text = "Skip the January review and keep the current taxes and funding"
@@ -367,14 +393,19 @@ func _build() -> void:
 	_auto_budget.add_theme_font_size_override("font_size", UITheme.FONT_BODY)
 	_auto_budget.toggled.connect(_on_auto_budget_toggled)
 	_auto_budget.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bottom.add_child(_auto_budget)
-	var done := UIFactory.make_button("Done", "Close the budget")
+	_actions.add_child(_auto_budget)
+	var done := UIFactory.make_button("Done", "Close the budget and finish any annual review")
 	done.pressed.connect(close)
-	bottom.add_child(done)
+	_actions.add_child(done)
+
+static func _wrapped(text: String, color: Color = UITheme.TEXT_PRIMARY) -> Label:
+	var label := UIFactory.make_label(text, UITheme.FONT_SMALL, color)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return label
 
 
 func _build_taxes(parent: VBoxContainer) -> void:
-	parent.add_child(UIFactory.make_section_header("Tax rates"))
+	parent.add_child(UIFactory.make_section_header("Property taxes"))
 	var grid := UIFactory.ResponsiveTable.new()
 	grid.columns = 2
 	grid.has_headers = false
@@ -400,164 +431,59 @@ func _build_taxes(parent: VBoxContainer) -> void:
 		grid.add_child(spinner)
 		_tax_spinners[kind] = spinner
 	parent.add_child(grid)
-	_build_tourism(parent)
-
-
-## A stable small grid stays a grid on phones: three metrics, two named columns.
-## Only the existing outer report scrolls; disclosure never reparents controls.
-func _build_tourism(parent: VBoxContainer) -> void:
-	_tourism_section = VBoxContainer.new()
-	_tourism_section.name = "TourismSection"
-	_tourism_section.add_theme_constant_override("separation", 4)
-	parent.add_child(_tourism_section)
-	_tourism_section.add_child(UIFactory.make_section_header("Tourism"))
-	for entry in [[&"occupancy", TourismParams.OCCUPANCY_TAX_LABEL], [&"gaming", TourismParams.GAMING_TAX_LABEL]]:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		var caption := _tourism_text(entry[1])
-		caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(UIFactory.make_section_header("Visitor taxes"))
+	for entry in [[&"occupancy", "Occupancy tax", "Tax on visitor lodging"], [&"gaming", "Gaming revenue tax", "Tax on gaming revenue after payouts"]]:
+		var row := UIFactory.WrappingActions.new()
+		var caption := UIFactory.make_label(String(entry[1]) + " %")
+		caption.tooltip_text = entry[2]
 		row.add_child(caption)
 		var field := TouchNumberField.new()
 		field.min_value = TourismParams.TAX_MIN
 		field.max_value = TourismParams.TAX_MAX
 		field.step = TourismParams.TAX_STEP
-		field.get_line_edit().add_theme_constant_override("minimum_character_width", 2)
+		field.tooltip_text = entry[2]
 		field.value_changed.connect(_on_tax_changed.bind(entry[0]))
-		row.add_child(field)
 		_tax_spinners[entry[0]] = field
-		_tourism_section.add_child(row)
-	var grid := GridContainer.new()
-	grid.name = "TourismComparison"
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 4)
-	for text in ["", "Current", "Forecast"]:
-		var heading := _tourism_text(text)
-		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		heading.size_flags_stretch_ratio = 1.8 if text.is_empty() else 1.0
-		grid.add_child(heading)
-	for entry in [["guests", "Overnight guests"], ["day", "Day visitors"], ["occupancy", "Occupancy"]]:
-		grid.add_child(_tourism_text(entry[1]))
-		var pair: Array[Label] = []
-		for column in 2:
-			var value := _tourism_text("0")
-			value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			grid.add_child(value)
-			pair.append(value)
-		_tourism_values[entry[0]] = pair
-	_tourism_section.add_child(grid)
-	_tourism_capacity = _tourism_text("")
-	_tourism_section.add_child(_tourism_capacity)
-	_tourism_section.add_child(_tourism_text("Estimated city tax income", UITheme.MONEY_POSITIVE))
-	_tourism_tax = _tourism_text("$0 / year", UITheme.MONEY_POSITIVE)
-	_tourism_tax.name = "TourismTaxEstimate"
-	_tourism_section.add_child(_tourism_tax)
-	_tourism_calendar = _tourism_text("")
-	_tourism_calendar.name = "TourismCalendar"
-	_tourism_limiter = _tourism_text("")
-	_tourism_limiter.name = "TourismLimiter"
-	_tourism_section.add_child(_tourism_limiter)
-	_tourism_accrued = _tourism_text("")
-
-	_tourism_section.add_child(_tourism_text("Attendance updates monthly; taxes pay annually.", UITheme.TEXT_MUTED))
-	_tourism_details = UIFactory.make_button("Details", "Show tourism calculations and taxable business")
-	_tourism_details.name = "TourismDetails"
-	_tourism_details.toggle_mode = true
-	_tourism_details.custom_minimum_size.y = 44
-	_tourism_details.focus_mode = Control.FOCUS_ALL
-	_tourism_section.add_child(_tourism_details)
-	_tourism_detail_body = VBoxContainer.new()
-	_tourism_detail_body.name = "TourismDetailBody"
-	_tourism_detail_body.add_child(_tourism_accrued)
-	_tourism_detail_body.hide()
-	_tourism_section.add_child(_tourism_detail_body)
-	_tourism_label = _tourism_text("")
-	_tourism_detail_body.add_child(UIFactory.make_section_header("Income and estimates"))
-	_tourism_detail_body.add_child(_tourism_label)
-	for title in ["Visitors and staff","Access and services","Reputation and events","Municipal program and shops"]:
-		_tourism_detail_body.add_child(UIFactory.make_section_header(title))
-		var label := _tourism_text("")
-		_tourism_detail_sections[title] = label
-		_tourism_detail_body.add_child(label)
-		if title == "Reputation and events": _tourism_detail_body.add_child(_tourism_calendar)
-	_tourism_details.toggled.connect(func(expanded: bool) -> void:
-		_tourism_detail_body.visible = expanded
-		_tourism_details.text = "Hide details" if expanded else "Details"
-		if expanded: _refresh_tourism())
+		row.add_child(field)
+		parent.add_child(row)
+	_visitor_tax = _wrapped("")
+	parent.add_child(_visitor_tax)
+	var tourism := UIFactory.make_button("Open Tourism Report", "Visitor attendance, capacity and services")
+	tourism.pressed.connect(func() -> void: report_requested.emit("tourism", ""))
+	parent.add_child(tourism)
+	var industries := UIFactory.make_button("Industry tax rates", "Adjust taxes for individual industry sectors")
+	industries.pressed.connect(func() -> void: report_requested.emit("industries", ""))
+	parent.add_child(industries)
 
 
-static func _tourism_text(text: String, color: Color = UITheme.TEXT_PRIMARY) -> Label:
-	var label := UIFactory.make_label(text, UITheme.FONT_SMALL, color)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size.x = 0
-	return label
-
-
-func _refresh_tourism() -> void:
-	var tourism := _sim.tourism() if _sim != null and _sim.city != null else null
-	var projection: Dictionary = tourism.supported_forecast(-1,-1,true) if tourism != null else {}
-	var stats := _sim.stats if tourism != null else CityStats.new()
-	var metrics := {
-		"guests": [UIFactory.commafy(stats.tourist_guests), UIFactory.commafy(int(projection.get("guests",0)))],
-		"day": [UIFactory.commafy(stats.tourist_day_visitors), UIFactory.commafy(int(projection.get("day_visitors",0)))],
-		"occupancy": ["%d%%"%stats.tourist_occupancy,"%d%%"%int(projection.get("occupancy",0))]}
-	for metric in metrics:
-		for column in 2: _tourism_values[metric][column].text=metrics[metric][column]
+func _refresh_visitor_tax() -> void:
 	var budget := _budget()
-	var estimate: Dictionary=budget.call("estimated_ledger") if budget!=null else {}
-	_tourism_tax.text=UIFactory.format_amount(int(estimate.get(&"taxes_occupancy",0))+int(estimate.get(&"taxes_gaming",0)))+" / year at this month’s pace"
-	_tourism_accrued.text="Actual accrued this year: "+UIFactory.format_amount(int(stats.ledger.get(&"taxes_occupancy",0))+int(stats.ledger.get(&"taxes_gaming",0)))
-	if tourism==null:
-		_tourism_capacity.text="No city loaded"
-		_tourism_limiter.text=""
-		_tourism_calendar.text=""
-		_tourism_label.text="No active tourism economy"
-		return
-	var utilities := tourism.utility_report()
-	var staff := tourism.staffing_report()
-	_tourism_capacity.text="Physical beds: %s. Last accepted support: %s guests / %s day visitors." % [UIFactory.commafy(int(projection.physical_capacity)),UIFactory.commafy(utilities.supported_guests),UIFactory.commafy(utilities.supported_days)]
-	var limiter := "Demand at current taxes and season"
-	if int(projection.stock_venues)==0: limiter="No tourism venues"
-	elif int(projection.operating_venues)==0: limiter="Closed venues: power, water, access or fire"
-	elif int(projection.support_limited_venues)>0: limiter="Local power or water capacity"
-	elif int(projection.awaiting_support_venues)>0: limiter="Awaiting monthly support plan"
-	elif int(projection.staff_limited_guest_venues)+int(projection.staff_limited_day_venues)>0: limiter="Available staff"
-	elif int(projection.capacity)>0 and int(projection.guests)>=int(projection.capacity): limiter="Available beds"
-	elif int(projection.day_capacity)>0 and int(projection.day_visitors)>=int(projection.day_capacity): limiter="Available day-visitor capacity"
-	_tourism_limiter.text="Main limit: "+limiter
-	if _tourism_detail_body.visible: _refresh_tourism_details(tourism,projection,staff,utilities)
-
-func _refresh_tourism_details(tourism: TourismSystem, projection: Dictionary, staff: Dictionary, utilities: Dictionary) -> void:
-	var rows := tourism.report()
-	var segment_guests := [0,0,0,0]
-	var segment_days := [0,0,0,0]
-	for row: Dictionary in rows:
-		for segment in 4:
-			segment_guests[segment]+=int(row.guest_segments[segment])
-			segment_days[segment]+=int(row.day_segments[segment])
-	_tourism_label.text="Completed monthly taxable bases: lodging $%.2f; gaming after payouts $%.2f.\nSupported estimate: lodging $%.2f / month; gaming $%.2f / month.\nBasis: this month’s season/events ×12; last accepted utility support. Next support update: monthly admission. See Help → Tourism." % [_sim.stats.tourist_lodging_cents/100.0,_sim.stats.tourist_gaming_cents/100.0,int(projection.lodging_cents)/100.0,int(projection.gaming_cents)/100.0]
-	_tourism_detail_sections["Visitors and staff"].text=TourismMarkets.mix_text(segment_guests,segment_days)+"\nPositions: %d; resident-filled: %d; incoming staff: %d.\nLast plan: %d guests / %d day visitors; staff supported: %d / %d." % [staff.positions,staff.local_staff,staff.incoming_staff,staff.planned_guests,staff.planned_day_visitors,staff.supported_capacity,staff.supported_day_capacity]
-	var effects := tourism.extension_report()
-	var trips := tourism.transport_report()
-	_tourism_detail_sections["Access and services"].text="Arrival capacity: %d shared seats / month; %d gateways.\nLast visitor transport: %d completed trips; %d deferred. Trips do not add visitors.\nVisitor demand: %d power / %d water units above building demand. %d venues utility-limited." % [int(effects.access.arrival_capacity),int(effects.access.gateway_count),int(trips.get("completed",0)),int(trips.get("pending",0)),utilities.power,utilities.water,utilities.limited_venues]
-	var rep := tourism.reputation_report()
-	_tourism_detail_sections["Reputation and events"].text="Reputation: %.2f / 100. Current demand: %.2f%%; next month: %.2f%%.\n%s experience: %s." % [int(rep.value_milli)/1000.0,int(rep.current_factor_milli)/1000.0,int(rep.future_factor_milli)/1000.0,rep.period_date,"%.2f / 100"%(int(rep.experience_milli)/1000.0) if int(rep.experience_milli)>=0 else "no accepted visitors"]
-	var calendar: Dictionary=projection.calendar
-	var event: Dictionary=calendar.get("next_event",{})
-	_tourism_calendar.text="Season: %d%%. %s" % [int(calendar.season_percent),"Next event: %s, %s — %s."%[event.name,event.date,event.status] if not event.is_empty() else "No announced upcoming event."]
-	_tourism_detail_sections["Municipal program and shops"].text="Casino Safety Program: %s. Completed cost: $%.3f; estimate if enabled: $%.2f / year at this month’s pace.\nCasino crime source: %.3f units / month, before ordinary police mitigation.\nRetail support: $%.2f / month; $%.2f reaches nearby shops. Business support is not city cash. See Help → Tourism for the operating rules." % ["active" if effects.program_active else "inactive",int(effects.program_completed_half_cents)/200.0,int(effects.program_estimated_annual_cents)/100.0,float(effects.crime_source_milli)/1000.0,int(effects.available_spending_cents)/100.0,int(effects.allocated_spending_cents)/100.0]
+	var estimate: Dictionary = budget.call("estimated_ledger") if budget != null else {}
+	_visitor_tax.text = "Estimated visitor taxes: %s / year at this month’s pace" % UIFactory.format_amount(int(estimate.get(&"taxes_occupancy", 0)) + int(estimate.get(&"taxes_gaming", 0)))
 
 
 func _build_funding(parent: VBoxContainer) -> void:
-	parent.add_child(UIFactory.make_section_header("Services"))
-	parent.add_child(_funding_grid(SERVICE_FUNDING))
-	parent.add_child(UIFactory.make_section_header("Transportation"))
-	parent.add_child(_funding_grid(TRANSPORT_FUNDING))
-	_condition_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
-	_condition_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(_condition_label)
+	_funding_picker = OptionButton.new()
+	_funding_picker.name = "FundingCategory"
+	_funding_picker.custom_minimum_size.y = 44
+	_funding_picker.add_item("Services")
+	_funding_picker.add_item("Transportation")
+	_funding_picker.item_selected.connect(select_funding)
+	parent.add_child(_funding_picker)
+	for i in 2:
+		var section := VBoxContainer.new()
+		section.name = "ServiceFunding" if i == 0 else "TransportFunding"
+		section.visible = i == 0
+		parent.add_child(section)
+		_funding_pages.append(section)
+		section.add_child(_funding_grid(SERVICE_FUNDING if i == 0 else TRANSPORT_FUNDING))
+	_condition_label = _wrapped("", UITheme.TEXT_MUTED)
+	_funding_pages[1].add_child(_condition_label)
+
+func select_funding(index: int) -> void:
+	if index < 0 or index >= _funding_pages.size(): return
+	_funding_picker.select(index)
+	for i in _funding_pages.size(): _funding_pages[i].visible = i == index
 
 
 func _funding_grid(services: Array[StringName]) -> GridContainer:
@@ -585,29 +511,58 @@ func _funding_grid(services: Array[StringName]) -> GridContainer:
 
 
 func _build_ledger(parent: VBoxContainer) -> void:
-	parent.add_child(UIFactory.make_section_header("Books"))
-	var grid := UIFactory.ResponsiveTable.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", UITheme.MARGIN)
-	grid.add_child(UIFactory.make_label("Account", UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
-	grid.add_child(_amount_label("Year to date", UITheme.TEXT_MUTED))
-	grid.add_child(_amount_label("Previous year", UITheme.TEXT_MUTED))
-	grid.add_child(_amount_label("Year-end estimate", UITheme.TEXT_MUTED))
-	for entry in ACCOUNTS:
-		var account: StringName = entry[0]
-		grid.add_child(UIFactory.make_label(String(entry[1])))
-		var ytd := _amount_label("$0")
-		var est := _amount_label("$0")
-		grid.add_child(ytd)
-		var previous := _amount_label("$0")
-		grid.add_child(previous)
-		grid.add_child(est)
-		_ledger_rows[account] = [ytd, est, previous]
+	_ledger_period = OptionButton.new()
+	_ledger_period.name = "LedgerPeriod"
+	_ledger_period.custom_minimum_size.y = 44
+	for title in ["Year to date", "Previous year", "Year-end estimate"]: _ledger_period.add_item(title)
+	_ledger_period.select(2)
+	_ledger_period.item_selected.connect(_select_ledger_period)
+	parent.add_child(_ledger_period)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 12)
 	parent.add_child(grid)
-	_totals_label = UIFactory.make_label("Income $0, expenses $0, net $0", UITheme.FONT_BODY)
-	_last_year_label = UIFactory.make_label("Last year: no books yet", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
-	parent.add_child(_totals_label)
-	parent.add_child(_last_year_label)
+	for expense in [false, true]:
+		grid.add_child(UIFactory.make_section_header("Expenses" if expense else "Income"))
+		grid.add_child(Control.new())
+		for entry in ACCOUNTS:
+			var account: StringName = entry[0]
+			if (account in BudgetParams.EXPENSE_KEYS) != expense: continue
+			var caption := _wrapped(String(entry[1]))
+			caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			grid.add_child(caption)
+			var values := VBoxContainer.new()
+			grid.add_child(values)
+			var labels: Array[Label] = []
+			for i in 3:
+				var amount := _amount_label("$0")
+				amount.visible = i == 1
+				values.add_child(amount)
+				labels.append(amount)
+			_ledger_rows[account] = labels
+		grid.add_child(_wrapped("Expenses total" if expense else "Income total"))
+		var total := _amount_label("$0")
+		grid.add_child(total)
+		_ledger_subtotals[expense] = total
+
+func _select_ledger_period(index: int) -> void:
+	_ledger_period.select(index)
+	var selected: int = [0, 2, 1][index]
+	for labels: Array in _ledger_rows.values():
+		for i in 3: (labels[i] as Label).visible = i == selected
+	var stats := _sim.stats if _sim != null else CityStats.new()
+	var source: Dictionary = stats.ledger if index == 0 else stats.last_year_ledger
+	if index == 2:
+		var budget := _budget()
+		source = budget.call("estimated_ledger") if budget != null else {}
+	for expense in [false, true]:
+		var amount := 0
+		for entry in ACCOUNTS:
+			var key: StringName = entry[0]
+			if (key in BudgetParams.EXPENSE_KEYS) != expense: continue
+			amount += int(source.get(key, 0))
+		_set_amount(_ledger_subtotals[expense], amount, expense)
 
 
 func _build_bonds(parent: VBoxContainer) -> void:
@@ -617,6 +572,7 @@ func _build_bonds(parent: VBoxContainer) -> void:
 	parent.add_child(_bond_rows)
 	_debt_label = UIFactory.make_label("Total debt $0", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	parent.add_child(_debt_label)
+	parent.move_child(_debt_label, 1)
 	var row := UIFactory.WrappingActions.new()
 	row.add_theme_constant_override("separation", UITheme.MARGIN_COMPACT)
 	row.add_child(UIFactory.make_label("Amount"))
@@ -670,6 +626,11 @@ func _refresh_ledger(stats: CityStats) -> void:
 		_set_amount(pair[2], int(stats.last_year_ledger.get(account, 0)), expense)
 	var income := int(summary.get("estimated_income", 0))
 	var expenses := int(summary.get("estimated_expenses", 0))
+	for i in 3:
+		_summary_values[i].text = UIFactory.format_signed_amount([income, expenses, income - expenses][i])
+		var effect: int = [income, -expenses, income - expenses][i]
+		_summary_values[i].add_theme_color_override("font_color", UITheme.MONEY_NEGATIVE if effect < 0 else UITheme.MONEY_POSITIVE)
+	_select_ledger_period(_ledger_period.selected)
 	_totals_label.text = "Estimated income %s, expenses %s, net %s" % [
 		UIFactory.format_signed_amount(income), UIFactory.format_signed_amount(expenses), UIFactory.format_money(income - expenses)]
 	if summary.is_empty() or int(summary.get("settled_year", -1)) < 0 or stats.last_year_ledger.is_empty():
@@ -710,7 +671,9 @@ func _refresh_bonds(stats: CityStats) -> void:
 	var debt := 0
 	if budget != null:
 		debt = int(budget.call("total_debt"))
-	_debt_label.text = "Total debt %s, %d of %d bonds" % [UIFactory.format_amount(debt), stats.bonds.size(), BudgetParams.MAX_BONDS]
+	var interest := 0
+	for bond: Dictionary in stats.bonds: interest += int(bond.get("principal", 0)) * int(bond.get("rate", 0)) / 100
+	_debt_label.text = "Debt %s · Interest %s / year\n%d of %d bonds" % [UIFactory.format_amount(debt), UIFactory.format_amount(interest), stats.bonds.size(), BudgetParams.MAX_BONDS]
 	_refresh_quote()
 	_refresh_repay(stats)
 
@@ -768,10 +731,9 @@ func _on_tax_changed(value: float, kind: StringName) -> void:
 			economy.call("industrial_rate_written")
 		(_tax_spinners[&"industrial"] as TouchNumberField).value = _sim.stats.tax_industrial
 	_refresh_ledger(_sim.stats)
-	_refresh_tourism()
+	_refresh_visitor_tax()
 	_syncing = false
-	if kind == &"industrial":
-		refresh_other_windows(self)
+	refresh_other_windows(self)
 
 
 func _on_funding_changed(value: float, service: StringName) -> void:
@@ -782,7 +744,7 @@ func _on_funding_changed(value: float, service: StringName) -> void:
 	_sim.stats.set_funding(service, int(value))
 	_syncing = true
 	_refresh_ledger(_sim.stats)
-	_refresh_tourism()
+	_refresh_visitor_tax()
 	_syncing = false
 
 

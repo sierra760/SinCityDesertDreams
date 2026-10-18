@@ -15,7 +15,7 @@ func test_phone_report_bodies_fit_without_horizontal_scrolling() -> void:
 	root.size = Vector2i(375,667)
 	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,375,647))
 	await HostFixture.settle(self, 10)
-	for window_name in ["budget","graphs","population","industries","ordinances","newspaper","city_maps","neighbors","options","help","license"]:
+	for window_name in ["budget","tourism","graphs","population","industries","ordinances","newspaper","city_maps","neighbors","options","help","license"]:
 		var window := host.open_window(window_name)
 		await HostFixture.settle(self, 10)
 		var panel: Control = window.get("panel") if window_name in ["options","help","license"] else window.get("_root")
@@ -63,6 +63,7 @@ func test_narrow_report_controls_still_write_normal_simulation_fields() -> void:
 	root.size=Vector2i(375,667)
 	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,375,647))
 	var budget := host.open_window("budget") as BudgetWindow
+	budget.select_page("Taxes")
 	await HostFixture.settle(self, 10)
 	budget._tax_spinners[&"residential"]._plus.pressed.emit()
 	check_eq(host.sim.stats.tax_residential,8,"reflow retains real tax field")
@@ -77,6 +78,7 @@ func test_narrow_report_controls_still_write_normal_simulation_fields() -> void:
 
 func test_month_refresh_keeps_a_tax_rate_being_typed() -> void:
 	var budget := host.open_window("budget") as BudgetWindow
+	budget.select_page("Taxes")
 	await HostFixture.settle(self, 10)
 	var tax := budget._tax_spinners[&"residential"] as TouchNumberField
 	var edit := tax.get_line_edit()
@@ -109,6 +111,7 @@ func test_narrow_numeric_rows_keep_their_labels_readable() -> void:
 	root.size=Vector2i(375,667)
 	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,375,647))
 	var budget := host.open_window("budget") as BudgetWindow
+	budget.select_page("Taxes")
 	await HostFixture.settle(self, 10)
 	var tax := budget._tax_spinners[&"residential"] as TouchNumberField
 	var caption := tax.get_parent().get_child(0) as Label
@@ -127,6 +130,7 @@ func test_resized_moved_report_returns_inside_the_phone_safe_area() -> void:
 	root.size=Vector2i(390,844)
 	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763))
 	var budget := host.open_window("budget") as BudgetWindow
+	budget.select_page("Taxes")
 	await HostFixture.settle(self, 10)
 	budget._root.position=Vector2(0,0)
 	budget._root.resized.emit()
@@ -181,7 +185,10 @@ func test_phone_row_and_table_labels_never_stack_letters() -> void:
 	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,47,390,763))
 	await HostFixture.settle(self, 10)
 	var budget := host.open_window("budget") as BudgetWindow
+	budget.select_page("Taxes")
 	await HostFixture.settle(self, 10)
+	budget.select_page("Debt")
+	await HostFixture.settle(self, 4)
 	var amount: Label
 	for label: Label in budget._root.get_meta("window_chrome").body.find_children("*","Label",true,false):
 		if label.text=="Amount": amount=label
@@ -292,6 +299,7 @@ func test_report_profiles_fit_with_large_counts() -> void:
 		await HostFixture.settle(self,10)
 		for window_name in ["budget","population","graphs"]:
 			var window := host.open_window(window_name)
+			if window is BudgetWindow: window.select_page("Taxes")
 			await HostFixture.settle(self,10)
 			var panel := window.get("_root") as Control
 			var chrome: Dictionary = panel.get_meta("window_chrome")

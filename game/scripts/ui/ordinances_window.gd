@@ -13,10 +13,14 @@ signal ordinance_changed(key: StringName, on: bool)
 
 const GROUPS: Array[Array] = [
 	[OrdinanceParams.GROUP_FINANCE, "Finance"],
-	[OrdinanceParams.GROUP_SAFETY, "Safety and Health"],
+	[OrdinanceParams.GROUP_SAFETY, "Safety"],
 	[OrdinanceParams.GROUP_CITY, "City"],
 ]
 
+var _pages: ReportPages
+var _enacted_only: CheckBox
+var _empty: Label
+var _expanded: StringName = &""
 var _sim: Simulation
 var _root: PanelContainer
 var _body: VBoxContainer
@@ -34,6 +38,10 @@ func _ready() -> void:
 	var chrome := UIFactory.make_window_chrome("Ordinances")
 	_root = chrome["root"]
 	_body = chrome["body"]
+	_root.size = Vector2(600, 510)
+	_root.set_meta("preferred_size", Vector2(600, 510))
+	_pages = ReportPages.new(chrome, ["Finance", "Safety", "City"])
+	_pages.tabs.tab_changed.connect(func(_index: int) -> void: _filter_rows())
 	var close_button: Button = chrome["close_button"]
 	close_button.pressed.connect(close)
 	add_child(_root)
@@ -115,11 +123,15 @@ func refresh() -> void:
 			box.disabled = true
 			var amount: Label = row["amount"]
 			_set_amount(amount, 0)
+	var enabled := 0
+	for row: Dictionary in _rows.values():
+		if (row.box as CheckBox).button_pressed: enabled += 1
 	var net := stats.ordinance_income - stats.ordinance_cost
-	_totals_label.text = "Estimated yearly income %s, cost %s, net %s, settled each January" % [
+	_totals_label.text = "All enacted (%d): income %s, cost %s, net %s / year" % [enabled,
 		UIFactory.format_amount(stats.ordinance_income), UIFactory.format_amount(stats.ordinance_cost),
 		UIFactory.format_money(net)]
 	_syncing = false
+	_filter_rows()
 
 
 # ── Public helpers ───────────────────────────────────────────────────────
@@ -157,27 +169,67 @@ func row_count() -> int:
 
 # ── Building ─────────────────────────────────────────────────────────────
 
+func select_group(group: String) -> void:
+	for entry in GROUPS:
+		if group == String(entry[0]) or group == String(entry[1]): _pages.select(String(entry[1]))
+	_filter_rows()
+
+func selected_group() -> String:
+	return _pages.selected()
+
+func set_enacted_only(on: bool) -> void:
+	_enacted_only.set_pressed_no_signal(on)
+	_filter_rows()
+
+func visible_policy_count() -> int:
+	var count := 0
+	for row: Dictionary in _rows.values():
+		if (row.card as Control).is_visible_in_tree(): count += 1
+	return count
+
 func _build() -> void:
 	_status_label = UIFactory.make_label("No city loaded", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
-	_body.add_child(_status_label)
-	var columns := UIFactory.ResponsiveColumns.new()
-	columns.add_theme_constant_override("separation", UITheme.MARGIN)
-	# Keep the cost column off the window's scrollbar.
-	var gutter := MarginContainer.new()
-	gutter.add_theme_constant_override("margin_right", UITheme.MARGIN)
-	gutter.add_child(columns)
-	_body.add_child(gutter)
-	for group in GROUPS:
-		var column := VBoxContainer.new()
-		column.add_theme_constant_override("separation", UITheme.MARGIN_COMPACT)
-		column.custom_minimum_size = Vector2(250, 0)
-		column.add_child(UIFactory.make_section_header(String(group[1])))
-		columns.add_child(column)
-		_group_boxes[group[0]] = column
-	_totals_label = UIFactory.make_label("Estimated yearly income $0, cost $0, net $0, settled each January", UITheme.FONT_HEADER)
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_pages.header.add_child(_status_label)
+	_enacted_only = CheckBox.new()
+	_enacted_only.text = "Enacted only"
+	_enacted_only.custom_minimum_size.y = 44
+	_enacted_only.toggled.connect(func(_on: bool) -> void: _filter_rows())
+	_pages.header.add_child(_enacted_only)
+	for i in GROUPS.size(): _group_boxes[GROUPS[i][0]] = _pages.page(i)
+	_empty = UIFactory.make_label("No enacted policies in this category.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_body.add_child(_empty)
+	var clear_filter := UIFactory.make_button("Show all policies", "Clear the enacted-only filter")
+	clear_filter.name = "ClearPolicyFilter"
+	clear_filter.pressed.connect(func() -> void: set_enacted_only(false))
+	_body.add_child(clear_filter)
+	_totals_label = UIFactory.make_label("", UITheme.FONT_SMALL)
 	_totals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_totals_label.custom_minimum_size = Vector2(0, 0)
-	_body.add_child(_totals_label)
+	_totals_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var chrome: Dictionary = _root.get_meta("window_chrome")
+	chrome.actions.add_child(_totals_label)
+
+func _filter_rows() -> void:
+	if _enacted_only == null or _empty == null: return
+	var focused := get_viewport().gui_get_focus_owner()
+	for row: Dictionary in _rows.values():
+		var show_row := not _enacted_only.button_pressed or (row.box as CheckBox).button_pressed
+		if not show_row and focused != null and (row.card as Node).is_ancestor_of(focused): _enacted_only.grab_focus()
+		(row.card as Control).visible = show_row
+	var empty := _enacted_only.button_pressed and visible_policy_count() == 0
+	_empty.visible = empty
+	var clear_filter := _body.get_node("ClearPolicyFilter") as Control
+	if not empty and clear_filter.has_focus(): _enacted_only.grab_focus()
+	clear_filter.visible = empty
+
+func _show_description(on: bool, key: StringName) -> void:
+	_expanded = key if on else &""
+	for k: StringName in _rows:
+		var row: Dictionary = _rows[k]
+		(row.description as Control).visible = k == _expanded
+		(row.details as Button).set_pressed_no_signal(k == _expanded)
+		(row.details as Button).text = "▾" if k == _expanded else "▸"
 
 
 ## The rows follow the catalog; without a system the authored catalog order
@@ -198,24 +250,69 @@ func _ensure_rows(ordinances: SimSystem) -> void:
 		if not _group_boxes.has(group):
 			continue
 		var column: VBoxContainer = _group_boxes[group]
-		var head := UIFactory.ResponsiveColumns.new()
+		var card := VBoxContainer.new()
+		card.add_theme_constant_override("separation", 2)
+		column.add_child(card)
+		var head := HBoxContainer.new()
+		card.add_child(head)
+		var policy_name := String(rec.get("name", String(k)))
 		var box := CheckBox.new()
-		box.custom_minimum_size.y = 44
-		box.text = String(rec.get("name", String(k)))
-		box.add_theme_font_size_override("font_size", UITheme.FONT_BODY)
-		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		box.custom_minimum_size = Vector2(44, 44)
+		box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		box.accessibility_name = policy_name
+		box.tooltip_text = "Enact " + policy_name
 		box.toggled.connect(_on_toggled.bind(k))
 		head.add_child(box)
+		var text := VBoxContainer.new()
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(text)
+		var title := UIFactory.make_label(policy_name, UITheme.FONT_BODY)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.add_child(title)
 		var amount := UIFactory.make_label("$0", UITheme.FONT_SMALL, UITheme.MONEY_NEUTRAL)
-		amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		amount.custom_minimum_size = Vector2(70, 0)
-		head.add_child(amount)
-		column.add_child(head)
+		text.add_child(amount)
+		var brief := UIFactory.make_label(_effect(k), UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+		brief.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.add_child(brief)
+		var details := UIFactory.make_button("▸", "Details for " + policy_name)
+		details.accessibility_name = "Details for " + policy_name
+		details.custom_minimum_size = Vector2(44, 44)
+		details.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		details.toggle_mode = true
+		details.toggled.connect(_show_description.bind(k))
+		head.add_child(details)
 		var description := UIFactory.make_label(String(rec.get("description", "")), UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		description.custom_minimum_size = Vector2(240, 0)
-		column.add_child(description)
-		_rows[k] = {"box": box, "amount": amount, "description": description}
+		description.hide()
+		card.add_child(description)
+		card.add_child(HSeparator.new())
+		_rows[k] = {"box": box, "amount": amount, "description": description, "details": details, "card": card, "title": title}
+
+static func _effect(key: StringName) -> String:
+	return String({
+		&"sales_tax": "Raises income; reduces commercial demand.",
+		&"income_tax": "Raises income; reduces residential demand.",
+		&"parking_fines": "Raises income from parking enforcement.",
+		&"legalized_gambling": "Raises income and local crime.",
+		&"tourist_advertising": "Attracts tourists and supports shops.",
+		&"business_advertising": "Encourages industrial demand.",
+		&"volunteer_fire": "Extends fire coverage.",
+		&"public_smoking_ban": "Improves public health.",
+		&"free_clinics": "Improves life expectancy.",
+		&"junior_sports": "Supports health and education.",
+		&"anti_drug_campaign": "Improves health and reduces crime.",
+		&"casino_safety": "Reduces casino crime; applies next visitor period.",
+		&"neighborhood_watch": "Reduces neighborhood crime.",
+		&"cpr_training": "Improves emergency survival.",
+		&"pollution_controls": "Reduces pollution; slows industrial demand.",
+		&"energy_conservation": "Reduces power consumption.",
+		&"nuclear_free_zone": "Prevents new nuclear plants.",
+		&"homeless_shelters": "Supports households and shops.",
+		&"pro_reading_campaign": "Improves education.",
+		&"tree_planting": "Reduces pollution and supports housing demand.",
+		&"annual_carnival": "Boosts April visitors when announced in March.",
+	}.get(key, ""))
+
 
 
 static func _set_amount(label: Label, yearly: int) -> void:
