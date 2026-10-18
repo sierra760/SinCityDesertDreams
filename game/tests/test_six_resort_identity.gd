@@ -17,7 +17,8 @@ func test_all_build_demolish_and_classify() -> void:
 	for i in KEYS.size():
 		var city := _city()
 		var stats := CityStats.new()
-		stats.inventions[&"arcology_comstock"] = 2050
+		stats.inventions[&"resorts_midcentury"] = 2050
+		stats.inventions[&"resorts_millennium"] = 2050
 		var tool := Tools.Kind.ARCOLOGY_FIX + i
 		var builder := Builder.new(city, stats)
 		var pos := Vector2i(12, 12)

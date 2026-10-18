@@ -6,13 +6,28 @@ the treasury, a win comes back to it, and the Desert Dispatch keeps an eye on
 the mayor's nights out. Play reaches the rest of the city only through the
 treasury and the newspaper.
 
+## When resorts can be built
+
+The four neighborhood resorts are available from a city's founding. The other
+ten open in two batches, each announced once in the Desert Dispatch:
+
+| Batch | Opens | Resorts |
+|---|---|---|
+| Mid-Century Gaming Resorts | a year from 1950 to 1959, rolled when the city is founded | Comstock Grand, Silver Junction, Boulder Crown, The Fix, Six-Week Alibi, Velvet Wardrobe |
+| Millennium Gaming Resorts | 2000 | Desert Orbit, The Afterglow, Last Resort, Dust Republic |
+
+The batches follow each resort's historical theme: silver boom, railroad, dam,
+mob-era, divorce-trade and saloon resorts first; space-age, atomic-spectacle,
+ghost-town and counterculture resorts at the millennium. A city founded after
+a batch's year has it from the start. A city saved with the earlier
+per-resort technologies opens the batches in 1950 and 2000 without new random
+draws, and founding a city still uses the same random draws as before.
+
 ## Building the six additional resorts
 
 The six additional designs occupy 4 × 4 lots and append native building IDs
-256–261. All six unlock with the existing Comstock technology, including its
-invention year stored in an older city; they add no random invention draws.
-The original four keep their identities and Desert Orbit keeps its launch
-behavior. Their themes, named games and palettes are recorded in
+256–261. The original four keep their identities and Desert Orbit keeps its
+launch behavior. Their themes, named games and palettes are recorded in
 `tools/resort_expansion.json`; construction costs and overnight guest capacities are
 provided by the building/tools and reward parameter tables. Capacities count
 overnight guests rather than rooms or residents and scale with cost /100; see

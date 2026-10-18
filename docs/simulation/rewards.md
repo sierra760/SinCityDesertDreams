@@ -16,8 +16,10 @@ leaves the city. TourismSystem owns all guest/day attendance.
 - `stats.population` – ordinary residents (arcology residents excluded). This
   is the number the milestones test.
 - `stats.inventions` – when the economy system fills it, the year an arcology
-  design becomes available is read from here under the design's building key.
-  Otherwise the years in `RewardParams` apply.
+  design becomes available is read from here under the design's
+  `technology` (`resorts_midcentury` or `resorts_millennium`). Otherwise the
+  years in `RewardParams` apply. The four neighborhood resorts have no
+  technology and year 0.
 - Layers `building`, `zone`, `flags`, `pollution`, `crime`, `land_value`,
   `terrain`, `altitude`, `underground` – arcology footprints and their
   surroundings; candidate ground for the military site.
@@ -101,9 +103,9 @@ Events:
    `decline_military()` marks the offer answered with no zoning. Either answer
    is final: the offer never returns.
 5. **Arcology availability.** `arcology_available(key)` is true from the
-   design's year onward. The year is `stats.inventions[key]` when present, else
-   the year in `RewardParams.ARCOLOGIES`. `available_arcologies()` lists the
-   keys currently buildable.
+   design's year onward. The year is `stats.inventions[technology]` when
+   present, else the year in `RewardParams.ARCOLOGIES`.
+   `available_arcologies()` lists the keys currently buildable.
 6. **Venue records and attendance.** TourismState discovers canonical standing
    footprints at their actual sizes/rotations, gives each facility a unique
    instance and initializes absent metadata. TourismSystem admits temporary

@@ -149,19 +149,20 @@ const _INVENTIONS := {
 	Kind.DESALINATION: &"desalination",
 	Kind.WIND_PLANT: &"wind_plant",
 	Kind.SOLAR_PLANT: &"solar_plant",
-	Kind.ARCOLOGY_COMSTOCK: &"arcology_comstock",
-	Kind.ARCOLOGY_FIX: &"arcology_comstock",
-	Kind.ARCOLOGY_ALIBI: &"arcology_comstock",
-	Kind.ARCOLOGY_VELVET: &"arcology_comstock",
-	Kind.ARCOLOGY_AFTERGLOW: &"arcology_comstock",
-	Kind.ARCOLOGY_LAST: &"arcology_comstock",
-	Kind.ARCOLOGY_DUST: &"arcology_comstock",
-
 	Kind.MICROWAVE_PLANT: &"microwave_plant",
 	Kind.FUSION_PLANT: &"fusion_plant",
-	Kind.ARCOLOGY_JUNCTION: &"arcology_junction",
-	Kind.ARCOLOGY_BOULDER: &"arcology_boulder",
-	Kind.ARCOLOGY_ORBIT: &"arcology_orbit",
+	# Gaming resorts open in two batches; the four neighborhood resorts are
+	# available from the start.
+	Kind.ARCOLOGY_COMSTOCK: &"resorts_midcentury",
+	Kind.ARCOLOGY_JUNCTION: &"resorts_midcentury",
+	Kind.ARCOLOGY_BOULDER: &"resorts_midcentury",
+	Kind.ARCOLOGY_FIX: &"resorts_midcentury",
+	Kind.ARCOLOGY_ALIBI: &"resorts_midcentury",
+	Kind.ARCOLOGY_VELVET: &"resorts_midcentury",
+	Kind.ARCOLOGY_ORBIT: &"resorts_millennium",
+	Kind.ARCOLOGY_AFTERGLOW: &"resorts_millennium",
+	Kind.ARCOLOGY_LAST: &"resorts_millennium",
+	Kind.ARCOLOGY_DUST: &"resorts_millennium",
 }
 
 ## Reward tools and the key the reward system offers them under.

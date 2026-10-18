@@ -35,18 +35,20 @@ const MILITARY_MISSILE_SITE_SIZE := 3
 ## Random origins tried while collecting silo squares.
 const MILITARY_MISSILE_ATTEMPTS := 40
 
-## Arcology designs: the year each becomes buildable and its overnight guest capacity.
+## Arcology designs: the technology that opens each (none for the neighborhood
+## resorts), the year used when the economy has rolled none, and its overnight
+## guest capacity.
 const ARCOLOGIES: Dictionary = {
-	&"arcology_comstock": {"year": 2000, "capacity": 1000},
-	&"arcology_junction": {"year": 2050, "capacity": 1200},
-	&"arcology_boulder": {"year": 2100, "capacity": 1500},
-	&"arcology_orbit": {"year": 2150, "capacity": 2000},
-	&"arcology_fix": {"technology": &"arcology_comstock", "year": 2000, "capacity": 3200},
-	&"arcology_alibi": {"technology": &"arcology_comstock", "year": 2000, "capacity": 1400},
-	&"arcology_velvet": {"technology": &"arcology_comstock", "year": 2000, "capacity": 2200},
-	&"arcology_afterglow": {"technology": &"arcology_comstock", "year": 2000, "capacity": 5000},
-	&"arcology_last": {"technology": &"arcology_comstock", "year": 2000, "capacity": 600},
-	&"arcology_dust": {"technology": &"arcology_comstock", "year": 2000, "capacity": 950},
+	&"arcology_comstock": {"technology": &"resorts_midcentury", "year": 1950, "capacity": 1000},
+	&"arcology_junction": {"technology": &"resorts_midcentury", "year": 1950, "capacity": 1200},
+	&"arcology_boulder": {"technology": &"resorts_midcentury", "year": 1950, "capacity": 1500},
+	&"arcology_orbit": {"technology": &"resorts_millennium", "year": 2000, "capacity": 2000},
+	&"arcology_fix": {"technology": &"resorts_midcentury", "year": 1950, "capacity": 3200},
+	&"arcology_alibi": {"technology": &"resorts_midcentury", "year": 1950, "capacity": 1400},
+	&"arcology_velvet": {"technology": &"resorts_midcentury", "year": 1950, "capacity": 2200},
+	&"arcology_afterglow": {"technology": &"resorts_millennium", "year": 2000, "capacity": 5000},
+	&"arcology_last": {"technology": &"resorts_millennium", "year": 2000, "capacity": 600},
+	&"arcology_dust": {"technology": &"resorts_millennium", "year": 2000, "capacity": 950},
 	&"arcology_boddy": {"year": 0, "capacity": 80},
 	&"arcology_woolier": {"year": 0, "capacity": 160},
 	&"arcology_stockgrowers": {"year": 0, "capacity": 300},

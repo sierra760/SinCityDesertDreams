@@ -128,9 +128,10 @@ func test_inventions_unlock_in_order() -> void:
 		var base := int(EconomyParams.TECHNOLOGIES[tech])
 		check_between(int(inventions[tech]), base, base + EconomyParams.INVENTION_SPREAD - 1, String(tech))
 	var eco := eco_of(ctx)
-	check_lt(eco.available_year(&"arcology_comstock"), eco.available_year(&"arcology_junction"))
-	check_lt(eco.available_year(&"arcology_junction"), eco.available_year(&"arcology_boulder"))
-	check_lt(eco.available_year(&"arcology_boulder"), eco.available_year(&"arcology_orbit"))
+	check_between(eco.available_year(&"resorts_midcentury"), 1950, 1959, "first resort batch opens in the 1950s")
+	check_eq(eco.available_year(&"resorts_millennium"), 2000, "second resort batch opens in 2000")
+	for tech in EconomyParams.RETIRED_TECHNOLOGIES:
+		check(not inventions.has(tech), "%s is no longer rolled" % tech)
 	check_lt(eco.available_year(&"gas_plant"), eco.available_year(&"fusion_plant"))
 	# The toolbar unlocks on exactly the rolled years the news announces.
 	for tool in Tools.all():
@@ -177,6 +178,36 @@ func test_a_save_without_a_new_technology_gets_one_quietly() -> void:
 	for story in ctx.events.news:
 		if story["kind"] == &"invention":
 			check(story["args"]["technology"] != &"wind_plant", "a past invention is not announced as news")
+
+
+func test_a_save_with_per_resort_technologies_opens_the_batches_without_draws() -> void:
+	var c := flat_city()
+	c.founded_year = 1900
+	var ctx := make_ctx(c)
+	ctx.stats.inventions.erase(&"resorts_midcentury")
+	ctx.stats.inventions.erase(&"resorts_millennium")
+	ctx.stats.inventions[&"arcology_comstock"] = 2007
+	ctx.stats.inventions[&"arcology_junction"] = 2061
+	ctx.stats.inventions[&"arcology_boulder"] = 2112
+	ctx.stats.inventions[&"arcology_orbit"] = 2163
+	ctx.clock.day = 80 * GameClock.DAYS_PER_YEAR
+	var eco := eco_of(ctx)
+	var state := ctx.rng.state()
+	eco.load(eco.save())
+	check_eq(ctx.rng.state(), state, "the replacement makes no random draws")
+	check_eq(int(ctx.stats.inventions[&"resorts_midcentury"]), 1950)
+	check_eq(int(ctx.stats.inventions[&"resorts_millennium"]), 2000)
+	for tech in EconomyParams.RETIRED_TECHNOLOGIES:
+		check(not ctx.stats.inventions.has(tech), "%s is dropped" % tech)
+	check_eq(ctx.stats.inventions.size(), EconomyParams.TECHNOLOGIES.size())
+	check_eq(Tools.available_year(Tools.Kind.ARCOLOGY_BOULDER, ctx.stats), 1950, "Boulder Crown opens with the 1950s batch")
+	check_eq(Tools.available_year(Tools.Kind.ARCOLOGY_ORBIT, ctx.stats), 2000, "Desert Orbit waits for 2000")
+	ctx.events.clear()
+	eco.monthly(ctx)
+	for story in ctx.events.news:
+		if story["kind"] == &"invention":
+			check(story["args"]["technology"] != &"resorts_midcentury", "a past batch is not announced as news")
+			check(not EconomyParams.RETIRED_TECHNOLOGIES.has(story["args"]["technology"]), "retired technologies are never announced")
 
 
 func test_city_value_sums_buildings() -> void:

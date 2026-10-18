@@ -503,13 +503,25 @@ func _roll_inventions(ctx: SimContext) -> void:
 	# that is history, not news.
 	var never_ran := _previous_residents < 0
 	var known_quietly := maxi(founded, ctx.year()) if never_ran else founded
+	# A city saved with the per-resort technologies drops them; it opens the
+	# two resort batches in their first years without new random draws.
+	var had_retired := false
+	for tech in EconomyParams.RETIRED_TECHNOLOGIES:
+		if stats.inventions.erase(tech):
+			had_retired = true
 	for tech in EconomyParams.TECHNOLOGIES:
 		if stats.inventions.has(tech):
 			continue
-		var year: int = int(EconomyParams.TECHNOLOGIES[tech]) + ctx.rng.below(EconomyParams.INVENTION_SPREAD)
+		var draw := 0
+		if not (had_retired and EconomyParams.TECHNOLOGY_SPREADS.has(tech)):
+			draw = ctx.rng.below(EconomyParams.INVENTION_SPREAD)
+		var year := EconomyParams.invention_year(tech, draw)
 		stats.inventions[tech] = year
 		if not fresh and year <= known_by:
 			_announced[tech] = true
+	if fresh:
+		for i in EconomyParams.RETIRED_FOUNDING_DRAWS:
+			ctx.rng.below(EconomyParams.INVENTION_SPREAD)
 	for tech in stats.inventions:
 		if int(stats.inventions[tech]) <= known_quietly:
 			_announced[StringName(tech)] = true

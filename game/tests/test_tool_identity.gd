@@ -19,8 +19,8 @@ func test_every_tool_has_a_distinct_icon_and_visible_caption() -> void:
 
 func test_resort_player_copy() -> void:
 	check_eq(Toolbar.GROUP_NAMES[Tools.Group.ARCOLOGY], "Gaming Resorts")
-	for key in [&"arcology_comstock", &"arcology_junction", &"arcology_boulder", &"arcology_orbit"]:
-		check(EconomyParams.TECHNOLOGY_NAMES[key].ends_with("Gaming Resort"), "resort invention announcement")
+	for key in [&"resorts_midcentury", &"resorts_millennium"]:
+		check(EconomyParams.TECHNOLOGY_NAMES[key].ends_with("Gaming Resorts"), "resort invention announcement")
 
 func test_gaming_resorts_are_listed_by_ascending_cost() -> void:
 	var toolbar := Toolbar.new()

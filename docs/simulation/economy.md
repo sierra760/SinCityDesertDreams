@@ -154,6 +154,13 @@ Getters for other systems and the UI:
    (`Tools.available_year`), so a tool unlocks in the year its invention is
    announced. Without a rolled year a tool waits for the technology's base
    year. Wind power is a technology like the others.
+4. Gaming resorts open in two batches. `resorts_midcentury` keeps the draw
+   modulo 10, so it opens in a year from 1950 to 1959; `resorts_millennium`
+   always opens in 2000 (`TECHNOLOGY_SPREADS`). They replaced four per-resort technologies
+   (`RETIRED_TECHNOLOGIES`): founding still makes the two extra draws those
+   used (`RETIRED_FOUNDING_DRAWS`), so every other year and the rest of the
+   random sequence are unchanged. A loaded city with the retired keys drops
+   them and receives the batches at their base years without random draws.
 
 ## Parameters
 
@@ -182,6 +189,8 @@ Getters for other systems and the UI:
 | `LANDMARK_VALUE` | 5000 | value of a reward building |
 | `TECHNOLOGIES` | key → base year | technology roster |
 | `INVENTION_SPREAD` | 20 | random years added to a base year |
+| `TECHNOLOGY_SPREADS` | key → window | narrower windows for the resort batches |
+| `RETIRED_TECHNOLOGIES`, `RETIRED_FOUNDING_DRAWS` | four keys, 2 | replaced per-resort technologies and their kept founding draws |
 
 ## Save state
 

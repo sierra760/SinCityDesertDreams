@@ -446,25 +446,35 @@ func test_military_accept_custom_rect_skips_occupied_ground() -> void:
 
 func test_arcology_availability_by_year() -> void:
 	var c := flat_city()
-	c.founded_year = 1990
+	c.founded_year = 1940
 	var ctx := _context(c)
 	var rewards := RewardSystem.new()
 	_register(ctx, [rewards])
-	check(not rewards.arcology_available(&"arcology_comstock"), "not before its year")
-	check_eq(rewards.available_arcologies(), [&"arcology_boddy", &"arcology_woolier", &"arcology_stockgrowers", &"arcology_fremont"])
+	var neighborhood: Array[StringName] = [&"arcology_boddy", &"arcology_woolier", &"arcology_stockgrowers", &"arcology_fremont"]
+	var fifties: Array[StringName] = [&"arcology_comstock", &"arcology_junction", &"arcology_boulder", &"arcology_fix", &"arcology_alibi", &"arcology_velvet"]
+	var millennium: Array[StringName] = [&"arcology_orbit", &"arcology_afterglow", &"arcology_last", &"arcology_dust"]
+	check(not rewards.arcology_available(&"arcology_comstock"), "not before its batch")
+	check_eq(rewards.available_arcologies(), neighborhood, "only the neighborhood resorts at founding")
 	ctx.clock.day = 10 * GameClock.DAYS_PER_YEAR
-	check(rewards.arcology_available(&"arcology_comstock"))
-	check(not rewards.arcology_available(&"arcology_junction"))
-	ctx.stats.inventions[&"arcology_junction"] = 1995
-	check(rewards.arcology_available(&"arcology_junction"), "the economy's invention year wins")
-	check_eq(rewards.available_arcologies(), [&"arcology_comstock", &"arcology_junction", &"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust", &"arcology_boddy", &"arcology_woolier", &"arcology_stockgrowers", &"arcology_fremont"])
+	var open: Array[StringName] = []
+	open.assign(rewards.available_arcologies())
+	check_eq(open, [&"arcology_comstock", &"arcology_junction", &"arcology_boulder", &"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_boddy", &"arcology_woolier", &"arcology_stockgrowers", &"arcology_fremont"], "the 1950s batch opens together")
 	check(not rewards.arcology_available(&"city_hall"), "only arcology keys")
-	ctx.stats.inventions[&"arcology_comstock"] = 2010
-	for key in [&"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"]:
-		check(not rewards.arcology_available(key), "new resort follows the stored Comstock year")
-	ctx.clock.day = 20 * GameClock.DAYS_PER_YEAR
-	for key in [&"arcology_fix", &"arcology_alibi", &"arcology_velvet", &"arcology_afterglow", &"arcology_last", &"arcology_dust"]:
-		check(rewards.arcology_available(key), "new resort unlocks with Comstock")
+	ctx.stats.inventions[&"resorts_midcentury"] = 1957
+	for key in fifties:
+		check(not rewards.arcology_available(key), "%s follows the economy's 1950s year" % key)
+	ctx.clock.day = 17 * GameClock.DAYS_PER_YEAR
+	for key in fifties:
+		check(rewards.arcology_available(key), "%s opens in the rolled 1950s year" % key)
+	for key in millennium:
+		check(not rewards.arcology_available(key), "%s waits for 2000" % key)
+	ctx.stats.inventions[&"resorts_millennium"] = 2000
+	ctx.clock.day = 59 * GameClock.DAYS_PER_YEAR
+	for key in millennium:
+		check(not rewards.arcology_available(key), "%s is still closed in 1999" % key)
+	ctx.clock.day = 60 * GameClock.DAYS_PER_YEAR
+	for key in millennium:
+		check(rewards.arcology_available(key), "%s opens in 2000" % key)
 
 
 func test_powered_resort_fills_with_tourists_only() -> void:

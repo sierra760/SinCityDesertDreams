@@ -699,7 +699,7 @@ func test_previous_roster_native_cloud_and_annual_continuation_preserve_earned_s
 			sim.stats.cohorts[2] = 42
 			sim.stats.history = {&"population": PackedInt32Array([12345, 42])}
 			sim.stats.rewards_offered[&"mayors_residence"] = true
-			sim.stats.inventions[&"arcology_comstock"] = 1
+			sim.stats.inventions[&"resorts_midcentury"] = 1
 			for at: Vector2i in sim.city.facilities:
 				sim.city.facility(at).capacity = 123456
 				sim.city.facility(at).custom = {"preserved": [2, 7]}

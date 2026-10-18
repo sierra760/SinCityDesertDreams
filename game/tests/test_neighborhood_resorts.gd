@@ -112,8 +112,11 @@ func test_invention_schedule_retains_its_rng_and_original_keys() -> void:
 	var expected := SimRng.new(71)
 	check_eq(ctx.stats.inventions.size(),EconomyParams.TECHNOLOGIES.size(),"neighborhood keys do not create inventions")
 	for tech: StringName in EconomyParams.TECHNOLOGIES:
-		var year := int(EconomyParams.TECHNOLOGIES[tech])+expected.below(EconomyParams.INVENTION_SPREAD)
-		check_eq(int(ctx.stats.inventions[tech]),year,"original invention schedule retained")
+		var year := EconomyParams.invention_year(tech,expected.below(EconomyParams.INVENTION_SPREAD))
+		check_eq(int(ctx.stats.inventions[tech]),year,"invention schedule follows the founding draws")
+	for i in EconomyParams.RETIRED_FOUNDING_DRAWS:
+		expected.below(EconomyParams.INVENTION_SPREAD)
+	check_eq(EconomyParams.TECHNOLOGIES.size()+EconomyParams.RETIRED_FOUNDING_DRAWS,15,"founding keeps the original fifteen invention draws")
 	check_eq(ctx.rng.state(),expected.state(),"only the original invention draws are consumed")
 	var rewards := preload("res://scripts/sim/reward_system.gd").new()
 	rewards.setup(ctx)

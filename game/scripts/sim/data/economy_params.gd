@@ -111,10 +111,8 @@ const TECHNOLOGIES: Dictionary = {
 	&"wind_plant": 1980,
 	&"microwave_plant": 2020,
 	&"fusion_plant": 2050,
-	&"arcology_comstock": 2000,
-	&"arcology_junction": 2050,
-	&"arcology_boulder": 2100,
-	&"arcology_orbit": 2150,
+	&"resorts_midcentury": 1950,
+	&"resorts_millennium": 2000,
 }
 const TECHNOLOGY_NAMES: Dictionary = {
 	&"subway": "Subway",
@@ -128,13 +126,33 @@ const TECHNOLOGY_NAMES: Dictionary = {
 	&"wind_plant": "Wind Power",
 	&"microwave_plant": "Microwave Power",
 	&"fusion_plant": "Fusion Power",
-	&"arcology_comstock": "Comstock Grand Gaming Resort",
-	&"arcology_junction": "Silver Junction Gaming Resort",
-	&"arcology_boulder": "Boulder Crown Gaming Resort",
-	&"arcology_orbit": "Desert Orbit Gaming Resort",
+	&"resorts_midcentury": "Mid-Century Gaming Resorts",
+	&"resorts_millennium": "Millennium Gaming Resorts",
 }
 ## Random years added to a base year when a city is founded.
 const INVENTION_SPREAD := 20
+## Technologies that open within a narrower window than INVENTION_SPREAD: the
+## first gaming-resort batch opens in a year of the 1950s, the second exactly
+## in 2000. The roll still draws below INVENTION_SPREAD and keeps the offset
+## modulo this window, so it uses the same random draw as any other technology.
+const TECHNOLOGY_SPREADS: Dictionary = {
+	&"resorts_midcentury": 10,
+	&"resorts_millennium": 1,
+}
+## Per-resort technologies the two resort batches replaced. A city saved with
+## them drops their years. Founding a city still makes the two extra draws the
+## four per-resort technologies used to take, so every other rolled year and
+## the rest of the city's random sequence stay as they were.
+const RETIRED_TECHNOLOGIES: Array[StringName] = [
+	&"arcology_comstock", &"arcology_junction", &"arcology_boulder", &"arcology_orbit",
+]
+const RETIRED_FOUNDING_DRAWS := 2
+
+
+## Year a technology opens for a random draw below INVENTION_SPREAD.
+static func invention_year(technology: StringName, draw: int) -> int:
+	var spread := int(TECHNOLOGY_SPREADS.get(technology, INVENTION_SPREAD))
+	return int(TECHNOLOGIES[technology]) + draw % spread
 static func phase_name(phase: int) -> String:
 	return PHASE_NAMES[clampi(phase, 0, PHASE_NAMES.size() - 1)]
 

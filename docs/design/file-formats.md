@@ -87,9 +87,11 @@ tool can open, while the map itself stays small.
 
 Version 1 loading changes only the building layer's in-memory width; saved
 simulation technology records and casino histories retain their existing keys
-and values. New resorts use the stored Comstock invention year rather than
-adding random technology draws. `load()` supplies the document version to the
-city decoder; callers decoding a version 1 city object directly must pass 1.
+and values. Resorts open with the two resort-batch technologies; a city
+saved with the earlier per-resort technology years drops them and opens the
+batches in 1950 and 2000 without random technology draws. `load()` supplies
+the document version to the city decoder; callers decoding a version 1 city
+object directly must pass 1.
 
 
 ### API
