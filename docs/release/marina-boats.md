@@ -1,6 +1,6 @@
 # Marina boats
 
-In Explore City, walk up to a marina from its shore access. The boarding prompt
+While exploring at street level, walk up to a marina from its shore access. The boarding prompt
 appears nearby. Use **Interact** on touch screens, or the configured interaction
 key (**F** by default), to board a sailboat in the marina's open-water berth.
 

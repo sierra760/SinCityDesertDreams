@@ -66,13 +66,13 @@ The score, interface sounds and effects are made for this game; see `docs/design
 - Desert Transit rail halls and subway stations with furnished platforms,
   lobbies and elevators.
 - A warm ivory, teal and brass interface with BioRhyme lettering.
-- **View → Street Names** names road segments. The names appear on street
+- **View → Street Names…** names road segments. The names appear on street
   blades and highway exit signs in Explore, and nearby train and subway
   stations are named after them.
 
 **Explore your city**
 
-Choose **View → Explore City** to leave the aerial view:
+Choose **View → Explore at Street Level** to leave the aerial view:
 
 - Walk as one of 18 pedestrian characters (Settings → General).
 - Drive any of 17 vehicle types, from sedans and buses to fire engines, or fly

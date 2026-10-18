@@ -32,7 +32,7 @@ const ROWS: Array = [
 	["Tools", "Pick a tool on the left, then click or drag on the map; the price shows before you let go. Escape drops the tool. Hold {bulldoze} to bulldoze for a moment. Right-click or {query} inspects a tile.", "desktop"],
 	["Camera and tools", "Drag one finger to preview a tool and lift to apply. Add a second finger to cancel, then pan or pinch to zoom.", "touch"],
 	["#Explore"],
-	["Walk or drive", "View → Explore City enters on an outdoor road. Choose vehicles from the Explore menu; trains need connected tracks. Approach a marina and use Interact to board a boat. Stop beside a marina or clear shoreline to exit; land aircraft before exiting."],
+	["Walk or drive", "View → Explore at Street Level enters on an outdoor road. Choose vehicles from the Explore menu; trains need connected tracks. Approach a marina and use Interact to board a boat. Stop beside a marina or clear shoreline to exit; land aircraft before exiting."],
 	["Explore keys", "{move} move or steer, the mouse looks around, {sprint} sprints, {jump_brake}, {interact} enters and exits vehicles, {ascend} and {descend} climb and descend in a helicopter. Escape opens and closes the Explore menu.", "desktop"],
 	["Explore touch", "Use the pad on the left to move and drag on the right to look. Menu pauses movement; Resume starts it again.", "touch"],
 	["Explore map", "The corner map follows you and points north. Open Map ({explore_map}) for a larger map; drag to pan, zoom with the buttons, wheel or pinch, and use Find me to return to your position. Explore pauses while browsing. Markers identify people, vehicles and objectives.", "desktop"],

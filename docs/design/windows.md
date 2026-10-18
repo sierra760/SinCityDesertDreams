@@ -158,6 +158,7 @@ Shared chrome has fixed titles and actions with a scrolling body. Controls use
 rows and horizontal scrolling. `DisplayLayout` fits windows after display changes.
 `WindowDrag` clamps movement and cancels on release or focus loss. The inspector
 keeps Rename and Demolish reachable while long details scroll. Settings offers
-interface size (with feedback when it is capped) and fullscreen; signs, traffic
-and the minimap are toggled from View → Show.
+interface size (with feedback when it is capped) and fullscreen; tool labels,
+signs, traffic and the minimap are toggled from View → Show. Choose Tool Labels
+to show or hide the toolbar captions.
 Sizes are logical UI pixels; the 3D texture remains drawable-sized.

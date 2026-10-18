@@ -1,6 +1,6 @@
 # Street names
 
-In a founded city, return to Build and choose **View → Street Names**. Click or
+In a founded city, return to Build and choose **View → Street Names…**. Click or
 tap a road segment to select it; select more segments to give them one identity,
 even when they are disconnected. Bends, road bridges and complete tunnels remain
 part of their connected segment. At an ambiguous junction, choose an approach

@@ -7,7 +7,7 @@ simulation RNG or add actor positions to city saves.
 
 ## Playing
 
-Use **View → Explore City** to start walking on the safe outdoor road nearest
+Use **View → Explore at Street Level** to start walking on the safe outdoor road nearest
 the aerial camera's focus; with no such road, Explore is refused with a notice
 and Build stays open. WASD or the arrow keys move, Shift runs and Space jumps.
 With a keyboard, a short controls hint appears on entering and whenever you

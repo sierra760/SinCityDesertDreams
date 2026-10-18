@@ -190,7 +190,7 @@ func _build() -> void:
 		_radio(speed, String(GameClock.SPEED_NAMES[s]), &"speed", s)
 
 	var view := _menu("View")
-	_item(view, "Explore City", &"explore")
+	_item(view, "Explore at Street Level", &"explore")
 	view.add_separator()
 	var zoom := _submenu(view, "Zoom")
 	_item(zoom, "Zoom In", &"zoom_in")
@@ -202,7 +202,7 @@ func _build() -> void:
 	_item(view, "Rotate [R]", &"rotate")
 	_item(view, "Center on Map", &"recenter")
 	_check(view, "Underground [U]", &"underground")
-	_item(view,"Street Names",&"street_names")
+	_item(view,"Street Names…",&"street_names")
 	set_enabled(&"street_names",false)
 	_item(view,"Vegetation Zones…",&"vegetation")
 	set_enabled(&"vegetation",false)
@@ -211,8 +211,8 @@ func _build() -> void:
 	for kind in CityOverlaySampler.LAYERS:
 		_radio(overlays, String(OVERLAY_TITLES.get(kind, String(kind).capitalize())), &"overlay", kind)
 	view.add_separator()
-	_check(view, "Show Button Labels", &"button_labels")
 	var visibility := _submenu(view, "Show")
+	_check(visibility, "Tool Labels", &"button_labels")
 	_check(visibility, "Signs and Labels", &"labels")
 	_check(visibility, "Traffic and Pedestrians", &"vehicles")
 	_check(visibility, "Minimap", &"minimap")

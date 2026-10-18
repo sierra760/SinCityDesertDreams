@@ -236,7 +236,7 @@ Exploration reuses the CityView3D world, render target, lighting and model
 catalog. It adds session-only actors without a second city or simulation.
 
 `ExploreModeSwitch` (`ui/explore_mode_switch.gd`) owns entry from
-**View → Explore City**, cancels construction gestures and captures the builder
+**View → Explore at Street Level**, cancels construction gestures and captures the builder
 camera, tool and analytical presentation. It applies the
 usual modal rules and gates construction, aerial navigation and data-layer
 changes during Explore. Returning to Build restores that snapshot. The

@@ -77,7 +77,7 @@ Six or eight ambient patrons keep the compact floors and entrances clear.
 
 ## Entering a resort
 
-Build a Gaming Resort, then choose **View → Explore City** and walk up to the
+Build a Gaming Resort, then choose **View → Explore at Street Level** and walk up to the
 resort's front doors. A resort faces the larger map row unless that side has
 no street; then it turns its front to the side with the most adjacent road
 (east, west, then north on ties). The facing is worked out when the city is
