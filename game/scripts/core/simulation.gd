@@ -106,7 +106,10 @@ func _process(delta: float) -> void:
 		return
 	if not is_finite(delta) or delta < 0.0:
 		return
-	_accumulator += minf(delta, 0.25)
+	# Fastest admits work immediately within the frame budget. Preserve saved
+	# elapsed debt for a later paced speed without adding new unpaced debt.
+	if speed != GameClock.Speed.FASTEST:
+		_accumulator += minf(delta, 0.25)
 	var started := Time.get_ticks_usec()
 	var guard := 0
 	while guard < MAX_DAYS_PER_FRAME:
@@ -114,11 +117,13 @@ func _process(delta: float) -> void:
 		if not _ready_to_run or speed == GameClock.Speed.PAUSED or budget_review_pending:
 			break
 		var per_day: float = GameClock.SECONDS_PER_DAY[speed]
-		if _accumulator < per_day:
+		var paced := speed != GameClock.Speed.FASTEST
+		if paced and _accumulator < per_day:
 			break
 		if guard > 0 and Time.get_ticks_usec() - started >= INTERACTIVE_BUDGET_USEC:
 			break
-		_accumulator -= per_day
+		if paced:
+			_accumulator -= per_day
 		advance_day()
 		guard += 1
 

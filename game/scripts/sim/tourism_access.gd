@@ -82,7 +82,14 @@ func refresh(ctx: SimContext, work_budget: int = ROUTE_WORK) -> void:
 	if _city != city or _layers != layers:
 		# Pure graph inputs: surface-class identity (TransportSystem reads
 		# buildings only through _surface and station equality), tunnels, subway.
-		var structure: Array = [_graph_layer(city.building.data),city.underground.data,city.altitude.data]
+		# Service/ground changes retain the detached building layer and its
+		# classification; raw building writes still compare against that copy.
+		var graph_layer: PackedInt32Array
+		if _city == city and _structure.size() == 3 and _layers[0] == city.building.data:
+			graph_layer = _structure[0]
+		else:
+			graph_layer = _graph_layer(city.building.data)
+		var structure: Array = [graph_layer,city.underground.data,city.altitude.data]
 		var same_structure := _city == city and structure == _structure
 		var index_key: Array = [city.building.data,city.zone.data]
 		if not same_structure or index_key != _index_key:

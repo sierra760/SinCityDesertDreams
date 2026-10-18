@@ -58,6 +58,11 @@ var _expanded := 0
 var _buildings := PackedInt32Array()
 var _underground := PackedByteArray()
 var _altitude := PackedInt32Array()
+## A monthly pass binds one frozen set of routing layers for all commuters.
+## Cache transitions by state and neighbour direction, including empty results;
+## destinations are still checked before each neighbour in the original order.
+## Cleared at both binding boundaries so raw map edits affect the next query.
+var _commuter_steps: Dictionary[int, Array] = {}
 ## Tile of the destination reached by the last search, -1 for a map edge.
 var _arrival_tile := -1
 
@@ -248,6 +253,7 @@ static func _riders_from(data: Dictionary) -> Dictionary:
 # ── The pass ─────────────────────────────────────────────────────────────
 
 func _bind(city: City) -> void:
+	_commuter_steps.clear()
 	_buildings = city.building.data
 	_underground = city.underground.data
 	_altitude = city.altitude.data
@@ -270,6 +276,7 @@ func _bind(city: City) -> void:
 
 
 func _unbind() -> void:
+	_commuter_steps.clear()
 	_buildings = PackedInt32Array()
 	_underground = PackedByteArray()
 	_altitude = PackedInt32Array()
@@ -468,7 +475,14 @@ func _search(start: int) -> int:
 					_arrival_tile = nt
 					bucket.clear()
 					return s
-				for step: Array in _target_steps(s, nt):
+				var transition_key := s * 4 + d
+				var steps: Array
+				if _commuter_steps.has(transition_key):
+					steps = _commuter_steps[transition_key]
+				else:
+					steps = _target_steps(s, nt)
+					_commuter_steps[transition_key] = steps
+				for step: Array in steps:
 					var next := int(step[0])
 					@warning_ignore("integer_division")
 					_push(s, next / TILES, next % TILES, cost + int(step[1]))

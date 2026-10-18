@@ -31,6 +31,10 @@ var _event_hosts := {"stadium":false,"city_hall":false}
 ## flag bits, altitude and route versions change only the influence rebuild.
 var _served_tiles := PackedInt32Array()
 var _served_bits := PackedByteArray()
+## Complete sites depend only on building and zone bytes. Service/flood/fire
+## changes reuse them, while detached native comparisons catch raw edits.
+var _site_inputs: Array = []
+var _sites: Array[Dictionary] = []
 var _inputs: Dictionary = {}
 var _distribution: Dictionary = {}
 var _summary := {"available_spending_cents":0, "accepted_spending_cents":0, "recipient_capacity_cents":0,
@@ -128,35 +132,55 @@ func _discover(city: City) -> void:
 	_served_tiles.clear()
 	var fire_set := {}
 	for at: Vector2i in _fires: fire_set[at] = true
-	# One dirty-layer walk, then bounded bin lookups per venue. Canonical
-	# anchors and complete rectangles work without facility metadata.
-	var interest := _interest_table()
-	for index in _buildings.size():
-		var code := _buildings[index]
-		# Table equals the non-vacant part of the predicate below; NONE always
-		# takes the full test because vacancy also depends on its zone.
-		if code != Buildings.NONE and code >= 0 and code < interest.size() and interest[code] == 0: continue
-		var key := Buildings.key(code)
-		var category: StringName = CATEGORIES.get(key,&"")
-		var kind := Zones.kind(_zones[index])
-		var commercial := Buildings.category(code) == Buildings.Category.COMMERCIAL and not RewardParams.ARCOLOGIES.has(key)
-		var vacant := code == Buildings.NONE and kind in [Zones.COM_LOW,Zones.COM_HIGH]
-		if category == &"" and key != &"city_hall" and not commercial and not vacant: continue
-		@warning_ignore("integer_division")
-		var at := Vector2i(index % City.WIDTH,index / City.WIDTH)
-		if not UtilityParams.is_anchor_tile(_buildings,_zones,index): continue
-		var size := Buildings.size(code)
-		var rect := Rect2i(at,size)
-		if not _complete(city,rect,code): continue
+	for site in _complete_sites(city):
+		var at: Vector2i = site.at
+		var rect: Rect2i = site.rect
+		var key: StringName = site.key
+		var category: StringName = site.category
 		# Every served bit _operating may read for this complete footprint.
 		for y in range(rect.position.y,rect.end.y):
 			for x in range(rect.position.x,rect.end.x): _served_tiles.append(y*City.WIDTH+x)
 		if String(key) in _event_hosts and _operating(city,rect,key,fire_set): _event_hosts[String(key)] = true
 		if category != &"":
 			if _operating(city,rect,key,fire_set): _bin_add(_attractions,at,{"rect":rect,"category":category})
-		elif commercial or vacant:
+		elif site.retail:
 			if _operating(city,rect,&"shop",fire_set): _bin_add(_shops,at,{"rect":rect,"anchor":at})
 	_served_bits = _served(city)
+
+## Native searches find only relevant codes and vacant commercial zone bytes;
+## sorting restores the original row-major discovery and allocation order.
+func _complete_sites(city: City) -> Array[Dictionary]:
+	var inputs: Array = [_buildings,_zones]
+	if inputs == _site_inputs: return _sites
+	_site_inputs = inputs.duplicate(true)
+	_sites.clear()
+	var candidates := PackedInt32Array()
+	var interest := _interest_table()
+	for code in interest.size():
+		if code == Buildings.NONE or interest[code] == 0: continue
+		var index := _buildings.find(code)
+		while index >= 0:
+			candidates.append(index)
+			index = _buildings.find(code,index+1)
+	for kind: int in [Zones.COM_LOW,Zones.COM_HIGH]:
+		for corner in 16:
+			var raw := (corner<<4)|kind
+			var index := _zones.find(raw)
+			while index >= 0:
+				if _buildings[index] == Buildings.NONE: candidates.append(index)
+				index = _zones.find(raw,index+1)
+	candidates.sort()
+	for index in candidates:
+		var code := _buildings[index]
+		if not UtilityParams.is_anchor_tile(_buildings,_zones,index): continue
+		@warning_ignore("integer_division")
+		var at := Vector2i(index % City.WIDTH,index / City.WIDTH)
+		var rect := Rect2i(at,Buildings.size(code))
+		if not _complete(city,rect,code): continue
+		var key := Buildings.key(code)
+		_sites.append({"at":at,"rect":rect,"key":key,"category":CATEGORIES.get(key,&""),
+			"retail":code == Buildings.NONE or (Buildings.category(code) == Buildings.Category.COMMERCIAL and not RewardParams.ARCOLOGIES.has(key))})
+	return _sites
 
 func _complete(city: City, rect: Rect2i, code: int) -> bool:
 	if not city.in_bounds(rect.end.x-1,rect.end.y-1): return false

@@ -19,7 +19,7 @@ func _simulation() -> Simulation:
 	sim._system_index.clear()
 	# Keep the required direct tourism hooks inert while isolating clock admission.
 	sim._system_index[&"tourism"] = ClockOnlyTourism.new()
-	sim.set_speed(GameClock.Speed.FASTEST)
+	sim.set_speed(GameClock.Speed.FAST)
 	return sim
 
 func test_expensive_day_yields_and_keeps_backlog() -> void:
@@ -110,8 +110,8 @@ func test_real_pending_backlog_reload_matches_exact_direct_work() -> void:
 	source_city.stamp_building(14, 10, Buildings.RES_2X2_FIRST, Zones.RES_HIGH)
 	var sim := make_simulation(source_city, 742)
 	sim.set_process(false)
-	sim.set_speed(GameClock.Speed.FASTEST)
-	sim._accumulator = 17 * 0.08 + 0.001
+	sim.set_speed(GameClock.Speed.FAST)
+	sim._accumulator = 17 * GameClock.SECONDS_PER_DAY[GameClock.Speed.FAST] + 0.001
 	var initial := sim.snapshot()
 	var direct := make_simulation(source_city.duplicate_city(), 742)
 	direct.set_process(false)
@@ -131,7 +131,7 @@ func test_real_pending_backlog_reload_matches_exact_direct_work() -> void:
 	resumed.set_process(false)
 	resumed.setup(sim.city.duplicate_city(), 742, null, saved)
 	resumed.restore(saved)
-	resumed.set_speed(GameClock.Speed.FASTEST)
+	resumed.set_speed(GameClock.Speed.FAST)
 	actual_days.append([1900, 1, 1])
 	resumed.day_advanced.connect(func(y: int, m: int, d: int) -> void: actual_days.append([y, m, d]))
 	for frame: int in 30:

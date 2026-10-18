@@ -22,9 +22,19 @@ func prepare(city: City, fires: Array = []) -> void:
 	eligible_cells = _eligible.size()
 	var zn := city.zone.data
 	var bld := city.building.data
-	for i in _eligible.size():
+	# Native byte searches skip unrelated zoning without a scripted map scan.
+	# Include every corner-bit combination; sort to retain row-major visits.
+	var candidates := PackedInt32Array()
+	for high in 16:
+		var code := Zones.AGR_LOW | (high << 4)
+		var index := zn.find(code)
+		while index >= 0:
+			candidates.append(index)
+			index = zn.find(code,index+1)
+	candidates.sort()
+	for i in candidates:
 		# Heights are read only for eligible cells (_available/candidate).
-		if (zn[i] & Zones.KIND_MASK) != Zones.AGR_LOW or bld[i] != Buildings.NONE: continue
+		if bld[i] != Buildings.NONE: continue
 		var p := AgriculturalParcels.tile(i)
 		if p.x < 2 or p.y < 2 or p.x >= 126 or p.y >= 126: continue
 		if city.agricultural_parcels.id_at(p) != 0 or burning.has(p): continue

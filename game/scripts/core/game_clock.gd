@@ -20,11 +20,12 @@ const SPEED_NAMES := {
 	Speed.FASTEST: "Fastest",
 }
 
-## Real seconds per simulated day at each speed.
+## Real seconds per simulated day for paced speeds. Fastest runs unpaced;
+## its nominal duration remains available to presentation interpolation.
 const SECONDS_PER_DAY := {
-	Speed.SLOW: 1.6,
-	Speed.MEDIUM: 0.8,
-	Speed.FAST: 0.32,
+	Speed.SLOW: 0.8,
+	Speed.MEDIUM: 0.32,
+	Speed.FAST: 0.08,
 	Speed.FASTEST: 0.08,
 }
 
