@@ -237,6 +237,39 @@ func test_bulldoze_rubble_and_networks() -> void:
 	check(not b.preview(Tools.Kind.BULLDOZE, Vector2i(24, 10))["ok"])
 
 
+func test_bulldoze_drag_clears_a_rectangle_not_an_l() -> void:
+	var b := _builder()
+	var c := b.city
+	for y in range(20, 24):
+		b.apply(Tools.Kind.ROAD, Vector2i(30, y), Vector2i(35, y))
+	var road_count := func() -> int:
+		var n := 0
+		for y in range(20, 24):
+			for x in range(30, 36):
+				if c.building_at(x, y) != Buildings.NONE:
+					n += 1
+		return n
+	check_eq(road_count.call(), 24, "a 6x4 block of road")
+	var preview := b.preview(Tools.Kind.BULLDOZE, Vector2i(31, 21), Vector2i(33, 22))
+	check(preview["ok"], preview["reason"])
+	check_eq(preview["tiles"].size(), 6, "a 3x2 drag covers six cells")
+	check_eq(preview["cost"], 6)
+	for t: Vector2i in preview["tiles"]:
+		check(t.x >= 31 and t.x <= 33 and t.y >= 21 and t.y <= 22, "tile %s inside the dragged rectangle" % t)
+	var r := b.apply(Tools.Kind.BULLDOZE, Vector2i(33, 22), Vector2i(31, 21))
+	check(r["ok"], r["reason"])
+	check_eq(r["cost"], 6, "a drag the other way charges the same rectangle")
+	for y in range(21, 23):
+		for x in range(31, 34):
+			check_eq(c.building_at(x, y), Buildings.NONE, "cleared %d,%d" % [x, y])
+	check_eq(road_count.call(), 18, "nothing outside the rectangle is cleared")
+	check(c.building_at(30, 21) != Buildings.NONE and c.building_at(34, 22) != Buildings.NONE)
+	check(c.building_at(32, 20) != Buildings.NONE and c.building_at(32, 23) != Buildings.NONE)
+	var one := b.preview(Tools.Kind.BULLDOZE, Vector2i(35, 23), Vector2i(35, 23))
+	check_eq(one["tiles"].size(), 1, "a click clears one cell")
+	check_eq(Tools.mode(Tools.Kind.BULLDOZE), Tools.Mode.RECT)
+
+
 func test_surface_bulldoze_leaves_underground_alone() -> void:
 	var b := _builder()
 	var c := b.city

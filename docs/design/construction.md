@@ -283,7 +283,8 @@ What each question means for `apply`:
 
 ### Bulldozer
 
-24. Bulldoze is a line tool priced at 1 per cleared tile. On a building it
+24. Bulldoze is an area tool priced at 1 per cleared tile: a click clears one
+    cell and a drag clears every cell of the dragged rectangle. On a building it
     clears the whole footprint, charging per footprint tile, and leaves rubble
     on every tile of a developed building (zone buildings, plants, civic,
     utility, transit, port, military, reward and arcology). Trees, parks,

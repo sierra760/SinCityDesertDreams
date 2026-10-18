@@ -48,7 +48,7 @@ const NUCLEAR_FREE_ZONE_REASON := "the Nuclear Free Zone ordinance forbids nucle
 ## footprint, icon, mode, group]. Building prices come from the roster.
 const _TABLE := {
 	Kind.QUERY: ["Inspect", 0, NO_BUILDING, -1, Vector2i.ONE, &"query", Mode.POINT, Group.INSPECT],
-	Kind.BULLDOZE: ["Bulldoze", 1, NO_BUILDING, -1, Vector2i.ONE, &"bulldoze", Mode.LINE, Group.DEMOLISH],
+	Kind.BULLDOZE: ["Bulldoze", 1, NO_BUILDING, -1, Vector2i.ONE, &"bulldoze", Mode.RECT, Group.DEMOLISH],
 	Kind.DEZONE: ["Remove zone", 1, NO_BUILDING, Zones.NONE, Vector2i.ONE, &"dezone", Mode.RECT, Group.DEMOLISH],
 	Kind.SIGN: ["Sign", 0, NO_BUILDING, -1, Vector2i.ONE, &"sign", Mode.POINT, Group.INSPECT],
 	Kind.ROAD: ["Road", 10, NO_BUILDING, -1, Vector2i.ONE, &"road", Mode.LINE, Group.TRANSPORT],

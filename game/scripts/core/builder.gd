@@ -1386,8 +1386,8 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i, underground: bool 
 	var cost := 0
 	var refused := ""
 	var trees := 0
-	for step in _line(from, to):
-		var p: Vector2i = step["pos"]
+	# One cell, or the whole dragged rectangle; never an L-shaped walk.
+	for p in _area_tiles(from, to):
 		if seen.has(p):
 			continue
 		if _protected(p):
@@ -1433,14 +1433,14 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i, underground: bool 
 	return plan
 
 
-## Dig up the pipes, subway track and crossings along the drag. The pieces a
+## Dig up the pipes, subway track and crossings in the dragged area. The pieces a
 ## subway station or portal keeps under itself go with that building, from
 ## the surface.
 func _plan_bulldoze_underground(price: int, from: Vector2i, to: Vector2i) -> Dictionary:
 	var tiles: Array[Vector2i] = []
 	var ops: Array = []
 	var refused := ""
-	for p in _line_tiles(from, to):
+	for p in _area_tiles(from, to):
 		if tiles.has(p):
 			continue
 		var code := city.underground.at(p.x, p.y)
