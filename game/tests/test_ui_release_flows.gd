@@ -110,7 +110,7 @@ func test_help_covers_first_city_and_exploration() -> void:
 	var help := HelpWindow.new()
 	holder.add_child(help)
 	var text := _texts(help)
-	for phrase in ["Found City","Explore City","Settings → Controls","Recover","Return to Build","not saved"]:
+	for phrase in ["Found City","View → Explore at Street Level","Settings → Controls","Recover","Return to Build","not saved"]:
 		check(text.contains(phrase),"help explains "+phrase)
 
 func test_modal_navigation_restores_the_previous_control() -> void:

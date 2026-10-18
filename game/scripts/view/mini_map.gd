@@ -41,6 +41,7 @@ var _inputs: Dictionary = {}
 var _texture_rect: TextureRect
 var _overlay: Control
 var _margin: MarginContainer
+var _overlay_inputs: Array = []
 
 
 func _ready() -> void:
@@ -111,8 +112,22 @@ func apply_layout(logical_bounds: Rect2, menu_height: float, status_height: floa
 	_overlay.size = Vector2(side, side)
 
 func _process(_delta: float) -> void:
-	if _overlay != null:
-		_overlay.queue_redraw()
+	if _overlay == null or not visible:
+		return
+	# Canvas commands survive between frames. Only camera, layout or player
+	# changes need new corner projections and drawing commands; the city image
+	# beneath this overlay updates independently in generate_image().
+	var inputs: Array = [_texture_rect.size, display_rotation(), explore_marker(), view_3d]
+	if view_3d != null:
+		inputs.append_array([view_3d.active, view_3d.aerial_controls_enabled, view_3d.city, view_3d.center.y])
+		if view_3d.camera != null:
+			inputs.append_array([view_3d.camera.global_transform, view_3d.camera.get_camera_projection()])
+		if view_3d.viewport != null:
+			inputs.append(view_3d.viewport.size)
+	if inputs == _overlay_inputs:
+		return
+	_overlay_inputs = inputs
+	_overlay.queue_redraw()
 
 
 ## Rebuild the image when the map or rotation changed.

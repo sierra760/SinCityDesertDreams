@@ -38,6 +38,7 @@ var _column: VBoxContainer
 var _title_row: HBoxContainer
 var _actions: HBoxContainer
 var _compact_header := false
+var _scroll_restore_revision := -1
 
 
 func _init() -> void:
@@ -48,6 +49,10 @@ func _init() -> void:
 	custom_minimum_size = Vector2.ZERO
 	_build()
 	visible = false
+
+
+func _ready() -> void:
+	set_process_input(_scroll_restore_revision >= 0)
 
 
 func _build() -> void:
@@ -77,6 +82,7 @@ func _build() -> void:
 	body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body_scroll.follow_focus = true
+	body_scroll.get_v_scroll_bar().scrolling.connect(_cancel_scroll_restore)
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body_scroll.add_child(rows)
 	column.add_child(body_scroll)
@@ -159,6 +165,11 @@ func show_tile(city: City, sim: Simulation, at: Vector2i) -> void:
 	sign_button.visible = info.has("Sign")
 	visible = true
 	body_scroll.scroll_vertical = reading_position
+	if _scroll_is_gliding():
+		_cancel_scroll_restore()
+		return
+	_scroll_restore_revision = _content_revision
+	set_process_input(true)
 	_restore_scroll.call_deferred(reading_position, _content_revision)
 
 
@@ -169,8 +180,59 @@ func refresh(city: City, sim: Simulation) -> void:
 
 
 func _restore_scroll(value: int, revision: int) -> void:
-	if revision == _content_revision and visible:
+	if revision != _content_revision or _scroll_restore_revision != revision:
+		if _scroll_restore_revision == revision: _cancel_scroll_restore()
+		return
+	# Row wrapping and the panel's content fit can change the range again after
+	# this deferred call. Restore once that layout has completed.
+	await get_tree().process_frame
+	if _scroll_restore_revision == revision and _scroll_is_gliding(): _cancel_scroll_restore()
+	if revision == _content_revision and _scroll_restore_revision == revision and visible:
 		body_scroll.scroll_vertical = value
+	if _scroll_restore_revision == revision:
+		_scroll_restore_revision = -1
+		set_process_input(false)
+
+
+## Only pending layout restoration observes input. A newer scroll gesture or
+## focus navigation owns the reading position; layout-driven clamps do not.
+func _input(event: InputEvent) -> void:
+	if _scroll_restore_revision < 0 or not visible: return
+	var scroll_input := false
+	if event is InputEventKey and event.pressed:
+		var focused := get_viewport().gui_get_focus_owner()
+		var in_body := focused != null and (focused == body_scroll or body_scroll.is_ancestor_of(focused))
+		scroll_input = in_body and event.keycode in [KEY_UP, KEY_DOWN, KEY_PAGEUP, KEY_PAGEDOWN, KEY_HOME, KEY_END, KEY_SPACE]
+		if event.keycode == KEY_TAB and focused != null and is_ancestor_of(focused): scroll_input = true
+	elif event is InputEventMouseButton:
+		scroll_input = event.pressed and _inside_scroll(event.position)
+	elif event is InputEventScreenTouch:
+		scroll_input = event.pressed and _inside_scroll(event.position)
+	elif event is InputEventScreenDrag:
+		scroll_input = _inside_scroll(event.position) or _inside_scroll(event.position-event.relative)
+	elif event is InputEventPanGesture:
+		scroll_input = _inside_scroll(event.position)
+	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		scroll_input = _inside_scroll(event.position)
+	if scroll_input: _cancel_scroll_restore()
+
+
+func _cancel_scroll_restore() -> void:
+	if _scroll_restore_revision < 0: return
+	_scroll_restore_revision = -1
+	set_process_input(false)
+
+
+func _inside_scroll(point: Vector2) -> bool:
+	var local := body_scroll.get_global_transform_with_canvas().affine_inverse()*point
+	return Rect2(Vector2.ZERO,body_scroll.size).has_point(local)
+
+
+func _scroll_is_gliding() -> bool:
+	# The iOS gesture helper processes only while its existing momentum owns
+	# the scroll. That motion needs no new raw input event to take precedence.
+	var gesture := body_scroll.get_node_or_null(^"IOSGestureScroll") as IOSGestureScroll
+	return gesture != null and gesture.is_processing()
 
 
 ## Everything the panel shows for a tile, in display order. Keys starting
@@ -475,6 +537,7 @@ func close() -> void:
 	if not visible:
 		return
 	visible = false
+	_cancel_scroll_restore()
 	tile = Vector2i(-1, -1)
 	closed.emit()
 

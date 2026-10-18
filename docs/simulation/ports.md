@@ -55,7 +55,11 @@ Events:
   is also rebuilt on the next query whenever the zone, building or flags layer
   differs from the one it was built from, so damage no construction reported
   (fires, disasters) is seen at once and a reloaded city sees the same ports
-  as one that kept running.
+  as one that kept running. Completed zone membership is reused while the
+  owning city and detached zone bytes match; buildings, power and operating
+  state are still recounted. Crane growth invalidates membership even when its
+  piers were already zoned, restoring unique members and the same traversal
+  order at the next rebuild.
 
 ## Rules
 

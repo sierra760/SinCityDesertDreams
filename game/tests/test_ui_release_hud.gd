@@ -131,3 +131,239 @@ func test_menu_hints_do_not_register_duplicate_shortcuts() -> void:
 		check(popup.get_item_text(index).contains("[R]" if action == &"rotate" else "[U]"),"menu advertises existing shortcut")
 		check_eq(popup.get_item_accelerator(index),0,"Main retains shortcut ownership")
 	menu.free()
+
+func test_inspector_refresh_clamps_to_the_completed_shorter_content() -> void:
+	root.size = Vector2i(640,400)
+	var query := QueryPanel.new()
+	root.add_child(query)
+	query.set_meta("display_usable_rect",Rect2(0,0,640,400))
+	query.size = Vector2(320,240)
+	var city := flat_city()
+	var at := Vector2i(20,20)
+	city.signs[at] = "W".repeat(Builder.SIGN_TEXT_MAX)
+	query.show_tile(city,null,at)
+	await _settle()
+	query.body_scroll.scroll_vertical = 10000
+	var reading := query.body_scroll.scroll_vertical
+	check_gt(reading,0,"long content provides a real reading offset")
+	city.signs[at] = "Short note"
+	query.refresh(city,null)
+	await _settle()
+	var bar := query.body_scroll.get_v_scroll_bar()
+	var final_limit := maxi(0,int(bar.max_value-bar.page))
+	check_gt(reading,final_limit,"the settled shorter content cannot retain the old offset")
+	check_eq(query.body_scroll.scroll_vertical,mini(reading,final_limit),"restoration clamps only to the final scroll range")
+	query.free()
+
+func test_inspector_delayed_restore_cannot_override_a_new_tile_or_close() -> void:
+	root.size = Vector2i(640,400)
+	var query := QueryPanel.new()
+	root.add_child(query)
+	query.set_meta("display_usable_rect",Rect2(0,0,640,400))
+	query.size = Vector2(320,240)
+	var city := flat_city()
+	var at := Vector2i(20,20)
+	city.signs[at] = "W".repeat(Builder.SIGN_TEXT_MAX)
+	query.show_tile(city,null,at)
+	await _settle()
+	query.body_scroll.scroll_vertical = 10000
+	check_gt(query.body_scroll.scroll_vertical,0,"fixture has an old reading position")
+	city.signs[at] = "West Ridge Distribution"
+	query.refresh(city,null)
+	query.show_tile(city,null,Vector2i(21,20))
+	await process_frame
+	check(query.is_processing_input(),"an older restore cannot disable tracking for the new revision")
+	await _settle()
+	check_eq(query.tile,Vector2i(21,20),"new selection supersedes the pending refresh")
+	check_eq(query.body_scroll.scroll_vertical,0,"old revision cannot scroll the new selection")
+	query.show_tile(city,null,at)
+	await _settle()
+	city.signs[at] = "East Ridge Distribution"
+	query.refresh(city,null)
+	query.close()
+	check(not query.is_processing_input(),"closing cancels pending input tracking immediately")
+	await _settle()
+	check(not query.visible,"a pending restoration cannot reopen the inspector")
+	query.show_tile(city,null,Vector2i(21,20))
+	await _settle()
+	check_eq(query.body_scroll.scroll_vertical,0,"reopening a new tile starts at the top")
+	city.signs[Vector2i(21,20)] = "Pending at removal"
+	query.refresh(city,null)
+	query.free()
+	await _settle()
+
+func test_inspector_pending_restore_preserves_newer_user_scrolling() -> void:
+	for kind in ["wheel","keyboard","touch","pan","scrollbar"]:
+		root.size = Vector2i(640,400)
+		var query := QueryPanel.new()
+		root.add_child(query)
+		query.set_meta("display_usable_rect",Rect2(0,0,640,400))
+		query.size = Vector2(320,240)
+		var city := flat_city()
+		var at := Vector2i(20,20)
+		city.signs[at] = "W".repeat(Builder.SIGN_TEXT_MAX)
+		query.show_tile(city,null,at)
+		if kind == "touch": IOSGestureScroll._install(query.body_scroll)
+		await _settle()
+		check(not query.is_processing_input(),"idle inspector does not monitor input")
+		if kind == "keyboard": query.close_button.grab_focus()
+		query.body_scroll.scroll_vertical = 0
+		city.signs[at] = "V"+"W".repeat(Builder.SIGN_TEXT_MAX-1)
+		query.refresh(city,null)
+		if kind == "keyboard":
+			# Give Tab an actual reading target inside the scroll body without
+			# depending on which optional inspector actions are currently shown.
+			var reading_target := Button.new()
+			reading_target.text = "Read this site"
+			query.rows.add_child(reading_target)
+		await process_frame
+		var point := query.body_scroll.get_global_rect().get_center()
+		var bar := query.body_scroll.get_v_scroll_bar()
+		if kind == "wheel" or kind == "scrollbar":
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_WHEEL_DOWN if kind == "wheel" else MOUSE_BUTTON_LEFT
+			press.pressed = true
+			press.position = point if kind == "wheel" else bar.get_global_rect().end-Vector2(4,4)
+			press.global_position = press.position
+			root.push_input(press,true)
+			var release := press.duplicate() as InputEventMouseButton
+			release.pressed = false
+			root.push_input(release,true)
+		elif kind == "keyboard":
+			var press := InputEventKey.new()
+			press.keycode = KEY_TAB
+			press.pressed = true
+			root.push_input(press,true)
+			var release := press.duplicate() as InputEventKey
+			release.pressed = false
+			root.push_input(release,true)
+		elif kind == "pan":
+			var pan := InputEventPanGesture.new()
+			pan.position = point
+			pan.delta = Vector2(0,1)
+			root.push_input(pan,true)
+		else:
+			var press := InputEventScreenTouch.new()
+			press.pressed = true
+			press.position = point
+			root.push_input(press,true)
+			var drag := InputEventScreenDrag.new()
+			drag.position = point-Vector2(0,12)
+			drag.relative = Vector2(0,-12)
+			root.push_input(drag,true)
+			var release := press.duplicate() as InputEventScreenTouch
+			release.pressed = false
+			release.canceled = true
+			release.position = drag.position
+			root.push_input(release,true)
+		var requested := query.body_scroll.scroll_vertical
+		check_gt(requested,0,kind+" really moves the reading position")
+		await _settle()
+		check_eq(query.body_scroll.scroll_vertical,requested,kind+" supersedes the older refresh offset")
+		check(not query.is_processing_input(),kind+" leaves no idle input monitor")
+		query.close()
+		check(not query.is_processing_input(),"closed inspector does not monitor input")
+		query.free()
+
+func test_inspector_preserves_an_existing_scrollbar_drag_outside_the_body() -> void:
+	root.size = Vector2i(640,400)
+	var query := QueryPanel.new()
+	root.add_child(query)
+	query.set_meta("display_usable_rect",Rect2(0,0,640,400))
+	query.size = Vector2(320,240)
+	var city := flat_city()
+	var at := Vector2i(20,20)
+	city.signs[at] = "W".repeat(Builder.SIGN_TEXT_MAX)
+	query.show_tile(city,null,at)
+	await _settle()
+	var bar := query.body_scroll.get_v_scroll_bar()
+	query.body_scroll.scroll_vertical = 0
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = bar.get_global_position()+Vector2(bar.size.x*0.5,bar.get_theme_icon("decrement").get_height()+5)
+	press.global_position = press.position
+	root.push_input(press,true)
+	city.signs[at] = "V"+"W".repeat(Builder.SIGN_TEXT_MAX-1)
+	query.refresh(city,null)
+	await process_frame
+	var motion := InputEventMouseMotion.new()
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	motion.position = bar.get_global_rect().end+Vector2(0,20)
+	motion.relative = motion.position-press.position
+	root.push_input(motion,true)
+	var requested := query.body_scroll.scroll_vertical
+	check_gt(requested,0,"a thumb drag outside the rectangle still scrolls")
+	await _settle()
+	check_eq(query.body_scroll.scroll_vertical,requested,"the active drag supersedes a later refresh restore")
+	var release := press.duplicate() as InputEventMouseButton
+	release.pressed = false
+	release.position = motion.position
+	root.push_input(release,true)
+	query.free()
+
+func test_inspector_keyboard_close_retires_a_pending_restore() -> void:
+	root.size = Vector2i(640,400)
+	var query := QueryPanel.new()
+	root.add_child(query)
+	query.set_meta("display_usable_rect",Rect2(0,0,640,400))
+	query.size = Vector2(320,240)
+	var city := flat_city()
+	var at := Vector2i(20,20)
+	city.signs[at] = "W".repeat(Builder.SIGN_TEXT_MAX)
+	query.show_tile(city,null,at)
+	await _settle()
+	query.close_button.grab_focus()
+	city.signs[at] = "V"+"W".repeat(Builder.SIGN_TEXT_MAX-1)
+	query.refresh(city,null)
+	var press := InputEventKey.new()
+	press.keycode = KEY_ENTER
+	press.pressed = true
+	root.push_input(press,true)
+	var release := press.duplicate() as InputEventKey
+	release.pressed = false
+	root.push_input(release,true)
+	check(not query.visible,"Enter closes the inspector before the deferred restore starts")
+	await _settle()
+	check(not query.is_processing_input(),"keyboard close leaves no idle input monitor")
+	query.free()
+
+func test_inspector_refresh_preserves_existing_touch_momentum() -> void:
+	var previous_fps := Engine.max_fps
+	Engine.max_fps = 60
+	root.size = Vector2i(640,400)
+	var query := QueryPanel.new()
+	root.add_child(query)
+	query.set_meta("display_usable_rect",Rect2(0,0,640,400))
+	query.size = Vector2(320,240)
+	var city := flat_city()
+	var at := Vector2i(20,20)
+	city.signs[at] = "W".repeat(Builder.SIGN_TEXT_MAX)
+	query.show_tile(city,null,at)
+	IOSGestureScroll._install(query.body_scroll)
+	await _settle()
+	query.body_scroll.scroll_vertical = 0
+	var press := InputEventScreenTouch.new()
+	press.pressed = true
+	press.position = query.body_scroll.get_global_rect().get_center()
+	root.push_input(press,true)
+	var drag := InputEventScreenDrag.new()
+	drag.position = press.position-Vector2(0,20)
+	drag.relative = Vector2(0,-20)
+	drag.velocity = Vector2(0,-600)
+	root.push_input(drag,true)
+	var release := press.duplicate() as InputEventScreenTouch
+	release.pressed = false
+	release.position = drag.position
+	root.push_input(release,true)
+	check(query.body_scroll.get_node("IOSGestureScroll").is_processing(),"touch release starts a real glide")
+	city.signs[at] = "V"+"W".repeat(Builder.SIGN_TEXT_MAX-1)
+	query.refresh(city,null)
+	var previous := query.body_scroll.scroll_vertical
+	for frame in 8:
+		await process_frame
+		check_ge(query.body_scroll.scroll_vertical,previous,"refresh never rewinds existing touch momentum")
+		previous = query.body_scroll.scroll_vertical
+	check(not query.is_processing_input(),"a glide does not leave a pending restoration monitor")
+	query.free()
+	Engine.max_fps = previous_fps

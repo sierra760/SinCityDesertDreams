@@ -77,11 +77,16 @@ func test_connections_and_road_crossing_remain_passable() -> void:
 	var layer := CityNetworks3D.new(); layer.rebuild(city)
 	var data := layer.physical_data()
 	for z: float in [20.0,21.0]:
+		var running := _height(data.physical_floor_faces,Vector2(20.5,z))
+		check(is_finite(running),"reciprocal rail connection has a running surface")
 		for i: int in range(0,data.physical_obstacle_faces.size(),3):
 			var a: Vector3 = data.physical_obstacle_faces[i]
 			var b: Vector3 = data.physical_obstacle_faces[i+1]
 			var c: Vector3 = data.physical_obstacle_faces[i+2]
-			check(not (absf(a.z-z)<.00001 and absf(b.z-z)<.00001 and absf(c.z-z)<.00001),"reciprocal rail connections have no foundation end wall")
+			if absf(a.z-z)<.00001 and absf(b.z-z)<.00001 and absf(c.z-z)<.00001:
+				# Road skirts below the running surface support the crossing;
+				# only faces rising into its travel space can block the rail.
+				check(maxf(a.y,maxf(b.y,c.y))<=running+.00001,"reciprocal rail connections have no foundation wall above their running surface")
 	for x: float in [20.05,20.15,20.5,20.85,20.95]:
 		var y := _height(data.physical_floor_faces,Vector2(x,20.5))
 		var ground := CityGeometry3D.point_on_ground(city,cell,Vector2(x-20,.5)).y

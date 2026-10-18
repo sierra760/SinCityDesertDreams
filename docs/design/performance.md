@@ -13,6 +13,14 @@ The **High** 3D profile preserves full shadows, four-sample antialiasing and clo
 - Compatible static model leaves are compiled once into shared runtime meshes. Opaque geometry gets a shared shadow-only proxy. Materials, physical structures, editable assets and querying are unaffected. Content with custom shaders, animation or transparency is rendered normally instead.
 - Distant procedural palm crowns use lower-detail mesh indices. Near geometry keeps full detail. Spatial mesh batches preserve useful culling and can update affected regions.
 - Traffic meshes and upload buffers are reused. Power-warning updates skip work when their input bytes have not changed.
+- The minimap retains its overlay drawing commands while camera projection,
+  map layout and Explore marker are unchanged, and skips hidden overlay work.
+  Port updates reuse completed zone membership for the same city and detached
+  zone bytes while recounting current buildings and services; crane growth
+  forces canonical regrouping even when the water was already zoned.
+- iCloud inventory compares each remote record against one local publication
+  head instead of copying the entire save library for every record. Payloads,
+  history and upload pins stay outside this unchanged-record comparison.
 - Tourism district discovery keeps complete sites for detached building/zone inputs. Native value searches collect relevant buildings and all commercial corner-byte variants, then restore row-major order. Service, roads, fire, terrain and flood eligibility still update during simulation hooks. Service-only transport refreshes reuse the detached building classification while retaining gateway and route-version updates.
 - Commuters share ordered transition arrays within one bound transport pass. Both binding boundaries discard them; destination checks, route costs, traffic and search-work limits keep their original order. Agricultural growth similarly searches zone bytes natively and sorts candidates instead of walking unrelated city tiles in script.
 - Explore rain and dust keep their particle resources through daylight/fog blends and owner changes with identical presentation. Wind changes refresh existing poses; precipitation and quality changes rebuild the particle set. Frozen active time reuses particle transforms, while pre-draw still updates indoor visibility. A newly created or resized buffer receives its first pose even while paused.

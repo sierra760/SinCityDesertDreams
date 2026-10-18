@@ -44,6 +44,7 @@ var _drag_touch := -1
 
 
 func _init() -> void:
+	set_meta("owns_pointer_gestures", true)
 	focus_mode = Control.FOCUS_ALL
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	custom_minimum_size = Vector2(320, 190)

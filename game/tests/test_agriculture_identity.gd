@@ -279,7 +279,8 @@ const LEGACY_ROSTER := [
 ]
 const LEGACY_TOOLS := {
 	0: ["Inspect", 0, -1, -1, Vector2i.ONE, &"query", 0, 0],
-	1: ["Bulldoze", 1, -1, -1, Vector2i.ONE, &"bulldoze", 1, 1],
+	# The rectangular bulldozer keeps its ID; its drag mode changed in October.
+	1: ["Bulldoze", 1, -1, -1, Vector2i.ONE, &"bulldoze", 2, 1],
 	2: ["Remove zone", 1, -1, 0, Vector2i.ONE, &"dezone", 2, 1],
 	3: ["Sign", 0, -1, -1, Vector2i.ONE, &"sign", 0, 0],
 	4: ["Road", 10, -1, -1, Vector2i.ONE, &"road", 1, 2],

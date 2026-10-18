@@ -80,6 +80,8 @@ func test_monthly_scans_match_golden_outputs_on_mixed_raw_layers() -> void:
 		city.zone.data[i] = (i * 29 + i / 256) % 256
 		city.flags.data[i] = (i * 31) % 256
 	city.flood_overlay[Vector2i(127, 127)] = 1
+	# The economy snapshot includes the deliberate resort-batch invention years
+	# (1950s/2000; docs/simulation/economy.md), not only the assessment.
 	for key: String in ["economy", "population", "budget", "disaster"]:
 		var system: SimSystem = load("res://scripts/sim/" + key + "_system.gd").new()
 		var ctx := _context(city)

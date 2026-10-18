@@ -698,6 +698,15 @@ func slots() -> Array[Dictionary]:
 		result.append(entry)
 	return result
 
+## Publication facts for one visible slot. Inventory equality needs no payload,
+## history or display metadata, and must not materialize the whole library for
+## every remote record. A fresh dictionary keeps callers out of journal state.
+func published_head(slot_id: String) -> Dictionary:
+	if not _has_slot(slot_id): return {}
+	var slot: Dictionary = _state.slots[slot_id]
+	if slot.tombstone: return {}
+	return {"slot_id": slot.slot_id, "commit_id": slot.commit_id, "baseline_tag": slot.baseline_tag}
+
 ## Persist before dispatch. A recovered entry represents an uncertain network
 ## outcome and must remain pinned until acknowledgement or confirmed nonapplication.
 func begin_upload(slot_id: String, generation: int) -> Dictionary:

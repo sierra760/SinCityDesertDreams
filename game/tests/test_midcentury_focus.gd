@@ -30,7 +30,7 @@ func test_locked_tool_focus_stays_visible_after_details_shrink_the_palette() -> 
 	check(scroll.get_global_rect().encloses(locked.get_global_rect()), "focused lock remains visible after the details panel reduces the viewport")
 	toolbar.free()
 
-func test_compact_explore_keeps_controls_clear_and_restores_minimap_preference() -> void:
+func test_explore_navigation_keeps_controls_clear_and_restores_build_minimap_preference() -> void:
 	var host: GameHost = preload("res://scenes/main.tscn").instantiate()
 	host.preferences_path = "user://midcentury-focus.cfg"
 	root.add_child(host)
@@ -43,7 +43,8 @@ func test_compact_explore_keeps_controls_clear_and_restores_minimap_preference()
 	host.city_view_3d.set_camera_state(Vector3(64,2.4,61),0,48)
 	check(host.enter_explore(),"real road-supported session")
 	host.exploration.set_physics_process(false)
-	check(host.mini_map.visible,"roomy desktop Explore retains minimap")
+	check(not host.mini_map.visible,"Explore uses its navigation map instead of the Build corner map")
+	check(host.explore_hud.navigation.visible,"Explore navigation remains available")
 	host.display_layout.refresh_with_metrics(Vector2i(640,400),1.0)
 	await settle()
 	check(not host.mini_map.visible,"compact Explore controls own the minimap corner")
@@ -52,7 +53,8 @@ func test_compact_explore_keeps_controls_clear_and_restores_minimap_preference()
 	check(not host.mini_map.visible,"changing preference cannot cover compact controls")
 	host.display_layout.refresh_with_metrics(Vector2i(1280,800),1.0)
 	await settle()
-	check(host.mini_map.visible,"resizing restores roomy minimap")
+	check(not host.mini_map.visible,"resizing keeps the Build map out of Explore")
+	check(host.explore_hud.navigation._open_button.is_visible_in_tree(),"roomy Explore keeps its Map action")
 	host.set_option(&"minimap",false)
 	host.return_to_build()
 	check(not host.mini_map.visible,"Build respects disabled preference")

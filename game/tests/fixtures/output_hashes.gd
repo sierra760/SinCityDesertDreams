@@ -10,7 +10,7 @@
 extends RefCounted
 
 const HASHES := {
-	"monthly_scan/economy": "699123f18f935f95484170166e683597b4425ca2d664dffcd927a6231cbc6a25",
+	"monthly_scan/economy": "120014198a51151a6d1b54129a2c5ac5a1db1ba26eefe36170a168b20fc295ce",
 	"monthly_scan/population": "e56e7054a2ce978be74efd15ee1b8456f426b0e33b2f13d4d5395fbf7653e852",
 	"monthly_scan/budget": "7005cf2678ddd55a74381c9fa1c52a9c8d2e16d5c387bf29d73fd402c3982987",
 	"monthly_scan/disaster": "0c88115ef6b5c6f8cdc1abbbb069144ec9d53489197b5e4aebd27ff6a4c84365",

@@ -22,14 +22,18 @@ Version 0.1 is an early release; expect rough edges.
 | macOS 12 or later | `.dmg`, universal (Apple silicon and Intel) | Drag the app to Applications. If macOS says it can't verify the app, open **System Settings → Privacy & Security** and choose **Open Anyway**. |
 | Windows 10/11, 64-bit (x64) | `.exe`, a single file | The game data is built into the `.exe`, so it runs from any folder. If SmartScreen appears, choose **More info → Run anyway**. A GPU with Vulkan support is recommended. |
 
-The game works offline. It has no accounts, telemetry, ads or in-app
-purchases, and saves and settings stay on your computer. The one online feature
-is the optional real-world terrain chooser. While it is open it shows an
-OpenStreetMap street map, searches OpenStreetMap's Nominatim service for a place
-when you submit a search, and checks a small settings file on this project's
-server that names those map and search providers. Downloading terrain
-contacts two public elevation and water datasets. None of these services needs
-an account, and nothing from the map or search is saved with a city.
+The game works offline. It has no game accounts, telemetry, ads or in-app
+purchases. Saves and settings stay on your device by default. Supported Apple
+builds offer optional **iCloud saves** in Settings, using your Apple iCloud
+account to sync cities; see [cloud saves](docs/design/cloud-saves.md).
+
+The optional real-world terrain chooser contacts its configured street-map
+and place-search providers while open, and checks a small settings file on
+this project's server that names those providers. Downloading terrain contacts
+two public elevation and water datasets. These terrain services need no player
+account. Public Nominatim search is disabled on iOS, where a configured
+place-search service is required. See [real-world terrain](docs/design/real-world-terrain.md)
+for data sources and saved terrain provenance.
 
 The score, interface sounds and effects are made for this game; see `docs/design/audio.md`.
 

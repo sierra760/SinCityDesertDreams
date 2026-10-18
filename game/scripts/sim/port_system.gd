@@ -54,6 +54,10 @@ var _ports_valid := false
 ## reported (fires, disasters) is seen at once, and a reloaded city sees the
 ## same ports as one that kept running.
 var _ports_hash := 0
+## Flood-fill membership depends only on zone bytes. Building and service
+## changes still recount every piece, but retain the completed zone grouping.
+var _ports_city: City
+var _ports_zones := PackedByteArray()
 var _vehicles: Array[Dictionary] = []
 var _opened: Dictionary = {}
 ## Tiles of each opened port at its last report, by its _opened key. A port
@@ -277,8 +281,14 @@ static func _layers_hash(city: City) -> int:
 
 ## Group touching zone tiles of one port kind into ports.
 func _rebuild_ports(city: City) -> void:
-	_ports.clear()
 	var zones := city.zone.data
+	if _ports_city == city and _ports_zones == zones:
+		for port in _ports:
+			_count_pieces(city, port)
+		_ports_valid = true
+		_ports_hash = _layers_hash(city)
+		return
+	_ports.clear()
 	var visited := PackedByteArray()
 	visited.resize(zones.size())
 	for i in zones.size():
@@ -308,6 +318,8 @@ func _rebuild_ports(city: City) -> void:
 		var port: Dictionary = {"kind": kind, "anchor": tiles[0], "tiles": tiles, "tile_set": tile_set}
 		_count_pieces(city, port)
 		_ports.append(port)
+	_ports_city = city
+	_ports_zones = zones.duplicate()
 	_ports_valid = true
 	_ports_hash = _layers_hash(city)
 
@@ -660,6 +672,9 @@ func _place_crane(ctx: SimContext, port: Dictionary, pos: Vector2i) -> bool:
 	if city.water_height(berth.x, berth.y) - city.ground_height(berth.x, berth.y) < PortParams.MIN_BERTH_DEPTH:
 		return false
 	city.stamp_building(pos.x, pos.y, Buildings.CRANE, int(port.kind))
+	# Piers append temporary members even if their water was already zoned.
+	# Regroup afterward to restore unique members and canonical visit order.
+	_ports_city = null
 	for i in range(1, PortParams.PIER_LENGTH + 1):
 		var p := pos + d * i
 		city.stamp_building(p.x, p.y, Buildings.PIER, int(port.kind))

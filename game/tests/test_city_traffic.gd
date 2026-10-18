@@ -253,9 +253,24 @@ func test_upper_highway_and_lower_road_crossing_remain_separate() -> void:
 	graph.bind_city(city)
 	check_eq(graph.neighbors(Vector2i(20,20),&"road"),[Vector2i(21,20),Vector2i(19,20)])
 	check_eq(graph.neighbors(Vector2i(20,20),&"highway"),[Vector2i(20,19),Vector2i(20,21)])
-	check_gt(graph.point(Vector2i(20,20),&"highway").y,graph.point(Vector2i(20,20),&"road").y+.5,"upper and lower decks retain distinct heights")
+	# Highway access deliberately uses a .38-tile elevation for drivable ramps;
+	# roads sit .04 above terrain. Check these surfaces, not the former >.5 gap.
+	var ground := CityGeometry3D.point_on_ground(city,Vector2i(20,20),Vector2(.5,.5)).y
+	check_lt(absf(graph.point(Vector2i(20,20),&"road").y-ground-.04),.00001,"lower graph point follows road pavement")
+	check_lt(absf(graph.point(Vector2i(20,20),&"highway").y-ground-CityNetworks3D.HIGHWAY_ELEVATION),.00001,"upper graph point follows the shared highway elevation")
+	check_gt(graph.point(Vector2i(20,20),&"highway").y,graph.point(Vector2i(20,20),&"road").y,"upper and lower decks retain distinct heights")
 	var traffic:=CityTraffic3D.new()
 	traffic.bind_city(city)
+	for domain: StringName in [&"road",&"highway"]:
+		var axis := Vector2i.RIGHT if domain==&"road" else Vector2i.DOWN
+		for direction: int in [-1,1]:
+			for lane: int in (2 if domain==&"highway" else 1):
+				for t: float in [0.0,.25,.5,.75,1.0]:
+					var actor := {"type":domain,"domain":domain,"cell":Vector2i(20,20),"previous":Vector2i(20,20)-axis*direction,"next":Vector2i(20,20)+axis*direction,"lane":lane,"side":1.0,"t":t}
+					var at := traffic.actor_pose(actor).origin
+					var surface := CityGeometry3D.point_on_ground(city,Vector2i(20,20),Vector2(at.x-20,at.z-20)).y
+					var elevation := .04 if domain==&"road" else CityNetworks3D.HIGHWAY_ELEVATION
+					check_lt(absf(at.y-surface-elevation),.00001,"actual lane tracks remain on their own %s deck" % domain)
 	var route:=traffic.get_drive_route(&"car",graph.point(Vector2i(20,20),&"highway"))
 	check_eq(route.domain,&"highway","drive admission chooses the closest physical deck")
 	traffic.advance(0,true)

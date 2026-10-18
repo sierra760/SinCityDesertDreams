@@ -63,7 +63,7 @@ func test_view_menu_updates_live_toolbar_and_restores_on_new_host() -> void:
 		return
 	check(host.menu_bar.is_checked(&"button_labels"),"labels start enabled")
 	var entry: Dictionary = host.menu_bar._entries[host.menu_bar._key(&"button_labels",null)]
-	check(entry.menu == host.menu_bar._menus["View"],"toggle is directly in View")
+	check(entry.menu == host.menu_bar._menus["View"].get_node("Show"),"tool labels are grouped in View → Show")
 	var labeled_width := host.toolbar.custom_minimum_size.x
 	var map_labels := host.city_view_3d.labels_visible
 	host.menu_bar.press(&"button_labels")

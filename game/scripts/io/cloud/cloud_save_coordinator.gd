@@ -576,10 +576,7 @@ func _process_page() -> void:
 		if not _work(item.slot_id).is_empty():
 			_pop_page_item()
 			continue
-		var current: Dictionary = {}
-		for row in _store.slots():
-			if row.slot_id == item.slot_id:
-				current = {"slot_id": row.slot_id, "commit_id": row.commit_id, "baseline_tag": row.baseline_tag}
+		var current := _store.published_head(item.slot_id)
 		if CloudSavePolicy.decide(current, remote).action == "ignore":
 			_pop_page_item()
 			continue
