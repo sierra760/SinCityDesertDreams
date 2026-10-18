@@ -112,8 +112,8 @@ func networks_changed(_ctx_unused: SimContext, _rect: Rect2i) -> void:
 
 # ── Public getters ───────────────────────────────────────────────────────
 
-## Vehicles for the renderer: kind, tile position, heading 0..7, frame counter
-## and altitude (0 for ships).
+## Vehicles for the renderer: kind, tile position, heading 0..7, frame counter,
+## altitude (0 for ships) and phase (so the view can fly a landing).
 func vehicles() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for v in _vehicles:
@@ -124,6 +124,7 @@ func vehicles() -> Array[Dictionary]:
 			"heading": int(v.heading),
 			"frame": int(v.frame),
 			"altitude": int(v.get("altitude", 0)),
+			"phase": StringName(v.get("phase", &"")),
 		})
 	return out
 

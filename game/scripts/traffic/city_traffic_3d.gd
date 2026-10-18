@@ -65,6 +65,10 @@ var detail_manager: ExploreActorDetailManager
 var _detail_clocks: Dictionary = {}
 var _external: Array[Dictionary] = []
 var _external_states: Dictionary = {}
+## Port planes and helicopters fly continuous paths through their daily points.
+var _air := CityAirFlights.new()
+## Real seconds one simulated day takes at the current game speed.
+var day_seconds := 0.8
 var _targets: Dictionary = {}
 var _dirty := true
 var _reserved_rail: Dictionary = {}
@@ -83,6 +87,7 @@ func bind_city(city: City) -> void:
 	_claims.clear()
 	_external.clear()
 	_external_states.clear()
+	_air.clear()
 	_elapsed = 0
 	_accumulator = 0
 	_next_id = 1
@@ -122,6 +127,7 @@ func advance(delta: float, paused: bool, records: Array = [], camera: Camera3D =
 	_external.clear()
 	var external_indices: Dictionary = {}
 	var live_external: Dictionary = {}
+	var air_records: Array[Dictionary] = []
 	for raw: Variant in records:
 		if _external.size() >= MAX_EXTERNAL: break
 		var record := CityEntityRecords.normalize(raw, &"car")
@@ -134,22 +140,21 @@ func advance(delta: float, paused: bool, records: Array = [], camera: Camera3D =
 		record.kind = kind
 		var p: Vector2 = record.pos
 		if not p.is_finite() or not graph.city.in_bounds(int(p.x),int(p.y)): continue
+		var domain := CityTrafficCatalog.domain(kind)
+		if domain == &"air":
+			if is_finite(float(record.altitude)): air_records.append(record)
+			continue
 		var ordinal := int(external_indices.get(kind,0))
 		external_indices[kind] = ordinal+1
 		var key := str(kind)+":"+str(ordinal)
-		var domain := CityTrafficCatalog.domain(kind)
 		var cell := Vector2i(p)
-		var target := graph.point(cell,domain if domain != &"air" else &"road")
-		if domain == &"air":
-			var altitude: float = record.altitude
-			if not is_finite(altitude): altitude = 0
-			target.y = CityGeometry3D.surface_height(graph.city,cell) + maxf(.03,altitude*CityGeometry3D.HEIGHT)
+		var target := graph.point(cell,domain)
 		var yaw := -float(record.heading)*PI/4.0
 		var state: Dictionary = _external_states.get(key,{"position":target,"yaw":yaw})
 		if not paused:
 			# Local interpolation only; reappearing/reordered source records snap.
 			if state.position.distance_squared_to(target) > 36.0: state.position = target
-			else: state.position = state.position.move_toward(target,clampf(delta,0,.2)*(2.0 if domain == &"air" else .8))
+			else: state.position = state.position.move_toward(target,clampf(delta,0,.2)*.8)
 			state.yaw = lerp_angle(state.yaw,yaw,minf(1,delta*6))
 		_external_states[key] = state
 		live_external[key] = true
@@ -159,6 +164,15 @@ func advance(delta: float, paused: bool, records: Array = [], camera: Camera3D =
 		_external.append(record)
 	for key: String in _external_states.keys():
 		if not live_external.has(key): _external_states.erase(key)
+	# Aircraft keep flying while vehicles are hidden, so showing them again
+	# never sends one gliding from a stale place.
+	_air.update(graph.city,air_records,0.0 if paused else clampf(delta,0,.2)/maxf(day_seconds,.01))
+	for flight: CityAirFlights.Flight in _air.flights:
+		if _external.size() >= MAX_EXTERNAL: break
+		_external.append({"kind":flight.kind,"pos":Vector2(flight.source),"heading":flight.heading,
+			"altitude":float(flight.altitude),"frame":flight.frame,"presentation_position":flight.position,
+			"presentation_yaw":flight.yaw,"presentation_basis":CityAirFlights.basis_of(flight),
+			"presentation_id":-1-CityTrafficCatalog.vehicle_kind_index(flight.kind)*MAX_EXTERNAL-posmod(flight.serial,MAX_EXTERNAL)})
 	var interval := .1 if camera != null and camera.projection == Camera3D.PROJECTION_ORTHOGONAL and camera.size >= 32.0 else STEP
 	# Keep the displayed interpolation phase when switching Build/Explore cadence.
 	if interval != _step_interval:
@@ -765,7 +779,7 @@ func _render(camera: Camera3D) -> void:
 		if group == null:
 			group = {"name":str(record.kind)+":0:"+str(low),"kind":record.kind,"variant":0,"low":low,"poses":[],"custom":[]}
 			groups[group_key] = group
-		group.poses.append(Transform3D(Basis(Vector3.UP,record.presentation_yaw),position))
+		group.poses.append(Transform3D(record.get("presentation_basis",Basis(Vector3.UP,record.presentation_yaw)),position))
 		group.custom.append(Color(0,0,0,0))
 		visible_count += 1
 	var drawn: Dictionary = {}

@@ -297,6 +297,7 @@ func sync_actors(delta: float, records: Array, transport: SimSystem, paused: boo
 			view.traffic.riders = transport.call("monthly_riders_by_mode")
 		var camera: Camera3D = view.exploration_camera() if is_instance_valid(view.exploration_camera()) else view.camera
 		var ambient: Array = records.filter(func(record: Dictionary) -> bool: return record.get("source", &"") != &"disasters" or String(record.kind).ends_with("_crew"))
+		view.traffic.day_seconds = day_seconds
 		view.traffic.advance(delta, paused, ambient, camera,
 			show_vehicles and not is_underground() and view.overlay_kind() == &"")
 

@@ -81,6 +81,10 @@ static func normalize(raw: Variant, default_kind: StringName) -> Dictionary:
 	var frame: Variant = data.get("frame", -1)
 	if typeof(frame) == TYPE_INT:
 		record["frame"] = int(frame)
+	# Port aircraft name their flight phase (climb, cruise, return, land...).
+	var phase: Variant = data.get("phase", null)
+	if typeof(phase) == TYPE_STRING or typeof(phase) == TYPE_STRING_NAME:
+		record["phase"] = StringName(phase)
 	return record
 
 

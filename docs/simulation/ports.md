@@ -156,6 +156,10 @@ Events:
     Ships never leave the water.
 12. **Frames.** Every vehicle carries `heading` 0–7 (0 north, clockwise) and a
     `frame` counter that advances each day for the renderer's animation.
+    `vehicles()` also reports each vehicle's `phase`, read-only, so the 3D
+    view can fly a landing. The view draws aircraft on continuous flight
+    paths through these daily points (`CityAirFlights`); that never changes
+    the simulation.
 
 ## Parameters
 
@@ -182,7 +186,7 @@ themselves are re-read from the map.
 ## Public interface
 
 ```
-vehicles() -> Array[Dictionary]     # {kind, x, y, heading, frame, altitude}
+vehicles() -> Array[Dictionary]     # {kind, x, y, heading, frame, altitude, phase}
 demand_bonus() -> Vector3i          # residential, commercial, industrial
 jobs() -> int
 port_report() -> Array[Dictionary]  # {kind, rect, tiles, developed, powered, operating, runways, cranes, jobs, pollution, crime}
