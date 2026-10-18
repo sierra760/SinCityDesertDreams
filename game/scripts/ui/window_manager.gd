@@ -21,9 +21,10 @@ const SCRIPTS := {
 	"options": preload("res://scripts/ui/options_window.gd"),
 	"ordinances": preload("res://scripts/ui/ordinances_window.gd"),
 	"population": preload("res://scripts/ui/population_window.gd"),
+	"vegetation": preload("res://scripts/ui/vegetation_window.gd"),
 }
 ## Windows that can open before the city is founded.
-const EDITING_WINDOWS: Array[String] = ["options", "help", "license", "privacy", "explore_mods"]
+const EDITING_WINDOWS: Array[String] = ["options", "help", "license", "privacy", "explore_mods", "vegetation"]
 
 ## name -> window, created on first use.
 var windows: Dictionary = {}
@@ -91,6 +92,8 @@ func window(window_name: String) -> Control:
 		(w as OrdinancesWindow).ordinance_changed.connect(func(_key: StringName, _on: bool) -> void: _host.refresh_toolbar())
 	elif w is CityMapsWindow:
 		(w as CityMapsWindow).bind_presentation(_host.presentation)
+	elif w is VegetationWindow:
+		(w as VegetationWindow).vegetation_changed.connect(_host.vegetation_changed)
 	elif w is HelpWindow:
 		(w as HelpWindow).privacy_requested.connect(func() -> void: open("privacy"))
 		(w as HelpWindow).sources_dialog.visibility_changed.connect(_host.sync_help_sources_hold)

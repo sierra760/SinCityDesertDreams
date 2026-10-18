@@ -10,6 +10,7 @@ extends Node3D
 const DEFAULT_CHUNK_SIZE := 32
 const RegionIndex := preload("res://scripts/view/city_region_index_2d.gd")
 const Palm := preload("res://scripts/view/city_palm_3d.gd")
+const Conifer := preload("res://scripts/view/city_conifer_3d.gd")
 const COPY_PROPERTIES: Array[StringName] = [
 	&"layers", &"cast_shadow", &"extra_cull_margin", &"gi_mode",
 	&"gi_lightmap_scale", &"gi_lightmap_texel_scale", &"lod_bias",
@@ -533,9 +534,9 @@ static func _material_supported(material: Material) -> bool:
 	if material == null:
 		return true
 	if material is ShaderMaterial:
-		# Only unmodified static palm crown materials qualify; terrain and
-		# network shaders stay unbatched.
-		return Palm.is_static_crown_material(material)
+		# Only unmodified static palm and upland tree crown materials qualify;
+		# terrain and network shaders stay unbatched.
+		return Palm.is_static_crown_material(material) or Conifer.is_static_crown_material(material)
 	if not material is BaseMaterial3D:
 		return false
 	var base := material as BaseMaterial3D

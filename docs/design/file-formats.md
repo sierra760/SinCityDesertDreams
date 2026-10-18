@@ -68,6 +68,11 @@ tool can open, while the map itself stays small.
 - `terrain_origin` (optional) is the bounded manifest of a real-world terrain
   import: the selected area, import controls, data sources, acquisition time
   and diagnostics. An invalid record is dropped rather than saved.
+- `vegetation` (optional) is the player's altitude vegetation zones:
+  `{"version": 1, "enabled": [palms, piñon-juniper, pines], "cutoffs": [a, b]}`
+  with `0 <= a <= b <= 32` and at least one zone enabled. It is absent while
+  the zones are automatic; an invalid record loads as automatic. See
+  [vegetation-zones.md](vegetation-zones.md).
 - `snapshot` is `Simulation.snapshot()` stored as given; `load()` hands it
   back untouched for `Simulation.restore()`. Before that, `load()` checks its
   shape (`validate_snapshot`): every known field must hold the kind of value

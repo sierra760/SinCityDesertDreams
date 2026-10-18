@@ -754,6 +754,9 @@ static func encode_city(city: City) -> Dictionary:
 	}
 	var origin := RealWorldManifest.sanitize_origin(city.terrain_origin)
 	if not origin.is_empty(): doc["terrain_origin"] = origin
+	# Optional; automatic vegetation zones are not written.
+	var vegetation := VegetationZones.sanitize(city.vegetation)
+	if not vegetation.is_empty(): doc["vegetation"] = vegetation
 	# Optional; saves without imported cities have no such links.
 	var power_links := {}
 	for index: int in city.imported_power_links.keys():
@@ -786,6 +789,7 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 		return {"city": null, "error": "Save has no terrain."}
 	var city := City.new()
 	city.terrain_origin = RealWorldManifest.sanitize_origin(doc.get("terrain_origin"))
+	city.vegetation = VegetationZones.sanitize(doc.get("vegetation"))
 	city.name = String(doc.get("name", city.name))
 	city.mayor = String(doc.get("mayor", city.mayor))
 	city.founded_year = int(doc.get("founded_year", city.founded_year))

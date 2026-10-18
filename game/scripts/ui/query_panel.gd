@@ -185,7 +185,9 @@ static func describe(city: City, sim: Simulation, at: Vector2i, underground_laye
 	var zone_kind := city.zone_kind_at(at.x, at.y)
 	out["#Site"] = ""
 	out["Location"] = "%d, %d" % [at.x, at.y]
-	if id != Buildings.NONE:
+	if Buildings.is_tree(id):
+		out["Building"] = VegetationZones.tree_name(city, at, id)
+	elif id != Buildings.NONE:
 		out["Building"] = Buildings.display_name(id)
 	elif city.is_water(at.x, at.y):
 		out["Building"] = "Open water"

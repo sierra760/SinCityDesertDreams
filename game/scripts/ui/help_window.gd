@@ -59,6 +59,7 @@ const ROWS: Array = [
 	["Settings → Controls", "Change keyboard bindings, look sensitivity and vertical inversion. Play with keyboard and mouse or touch; game controllers are not supported."],
 	["Reports", "Review your budget, graphs, population, industries, ordinances, newspaper, maps and neighbors."],
 	["View", "Choose zoom and overlays; show or hide traffic, labels and the minimap."],
+	["View → Vegetation Zones", "See your city's ground by elevation and set where desert palms give way to piñon-juniper woodland and then pines. Drag a boundary, switch zones on or off, or choose Automatic to follow the terrain."],
 	["Help → Secret Codes", "Try your luck in a founded city. DOUBLEDOWN bets a tenth of the virtual treasury; HIGHROLLER brings city funds and permits; MARKER adds simulated city debt; CHAPEL is just for fun."],
 	["iPhone layout", "Tools opens the tool drawer; choosing a tool closes it. Inspect selects tile inspection; beside the portrait camera use Menu → Inspect. Menu contains the city, view and report commands. Details expands the status; Alerts opens current warnings.", "touch"],
 	["iPhone / iPad files", "Copy .sc2 or .sc2d files into On My iPhone or On My iPad → SC2D in the Files app. Import Classic City or Load City → Browse opens the app folder.", "touch"],

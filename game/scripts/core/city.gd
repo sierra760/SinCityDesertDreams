@@ -28,6 +28,9 @@ var rotation := 0            ## view rotation 0..3, persisted with the city
 var sea_level := -1          ## global water height, -1 when only per-tile water applies
 var status := 0              ## settlement class: village .. megalopolis, see population system
 var signs: Dictionary = {}   ## Vector2i -> String
+## Player-set altitude vegetation zones; empty while they follow the terrain
+## automatically. See VegetationZones. Presentation only.
+var vegetation: Dictionary = {}
 ## Applied street memberships and derived automatic station names only.
 var street_naming: Dictionary = {"schema":1,"next_street_id":1,"streets":{},"links":{},"station_auto":{}}
 ## Conductive links from imported cities that the building ID alone cannot express.
@@ -456,6 +459,7 @@ func duplicate_city() -> City:
 	c.status = status
 	c.signs = signs.duplicate()
 	c.street_naming = street_naming.duplicate(true)
+	c.vegetation = vegetation.duplicate(true)
 	c.terrain = terrain.duplicate_grid()
 	c.altitude = altitude.duplicate_grid()
 	c.building = building.duplicate_grid()

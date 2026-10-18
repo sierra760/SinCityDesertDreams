@@ -109,6 +109,7 @@ func _set_menus_enabled(on: bool) -> void:
 	var menu_bar := _host.menu_bar
 	var playing := _host.stage == GameHost.Stage.PLAY
 	menu_bar.set_enabled(&"street_names",on and playing)
+	menu_bar.set_enabled(&"vegetation",on)
 	for action: StringName in [&"zoom_in",&"zoom_out",&"rotate",&"recenter",&"underground"]:
 		menu_bar.set_enabled(action,on)
 	for level: int in range(5): menu_bar.set_enabled(&"zoom",on,level)

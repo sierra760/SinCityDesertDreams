@@ -204,6 +204,8 @@ func _build() -> void:
 	_check(view, "Underground [U]", &"underground")
 	_item(view,"Street Names",&"street_names")
 	set_enabled(&"street_names",false)
+	_item(view,"Vegetation Zones…",&"vegetation")
+	set_enabled(&"vegetation",false)
 	var overlays := _submenu(view, "Data Overlays")
 	_radio(overlays, "None", &"overlay", &"")
 	for kind in CityOverlaySampler.LAYERS:

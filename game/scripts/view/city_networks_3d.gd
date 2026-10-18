@@ -36,6 +36,9 @@ var _box_meshes: Dictionary = {}
 var _box_sizes_used: Dictionary = {}
 var _box_mesh_users: Dictionary = {}
 var _structure_materials: Dictionary = {}
+## Vegetation zones resolved once per update; tree tiles read it per cell.
+var _vegetation: Dictionary = {}
+var _vegetation_levels := PackedByteArray()
 enum PhysicalRole { DETAIL, VERGE, SHOULDER, FLOOR, OBSTACLE }
 ## Packed physical patch records in emission order: two cell integers, one
 ## group, one role, one depth and three triangle points per patch. Packed
@@ -195,6 +198,8 @@ func clear() -> void:
 ## Project every surface network; crossings draw both families.
 func rebuild(city: City) -> void:
 	clear()
+	_vegetation = VegetationZones.resolve(city)
+	_vegetation_levels = VegetationZones.level_table(_vegetation)
 	_prepare_bridge_decks(city)
 	_road_tunnels = RoadTunnels.profiles(city)
 	_build_region(city, Rect2i(0, 0, City.WIDTH, City.HEIGHT))
@@ -274,7 +279,7 @@ func _copy_cell(city: City, previous: CityNetworks3D, visit: int) -> void:
 				_physical_group = spec[5]
 				_beam(spec[1], spec[2], spec[3], spec[4], false)
 				_physical_group = group
-			&"palms": _palms(city, spec[1], spec[2])
+			&"trees": _trees(city, spec[1], spec[2], spec[3])
 			&"rubble": _rubble(city, spec[1], spec[2])
 	_physical_group = previous._span_states[visit][2]
 	_physical_depth = previous._span_states[visit][3]
@@ -325,7 +330,8 @@ func _emit_cell(city: City, region: Rect2i, cell: Vector2i, drawn_blocks: Dictio
 		return
 	if code < Buildings.POWER_LINE_FIRST:
 		if code >= Buildings.TREES_1:
-			_palms(city, cell, code)
+			if _vegetation_levels.is_empty(): _vegetation_levels = VegetationZones.level_table(VegetationZones.resolve(city))
+			_trees(city, cell, code, _vegetation_levels[city.ground_height(x, y)])
 		else:
 			_rubble_ground(city, cell, code)
 			_rubble(city, cell, code)
@@ -421,6 +427,8 @@ func _update_tunnel_light() -> void:
 ## every bridge deck/cable along that span, even across several chunks.
 func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) -> Array[Rect2i]:
 	var next_profile_state := _profile_inputs(city)
+	_vegetation = VegetationZones.resolve(city)
+	_vegetation_levels = VegetationZones.level_table(_vegetation)
 	var profiles_changed := next_profile_state != _profile_state
 	var old_profiles := _deck_profiles
 	var old_approaches := _approach_profiles
@@ -442,7 +450,7 @@ func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) 
 	var dirty: Dictionary = {}
 	var previous_inputs: Dictionary = {}
 	for region: Rect2i in requested:
-		var inputs := _network_inputs(city, region)
+		var inputs := _network_inputs(city, region, _vegetation_levels)
 		if _region_inputs.get(region.position, []) == inputs: continue
 		if _region_inputs.has(region.position): previous_inputs[region.position] = _region_inputs[region.position]
 		_region_inputs[region.position] = inputs
@@ -485,7 +493,7 @@ func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) 
 		_region_initialized = true
 	if dirty.is_empty(): return []
 	for origin: Vector2i in dirty:
-		var region_inputs := _network_inputs(city, dirty[origin])
+		var region_inputs := _network_inputs(city, dirty[origin], _vegetation_levels)
 		if not previous_inputs.has(origin) and _region_inputs.has(origin): previous_inputs[origin] = _region_inputs[origin]
 		_region_inputs[origin] = region_inputs
 		var released: Dictionary = {}
@@ -508,6 +516,8 @@ func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) 
 		# the 32-cell GPU batcher can merge equivalent neighboring structures.
 		region_layer._box_meshes = _box_meshes
 		region_layer._structure_materials = _structure_materials
+		region_layer._vegetation = _vegetation
+		region_layer._vegetation_levels = _vegetation_levels
 		add_child(region_layer)
 		region_layer._built_generation = _profile_generation
 		var changed_cells: Dictionary = {}
@@ -566,8 +576,9 @@ func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) 
 ## building contributes no procedural surface, so its code/lot flags are zero.
 ## Include the three-cell dependency halo for odd highway footprints and cubic
 ## corners; nonlocal bridge dependencies are compared separately above.
-static func _network_inputs(city: City, region: Rect2i) -> Array:
+static func _network_inputs(city: City, region: Rect2i, zone_levels := PackedByteArray()) -> Array:
 	var bounds := region.grow(3).intersection(Rect2i(0,0,City.WIDTH,City.HEIGHT))
+	if zone_levels.is_empty(): zone_levels = VegetationZones.level_table(VegetationZones.resolve(city))
 	var cells := PackedInt32Array()
 	cells.resize(bounds.size.x*bounds.size.y*7)
 	var offset := 0
@@ -578,7 +589,13 @@ static func _network_inputs(city: City, region: Rect2i) -> Array:
 			if code >= Buildings.RES_1X1_FIRST: code = Buildings.NONE
 			cells[offset] = code
 			cells[offset+1] = city.flags.data[index] & RotationMapper.AXIS_FLAG if code != Buildings.NONE else 0
-			cells[offset+2] = Zones.corners(city.zone.data[index]) if code >= NetworkShapes.HIGHWAY_CORNER_NE and code <= NetworkShapes.HIGHWAY_JUNCTION else 0
+			# Highway footprint corners, or a tree tile's vegetation zone.
+			if code >= NetworkShapes.HIGHWAY_CORNER_NE and code <= NetworkShapes.HIGHWAY_JUNCTION:
+				cells[offset+2] = Zones.corners(city.zone.data[index])
+			elif code >= Buildings.TREES_1 and code <= Buildings.TREES_7:
+				cells[offset+2] = 1 + zone_levels[city.altitude.data[index] & City.ALT_MASK]
+			else:
+				cells[offset+2] = 0
 			cells[offset+3] = city.altitude.data[index]
 			cells[offset+4] = city.terrain.data[index]
 			cells[offset+5] = int(city.flood_overlay.has(Vector2i(x,y)))
@@ -973,8 +990,13 @@ func _structure_material(color: Color) -> Material:
 
 
 
-func _palms(city: City, cell: Vector2i, code: int) -> void:
-	_node_specs.append([&"palms", cell, code])
+## Natural tree tiles: palm groves in the desert zone, piñon-juniper or pine
+## groves above it (see VegetationZones).
+func _trees(city: City, cell: Vector2i, code: int, zone: int) -> void:
+	_node_specs.append([&"trees", cell, code, zone])
+	if zone != VegetationZones.Zone.PALM:
+		preload("res://scripts/view/city_conifer_3d.gd").add_grove(self, city, cell, code, zone)
+		return
 	const Palm := preload("res://scripts/view/city_palm_3d.gd")
 	var index := clampi(code - Buildings.TREES_1, 0, Palm.GROVE_TRUNKS.size() - 1)
 	var count: int = Palm.GROVE_TRUNKS[index]

@@ -969,6 +969,7 @@ func _on_menu_action(action: StringName, value: Variant) -> void:
 	if action in [&"city_new",&"city_load",&"city_save",&"city_save_as",&"options"] and (is_input_blocked() or WindowDrag.is_dragging()): return
 	match action:
 		&"street_names": street_names.enter()
+		&"vegetation": window_manager.open("vegetation")
 		&"explore": explore_switch.request()
 		&"city_new": files.request_city_action(&"new")
 		&"city_found": run_loading("Founding city…","Preparing your city for play.",session.found_city)
@@ -1002,6 +1003,13 @@ func _on_menu_action(action: StringName, value: Variant) -> void:
 		&"cheats": open_cheat_dialog()
 		&"privacy": window_manager.open("privacy")
 		&"about": open_about()
+
+
+## The city's vegetation zones changed: redraw its trees and any open
+## description of a tree tile.
+func vegetation_changed() -> void:
+	city_view_3d.queue_refresh()
+	if query_panel.is_open(): query_panel.refresh(sim.city, sim)
 
 
 func open_about() -> void:
@@ -1337,6 +1345,7 @@ func refresh_street_menus() -> void:
 	var naming := street_names != null and street_names.is_active()
 	var founded := in_game and stage == Stage.PLAY
 	menu_bar.set_enabled(&"street_names",founded and not is_exploring())
+	menu_bar.set_enabled(&"vegetation",in_game and not is_exploring())
 	menu_bar.set_enabled(&"explore",founded and not is_exploring() and not naming)
 	for speed: int in GameClock.Speed.values(): menu_bar.set_enabled(&"speed",founded,speed)
 	for window_name: String in GameMenuBar.WINDOW_NAMES: menu_bar.set_enabled(&"window",founded,window_name)

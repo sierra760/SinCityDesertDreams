@@ -98,6 +98,8 @@ var _lot_regions: Array[Rect2i] = []
 var _terrain_unchanged_growth := false
 var _terrain_dirty_chunks: Dictionary = {}
 var _water_plane_state := PackedFloat64Array()
+## Vegetation zones the drawn tree groves follow (VegetationZones.resolve).
+var _vegetation_state: Dictionary = {}
 var _terrain_rebuild_regions: Array[Rect2i] = []
 ## Chunk origin -> changed cells whose ground only needs its tint refreshed.
 var _terrain_recolor_cells: Dictionary = {}
@@ -510,6 +512,22 @@ func _changed_regions(full: bool) -> Array[Rect2i]:
 				if _road_tunnel_state.get(cell,{})!=tunnels.get(cell,{}): _mark_dirty(dirty,cell)
 		_road_tunnel_state = tunnels
 		_road_tunnel_inputs = [state[0], state[1], state[2], state[5], state[6]]
+	# Vegetation zones are a presentation choice, not map data: when they move,
+	# only the chunks holding a tree tile whose zone changed are redrawn.
+	var vegetation := VegetationZones.resolve(city)
+	if not full and not _vegetation_state.is_empty() and vegetation != _vegetation_state:
+		var now := VegetationZones.level_table(vegetation)
+		var before := VegetationZones.level_table(_vegetation_state)
+		var moved := PackedByteArray()
+		moved.resize(VegetationZones.LEVELS)
+		for level: int in VegetationZones.LEVELS: moved[level] = int(now[level] != before[level])
+		var codes := city.building.data
+		var altitude := city.altitude.data
+		for i: int in codes.size():
+			var code: int = codes[i]
+			if code < Buildings.TREES_1 or code > Buildings.TREES_7 or moved[altitude[i] & City.ALT_MASK] == 0: continue
+			dirty[Vector2i(i % City.WIDTH / CHUNK_SIZE, i / City.WIDTH / CHUNK_SIZE) * CHUNK_SIZE] = true
+	_vegetation_state = vegetation
 	_previous_geometry_state = _geometry_state
 	_geometry_state = state
 	var result: Array[Rect2i] = []

@@ -151,6 +151,7 @@ func regenerate(seed_value: int = -1) -> City:
 		city.founded_year = current.founded_year
 		city.mayor = current.mayor
 		city.terrain_origin = current.terrain_origin
+		city.vegetation = current.vegetation.duplicate(true)
 		var settings := editing_params.duplicate(true)
 		settings["seed"] = imported.tree_seed
 		settings["name"] = city.name
@@ -169,6 +170,8 @@ func regenerate(seed_value: int = -1) -> City:
 	settings["seed"] = seed_value
 	var city := TerrainGenerator.new().generate(settings, SimRng.new(seed_value))
 	city.mayor = current.mayor
+	# Vegetation zones the player chose stay with the city on new land.
+	city.vegetation = current.vegetation.duplicate(true)
 	begin_editing(city, settings)
 	_restore_city_options(options)
 	_host.files.mark_generated()
