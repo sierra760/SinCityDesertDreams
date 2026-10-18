@@ -233,7 +233,7 @@ static func _artwork(parent: Node3D, key: StringName, slots: Array[Transform3D],
 			var asset := "mural-history" if index == 0 else "mural-industry"
 			_art_quad(batches,key,asset,Transform3D(Basis(Vector3.UP,PI),Vector3(-15 if index == 0 else 15,6.6,21.18)),Vector2(4.0,4.0))
 		_art_quad(batches,key,"mural-heritage",Transform3D(Basis(Vector3.UP,PI*.5),Vector3(-21.01,6.5,-12)),Vector2(4.45,4.45))
-	var badge: Dictionary = plan.get("slot_badge",{"position":Vector3(0,1.68,.148),"size":Vector2(.16,.16)})
+	var badge: Dictionary = plan.get("slot_badge",{"position":Vector3(0,1.715,.204),"size":Vector2(.12,.12)})
 	for at: Transform3D in slots:
 		_art_quad(batches,key,"cabinet-reels",at*Transform3D(Basis.IDENTITY,Vector3(0,1.29,.204)),Vector2(.56,.327))
 		_art_quad(batches,key,"symbol-B",at*Transform3D(Basis.IDENTITY,badge.position),badge.size)
@@ -247,6 +247,8 @@ static func _artwork(parent: Node3D, key: StringName, slots: Array[Transform3D],
 		# Backlit reel inserts and individually lit gallery prints retain their
 		# authored ink colors rather than bleaching under the hall's many lamps.
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		if asset == "symbol-B":
+			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
 		(batches[asset] as SurfaceTool).set_material(material)
 		(batches[asset] as SurfaceTool).commit(mesh)
 	if mesh.get_surface_count() == 0: return 0

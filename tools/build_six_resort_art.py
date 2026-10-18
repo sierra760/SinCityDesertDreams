@@ -10,7 +10,7 @@ onto a square transparent canvas. Existing art sets are retained byte for byte.
 from pathlib import Path
 import json
 from PIL import Image
-from build_casino_art import record
+from build_casino_art import record, apply_reviewed_art
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/'assets/casino-art'
@@ -80,6 +80,7 @@ def build():
         catalog['sets'][t['slug']]={'assets':assets,
             'creation':'Original fictional Nevada casino illustrations',
             'generator':'tools/build_six_resort_art.py'}
+        apply_reviewed_art(catalog['sets'][t['slug']], source, folder)
         (source/'packaging.json').write_text(json.dumps({'columns':xs,'rows':ys,'assets':ASSETS},indent=2)+'\n')
         print(t['slug'],len(assets),'lossless sprites')
     path.write_text(json.dumps(catalog,indent=2)+'\n')

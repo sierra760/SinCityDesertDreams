@@ -44,6 +44,27 @@ def record(path, image, full_bleed=False):
     return {'size':list(image.size),'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),
             'content_region':content_region(image,full_bleed)}
 
+def apply_reviewed_art(entry, source, folder, root=ROOT):
+    """Apply individually reviewed sprites after atlas extraction, without edits.
+
+    Source PNGs remain local beside the original masters. Copy their exact
+    bytes so a later atlas rebuild cannot resurrect a rejected illustration.
+    """
+    import shutil
+    for repair in sorted((source / 'reviewed').glob('*.png')):
+        if repair.stem not in entry['assets']:
+            raise ValueError('Unknown reviewed casino asset: ' + repair.stem)
+        with Image.open(repair) as image:
+            if image.mode != 'RGBA' or image.width != image.height or image.width < 256:
+                raise ValueError('Reviewed sprite must be square RGBA, at least 256px: ' + str(repair))
+            output = folder / repair.name
+            shutil.copyfile(repair, output)
+            entry['assets'][repair.stem] = record(output, image)
+        entry.setdefault('reviewed_overrides', {})[repair.stem] = {
+            'source': repair.relative_to(root).as_posix(),
+            'sha256': hashlib.sha256(repair.read_bytes()).hexdigest(),
+        }
+
 def build():
     catalog = {'license': 'CC BY-NC-SA 4.0', 'generator': 'tools/build_casino_art.py',
                'creation': 'Built-in image_gen; original fictional illustrations inspired by Nevada history',
@@ -129,6 +150,7 @@ def build():
                 if extra.exists():
                     catalog['sets'][name].setdefault('additional_sources',{})[suffix]={
                         'source':extra.relative_to(ROOT).as_posix(),'sha256':hashlib.sha256(extra.read_bytes()).hexdigest()}
+        apply_reviewed_art(catalog['sets'][name], sources, folder)
     (DEST / 'catalog.json').write_text(json.dumps(catalog, indent=2) + '\n')
     if (SOURCE/'despicables'/'cutouts.png').exists():
         from build_despicables_art import build as build_store
@@ -136,6 +158,9 @@ def build():
     if any((SOURCE/name/'atlas.png').exists() for name in ['fix','alibi','velvet','afterglow','last','dust']):
         from build_six_resort_art import build as build_six
         build_six()
+    if (SOURCE/'neighborhood'/'paintings.png').exists():
+        from build_neighborhood_resort_art import build as build_neighborhood
+        build_neighborhood()
     print('Casino artwork:',sum(len(s['assets']) for s in catalog['sets'].values()),'lossless sprites packaged')
 
 if __name__ == '__main__':

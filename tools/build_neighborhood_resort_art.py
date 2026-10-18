@@ -11,7 +11,7 @@ Source images/prompts stay in the locally excluded assets/casino-art folder.
 import argparse, json, shutil
 from pathlib import Path
 from PIL import Image
-from build_casino_art import record
+from build_casino_art import record, apply_reviewed_art
 from build_six_resort_art import gutters, square, ASSETS
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/'assets/casino-art'
@@ -48,6 +48,7 @@ def build(only=None):
                     assert cell.size==(480,280)
                     output=folder/cabinet.name;cell.save(output,optimize=True);assets['cabinet-reels']=record(output,cell,True)
             catalog['sets'][t['slug']]={'assets':assets,'creation':'Original fictional Nevada casino illustrations','generator':'tools/build_neighborhood_resort_art.py'}
+            apply_reviewed_art(catalog['sets'][t['slug']], SOURCE/t['slug'], folder)
             (SOURCE/t['slug']/'packaging.json').write_text(json.dumps({'columns':xs,'rows':ys,'assets':ASSETS},indent=2)+'\n')
             print(t['slug'],len(assets),'lossless runtime illustrations')
     path.write_text(json.dumps(catalog,indent=2)+'\n')

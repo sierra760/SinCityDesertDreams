@@ -102,3 +102,51 @@ func test_velvet_ornament_clears_the_complete_framed_painting() -> void:
 			bounds = bounds.expand(at*faces[index+1]).expand(at*faces[index+2])
 			if bounds.intersects(room): intrusions += 1
 	check_eq(intrusions,0,"scallops and valance lamps leave the framed painting visible")
+
+func test_cabinet_emblems_preserve_transparent_sprite_backgrounds() -> void:
+	for key: StringName in ResortArtwork.SETS:
+		var world := ResortInteriorWorld3D.new()
+		root.add_child(world)
+		world.build(key,126 if key == &"com_corner_store" else ResortThemes.building(key),Vector2i.ZERO)
+		var batch := world.find_child("ResortArtworkBatch",true,false) as MeshInstance3D
+		check(batch != null,"venue has printed artwork")
+		if batch != null:
+			var found := false
+			for index: int in batch.mesh.get_surface_count():
+				var material := batch.mesh.surface_get_material(index) as StandardMaterial3D
+				if material.resource_name != "resort_art_symbol-B": continue
+				found = true
+				check_eq(material.transparency,BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS,
+					"transparent emblem pixels reveal the cabinet instead of a black rectangle")
+			check(found,"venue has an emblem insert")
+		world.free()
+
+func test_default_cabinet_emblem_is_in_front_of_the_imported_body() -> void:
+	var holder := Node3D.new()
+	root.add_child(holder)
+	var slots: Array[Transform3D] = [Transform3D.IDENTITY]
+	ResortPropDresser._artwork(holder,&"arcology_comstock",slots,{})
+	var batch := holder.get_node("ResortArtworkBatch") as MeshInstance3D
+	var badge := AABB()
+	for index: int in batch.mesh.get_surface_count():
+		var material := batch.mesh.surface_get_material(index) as StandardMaterial3D
+		if material.resource_name != "resort_art_symbol-B": continue
+		var vertices: PackedVector3Array = batch.mesh.surface_get_arrays(index)[Mesh.ARRAY_VERTEX]
+		badge = AABB(vertices[0],Vector3.ZERO)
+		for vertex: Vector3 in vertices: badge = badge.expand(vertex)
+	check(badge.has_surface(),"badge quad exists")
+	var hidden := 0
+	for fraction: Vector2 in [Vector2(.5,.5),Vector2(.1,.1),Vector2(.9,.1),Vector2(.1,.9),Vector2(.9,.9)]:
+		var point := badge.position+Vector3(badge.size.x*fraction.x,badge.size.y*fraction.y,0)
+		var blocked := false
+		for part: Dictionary in ResortPropDresser.parts("slot_cabinet").surfaces:
+			var faces: PackedVector3Array = (part.mesh as Mesh).get_faces()
+			for triangle: int in range(0,faces.size(),3):
+				var at: Transform3D = part.transform
+				var hit: Variant = Geometry3D.segment_intersects_triangle(point+Vector3(0,0,1),point,
+					at*faces[triangle],at*faces[triangle+1],at*faces[triangle+2])
+				if hit is Vector3 and (hit as Vector3).z > point.z+.0001:
+					blocked = true
+		if blocked: hidden += 1
+	check_eq(hidden,0,"emblem centre and corners clear the actual imported cabinet body")
+	holder.free()
