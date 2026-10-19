@@ -779,7 +779,12 @@ func _render(camera: Camera3D) -> void:
 		if group == null:
 			group = {"name":str(record.kind)+":0:"+str(low),"kind":record.kind,"variant":0,"low":low,"poses":[],"custom":[]}
 			groups[group_key] = group
-		group.poses.append(Transform3D(record.get("presentation_basis",Basis(Vector3.UP,record.presentation_yaw)),position))
+		var pose := Transform3D(record.get("presentation_basis",Basis(Vector3.UP,record.presentation_yaw)),position)
+		var detail_id := "external:"+str(record.presentation_id)
+		if promoted.has(detail_id):
+			promoted[detail_id].transform=pose
+			group.poses.append(Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO),position))
+		else: group.poses.append(pose)
 		group.custom.append(Color(0,0,0,0))
 		visible_count += 1
 	var drawn: Dictionary = {}
@@ -1158,18 +1163,25 @@ func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_
 			if not selected.has(id): continue
 		elif not _detail_may_be_near(actor,camera_position): continue
 		result.append(_visual_state(actor))
+	if not selected_only:
+		for record: Dictionary in _external:
+			if _claims.has(record.presentation_id): continue
+			var point: Vector3=record.presentation_position
+			if camera_position.distance_squared_to(point)>ExploreActorDetailManager.VEHICLE_EXIT*ExploreActorDetailManager.VEHICLE_EXIT: continue
+			result.append({"id":"external:"+str(record.presentation_id),"kind":String(record.kind),"variant":0,"position":point,"yaw":float(record.presentation_yaw),"speed":0.0,"steering":0.0,"airborne":CityTrafficCatalog.domain(record.kind)==&"air","phase":0.0,"visual_time":_elapsed})
 	return result
 
 func _detail_may_be_near(actor: Dictionary, camera_position: Vector3) -> bool:
+	var radius := ExploreActorDetailManager.EXIT if actor.kind==&"pedestrian" else ExploreActorDetailManager.VEHICLE_EXIT
 	if actor.domain == &"air":
-		return camera_position.distance_squared_to(actor.air_position) <= ExploreActorDetailManager.EXIT*ExploreActorDetailManager.EXIT
+		return camera_position.distance_squared_to(actor.air_position) <= radius*radius
 	# Highway curves use authored anchors/radii; unusual extrapolated records
 	# retain exact evaluation too. Never assume they fit an ordinary tile.
 	if actor.domain == &"highway" or not is_finite(float(actor.t)) or not is_finite(float(actor.side)) or float(actor.t)<0.0 or float(actor.t)>1.0: return true
 	# Straight/turn/terminal and ramp ground poses stay within this square
 	# around the cell center (including arbitrary public side values). Ignore
 	# altitude here: a height/slope/bridge cannot create a false rejection.
-	var margin := ExploreActorDetailManager.EXIT + 2.0 + .4*absf(float(actor.side))
+	var margin := radius + 2.0 + .4*absf(float(actor.side))
 	var center := Vector2(actor.cell) + Vector2(.5,.5)
 	var camera_xz := Vector2(camera_position.x,camera_position.z)
 	return absf(center.x-camera_xz.x)<=margin and absf(center.y-camera_xz.y)<=margin

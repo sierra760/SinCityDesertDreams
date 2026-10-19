@@ -48,9 +48,13 @@ advances a second clock. Absolute distance drives each wheel using its declared
 radius and axis, including reverse travel. Absolute gait/gesture phase survives
 detail swaps. Shared animation resources are not mutated in place.
 
-The nearby NPC pool admits at most 24 visuals and 16 full pedestrian rigs;
-player and occupied transit retain their separate allocation. Promotion begins
-within 18 m, demotion beyond 26 m, ordered nearest first with stable ID ties.
+Vehicles use their authored detailed scenes within 192 m and retain them until
+beyond 256 m. Every visible vehicle in range receives detail, independently of
+pedestrian counts and proximity ranking. This includes port and emergency
+vehicles. Pedestrian promotion begins within 18 m and demotion beyond 26 m,
+with at most 16 full rigs, ordered nearest first with stable ID ties. The pool
+retains up to 24 inactive/reusable allocations when fewer actors are selected;
+player and occupied transit retain their separate allocation.
 The population caps remain 384 vehicles, 512 pedestrians and 64 external
 records. Models and ordinary walking, driving and transit work independently of optional
 scripting extensions.

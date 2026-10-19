@@ -22,13 +22,13 @@ func test_hysteresis_caps_and_identity() -> void:
 	var manager: Variant=load(PATH).new()
 	manager.bind(host)
 	var selected: Dictionary=manager.update(candidates(17.9),camera)
-	check_eq(selected.size(),24)
+	check_eq(selected.size(),32)
 	check_eq(manager.debug_state().pedestrian_rigs,16)
 	var first: Node3D=selected["ambient:000"]
 	var pose: Dictionary=first.debug_state()
 	check_eq(manager.update(candidates(25.9),camera)["ambient:000"],first)
 	check_eq(first.debug_state(),pose,"selection never advances pose")
-	check_eq(manager.update(candidates(26.1),camera).size(),0)
+	check_eq(manager.update(candidates(26.1),camera).size(),16,"vehicles keep detail beyond the pedestrian range")
 	check_eq(manager.update(candidates(17.9),camera)["ambient:000"],first,"same compatible pool allocation reused")
 	manager.clear()
 	check_eq(manager.debug_state().allocated,0)
@@ -72,7 +72,7 @@ func test_ties_exclusions_churn_freeze_and_resource_sharing() -> void:
 	for iteration in 30:
 		manager.update(candidates(26.1),camera)
 		manager.update(candidates(17.9),camera)
-	check_eq(manager.debug_state().created,24,"crossing thresholds reuses allocations")
+	check_eq(manager.debug_state().created,32,"crossing thresholds reuses allocations")
 	check_eq(CityTrafficCatalog.mesh_for(&"pedestrian",0),batch_before,"batch resources retain identity")
 	states=candidates(17.9)
 	states[0].excluded=true

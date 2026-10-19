@@ -6,6 +6,8 @@ const LIMIT := 24
 const RIG_LIMIT := 16
 const ENTER := 18.0/16.0
 const EXIT := 26.0/16.0
+const VEHICLE_ENTER := 192.0/16.0
+const VEHICLE_EXIT := 256.0/16.0
 var _parent: Node3D
 var _selected: Dictionary = {}
 var _pool: Array[Dictionary] = []
@@ -26,7 +28,8 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 			var id: String=state.id
 			if state.get("excluded",false) or not state.get("visible",true): continue
 			var distance: float=camera.global_position.distance_squared_to(state.position)
-			var radius: float=EXIT if _selected.has(id) else ENTER
+			var pedestrian := String(state.kind)=="pedestrian"
+			var radius: float=(EXIT if _selected.has(id) else ENTER) if pedestrian else (VEHICLE_EXIT if _selected.has(id) else VEHICLE_ENTER)
 			if distance>radius*radius or not _body_in_frustum(state,frustum): continue
 			eligible.append({"state":state,"distance":distance})
 	eligible.sort_custom(func(a: Dictionary,b: Dictionary)->bool:
@@ -40,18 +43,22 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 			if rigs>=RIG_LIMIT: continue
 			rigs+=1
 		wanted[state.id]=state
-		if wanted.size()==LIMIT: break
+		# Vehicles have their own population bound in CityTraffic3D. A nearby
+		# crowd or a changing nearest-first order must never demote a vehicle.
+	var capacity := maxi(LIMIT,wanted.size()+RIG_LIMIT)
 	var next: Dictionary={}
+	var used: Dictionary={}
 	for slot in _pool:
 		slot.visual.visible=false
 		if wanted.has(slot.id) and slot.key==_key(wanted[slot.id]):
 			next[slot.id]=slot.visual
+			used[slot.visual]=true
 	for id: String in wanted:
 		if next.has(id): continue
 		var key:=_key(wanted[id])
 		var available: Dictionary={}
 		for slot in _pool:
-			if not next.values().has(slot.visual) and slot.key==key:
+			if not used.has(slot.visual) and slot.key==key:
 				available=slot
 				break
 		if available.is_empty():
@@ -59,9 +66,9 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 			var rig_count:=0
 			for slot in _pool:
 				if slot.pedestrian: rig_count+=1
-			if _pool.size()>=LIMIT or (String(wanted[id].kind)=="pedestrian" and rig_count>=RIG_LIMIT):
+			if _pool.size()>=capacity or (String(wanted[id].kind)=="pedestrian" and rig_count>=RIG_LIMIT):
 				for slot in _pool:
-					if next.values().has(slot.visual): continue
+					if used.has(slot.visual): continue
 					if String(wanted[id].kind)=="pedestrian" and rig_count>=RIG_LIMIT and not slot.pedestrian: continue
 					slot.visual.free()
 					_pool.erase(slot)
@@ -75,6 +82,13 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 			available.id=id
 			_reused+=1
 		next[id]=available.visual
+		used[available.visual]=true
+	# Retain only a small reusable cache after a busy street leaves view.
+	for i in range(_pool.size()-1,-1,-1):
+		if _pool.size()<=capacity: break
+		if used.has(_pool[i].visual): continue
+		_pool[i].visual.free()
+		_pool.remove_at(i)
 	_selected=next
 	for id: String in _selected:
 		var visual: ExploreActorVisual=_selected[id]
