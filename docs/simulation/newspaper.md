@@ -19,9 +19,13 @@ city is short of, written in the advisors' voice.
   `water_demand`, `unemployment`, `average_pollution`, `average_traffic`,
   `average_crime`, `tax_residential`, `tax_commercial`, `tax_industrial`,
   `approval`, `active_fires`.
-- The disaster system's `advice()` list of need kinds, when that system is
-  present.
-- Written content: `NewsStories`, `AdvisorLines`.
+- Current building, zone, service flags and underground layers, scanned once
+  by `advisor_city_snapshot.gd`; current coverage is projected onto temporary
+  grids using the actual service stamp rules.
+- Read-only transport, population, utility, budget, port and accepted tourism
+  observations when their systems are present.
+- Written historical content: `NewsStories`, `AdvisorLines`. The sidebar uses
+  evidence-specific text in the advisor assessment modules.
 
 ## Outputs
 
@@ -110,28 +114,86 @@ An issue is a JSON-safe Dictionary:
 9. The archive keeps the newest `ARCHIVE_ISSUES` issues.
 10. Fillers are chosen at random from `NewsStories.FILLERS` without repeating
     inside one issue.
-11. `advice()` returns `[{kind, title, text, urgent}]`, most urgent first,
-    from:
-    - every need kind the disaster system's `advice()` reports (each may be
-      a `StringName`, a `String` or a Dictionary with a `kind` or `need`),
-      normalized through `AdvisorLines.normalize` (`needs_power` →
-      `power_shortage`, `needs_transit` → `road_and_rail`, ...), flagged
-      urgent;
-    - `power_shortage` when unused power capacity is below
-      `SHORTAGE_MARGIN` percent or there is no capacity while there is
-      demand; `water_shortage` likewise;
-    - `unemployment` when `unemployment` ≥ `UNEMPLOYMENT_WARNING`;
-    - `pollution` when `average_pollution` ≥ `POLLUTION_WARNING`;
-    - `traffic` when `average_traffic` ≥ `TRAFFIC_WARNING`;
-    - `police` when `average_crime` ≥ `CRIME_WARNING`;
-    - `fire_protection` when `active_fires` > 0;
-    - `taxes` when any tax rate ≥ `TAX_WARNING`;
-    - `approval` when `approval` < `APPROVAL_WARNING`.
-    Each kind appears once. Kinds without a line in `AdvisorLines` are
-    skipped. The text variant rotates with the calendar day so the panel is
-    stable within a day and the simulation's random stream is untouched.
+11. `advice()` delegates to a fresh read-only assessment and returns records
+    with `{kind, title, text, urgent, reason, priority}`. It does not consult
+    the disaster system's saved monthly needs list. That list continues to
+    generate historical `advisor_need` news under its existing rules.
 
-## Parameters
+### Current advisor diagnoses
+
+- Power/water distinguish capacity shortfall, low reserve and local service
+  failure despite aggregate spare capacity. The last allocation can reveal
+  shortage on a separate network; city-wide surplus does not disprove it.
+  Matching allocator reports supply usable capacity, including power
+  conservation’s component-local rounding, instead of raw generation.
+- Police/fire coverage uses current station positions, footprint power and
+  funding through `ServicesSystem.projected_coverage()`, without publishing
+  new coverage maps. Prisons are effectiveness modifiers, never stations.
+  Active fires and disasters lead; a fire does not prove a station shortage.
+- Schools compare funded, anchor-powered capacity with the expected largest
+  relevant monthly aging cohort. The same capacity serves each cohort
+  separately. Hospitals distinguish missing facilities, power/funding loss
+  and poor measured health. Funded care includes the actual Free Clinics
+  contribution; insufficient capacity is distinguished from poor health despite
+  sufficient care. Available water-treatment readings supply a
+  separate health action when treatment has been invented.
+- Transport uses actual attempts/completions and measured congestion. No
+  resident-to-transit-building quota remains in the sidebar. Job advice uses
+  the authoritative job total plus neighbor commuting, without adding farm,
+  port or visitor jobs a second time. Aggregate sufficiency does not establish
+  household access or rule out abandonment.
+- Tax advice identifies affected existing RCI, agricultural and visitor
+  sectors. RCI uses felt rates and weak measured demand; nonexistent sectors
+  do not create a warning. Treasury trouble qualifies any tax-cut suggestion.
+- `BudgetSystem.advisor_outlook()` derives a read-only annual pace from the
+  shared scan, current service/transport/debt costs, published agricultural
+  jobs and the latest completed visitor booking. It does not call the Budget
+  window's tourism forecast, reconcile agriculture/wear or claim fares. It is
+  explicitly an outlook at current settings and recent business, not the
+  window's seasonal/event forecast or a promise of year-end cash.
+- Approval quotes the last actual poll and its recorded leading complaint,
+  never an invented current grievance. Pollution advice names the measured
+  index and implemented remedies without inventing its source or a trend.
+- Development opportunities use the actual residential recreation,
+  commercial market/station and industrial station/crane limits. Large parks,
+  zoos, stadia and marinas raise the residential cap; small parks do not.
+  Existing port zones are reviewed before expansion. The read-only port
+  accessor revisits current pieces/power inside already-discovered zones;
+  unknown topology is not claimed to be operational. No inland-water or dry
+  map is assumed to have navigable shipping access.
+- Tourism uses accepted staffing and utility plans only. Low occupancy alone
+  is not evidence for another resort, airport or a tax cut.
+
+### Priority, timing and reading cost
+
+Emergencies precede loss of essential supply, serious civic/financial problems,
+ordinary warnings and growth opportunities; stable kind ordering breaks ties.
+Only active emergencies and essential utility service loss are red. Each kind
+appears once; explanatory references between departments avoid prescribing
+another round of the same construction.
+
+Every panel refresh rechecks current construction, power and funding. Traffic,
+employment, health, supply and poll readings retain their simulation sampling
+schedule and are identified as measurements. The sidebar remains current when
+browsing an old issue; its caption explicitly separates it from the archive.
+Empty states distinguish no city, no residents, early readings and a measured
+city without detected warnings.
+
+Assessment performs one full map scan plus bounded station stamping, developed
+site checks and already-discovered port-member inspection. It never advances
+simulation, samples RNG, allocates utilities, searches a route, forecasts
+visitors, changes system caches or writes city/events/save state. There is no
+new daily job or saved advisor state. The historical content templates and
+monthly disaster needs remain unchanged.
+
+Policy parameters live in `data/advisor_params.gd`: 2% reserve; weak station
+coverage below 32/255 on at least 20% of developed sites; route failures at
+20% of attempted trips; poor health below 50 years; high sector rates at 12%;
+growth opportunities at 90% of the relevant cap. These tune advice, not
+simulation balance. Coverage 32 is below the fully funded outer ring (50),
+so ordinary peripheral service does not automatically demand another station.
+
+## Historical newspaper parameters
 
 | Name | Value | Tunes |
 |---|---|---|

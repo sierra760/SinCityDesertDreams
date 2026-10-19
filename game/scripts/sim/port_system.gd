@@ -186,6 +186,26 @@ func port_report() -> Array[Dictionary]:
 	return out
 
 
+## Advisor read: revisit pieces/power only inside already-discovered zones,
+## without rebuilding discovery caches or navigating sea/gateway graphs.
+## Newly zoned or split ports remain explicitly unmeasured until discovery.
+func advisor_port_observations() -> Dictionary:
+	var rows: Array[Dictionary] = []
+	if _ctx == null: return {"known": false, "rows": rows}
+	var known := _ports_valid
+	for original: Dictionary in _ports:
+		var port: Dictionary = original.duplicate(true)
+		var live: Array[Vector2i] = []
+		for at: Vector2i in port.tiles:
+			if Zones.kind(_ctx.city.zone.at(at.x, at.y)) == int(port.kind): live.append(at)
+		if live.size() != port.tiles.size(): known = false
+		if live.is_empty(): continue
+		port["tiles"] = live
+		_count_pieces(_ctx.city, port)
+		rows.append({"kind": port.kind, "operating": port.operating, "powered": port.powered, "runways": port.runways, "cranes": port.cranes})
+	return {"known": known, "rows": rows}
+
+
 ## Cached civilian discovery. Uses real member frontages and a shared flood
 ## from navigable map-edge water, never vehicle spawning or simulation RNG.
 var _tourism_layers: Array = []

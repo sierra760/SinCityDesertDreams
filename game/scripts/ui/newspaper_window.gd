@@ -232,6 +232,10 @@ func _build() -> void:
 	var side := VBoxContainer.new()
 	side.custom_minimum_size = Vector2(220, 0)
 	side.add_child(UIFactory.make_section_header("Advisors"))
+	var advice_date := UIFactory.make_label("Current city · latest available readings", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+	advice_date.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	advice_date.custom_minimum_size.x = 210
+	side.add_child(advice_date)
 	_advice_box = VBoxContainer.new()
 	_advice_box.add_theme_constant_override("separation", 2)
 	side.add_child(_advice_box)
@@ -265,7 +269,18 @@ func _refresh_advice() -> void:
 	if paper != null:
 		advice = paper.call("advice")
 	if advice.is_empty():
-		_advice_box.add_child(UIFactory.make_label("Nothing pressing", UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
+		var status := "Load a city to hear from the advisors."
+		if _has_city():
+			if _sim.stats.population == 0:
+				status = "No residents yet. Advice will follow as the town develops."
+			elif _sim.stats.history.is_empty():
+				status = "No warnings so far. Monthly reports are still building up."
+			else:
+				status = "No pressing problems detected. Keep an eye on Budget and the coverage maps."
+		var empty := UIFactory.make_label(status, UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.custom_minimum_size.x = 210
+		_advice_box.add_child(empty)
 		return
 	for entry in advice:
 		var rec: Dictionary = entry

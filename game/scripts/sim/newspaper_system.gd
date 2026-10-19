@@ -79,56 +79,11 @@ func submit(ctx: SimContext, kind: StringName, args: Dictionary = {}, priority: 
 	_enqueue(ctx, kind, args, priority)
 
 
-## What the advisors want the mayor to hear: [{kind, title, text, urgent}],
-## most urgent first. Text variants rotate with the calendar so the panel is
-## stable within a day and the simulation's random stream is untouched.
+## Current diagnoses, most important first; additional reason/priority fields
+## explain their evidence. Reads never consume RNG or use the monthly legacy
+## disaster-needs cache. Historical issues retain their original stories.
 func advice() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	var ctx := _context()
-	if ctx == null:
-		return out
-	var st := ctx.stats
-	var kinds: Array[StringName] = []
-	var urgent: Dictionary = {}
-	var disasters := ctx.system(&"disasters")
-	if disasters != null and disasters.has_method("advice"):
-		var listed: Variant = disasters.call("advice")
-		if typeof(listed) == TYPE_ARRAY:
-			for item in listed:
-				var k := _need_kind(item)
-				if k != &"" and not (k in kinds):
-					kinds.append(k)
-					urgent[k] = true
-	if st.power_demand > 0 and _spare(st.power_capacity, st.power_demand) < NewspaperParams.SHORTAGE_MARGIN:
-		_add_need(kinds, &"power_shortage")
-	if st.water_demand > 0 and _spare(st.water_capacity, st.water_demand) < NewspaperParams.SHORTAGE_MARGIN:
-		_add_need(kinds, &"water_shortage")
-	if st.active_fires > 0:
-		_add_need(kinds, &"fire_protection")
-	if st.average_crime >= NewspaperParams.CRIME_WARNING:
-		_add_need(kinds, &"police")
-	if st.average_traffic >= NewspaperParams.TRAFFIC_WARNING:
-		_add_need(kinds, &"traffic")
-	if st.average_pollution >= NewspaperParams.POLLUTION_WARNING:
-		_add_need(kinds, &"pollution")
-	if st.unemployment >= NewspaperParams.UNEMPLOYMENT_WARNING:
-		_add_need(kinds, &"unemployment")
-	if maxi(st.tax_residential, maxi(st.tax_commercial, st.tax_industrial)) >= NewspaperParams.TAX_WARNING:
-		_add_need(kinds, &"taxes")
-	if st.approval < NewspaperParams.APPROVAL_WARNING:
-		_add_need(kinds, &"approval")
-	var values := NewsStories.values_for(&"", {}, ctx.city.name, ctx.city.mayor, ctx.year())
-	var text_rng := SimRng.new(ctx.clock.day + 1)
-	for k in kinds:
-		if not AdvisorLines.has(k):
-			continue
-		out.append({
-			"kind": k,
-			"title": AdvisorLines.title(k),
-			"text": AdvisorLines.line(k, values, text_rng),
-			"urgent": bool(urgent.get(k, false)),
-		})
-	return out
+	return preload("res://scripts/sim/advisor_assessment.gd").assess(_context())
 
 
 # ── Absorbing reports ────────────────────────────────────────────────────

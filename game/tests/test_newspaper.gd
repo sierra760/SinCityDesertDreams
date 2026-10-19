@@ -348,37 +348,26 @@ func test_story_numbers_read_the_same_after_a_load() -> void:
 		check_eq(second[i]["headline"], first[i]["headline"], "same paper after reload")
 
 
-func test_advice_lists_needs_most_urgent_first() -> void:
+func test_advice_prioritizes_current_emergency_and_ignores_legacy_needs_cache() -> void:
 	var ctx := make_ctx()
-	var s := make_system(ctx)
+	var system := make_system(ctx)
 	ctx.systems[&"disasters"] = StubDisasters.new()
-	var st := ctx.stats
-	st.power_capacity = 100
-	st.power_demand = 99
-	st.water_capacity = 100
-	st.water_demand = 50
-	st.unemployment = 12
-	st.tax_residential = 13
-	st.approval = 20
-	st.active_fires = 1
-	var out: Array[Dictionary] = s.advice()
-	var kinds: Array = []
+	ctx.stats.power_capacity = 100
+	ctx.stats.power_demand = 99
+	ctx.stats.active_fires = 1
+	var random_state := ctx.rng.state()
+	var out: Array[Dictionary] = system.advice()
+	check_eq(out.size(), 2, "legacy school/hospital/seaport list is not current evidence")
+	check_eq(out[0].kind, &"fire_protection")
+	check(bool(out[0].urgent))
+	check_eq(out[1].kind, &"power_shortage")
+	check(not bool(out[1].urgent), "reserve planning is not an emergency")
 	for item in out:
-		kinds.append(item["kind"])
-		check(item["text"].length() > 0)
-		check(not has_braces(item["text"]))
-		check(item["title"].length() > 0)
-	check_eq(kinds.slice(0, 3), [&"schools", &"hospitals", &"seaport"], "the disaster system's needs lead, under their line names, once each")
-	check(bool(out[0]["urgent"]))
-	check(kinds.has(&"power_shortage"))
-	check(not kinds.has(&"water_shortage"))
-	check(kinds.has(&"fire_protection"))
-	check(kinds.has(&"unemployment"))
-	check(kinds.has(&"taxes"))
-	check(kinds.has(&"approval"))
-	check(not kinds.has(&"pollution"))
-	var later: Array[Dictionary] = s.advice()
-	check_eq(later[0]["text"], out[0]["text"], "advice is stable within a day")
+		check(not String(item.text).is_empty())
+		check(not has_braces(item.text))
+	check_eq(system.advice(), out, "stable without randomized claims")
+	check_eq(ctx.rng.state(), random_state, "advice never consumes simulation RNG")
+	ctx.stats.power_demand = 50
+	check_eq(system.advice().size(), 1, "resolved current issue clears immediately")
 	var quiet := make_ctx()
-	var s2 := make_system(quiet)
-	check_eq(s2.advice().size(), 0, "a healthy empty town needs nothing")
+	check(make_system(quiet).advice().is_empty())

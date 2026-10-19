@@ -114,6 +114,50 @@ func tourism_booking() -> Dictionary:
 	return _tourism_booking.duplicate(true)
 
 
+## Read-only annual pace for advisors, using their single current map scan.
+## Unlike the Budget window's estimate this never forecasts tourism, surveys
+## the city, reconciles agriculture/wear, or claims transit-fare counters.
+## Visitor receipts/program costs use the latest completed booking, so this
+## is a settings-and-recent-business outlook, not a season/event forecast.
+@warning_ignore("integer_division")
+func advisor_outlook(counts: PackedInt32Array, tiles: PackedInt32Array, wear_counts: PackedInt32Array) -> Dictionary:
+	if _ctx == null: return {}
+	var stats := _ctx.stats
+	var income := 0
+	var expenses := 0
+	var rates := [0, stats.tax_residential, stats.tax_commercial, stats.tax_industrial]
+	for id in Buildings.COUNT:
+		income += counts[id] * _assessment[id] * int(rates[_tax_class[id]])
+		var key := _service_keys[id]
+		if key != &"":
+			var route: Array = BudgetParams.SERVICE_ACCOUNT[key]
+			expenses += counts[id] * int(BudgetParams.SERVICE_UPKEEP[key]) * stats.funding_of(route[1])
+	# The authoritative jobs share is already published; assessed_value() would
+	# reconcile agricultural simulation state on a read.
+	income += stats.agricultural_jobs * AgricultureParams.ASSESSMENT_PER_JOB * stats.tax_agricultural
+	if _ctx.system(&"wear") != null:
+		for cat in TransportParams.CATEGORY_KEYS.size():
+			var key: StringName = TransportParams.CATEGORY_KEYS[cat]
+			expenses += (wear_counts[cat] * int(TransportParams.UPKEEP_CENTS[key]) / 100) * stats.funding_of(key)
+	else:
+		for id in Buildings.COUNT:
+			var key := _transport_keys[id]
+			if key != &"": expenses += tiles[id] * int(BudgetParams.TRANSPORT_UPKEEP_CENTS[key]) * stats.funding_of(key) / 100
+	var ordinances := _ctx.system(&"ordinances")
+	if ordinances != null:
+		var totals: Dictionary = ordinances.call("yearly_totals", false)
+		income += int(totals.get("income", 0)) * 100
+		expenses += int(totals.get("cost", 0)) * 100
+	for bond in stats.bonds: expenses += int(bond.get("principal", 0)) * int(bond.get("rate", 0))
+	income += int(_tourism_booking.get("occupancy_units", 0)) + int(_tourism_booking.get("gaming_units", 0))
+	if bool(stats.ordinances.get(&"casino_safety", false)):
+		expenses += int(_tourism_program_booking.get("half_cents", 0)) * 6
+	var transport := _ctx.system(&"transport")
+	if transport != null and transport.has_method("monthly_ridership"):
+		income += int(transport.call("monthly_ridership")) * BudgetParams.FARE_CENTS * 12
+	return {"income": income / 100, "expenses": expenses / 100, "net": (income - expenses) / 100, "visitor_month": int(_tourism_booking.get("month_id", -1))}
+
+
 ## Everything the January review shows.
 func review_summary() -> Dictionary:
 	if _ctx == null:

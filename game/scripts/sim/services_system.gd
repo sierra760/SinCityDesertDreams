@@ -229,6 +229,29 @@ func _build_coverage(ctx: SimContext) -> void:
 					city.fire_cover.at(cx, cy) + Params.VOLUNTEER_FIRE_COVERAGE))
 
 
+## Read-only projection for advisors after construction or a funding edit.
+## Supplied observations came from their one map scan; stamp the same rings
+## used by the simulation onto private grids, without publishing coverage.
+func projected_coverage(stats: CityStats, stations: Dictionary, modifier: int = 0) -> Dictionary:
+	var police := Grid8.new(CELLS, CELLS)
+	var fire := Grid8.new(CELLS, CELLS)
+	var police_funding := stats.funding_of(&"police")
+	var fire_funding := stats.funding_of(&"fire")
+	@warning_ignore("integer_division")
+	var police_strength := police_funding * (Params.POLICE_BASE_EFFECT + modifier) / 2
+	@warning_ignore("integer_division")
+	var fire_strength := fire_funding * Params.FIRE_BASE_EFFECT / 2
+	for entry: Dictionary in stations.get(Buildings.POLICE_STATION, []):
+		_stamp(police, entry, Buildings.POLICE_STATION, police_strength, police_funding)
+	for entry: Dictionary in stations.get(Buildings.FIRE_STATION, []):
+		_stamp(fire, entry, Buildings.FIRE_STATION, fire_strength, fire_funding)
+	if bool(stats.ordinances.get(&"volunteer_fire", false)):
+		for cy in CELLS:
+			for cx in CELLS:
+				fire.put(cx, cy, mini(255, fire.at(cx, cy) + Params.VOLUNTEER_FIRE_COVERAGE))
+	return {"police": police, "fire": fire}
+
+
 ## Stamp one station's coverage rings onto a quarter-resolution map.
 func _stamp(map: Grid8, entry: Dictionary, id: int, strength: int, funding: int) -> void:
 	if strength <= 0:
