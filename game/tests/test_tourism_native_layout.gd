@@ -82,6 +82,8 @@ func test_landscape_inspector_reveals_tourism_rows_and_preserves_controls() -> v
  check(panel.rename_button.get_global_rect().position.y>panel.body_scroll.get_global_rect().position.y,"portrait restores footer actions")
 
 func test_separate_tourism_comparison_disclosure_and_large_values_fit() -> void:
+ TourismFixture.venue(host.sim.city, &"arcology_boddy", Vector2i(10, 10))
+ host.sim.tourism().reconcile_now()
  for profile in [Vector2i(390,844),Vector2i(320,568),Vector2i(844,390),Vector2i(768,1024),Vector2i(1024,768),Vector2i(1280,800)]:
   root.size=profile
   host.display_layout.refresh_with_mobile_metrics(profile,1,Rect2i(Vector2i.ZERO,profile),0,"iOS")
@@ -140,6 +142,9 @@ func test_budget_tourism_refresh_preserves_typing_focus_and_scroll() -> void:
  edit.text="7"
  edit.text_changed.emit("7")
  field.apply()
+ TourismFixture.venue(host.sim.city, &"arcology_boddy", Vector2i(10, 10))
+ host.sim.tourism().reconcile_now()
+ before=host.sim.snapshot().duplicate(true)
  var report:=host.open_window("tourism") as TourismWindow
  var details:=report.find_child("TourismDetails",true,false) as Button
  await Fixture.settle(self,4)

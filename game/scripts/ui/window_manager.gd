@@ -82,6 +82,7 @@ func window(window_name: String) -> Control:
 	if not SCRIPTS.has(window_name):
 		return null
 	var w: Control = SCRIPTS[window_name].new()
+	w.set_meta("city_report", GameMenuBar.WINDOW_NAMES.has(window_name))
 	w.visible = false
 	_host.ui_layer.add_child(w)
 	_place(w)
@@ -104,10 +105,11 @@ func window(window_name: String) -> Control:
 		(w as HelpWindow).sources_dialog.visibility_changed.connect(_host.sync_help_sources_hold)
 	_host.shell.register_chrome(w)
 	_host.shell.apply_popups(w)
-	if not _report_bounds_bound and (w is OrdinancesWindow or w is TourismWindow):
+	if not _report_bounds_bound and bool(w.get_meta("city_report", false)):
 		_report_bounds_bound = true
 		_host.display_layout.metrics_changed.connect(func(_metrics: Dictionary) -> void: _schedule_all_report_bounds())
 		_host.menu_bar.item_rect_changed.connect(_schedule_all_report_bounds)
+		_host.menu_bar.visibility_changed.connect(_schedule_all_report_bounds)
 	windows[window_name] = w
 	return w
 
@@ -121,7 +123,7 @@ func _open_report(window_name: String, page: String) -> void:
 
 
 func _schedule_report_bounds(w: Control) -> void:
-	if is_instance_valid(w) and (w is OrdinancesWindow or w is TourismWindow):
+	if is_instance_valid(w) and bool(w.get_meta("city_report", false)):
 		_fit_report_bounds.call_deferred(w)
 
 func _schedule_all_report_bounds() -> void:

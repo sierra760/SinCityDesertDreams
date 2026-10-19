@@ -39,7 +39,37 @@ func capture(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	check_eq(root.get_texture().get_image().save_png(directory.path_join(name + ".png")), OK)
 
+func test_overlay_buttons_fit_small_phones_without_sideways_panning() -> void:
+	for size in [Vector2i(320,568), Vector2i(390,844)]:
+		await profile(size)
+		var maps := host.open_window("city_maps") as CityMapsWindow
+		await Fixture.settle(self, 10)
+		fits(maps, "map overlays " + str(size))
+		var scroll := UIFactory.report_scroll(maps._buttons[&"power"])
+		for button: Button in maps._buttons.values():
+			scroll.ensure_control_visible(button)
+			await Fixture.settle(self, 2)
+			check(scroll.get_global_rect().grow(0.5).encloses(button.get_global_rect()), "the complete overlay target can be revealed")
+		maps.select_overlay(&"power")
+		check_eq(maps.selected_overlay(), &"power")
+		check(not maps.legend_text().is_empty(), "the useful map legend remains")
+		maps.close()
+
+func test_all_report_titles_stay_clear_of_the_main_menu() -> void:
+	for size in [Vector2i(1280,800), Vector2i(390,844), Vector2i(320,568), Vector2i(844,390), Vector2i(768,1024), Vector2i(1024,768)]:
+		await profile(size)
+		for name: String in GameMenuBar.WINDOW_NAMES:
+			var w := host.open_window(name)
+			await Fixture.settle(self, 8)
+			var panel := w.get("_root") as Control
+			var chrome: Dictionary = panel.get_meta("window_chrome")
+			check_ge((chrome.title_bar as Control).get_global_rect().position.y, host.menu_bar.get_global_rect().end.y, name + " title clears the menu: " + str(size))
+			fits(w, name + " title bounds " + str(size))
+			host.window_manager.close_all()
+
 func test_budget_tabs_and_ordinance_categories_fit_all_profiles() -> void:
+	TourismFixture.venue(host.sim.city, &"arcology_boddy", Vector2i(10, 10))
+	host.sim.tourism().reconcile_now()
 	for size in [Vector2i(1280,800), Vector2i(390,844), Vector2i(320,568), Vector2i(844,390), Vector2i(768,1024), Vector2i(1024,768)]:
 		await profile(size)
 		var budget := host.open_window("budget") as BudgetWindow
@@ -51,6 +81,10 @@ func test_budget_tabs_and_ordinance_categories_fit_all_profiles() -> void:
 			budget.refresh()
 			await Fixture.settle(self, 8)
 			fits(budget, page + str(size))
+			if page == "Summary":
+				var scroll := UIFactory.report_scroll(budget._summary_values[0])
+				for amount: Label in budget._summary_values:
+					check(scroll.get_global_rect().grow(0.5).encloses(amount.get_global_rect()), "all three headline figures are visible immediately: " + str(size))
 			if size.x >= 1200: check(budget._root.size.y <= 520, "temporary table minima never inflate the preferred window")
 			var tabs := budget._pages.tabs
 			check_eq(tabs.tab_count, 4)

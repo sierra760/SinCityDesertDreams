@@ -86,13 +86,9 @@ func refresh() -> void:
 	var has_city := _sim != null and _sim.city != null
 	var stats := _sim.stats if _sim != null else CityStats.new()
 	var economy: SimSystem = _sim.get_system(&"economy") if has_city else null
-	_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()] if has_city else "No city loaded"
-	var national := 0
-	if economy != null:
-		national = int(economy.call("national_population"))
-	_phase_label.text = "National trend: %s (national population %s)" % [
-		EconomySystem.phase_name(stats.economy_phase), UIFactory.commafy(national)]
-	_value_label.text = "City value %s, aggregate industrial tax %d%%" % [
+	_status_label.text = _sim.date_text() if has_city else "No city loaded"
+	_phase_label.text = "National trend: " + EconomySystem.phase_name(stats.economy_phase)
+	_value_label.text = "City value %s, industry tax %d%%" % [
 		UIFactory.format_amount(stats.city_value), stats.tax_industrial]
 	var report: Array = []
 	if economy != null:
@@ -185,7 +181,7 @@ func _build() -> void:
 		_grid.add_child(spinner)
 		_sector_rows.append([name_label, demand_label, units_label, share_label, spinner])
 	_body.add_child(_grid)
-	_body.add_child(UIFactory.make_label("Raising a sector's tax steers new industry toward the others. The city collects the share-weighted aggregate.",
+	_body.add_child(UIFactory.make_label("Higher taxes discourage growth in that industry.",
 		UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
 
 

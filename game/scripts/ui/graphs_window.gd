@@ -245,6 +245,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var chrome := UIFactory.make_window_chrome("Graphs")
 	_root = chrome["root"]
+	_root.size = Vector2(740, 480)
+	_root.set_meta("preferred_size", Vector2(740, 480))
 	_body = chrome["body"]
 	var close_button: Button = chrome["close_button"]
 	close_button.pressed.connect(close)
@@ -304,7 +306,7 @@ func refresh() -> void:
 	if statistics == null:
 		_status_label.text = "No city loaded"
 	else:
-		_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()]
+		_status_label.text = _sim.date_text()
 	for years: int in _range_buttons:
 		var button: Button = _range_buttons[years]
 		button.add_theme_stylebox_override("normal", UITheme.button_stylebox(years == _range_years))
@@ -379,17 +381,23 @@ func canvas() -> GraphCanvas:
 func _build() -> void:
 	_status_label = UIFactory.make_label("No city loaded", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	_body.add_child(_status_label)
-	var history_note := UIFactory.make_label("Population is permanent residents; older population samples included resort occupants. Tourist history starts with the tourism economy. Tax graphs show that month’s booked accrual in whole dollars; fractional carry remains in Budget.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
-	history_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body.add_child(history_note)
 	var columns := UIFactory.ResponsiveColumns.new()
 	columns.add_theme_constant_override("separation", UITheme.MARGIN)
 	_body.add_child(columns)
 
 	var left := VBoxContainer.new()
-	left.add_child(UIFactory.make_section_header("Series"))
+	var choose := UIFactory.make_button("Choose data ▸", "Select the series to plot")
+	choose.name = "SeriesDetails"
+	choose.toggle_mode = true
+	left.add_child(choose)
 	_picker = GridContainer.new()
 	_picker.columns = 1
+	_picker.hide()
+	choose.toggled.connect(func(on: bool) -> void:
+		var focused := get_viewport().gui_get_focus_owner()
+		if not on and focused != null and _picker.is_ancestor_of(focused): choose.grab_focus()
+		_picker.visible = on
+		choose.text = "Choose data" + (" ▾" if on else " ▸"))
 	left.add_child(_picker)
 	columns.add_child(left)
 

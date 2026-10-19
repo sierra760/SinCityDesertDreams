@@ -35,21 +35,25 @@ their own container that is emptied and refilled on every refresh.
 
 Fixed Summary / Taxes / Funding / Debt tabs use `ReportPages` above the single
 scroll body. Treasury and any annual-review notice remain visible; Auto budget
-and Done stay in the footer. The initial Summary shows annual estimated income,
-expenses and net, plus the previous settled year's result. Account breakdown is
+and Done stay in the footer. The initial Summary aligns estimated annual income,
+expenses and balance in three compact rows. The previous settled year's balance
+appears only when books exist. Treasury colors follow positive, zero and negative
+cash, including daily balance changes. Account breakdown is
 collapsed initially; its period selector shows Year to date, Previous year, or
 Year-end estimate with one amount column and income/expense subtotals.
 
 Taxes groups four property rates and the independent occupancy/gaming rates,
 all 0–20%, with links to Tourism and industry-sector taxes. Funding selects
 Services or Transportation and retains existing sliders and condition reporting.
-Debt shows principal, annual interest, the quote and issue/repay actions.
+Debt shows principal, annual interest, the quote and issue/repay actions. The quote
+keeps the offered amount, rate and annual interest, without repeating the prime rate.
 
 The January review explicitly starts on Summary and remains held while following
 report links or changing pages. Only Budget's existing close/Done behavior
 finishes it. Report instances, tab selection, and page scroll are reused.
 Existing financial helpers remain; `select_page(name)` and `selected_page()`
-provide named navigation.
+provide named navigation. Short landscape displays put the three Summary
+headings above their amounts so the complete balance is immediately visible.
 
 ## Tourism (`TourismWindow`)
 
@@ -59,12 +63,23 @@ and the next announced event. Collapsed Visitors and jobs, Access and utilities,
 Reputation and events, and Income sections contain selected useful results.
 Only one section opens at once. Accrued taxes and completed business tax bases
 are distinct from projections and city cash. Reads do not advance the simulation.
-Adjust visitor taxes returns to Budget → Taxes; Ordinances opens policy controls.
+Visitor taxes returns to Budget → Taxes; Ordinances opens policy controls.
+
+An empty tourism economy uses a small empty state instead of rows of zeros.
+Past attendance or accrued visitor taxes keep the full report available even
+after the last venue is removed. Event text appears only for an announced event.
+Optional sections show filled jobs, gateway capacity, waiting trips when present,
+reputation and city taxes owed. Business tax-base calculations and retail
+bookkeeping stay out of this report. The safety-program annual quote remains
+explicitly conditional on enabling the policy; completed spending is separate.
 
 ## Graphs (`GraphsWindow`)
 
-- Series picker: one `CheckBox` per name from `statistics.names()`;
-  several may be on at once. Range buttons 1 / 10 / 100 years.
+- The chart and range buttons (1 / 10 / 100 years) lead. **Choose data**
+  expands the series picker, with one `CheckBox` per name from
+  `statistics.names()`; several may be on at once. Selection and disclosure
+  survive refreshes; collapsing returns keyboard focus to the disclosure.
+  Migration and fractional-accounting notes do not precede the chart.
 - The plot is an inner `GraphCanvas` control: axes, a horizontal grid, one
   polyline per selected series (palette of eight colors, cycling), the
   current value at the right end of each line, and a legend. One series is
@@ -83,17 +98,21 @@ Adjust visitor taxes returns to Budget → Taxes; Ordinances opens policy contro
   approval, education quotient and life expectancy.
 - Cohort chart: an inner `CohortChart` control drawing twenty bars (one per
   five-year cohort) scaled to the largest cohort, with education (teal) and
-  health (brass) ticks per bar. A twenty-row table beside it lists age range,
+  health (brass) ticks per bar. The collapsed **Age breakdown** lists age range in a twenty-row table,
   people, education and health from `population.cohort_education(i, stats)`
   and `cohort_health(i, stats)`.
-- Complaints: the March vote ranking from `population.complaints()`.
-- Gaming Resorts: one row per standing design from `rewards.arcology_report()`.
+- Residents’ concerns: the March vote ranking from `population.complaints()`,
+  ahead of the age chart. A zero tourism-jobs suffix is omitted.
+- **Resort occupancy** is collapsed and appears only when venues or visitors
+  exist. Its rows retain occupancy and closed-venue reasons without coordinates
+  or a repeated tourism explanation. Both disclosures retain their state.
 - Helpers: `cohort_text(i)`, `complaint_text(rank)`, `headline_text()`.
 
 ## Industries (`IndustriesWindow`)
 
 - Header: national phase (`EconomySystem.phase_name(stats.economy_phase)`),
-  national population, city value (`stats.city_value`).
+  city value (`stats.city_value`) and the city's industry tax. The national
+  simulation population and weighting terminology are omitted.
 - Table from `economy.sector_report()`: sector, demand, units, share
   percentage and a tax `TouchNumberField` 0..`EconomyParams.SECTOR_TAX_MAX`
   writing `stats.sector_taxes[i]` (the packed array is copied, changed and
@@ -104,7 +123,8 @@ Adjust visitor taxes returns to Budget → Taxes; Ordinances opens policy contro
 ## Ordinances (`OrdinancesWindow`)
 
 Fixed Finance / Safety / City tabs show one category. Enacted only filters its
-rows without changing the fixed summary of all enacted city policies. Compact
+rows without changing the fixed net annual total for all enacted city policies.
+The income and cost components remain in its tooltip. Compact
 rows show a labelled switch, full policy name, signed yearly amount and short
 effect. A disclosure opens one full description at a time. Empty filtered
 categories offer Show all policies. Policy application and yearly settlement are
@@ -143,6 +163,8 @@ editing and naming retain their established behavior.
   water, crime, pollution, land value, traffic, police, fire, density and growth.
   `bind_presentation(controller)` attaches the 3D view; the selection is kept
   until one is attached.
+- Police and Fire use short button labels, with full coverage names available
+  to tooltips and accessibility. The two-column picker fits small phones.
 - Legends come from the analytical sampler, including utility states, zone tints
   and growth direction. Layers draw directly in the 3D city view.
 - Helpers: `select_overlay(kind)`, `selected_overlay()`, `legend_text()`.
@@ -150,7 +172,8 @@ editing and naming retain their established behavior.
 ## Neighbors (`NeighborsWindow`)
 
 - A three-by-three grid: north on top, west and east on the sides, south at
-  the bottom, a compass rose in the center with the city's own name.
+  the bottom, a compass rose in the center with the city's own name, without repeating
+  population and tourist counts from the main status bar.
 - Each card from `neighbors.neighbor_report()`: name, edge, population,
   connections (road, rail, power, water) and this year's trade balance.
 - Helpers: `card_text(edge)`.
@@ -175,4 +198,17 @@ keeps Rename and Demolish reachable while long details scroll. Settings offers
 interface size (with feedback when it is capped) and fullscreen; tool labels,
 signs, traffic and the minimap are toggled from View → Show. Choose Tool Labels
 to show or hide the toolbar captions.
+All nine reports share the menu-adjusted usable bounds. Titles and close buttons
+stay below the main menu after opening, rotation, resizing or menu visibility
+changes. Non-report dialogs retain their own placement rules.
 Sizes are logical UI pixels; the 3D texture remains drawable-sized.
+
+## Report focus refinement
+
+Reports use the date as context without repeating a long city name. Keep
+important causes, financial periods, units, refusal reasons and controls visible.
+Do not replace a useful short warning with an empty state, or hide accrued money
+just because current capacity is zero. `test_report_focus.gd` covers empty-state
+transitions, read purity, disclosure persistence, keyboard focus and treasury
+colors; the layout suite checks that all three Budget headline figures fit
+without an initial scroll.

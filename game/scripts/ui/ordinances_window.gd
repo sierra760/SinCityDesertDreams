@@ -99,7 +99,7 @@ func refresh() -> void:
 	var has_city := _sim != null and _sim.city != null
 	var stats := _sim.stats if _sim != null else CityStats.new()
 	var ordinances: SimSystem = _sim.get_system(&"ordinances") if has_city else null
-	_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()] if has_city else "No city loaded"
+	_status_label.text = _sim.date_text() if has_city else "No city loaded"
 	_ensure_rows(ordinances)
 	var catalog: Array = []
 	if ordinances != null:
@@ -127,9 +127,8 @@ func refresh() -> void:
 	for row: Dictionary in _rows.values():
 		if (row.box as CheckBox).button_pressed: enabled += 1
 	var net := stats.ordinance_income - stats.ordinance_cost
-	_totals_label.text = "All enacted (%d): income %s, cost %s, net %s / year" % [enabled,
-		UIFactory.format_amount(stats.ordinance_income), UIFactory.format_amount(stats.ordinance_cost),
-		UIFactory.format_money(net)]
+	_totals_label.text = "All enacted (%d): %s / year" % [enabled, UIFactory.format_money(net)]
+	_totals_label.tooltip_text = "Income %s · cost %s / year" % [UIFactory.format_amount(stats.ordinance_income), UIFactory.format_amount(stats.ordinance_cost)]
 	_syncing = false
 	_filter_rows()
 
@@ -205,6 +204,7 @@ func _build() -> void:
 	clear_filter.pressed.connect(func() -> void: set_enacted_only(false))
 	_body.add_child(clear_filter)
 	_totals_label = UIFactory.make_label("", UITheme.FONT_SMALL)
+	_totals_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	_totals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_totals_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var chrome: Dictionary = _root.get_meta("window_chrome")

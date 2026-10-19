@@ -103,6 +103,8 @@ func test_ordinance_categories_filter_without_changing_totals() -> void:
 func test_tourism_menu_and_report_are_separate_and_pure() -> void:
 	check(GameMenuBar.WINDOW_NAMES.has("tourism"))
 	check(WindowManager.SCRIPTS.has("tourism"))
+	TourismFixture.venue(sim.city, &"arcology_boddy", Vector2i(10, 10))
+	sim.tourism().reconcile_now()
 	var w := TourismWindow.new()
 	root.add_child(w)
 	mounted.append(w)
@@ -111,7 +113,7 @@ func test_tourism_menu_and_report_are_separate_and_pure() -> void:
 	w.open()
 	w.refresh()
 	check_eq(sim.snapshot(), before)
-	check(w._tourism_limiter.text.contains("No tourism venues"))
+	check(w._tourism_limiter.is_visible_in_tree(), "the current constraint stays visible")
 	check(w.find_child("TourismComparison", true, false) != null)
 	var actual := w.find_child("TourismActualHeader", true, false) as Label
 	var forecast := w.find_child("TourismForecastHeader", true, false) as Label

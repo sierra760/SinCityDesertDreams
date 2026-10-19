@@ -257,7 +257,7 @@ func test_industries_table_and_sector_tax() -> void:
 	check(w.sector_text(9).ends_with("| 15"))
 	check_eq(sim.stats.tax_industrial, EconomySystem.aggregate_industrial_rate(sim.stats),
 		"a sector rate moves the aggregate industrial rate at once")
-	check(w.value_text().contains("aggregate industrial tax %d%%" % sim.stats.tax_industrial), w.value_text())
+	check(w.value_text().contains("industry tax %d%%" % sim.stats.tax_industrial), w.value_text())
 	w.set_sector_tax(9, 7)
 	var closed := [0]
 	w.closed.connect(func() -> void: closed[0] += 1)
@@ -305,7 +305,8 @@ func test_ordinances_toggle_and_totals() -> void:
 	check(bool(ordinances.call("is_enabled", &"free_clinics")), "system agrees")
 	var expected := int(ordinances.call("estimated_yearly", &"free_clinics"))
 	check(w.amount_text(&"free_clinics").begins_with(UIFactory.format_money(expected)), w.amount_text(&"free_clinics"))
-	check(w.totals_text().contains("cost " + UIFactory.format_amount(sim.stats.ordinance_cost)), w.totals_text())
+	check(w._totals_label.tooltip_text.contains("cost " + UIFactory.format_amount(sim.stats.ordinance_cost)), "full policy costs remain available")
+	check(w.totals_text().contains(UIFactory.format_money(sim.stats.ordinance_income - sim.stats.ordinance_cost)), "visible policy total shows net annual income")
 	w.set_ordinance(&"free_clinics", false)
 	check(not bool(sim.stats.ordinances.get(&"free_clinics", true)), "unchecking clears it")
 	var closed := [0]

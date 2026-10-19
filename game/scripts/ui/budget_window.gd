@@ -53,6 +53,8 @@ var _funds_label: Label
 var _review_label: Label
 var _pages: ReportPages
 var _summary_values: Array[Label] = []
+var _summary_captions: Array[Label] = []
+var _summary_grid: GridContainer
 var _visitor_tax: Label
 var _ledger_period: OptionButton
 var _ledger_body: VBoxContainer
@@ -83,8 +85,8 @@ func _ready() -> void:
 	var chrome := UIFactory.make_window_chrome("Budget")
 	_root = chrome["root"]
 	_body = chrome["body"]
-	_root.size = Vector2(640, 500)
-	_root.set_meta("preferred_size", Vector2(640, 500))
+	_root.size = Vector2(620, 440)
+	_root.set_meta("preferred_size", Vector2(620, 440))
 	_pages = ReportPages.new(chrome, ["Summary", "Taxes", "Funding", "Debt"])
 	_actions = chrome["actions"]
 	var close_button: Button = chrome["close_button"]
@@ -128,6 +130,15 @@ func _fit_below_menu() -> void:
 	if host.menu_bar.visible:
 		var top:=maxf(bounds.position.y,host.menu_bar.get_global_rect().end.y)
 		bounds=Rect2(Vector2(bounds.position.x,top),Vector2(bounds.size.x,maxf(0.0,bounds.end.y-top)))
+	# A short landscape display leaves about eighty pixels below the tabs.
+	# Put the three headings above their values there, rather than requiring
+	# a scroll just to discover whether the annual balance is negative.
+	var horizontal := bounds.size.y < 500 and bounds.size.x >= 600
+	_summary_grid.columns = 3 if horizontal else 2
+	for i in 3:
+		_summary_grid.move_child(_summary_captions[i], i if horizontal else i * 2)
+		_summary_grid.move_child(_summary_values[i], i + 3 if horizontal else i * 2 + 1)
+		_summary_values[i].horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if horizontal else HORIZONTAL_ALIGNMENT_RIGHT
 	_root.set_meta("display_usable_rect",bounds)
 	_root.call("_schedule_fit")
 
@@ -194,13 +205,13 @@ func refresh() -> void:
 	var has_city := _sim != null and _sim.city != null
 	if not has_city:
 		_status_label.text = "No city loaded"
-		_funds_label.text = "Treasury: $0"
+		_set_treasury(0)
 		_review_label.visible = false
 	else:
-		_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()]
-		_funds_label.text = "Treasury: " + UIFactory.format_signed_amount(_sim.city.funds)
+		_status_label.text = _sim.date_text()
+		_set_treasury(_sim.city.funds)
 		_review_label.visible = _sim.budget_review_pending
-		_review_label.text = "Review for %d · City paused until Done." % _sim.clock.year()
+		_review_label.text = "%d review · Paused until Done" % _sim.clock.year()
 	var stats := _sim.stats if _sim != null else CityStats.new()
 	_tax_spinners[&"residential"].value = stats.tax_residential
 	_tax_spinners[&"commercial"].value = stats.tax_commercial
@@ -215,7 +226,7 @@ func refresh() -> void:
 		var value_label: Label = _funding_values[service]
 		value_label.text = "%d%%" % pct
 	_auto_budget.button_pressed = stats.auto_budget
-	_condition_label.text = condition_text(_sim)
+	_condition_label.text = condition_text(_sim).get_slice("\n", 0)
 	_refresh_ledger(stats)
 	_refresh_visitor_tax()
 	_refresh_bonds(stats)
@@ -356,19 +367,24 @@ func _build() -> void:
 	_pages.header.add_child(_funds_label)
 	_pages.header.add_child(_review_label)
 	var summary := _pages.page(0)
-	var cards := UIFactory.ResponsiveColumns.new()
-	cards.add_theme_constant_override("separation", 8)
-	for title in ["Annual income", "Annual expenses", "Surplus / deficit"]:
-		var card := VBoxContainer.new()
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.add_child(UIFactory.make_label(title, UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
-		var value := UIFactory.make_label("$0", UITheme.FONT_TITLE)
-		value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		card.add_child(value)
+	summary.add_theme_constant_override("separation", 4)
+	summary.add_child(_wrapped("Year-end estimate", UITheme.TEXT_MUTED))
+	var figures := GridContainer.new()
+	_summary_grid = figures
+	figures.columns = 2
+	figures.add_theme_constant_override("h_separation", 12)
+	figures.add_theme_constant_override("v_separation", 2)
+	for title in ["Income", "Expenses", "Balance"]:
+		var caption := _wrapped(title)
+		caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		figures.add_child(caption)
+		_summary_captions.append(caption)
+		var value := UIFactory.make_label("$0", UITheme.FONT_HEADER)
+		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		figures.add_child(value)
 		_summary_values.append(value)
-		cards.add_child(card)
-	summary.add_child(cards)
-	summary.add_child(_wrapped("Estimates for the full year. Income and expenses settle each January.", UITheme.TEXT_MUTED))
+	summary.add_child(figures)
+	summary.add_child(_wrapped("Settled in January", UITheme.TEXT_MUTED))
 	_last_year_label = _wrapped("Last year: no books yet", UITheme.TEXT_MUTED)
 	summary.add_child(_last_year_label)
 	_totals_label = Label.new() # Stable textual reader; the three figures above are the presentation.
@@ -448,7 +464,7 @@ func _build_taxes(parent: VBoxContainer) -> void:
 		parent.add_child(row)
 	_visitor_tax = _wrapped("")
 	parent.add_child(_visitor_tax)
-	var tourism := UIFactory.make_button("Open Tourism Report", "Visitor attendance, capacity and services")
+	var tourism := UIFactory.make_button("Tourism report", "Visitor attendance, capacity and services")
 	tourism.pressed.connect(func() -> void: report_requested.emit("tourism", ""))
 	parent.add_child(tourism)
 	var industries := UIFactory.make_button("Industry tax rates", "Adjust taxes for individual industry sectors")
@@ -634,12 +650,11 @@ func _refresh_ledger(stats: CityStats) -> void:
 	_totals_label.text = "Estimated income %s, expenses %s, net %s" % [
 		UIFactory.format_signed_amount(income), UIFactory.format_signed_amount(expenses), UIFactory.format_money(income - expenses)]
 	if summary.is_empty() or int(summary.get("settled_year", -1)) < 0 or stats.last_year_ledger.is_empty():
-		_last_year_label.text = "Last year: no books yet"
+		_last_year_label.text = ""
+		_last_year_label.hide()
 	else:
-		_last_year_label.text = "Last year: income %s, expenses %s, net %s" % [
-			UIFactory.format_signed_amount(int(summary.get("income", 0))),
-			UIFactory.format_signed_amount(int(summary.get("expenses", 0))),
-			UIFactory.format_money(int(summary.get("net", 0)))]
+		_last_year_label.show()
+		_last_year_label.text = "Last year’s balance: " + UIFactory.format_money(int(summary.get("net", 0)))
 
 
 ## Show one ledger amount with its sign. Colour follows the effect on the
@@ -695,16 +710,16 @@ func _refresh_repay(stats: CityStats) -> void:
 func _refresh_quote() -> void:
 	var budget := _budget()
 	if budget == null:
-		_quote_label.text = "No bank without a city"
+		_quote_label.text = "No city loaded"
 		_issue_button.disabled = true
 		return
 	var quote: Dictionary = budget.call("bond_quote", int(_bond_amount.value))
 	var eligible := bool(quote.get("eligible", false))
 	_issue_button.disabled = not eligible
 	if eligible:
-		_quote_label.text = "Quote: %s at %d%%, %s interest a year (prime %d%%)" % [
+		_quote_label.text = "%s at %d%% · %s interest / year" % [
 			UIFactory.format_amount(int(quote.get("amount", 0))), int(quote.get("rate", 0)),
-			UIFactory.format_amount(int(quote.get("yearly_interest", 0))), _sim.stats.prime_rate]
+			UIFactory.format_amount(int(quote.get("yearly_interest", 0)))]
 	else:
 		_quote_label.text = "The bank declines: %s" % String(quote.get("reason", ""))
 
@@ -765,12 +780,18 @@ func _on_month_ended(_year: int, _month: int) -> void:
 		refresh()
 
 
+func _set_treasury(funds: int) -> void:
+	_funds_label.text = "Treasury: " + UIFactory.format_signed_amount(funds)
+	var color := UITheme.MONEY_NEGATIVE if funds < 0 else (UITheme.MONEY_POSITIVE if funds > 0 else UITheme.MONEY_NEUTRAL)
+	_funds_label.add_theme_color_override("font_color", color)
+
+
 ## The treasury moves every day the city runs; keep its line and Repay current
 ## without rebuilding the rest of the window.
 func _on_funds_changed(funds: int) -> void:
 	if not visible or not _built or _sim == null or _sim.city == null:
 		return
-	_funds_label.text = "Treasury: " + UIFactory.format_signed_amount(funds)
+	_set_treasury(funds)
 	_refresh_repay(_sim.stats)
 
 

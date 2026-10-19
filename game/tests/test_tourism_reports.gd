@@ -74,14 +74,14 @@ func test_budget_forecast_repeated_reads_are_pure() -> void:
 		w.close()
 		w.open()
 	w._buttons["Reputation and events"].button_pressed=true
-	check(w._tourism_calendar.is_visible_in_tree(),"season and event are organized under Details")
+	var forecast := w.find_child("TourismForecastHeader", true, false) as Label
+	check(forecast.is_visible_in_tree(), "forecast stays qualified before details are expanded")
+	check_eq(forecast.text, "Supported forecast")
+	check(forecast.tooltip_text.contains("power and water"), "service limits remain explained")
 	check(labels(w).contains("Seasonal demand: 115%"))
-	check(labels(w).contains("annual estimate uses this month’s pace"),"annual estimate discloses its current-month basis")
-	check(labels(w).contains("Current"),"current attendance distinct")
-	check(labels(w).contains("Staff support:"),"staff plan distinct")
-	check(labels(w).contains("Forecast: supported estimate"),"supported estimate explicit")
-	check(labels(w).contains("last accepted utility support"),"market/staff forecast cannot promise unavailable utility-supported attendance")
-	check(labels(w).contains("Completed monthly taxable business: lodging $%.2f; gaming after payouts $%.2f" % [sim.stats.tourist_lodging_cents / 100.0, sim.stats.tourist_gaming_cents / 100.0]),"completed actual business remains separate from projection")
+	check(w._tourism_tax.text.ends_with("/ year at this month’s pace"), "annual estimate keeps its basis and period")
+	check(w._tourism_accrued.text.contains(UIFactory.format_amount(int(sim.stats.ledger.get(&"taxes_occupancy", 0)) + int(sim.stats.ledger.get(&"taxes_gaming", 0)))), "actual city tax accrual stays distinct")
+	check(not labels(w).contains("taxable business"), "internal business tax bases are omitted")
 	check_eq(sim.snapshot(),before,"report reads do not book, admit or draw RNG")
 	check_eq(sim.city.funds,funds)
 	check_eq(sim.city.facilities,facilities)
@@ -148,10 +148,10 @@ func test_legacy_history_unchanged() -> void:
 	w.refresh()
 	check_eq(sim.stats.history[&"population"].to_byte_array(),old.to_byte_array())
 	check(not sim.stats.history.has(&"tourists"),"opening a graph cannot synthesize history")
-	check(labels(w).contains("older population samples included resort occupants"),"history semantics explained")
+	check(not labels(w).contains("fractional carry"), "bookkeeping notes do not obscure the graph")
 	var p := window(PopulationWindow.new()) as PopulationWindow
 	check_eq(p.headline_text(),"Population 1,234, a Village")
-	check(labels(p).contains("Tourism"))
+	check(p.find_child("ResortDetails", true, false) != null, "resort occupancy remains available on demand")
 	check(not labels(p).contains("residents, built"))
 
 func test_save_cards_honor_legacy_unknown_and_separate_current_counts() -> void:
@@ -198,9 +198,9 @@ func test_tourism_compact_disclosure_and_tax_estimate_are_pure() -> void:
 	check(body.visible, "refresh preserves disclosure")
 	details.button_pressed = false
 	check_eq(sim.snapshot(), before, "disclosure does not advance tourism or finances")
-	check(labels(w).contains("Current"))
-	check(labels(w).contains("Forecast"))
-	check(labels(w).contains("Estimated city tax income"))
+	check(labels(w).contains("Latest monthly"))
+	check(labels(w).contains("Supported forecast"))
+	check(labels(w).contains("Estimated city taxes"))
 	var estimate: Dictionary = sim.get_system(&"budget").call("estimated_ledger")
 	var value := w.find_child("TourismTaxEstimate", true, false) as Label
 	check(value != null)
@@ -239,7 +239,7 @@ func test_safety_details_and_inspect_explain_live_source_and_program_estimate() 
 	w._buttons["Income"].button_pressed=true
 	check(labels(w).contains("Casino Safety Program"), "program costs remain available")
 	check(not labels(w).contains("Casino crime source"), "raw crime fractions leave player reports")
-	check(labels(w).contains("estimate if enabled"), "explicit expense estimate")
+	check(labels(w).contains("/ year if enabled"), "program spending and conditional annual expense remain distinct")
 	var shown := QueryPanel.describe(sim.city, sim, Vector2i(10, 10))
 	check(shown.has("Casino source"))
 	check(shown.has("Casino safety"))
@@ -254,21 +254,34 @@ func test_district_details_and_inspect_share_authoritative_commercial_fields() -
 	var before:=sim.snapshot().duplicate(true)
 	var w:=window(TourismWindow.new()) as TourismWindow
 	w._buttons["Visitors and jobs"].button_pressed=true
-	check(labels(w).contains("Retail support"))
-	check(labels(w).contains("Business support is not city cash"))
-	check(labels(w).contains("Arrival capacity:"))
+	check(not labels(w).contains("Retail support"), "business bookkeeping does not appear as city income")
+	var access: Dictionary = sim.tourism().extension_report().access
+	check(labels(w).contains("Capacity: %s / month" % UIFactory.commafy(int(access.arrival_capacity))), "the same gateway capacity remains available")
 	var row:=sim.tourism().venue_report(at)
 	var shown:=QueryPanel.describe(sim.city,sim,at)
 	check_eq(shown["District appeal"],"+%d points; %d attraction categories" % [int(row.district_appeal_bonus),row.district_categories.size()])
 	check_eq(shown["Retail support"],"$%.2f business opportunity; $%.2f allocated nearby" % [int(row.commercial_spending_cents)/100.0,int(row.commercial_allocated_cents)/100.0])
 	check_eq(sim.snapshot(),before)
 
+func test_safety_quote_stays_conditional_after_policy_is_disabled() -> void:
+	TourismFixture.established_sources(sim)
+	sim.stats.ordinances[&"casino_safety"] = true
+	sim.clock.day = 16
+	sim.tourism().monthly(sim._ctx)
+	check(sim.tourism().extension_report().program_active, "the completed period used the safety program")
+	sim.stats.ordinances[&"casino_safety"] = false
+	var before := sim.snapshot().duplicate(true)
+	var w := window(TourismWindow.new()) as TourismWindow
+	(w._buttons["Income"] as Button).button_pressed = true
+	check(w._tourism_label.text.contains("/ year if enabled"), "a completed active month must not imply the disabled policy will cost money next year")
+	check_eq(sim.snapshot(), before)
+
 
 func test_gateway_capacity_and_reason_are_visible_without_routing_on_reads() -> void:
 	var before := sim.tourism().access_routes().report()
 	var w := window(TourismWindow.new()) as TourismWindow
 	w._buttons["Access and utilities"].button_pressed=true
-	check(labels(w).contains("Arrival capacity"),"budget exposes shared gateway seats")
+	check(labels(w).contains("Gateways:"),"tourism exposes shared gateway seats")
 	# Ordinary report and forecast reads must not advance pending search work.
 	for i in 5:
 		w.refresh()

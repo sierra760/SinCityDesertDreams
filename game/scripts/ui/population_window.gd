@@ -23,6 +23,7 @@ var _chart: CohortChart
 var _cohort_rows: Array[Array] = []    ## per cohort: [people Label, education Label, health Label]
 var _complaints_box: VBoxContainer
 var _arcology_box: VBoxContainer
+var _resort_details: Button
 
 
 ## Twenty bars for the cohorts with education and health ticks over each bar.
@@ -87,6 +88,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var chrome := UIFactory.make_window_chrome("Population")
 	_root = chrome["root"]
+	_root.size = Vector2(620, 500)
+	_root.set_meta("preferred_size", Vector2(620, 500))
 	_body = chrome["body"]
 	var close_button: Button = chrome["close_button"]
 	close_button.pressed.connect(close)
@@ -145,7 +148,7 @@ func refresh() -> void:
 	var stats := _sim.stats if _sim != null else CityStats.new()
 	var population: SimSystem = _sim.get_system(&"population") if has_city else null
 	if has_city:
-		_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()]
+		_status_label.text = _sim.date_text()
 	else:
 		_status_label.text = "No city loaded"
 	var status := PopulationSystem.status_name(_sim.city.status) if has_city else "-"
@@ -153,7 +156,8 @@ func refresh() -> void:
 	_scores_label.text = "Employment %d%%, approval %d%%, education %d, life expectancy %d, jobs %s" % [
 		clampi(100 - stats.unemployment, 0, 100), stats.approval, stats.education_quotient,
 		stats.life_expectancy, UIFactory.commafy(stats.jobs)]
-	_scores_label.text += " (including %s tourism positions)" % UIFactory.commafy(stats.tourism_jobs)
+	if stats.tourism_jobs > 0:
+		_scores_label.text += " · %s tourism jobs" % UIFactory.commafy(stats.tourism_jobs)
 	var people := PackedInt32Array()
 	var education := PackedInt32Array()
 	var health := PackedInt32Array()
@@ -233,6 +237,10 @@ func _build() -> void:
 
 	var left := VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_child(UIFactory.make_section_header("Residents’ concerns"))
+	_complaints_box = VBoxContainer.new()
+	_complaints_box.add_theme_constant_override("separation", 2)
+	left.add_child(_complaints_box)
 	left.add_child(UIFactory.make_section_header("Age cohorts"))
 	_chart = CohortChart.new()
 	left.add_child(_chart)
@@ -241,18 +249,7 @@ func _build() -> void:
 	key.add_child(_swatch(UITheme.TITLE_BAR, "Education"))
 	key.add_child(_swatch(UITheme.ACCENT_BRASS, "Health"))
 	left.add_child(key)
-	left.add_child(UIFactory.make_section_header("Complaints"))
-	_complaints_box = VBoxContainer.new()
-	_complaints_box.add_theme_constant_override("separation", 2)
-	left.add_child(_complaints_box)
-	left.add_child(UIFactory.make_section_header("Tourism"))
-	_arcology_box = VBoxContainer.new()
-	_arcology_box.add_theme_constant_override("separation", 2)
-	left.add_child(_arcology_box)
-	columns.add_child(left)
-
-	var right := VBoxContainer.new()
-	right.add_child(UIFactory.make_section_header("By age"))
+	var ages := _details(left, "Age breakdown", "AgeDetails")
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", UITheme.MARGIN_COMPACT)
@@ -269,8 +266,26 @@ func _build() -> void:
 		grid.add_child(education_label)
 		grid.add_child(health_label)
 		_cohort_rows.append([people_label, education_label, health_label])
-	right.add_child(grid)
-	columns.add_child(right)
+	ages.add_child(grid)
+	_arcology_box = _details(left, "Resort occupancy", "ResortDetails")
+	_resort_details = left.get_node("ResortDetails") as Button
+	columns.add_child(left)
+
+
+static func _details(parent: VBoxContainer, title: String, node_name: String) -> VBoxContainer:
+	var button := UIFactory.make_button(title + " ▸", "Show " + title.to_lower())
+	button.name = node_name
+	button.toggle_mode = true
+	parent.add_child(button)
+	var body := VBoxContainer.new()
+	body.name = node_name + "Body"
+	body.add_theme_constant_override("separation", 2)
+	body.hide()
+	parent.add_child(body)
+	button.toggled.connect(func(on: bool) -> void:
+		body.visible = on
+		button.text = title + (" ▾" if on else " ▸"))
+	return body
 
 
 static func _number_label() -> Label:
@@ -302,7 +317,7 @@ func _refresh_complaints(population: SimSystem) -> void:
 	if population != null:
 		ranking = population.call("complaints")
 	if ranking.is_empty():
-		_complaints_box.add_child(UIFactory.make_label("No vote held yet. Residents vote each %s." % GameClock.MONTH_NAMES[PopulationSystem.VOTE_MONTH - 1], UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
+		_complaints_box.add_child(UIFactory.make_label("First residents’ poll: %s" % GameClock.MONTH_NAMES[PopulationSystem.VOTE_MONTH - 1], UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
 		return
 	for i in ranking.size():
 		var row: Dictionary = ranking[i]
@@ -315,21 +330,25 @@ func _refresh_arcologies(has_city: bool) -> void:
 	_clear(_arcology_box)
 	var tourism := _sim.tourism() if has_city else null
 	var report: Array = tourism.report() if tourism != null else []
+	var has_visitors := has_city and (_sim.stats.tourist_guests > 0 or _sim.stats.tourist_day_visitors > 0)
+	var available := not report.is_empty() or has_visitors
+	if not available and _resort_details.has_focus():
+		(find_child("AgeDetails", true, false) as Button).grab_focus()
+	_resort_details.visible = available
+	_arcology_box.visible = available and _resort_details.button_pressed
 	if tourism != null:
 		var st := _sim.stats
-		var summary := UIFactory.make_label("%s tourists: %s overnight guests and %s day visitors. Lodging occupancy %d%% of %s operating beds. Visitors are separate from permanent resident cohorts." % [UIFactory.commafy(st.tourists), UIFactory.commafy(st.tourist_guests), UIFactory.commafy(st.tourist_day_visitors), st.tourist_occupancy, UIFactory.commafy(st.tourist_capacity)], UITheme.FONT_SMALL)
+		var summary := UIFactory.make_label("%s guests · %s day visitors · %d%% occupancy" % [UIFactory.commafy(st.tourist_guests), UIFactory.commafy(st.tourist_day_visitors), st.tourist_occupancy], UITheme.FONT_SMALL)
 		summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_arcology_box.add_child(summary)
 	if report.is_empty():
 		_arcology_box.add_child(UIFactory.make_label("None built", UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
 		return
 	for rec: Dictionary in report:
-		var anchor: Vector2i = rec.anchor
-		var line := "%s at %d,%d: %s guests / %s beds (%d%%); %s day visitors / %s. %s" % [
-			_resort_name(StringName(rec.key)), anchor.x, anchor.y,
-			UIFactory.commafy(int(rec.guests)), UIFactory.commafy(int(rec.capacity)), int(rec.occupancy),
-			UIFactory.commafy(int(rec.day_visitors)), UIFactory.commafy(int(rec.day_capacity)),
-			"Operating" if rec.operating else String(rec.reason)]
+		var line := "%s: %s / %s guests · %s day visitors" % [
+			_resort_name(StringName(rec.key)), UIFactory.commafy(int(rec.guests)),
+			UIFactory.commafy(int(rec.capacity)), UIFactory.commafy(int(rec.day_visitors))]
+		if not rec.operating: line += " · " + String(rec.reason)
 		var label := UIFactory.make_label(line, UITheme.FONT_SMALL)
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_arcology_box.add_child(label)

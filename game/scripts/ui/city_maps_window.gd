@@ -13,7 +13,7 @@ signal overlay_selected(kind: StringName)
 const OVERLAY_LABELS := {
 	&"": "None", &"zones": "Zones", &"power": "Power", &"water": "Water", &"crime": "Crime",
 	&"pollution": "Pollution", &"land_value": "Land Value", &"traffic": "Traffic",
-	&"police": "Police Coverage", &"fire": "Fire Coverage", &"density": "Density", &"growth": "Growth",
+	&"police": "Police", &"fire": "Fire", &"density": "Density", &"growth": "Growth",
 }
 
 var _sim: Simulation
@@ -97,7 +97,7 @@ func refresh() -> void:
 	if not _built:
 		return
 	if _sim != null and _sim.city != null:
-		_status_label.text = "%s, %s" % [_sim.city.name, _sim.date_text()]
+		_status_label.text = _sim.date_text()
 	else:
 		_status_label.text = "No city loaded"
 	if _presentation != null and _presentation.get_overlay() != _selected:
@@ -152,6 +152,9 @@ func _build() -> void:
 	for kind in kinds:
 		var button := UIFactory.make_button(String(OVERLAY_LABELS.get(kind, String(kind).capitalize())))
 		button.custom_minimum_size.x = 120
+		if kind in [&"police", &"fire"]:
+			button.tooltip_text = String(OVERLAY_LABELS[kind]) + " coverage"
+			button.accessibility_name = button.tooltip_text
 		button.pressed.connect(select_overlay.bind(kind))
 		grid.add_child(button)
 		_buttons[kind] = button

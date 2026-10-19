@@ -266,7 +266,6 @@ func _refresh_advice() -> void:
 		advice = paper.call("advice")
 	if advice.is_empty():
 		_advice_box.add_child(UIFactory.make_label("Nothing pressing", UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
-		_advice_box.add_child(UIFactory.make_label("The advisors have no concerns today.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED))
 		return
 	for entry in advice:
 		var rec: Dictionary = entry
