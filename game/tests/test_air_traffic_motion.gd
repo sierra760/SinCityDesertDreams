@@ -221,3 +221,35 @@ func test_helicopter_lifts_off_and_sets_down() -> void:
 	for height: float in stats.helicopter_vanish_heights:
 		_at_most(height, ON_GROUND, "the helicopter sets down before leaving")
 	check_gt((stats.helicopter_vanish_heights as Array).size(), 0, "the helicopter left once its airport closed")
+
+
+func test_saved_circling_plane_returns_and_touches_down() -> void:
+	var c := flat_city()
+	for x: int in range(60, 65):
+		c.stamp_building(x, 60, Buildings.RUNWAY, Zones.AIRPORT)
+	var ctx := make_context(c, 11)
+	_contexts.append(ctx)
+	var ports: PortSystem = PortSystem.new()
+	ports.setup(ctx)
+	ctx.systems[ports.key] = ports
+	# This saved position used to repeat every eight days without landing.
+	ports.load({"vehicles": [{"kind": "plane", "x": 64, "y": 60, "heading": 0, "frame": 20,
+		"altitude": 8, "phase": "return", "days": 0, "target": [60, 60], "port": [60, 60]}]})
+	var traffic := CityTraffic3D.new()
+	traffic.bind_city(c)
+	traffic.day_seconds = 0.32
+	var landed := false
+	for day: int in 30:
+		ports.daily(ctx)
+		var records := _records(ports)
+		for frame: int in 20:
+			traffic.advance(0.016, false, records, null, true)
+			for record: Dictionary in traffic._external:
+				if record.kind != &"plane": continue
+				var p: Vector3 = record.presentation_position
+				if p.y - CityGeometry3D.surface_height(c, Vector2i(p.x, p.z)) <= ON_GROUND:
+					landed = true
+					check(_is_runway(c, p), "saved returning plane touches down on the runway")
+	check(landed, "saved circling plane completes its return and rendered landing")
+	check_eq(traffic._external.size(), 0, "completed flight leaves after rollout")
+	traffic.free()

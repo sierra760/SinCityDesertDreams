@@ -167,6 +167,34 @@ func test_airport_zone_develops_runways_and_spawns_a_plane() -> void:
 			check_eq(c.zone_kind_at(x, y), Zones.AIRPORT, "development keeps the zone")
 
 
+func test_returning_plane_reaches_runway_instead_of_repeating_an_eight_day_orbit() -> void:
+	var ctx := _context(flat_city())
+	var ports := _make_ports(ctx)
+	# Four tiles east, facing north: turning only once before each day's
+	# three steps repeats this exact position/heading every eight days.
+	var v := {"kind": &"plane", "x": 64, "y": 60, "heading": 0, "frame": 20,
+		"altitude": 8, "phase": &"return", "days": 0, "target": Vector2i(60, 60)}
+	for day: int in 16:
+		if v.phase == &"land": break
+		check(ports._move_plane(ctx, v), "returning plane remains alive until landing")
+	check_eq(v.phase, &"land", "return completes instead of orbiting the airport")
+	check(maxi(absi(int(v.x) - 60), absi(int(v.y) - 60)) <= 1, "reaches the runway")
+
+
+func test_returning_planes_converge_from_every_heading_and_side() -> void:
+	var ctx := _context(flat_city())
+	var ports := _make_ports(ctx)
+	for offset: Vector2i in [Vector2i(4, 0), Vector2i(-4, 0), Vector2i(0, 4), Vector2i(0, -4),
+		Vector2i(3, 3), Vector2i(-3, 3), Vector2i(3, -3), Vector2i(-3, -3)]:
+		for heading: int in 8:
+			var v := {"kind": &"plane", "x": 60 + offset.x, "y": 60 + offset.y, "heading": heading,
+				"frame": 20, "altitude": 8, "phase": &"return", "days": 0, "target": Vector2i(60, 60)}
+			for day: int in 16:
+				if v.phase == &"land": break
+				ports._move_plane(ctx, v)
+			check_eq(v.phase, &"land", "return from %s heading %d reaches the runway" % [offset, heading])
+
+
 func check_le_planes(vehicles: Array[Dictionary]) -> void:
 	check(_count_kind(vehicles, &"plane") <= PortParams.MAX_PLANES, "plane count is capped")
 	check(_count_kind(vehicles, &"helicopter") <= 1, "one helicopter at most")

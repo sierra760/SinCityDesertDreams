@@ -903,11 +903,13 @@ func _move_plane(ctx: SimContext, v: Dictionary) -> bool:
 				v.phase = PHASE_RETURN
 		PHASE_RETURN:
 			var target: Vector2i = v.target
-			v.heading = _turn_toward(int(v.heading), _heading_toward(Vector2i(int(v.x), int(v.y)), target))
-			_avoid_obstacles(city, v)
 			for _i in PortParams.PLANE_SPEED:
 				if _distance(v, target) <= 1:
 					break
+				# Steer each tile: a single 45-degree turn followed by three
+				# straight steps can orbit a nearby runway forever.
+				v.heading = _turn_toward(int(v.heading), _heading_toward(Vector2i(int(v.x), int(v.y)), target))
+				_avoid_obstacles(city, v)
 				_step_or_turn_back(v)
 			if _distance(v, target) <= 1:
 				v.phase = PHASE_LAND

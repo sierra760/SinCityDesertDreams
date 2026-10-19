@@ -141,7 +141,9 @@ Events:
    `1 / PLANE_TURN_DENOMINATOR` per day and turning away from any arcology
    within `AIR_LOOKAHEAD` tiles ahead, then flies back toward the nearest
    operating airport's runway, descends and disappears on arrival. A plane
-   that reaches the map edge turns back toward the city center; one that
+   returning to the runway adjusts its heading by at most one step before
+   each tile of movement, so it can close in without orbiting its target.
+   A plane that reaches the map edge turns back toward the city center; one that
    finishes cruising with no operating airport left leaves the map, as the
    helicopter does. Planes move
    `PLANE_SPEED` tiles per day.
