@@ -49,10 +49,10 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 	var next: Dictionary={}
 	var used: Dictionary={}
 	for slot in _pool:
-		slot.visual.visible=false
 		if wanted.has(slot.id) and slot.key==_key(wanted[slot.id]):
 			next[slot.id]=slot.visual
 			used[slot.visual]=true
+		else: slot.visual.visible=false
 	for id: String in wanted:
 		if next.has(id): continue
 		var key:=_key(wanted[id])
@@ -124,6 +124,11 @@ func advance(states: Array[Dictionary], delta: float) -> void:
 		if _selected.has(state.id):
 			_sample(_selected[state.id],state)
 			_updates+=1
+## Owner ticks need membership, without enumerating the pool's debug state.
+func contains(id: String) -> bool:
+	return _selected.has(id)
+func is_empty() -> bool:
+	return _selected.is_empty()
 func clear() -> void:
 	for slot in _pool:
 		if is_instance_valid(slot.visual): slot.visual.free()

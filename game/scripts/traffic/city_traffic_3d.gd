@@ -1151,8 +1151,7 @@ func visual_states(owner_filter: int = -1) -> Array[Dictionary]:
 ## exhaustive; owner clocks/distance still advance for every live actor.
 func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_filter: int = -1) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var selected: Array = detail_manager.debug_state().ids if selected_only else []
-	if selected_only and selected.is_empty(): return result
+	if selected_only and (detail_manager == null or detail_manager.is_empty()): return result
 	if not selected_only and (not is_instance_valid(camera) or not is_visible_in_tree()): return result
 	var camera_position := camera.global_position if not selected_only else Vector3.ZERO
 	for actor: Dictionary in actors:
@@ -1160,7 +1159,7 @@ func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_
 		if owner_filter>=0 and actor.has("mod_owner")!=(owner_filter==1): continue
 		if selected_only:
 			var id := String(actor.get("mod_handle","ambient:"+str(actor.id)))
-			if not selected.has(id): continue
+			if not detail_manager.contains(id): continue
 		elif not _detail_may_be_near(actor,camera_position): continue
 		result.append(_visual_state(actor))
 	if not selected_only:

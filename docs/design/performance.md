@@ -13,6 +13,10 @@ The **High** 3D profile preserves full shadows, four-sample antialiasing and clo
 - Compatible static model leaves are compiled once into shared runtime meshes. Opaque geometry gets a shared shadow-only proxy. Materials, physical structures, editable assets and querying are unaffected. Content with custom shaders, animation or transparency is rendered normally instead.
 - Distant procedural palm crowns use lower-detail mesh indices. Near geometry keeps full detail. Spatial mesh batches preserve useful culling and can update affected regions.
 - Traffic meshes and upload buffers are reused. Power-warning updates skip work when their input bytes have not changed.
+- Explore keeps retained detailed actors visible while sampling their current
+  poses, avoiding recursive hide/show work on every frame. Owner animation ticks
+  check selected IDs directly without building debug snapshots or searching a
+  selection array; detail distances, models and motion clocks stay the same.
 - The minimap retains its overlay drawing commands while camera projection,
   map layout and Explore marker are unchanged, and skips hidden overlay work.
   Port updates reuse completed zone membership for the same city and detached
