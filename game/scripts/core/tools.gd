@@ -118,7 +118,7 @@ const _TABLE := {
 	Kind.REWARD_CITY_HALL: ["City Hall", 0, Buildings.CITY_HALL, -1, Vector2i(3, 3), &"reward_city_hall", Mode.POINT, Group.REWARD],
 	Kind.REWARD_MONUMENT: ["Monument", 0, Buildings.MONUMENT, -1, Vector2i.ONE, &"reward_monument", Mode.POINT, Group.REWARD],
 	Kind.REWARD_MILITARY_BASE: ["Military Base", 0, NO_BUILDING, Zones.MILITARY, Vector2i.ONE, &"reward_military_base", Mode.RECT, Group.REWARD],
-	Kind.REWARD_NEON_DOME: ["Neon Dome", 0, Buildings.NEON_DOME, -1, Vector2i(4, 4), &"reward_neon_dome", Mode.POINT, Group.REWARD],
+	Kind.REWARD_NEON_DOME: ["Silver State Spheroid", 0, Buildings.NEON_DOME, -1, Vector2i(4, 4), &"reward_neon_dome", Mode.POINT, Group.REWARD],
 	Kind.DISPATCH_FIRE: ["Dispatch Firefighters", 0, NO_BUILDING, -1, Vector2i.ONE, &"dispatch_fire", Mode.POINT, Group.EMERGENCY],
 	Kind.DISPATCH_POLICE: ["Dispatch Police", 0, NO_BUILDING, -1, Vector2i.ONE, &"dispatch_police", Mode.POINT, Group.EMERGENCY],
 	Kind.DISPATCH_MILITARY: ["Dispatch Military", 0, NO_BUILDING, -1, Vector2i.ONE, &"dispatch_military", Mode.POINT, Group.EMERGENCY],

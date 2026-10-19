@@ -230,7 +230,7 @@ cache-miss, per-venue operation and activity-record assertions.
 `TourismDistricts` derives complete canonical footprints from building/zone
 layers, including imported corner rotations and missing facility metadata.
 Pocket/City Parks are outdoors; Museum/Monument culture; Zoo/Marina recreation;
-Stadium/Neon Dome entertainment. Libraries retain their civic role. Every
+Stadium/Silver State Spheroid entertainment. Libraries retain their civic role. Every
 attraction needs nearby road/station access and no fire anywhere on its lot.
 Parks and monuments need dry usable ground; staffed attractions need power and
 water throughout their footprint. Marina additionally needs adjacent open water.

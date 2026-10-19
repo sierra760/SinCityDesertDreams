@@ -402,7 +402,7 @@ const _ROSTER := [
 	[&"arcology_junction", "Silver Junction", 4, 4, Category.ARCOLOGY, 120000],
 	[&"arcology_boulder", "Boulder Crown", 4, 4, Category.ARCOLOGY, 150000],
 	[&"arcology_orbit", "Desert Orbit", 4, 4, Category.ARCOLOGY, 200000],
-	[&"neon_dome", "Neon Dome", 4, 4, Category.REWARD, 0],
+	[&"neon_dome", "Silver State Spheroid", 4, 4, Category.REWARD, 0],
 	[&"arcology_fix", "The Fix", 4, 4, Category.ARCOLOGY, 320000],
 	[&"arcology_alibi", "Six-Week Alibi", 4, 4, Category.ARCOLOGY, 140000],
 	[&"arcology_velvet", "Velvet Wardrobe", 4, 4, Category.ARCOLOGY, 220000],

@@ -67,15 +67,15 @@ const REWARDS: Dictionary = {
 	},
 	&"monument": {
 		"title": "A Monument Is Offered",
-		"body": "Thirty thousand residents strong, {city} has earned a monument to its founders. The sculptor is ready; only the site remains to be chosen.",
+		"body": "Fifteen thousand residents strong, {city} has earned a monument to its founders. The sculptor is ready; only the site remains to be chosen.",
 	},
 	&"military_base": {
 		"title": "A Base for {city}",
 		"body": "The armed forces have taken notice of {city} and propose {phrase} base on the outskirts. It brings jobs and protection, and a little noise. The council leaves the decision to you.",
 	},
 	&"neon_dome": {
-		"title": "The Neon Dome",
-		"body": "At one hundred and twenty thousand residents, {city} is the talk of the desert. An anonymous benefactor offers the Neon Dome, a landmark to be seen from the highway for miles.",
+		"title": "The Silver State Spheroid",
+		"body": "At forty thousand residents, {city} is the talk of the desert. An anonymous benefactor offers the Silver State Spheroid, a landmark to be seen from the highway for miles.",
 	},
 }
 

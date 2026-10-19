@@ -11,6 +11,22 @@ one milestone the nation proposes a military base. The same system owns the
 resort unlocks and the endgame in which a fleet of Desert Orbit resorts
 leaves the city. TourismSystem owns all guest/day attendance.
 
+## Resident milestones
+
+| Reward | Permanent residents |
+|---|---:|
+| Mayor's Residence | 2,000 |
+| City Hall | 10,000 |
+| Monument | 15,000 |
+| Military base proposal | 25,000 |
+| Silver State Spheroid | 40,000 |
+
+These targets suit ordinary housing growth; temporary tourists never count.
+Existing cities earn newly reachable rewards in order, one per monthly check.
+Already earned rewards and answered military proposals remain earned after a
+reload or a population decline. The Silver State Spheroid retains the internal
+`neon_dome` key and building ID 255 for existing saves and imported cities.
+
 ## Inputs
 
 - `stats.population` – ordinary residents (arcology residents excluded). This

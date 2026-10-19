@@ -142,7 +142,7 @@ func test_main_legacy_native_load_repairs_missing_reward_history() -> void:
 func test_main_import_keeps_missing_gift_buildable_at_its_milestone() -> void:
 	_write_classic(2, false)
 	check(host.import_city(CLASSIC))
-	host.sim.stats.population = 30000
+	host.sim.stats.population = 15000
 	var rewards := host.sim.get_system(&"rewards") as RewardSystem
 	host.sim.events.clear()
 	rewards.monthly(host.sim._ctx)

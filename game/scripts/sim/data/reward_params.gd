@@ -13,9 +13,9 @@ extends RefCounted
 const MILESTONES: Array[Dictionary] = [
 	{"key": &"mayors_residence", "population": 2000},
 	{"key": &"city_hall", "population": 10000},
-	{"key": &"monument", "population": 30000},
-	{"key": &"military_base", "population": 60000},
-	{"key": &"neon_dome", "population": 120000},
+	{"key": &"monument", "population": 15000},
+	{"key": &"military_base", "population": 25000},
+	{"key": &"neon_dome", "population": 40000},
 ]
 
 ## The milestone that proposes a base instead of a gift.

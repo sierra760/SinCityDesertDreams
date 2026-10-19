@@ -121,7 +121,7 @@ const CAPTIONS := {
 	Tools.Kind.REWARD_CITY_HALL: "City hall",
 	Tools.Kind.REWARD_MONUMENT: "Monument",
 	Tools.Kind.REWARD_MILITARY_BASE: "Military\nbase",
-	Tools.Kind.REWARD_NEON_DOME: "Neon\ndome",
+	Tools.Kind.REWARD_NEON_DOME: "Silver State\nspheroid",
 	Tools.Kind.DISPATCH_FIRE: "Send\nfire crews",
 	Tools.Kind.DISPATCH_POLICE: "Send\npolice",
 	Tools.Kind.DISPATCH_MILITARY: "Send\nmilitary",

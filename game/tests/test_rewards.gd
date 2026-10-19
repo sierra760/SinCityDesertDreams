@@ -113,6 +113,64 @@ func _populate(ctx: SimContext, residents: int) -> void:
 
 # ── Milestones and gifts ─────────────────────────────────────────────────
 
+## Each threshold is tested through the actual offer/news path, with the prior
+## progress restored as an existing save would be. Visitors cannot earn gifts.
+func test_resident_targets_unlock_at_the_boundary_even_after_restore() -> void:
+	var milestones := [[&"mayors_residence", 2000], [&"city_hall", 10000],
+		[&"monument", 15000], [&"military_base", 25000], [&"neon_dome", 40000]]
+	for index in milestones.size():
+		var gift_key: StringName = milestones[index][0]
+		var target: int = milestones[index][1]
+		var ctx := _context(flat_city())
+		for prior in index:
+			ctx.stats.rewards_offered[milestones[prior][0]] = true
+		var rewards := RewardSystem.new()
+		_register(ctx, [rewards])
+		rewards.load({"milestones_passed": index})
+		ctx.stats.population = target - 1
+		ctx.stats.tourists = 100000
+		rewards.monthly(ctx)
+		check(not ctx.stats.rewards_offered.get(gift_key, false), String(gift_key) + " waits for residents")
+		check(ctx.events.notices.is_empty(), "tourists do not satisfy the milestone")
+		ctx.stats.population = target
+		rewards.monthly(ctx)
+		check(ctx.stats.rewards_offered.get(gift_key, false), String(gift_key) + " unlocks at the target")
+		check_eq(ctx.events.notices.size(), 1, "one reward notice at the boundary")
+		if not ctx.events.notices.is_empty():
+			check_eq(ctx.events.notices[0].payload.key, gift_key)
+		check_eq(ctx.events.news.size(), 1, "one milestone story")
+		if not ctx.events.news.is_empty():
+			check_eq(ctx.events.news[0].args, {"key": gift_key, "population": target})
+		ctx.events.clear()
+		ctx.stats.population = 0
+		rewards.monthly(ctx)
+		check(ctx.stats.rewards_offered.get(gift_key, false), "a later population fall keeps the reward earned")
+		check(ctx.events.notices.is_empty(), "an earned reward is never offered twice")
+
+
+func test_existing_city_receives_lowered_rewards_in_order_without_repeats() -> void:
+	var ctx := _context(flat_city())
+	ctx.stats.population = 40000
+	ctx.stats.rewards_offered = {&"mayors_residence": true, &"city_hall": true}
+	var rewards := RewardSystem.new()
+	_register(ctx, [rewards])
+	rewards.load({"milestones_passed": 2})
+	for gift_key: StringName in [&"monument", &"military_base", &"neon_dome"]:
+		ctx.events.clear()
+		rewards.monthly(ctx)
+		check_eq(ctx.events.notices.size(), 1, "one new reward per month")
+		if not ctx.events.notices.is_empty():
+			check_eq(ctx.events.notices[0].payload.key, gift_key)
+	var saved := rewards.save()
+	var restored := RewardSystem.new()
+	_register(ctx, [restored])
+	restored.load(saved)
+	ctx.events.clear()
+	restored.monthly(ctx)
+	check(ctx.events.notices.is_empty(), "restoring earned progress does not repeat any offer")
+	check_eq(restored.available(), [&"mayors_residence", &"city_hall", &"monument", &"neon_dome"])
+
+
 func test_milestones_offer_rewards_once() -> void:
 	var c := flat_city()
 	var ctx := _context(c)
@@ -140,13 +198,13 @@ func test_milestones_pass_in_order_one_per_month() -> void:
 	var ctx := _context(c)
 	var rewards := RewardSystem.new()
 	_register(ctx, [rewards])
-	ctx.stats.population = 40000
+	ctx.stats.population = 20000
 	_run_days(ctx, [rewards], GameClock.DAYS_PER_MONTH)
 	check_eq(rewards.available(), [&"mayors_residence"], "first month offers only the first prize")
 	_run_days(ctx, [rewards], 2 * GameClock.DAYS_PER_MONTH)
 	check_eq(rewards.available(), [&"mayors_residence", &"city_hall", &"monument"])
 	_run_days(ctx, [rewards], 2 * GameClock.DAYS_PER_MONTH)
-	check_eq(_offers(&"military_base"), 0, "60,000 not reached")
+	check_eq(_offers(&"military_base"), 0, "25,000 not reached")
 	check_eq(_offers(&"monument"), 1)
 
 

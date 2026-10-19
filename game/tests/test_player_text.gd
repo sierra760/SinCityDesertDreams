@@ -292,7 +292,7 @@ func test_locked_rewards_say_how_they_are_earned() -> void:
 	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MAYORS_RESIDENCE, "not yet offered to the city"),
 		"offered when the city reaches 2,000 people")
 	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_NEON_DOME, "not yet offered to the city"),
-		"offered when the city reaches 120,000 people")
+		"offered when the city reaches 40,000 people")
 	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_CITY_HALL, "already built"), "already built", "other reasons pass through")
 	check_eq(Toolbar.reward_lock_reason(Tools.Kind.ROAD, ""), "")
 	var tip := Toolbar.tooltip_for(Tools.Kind.SUBWAY, "not available until 1910")
@@ -307,4 +307,4 @@ class DeclinedBase extends SimSystem:
 func test_a_declined_base_says_the_council_turned_it_down() -> void:
 	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city", DeclinedBase.new()),
 		"the council turned down the base")
-	check(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city").contains("60,000"))
+	check(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city").contains("25,000"))
