@@ -56,7 +56,7 @@ func _init(host: GameHost, service: CloudSaveCoordinator, library: CloudSaveStor
 	coordinator.before_remote_update = _before_remote_update
 
 func begin_session(source_path: String = "", requested_slot: String = "", replaced_existing: bool = true) -> void:
-	end_session()
+	if end_session() != OK: return
 	if not _host.in_game or _host.sim.city == null: return
 	var local_destination := ""
 	if CityFileFlow.is_tracked_application_recovery_path(source_path):
@@ -413,6 +413,10 @@ func restore_selected_manual(id: String, verified_owner: String, epoch: int) -> 
 ## cancellable: the leave may still be cancelled (Load/New/Import dialogs); if
 ## the same city is then still open, tick() continues its session.
 func discard(cancellable: bool = false) -> Error:
+	if _inert_discard_pending and not cancellable:
+		var error := _stage_discard(false)
+		if error == OK: _inert_discard_pending = false
+		return error
 	if not _cloud_active():
 		# Nothing new is captured, but work this session already staged must
 		# still be dropped. A cancellable leave stages only when it commits.
@@ -469,11 +473,14 @@ func _undo_discard() -> void:
 	_last_content = {}
 	capture(&"undo")
 
-func end_session() -> void:
+func end_session() -> Error:
 	if _inert_discard_pending:
 		# The leave chosen with Don't Save while sync was off has committed.
+		# Keep both the live session and its intent if the journal cannot commit.
+		if _current():
+			var error := _stage_discard(false)
+			if error != OK: return error
 		_inert_discard_pending = false
-		if _current(): _stage_discard(false)
 	# A failure belonged to the city being closed; never carry it to the title.
 	if not _capture_error_slot.is_empty():
 		coordinator.report_capture(_capture_error_owner, _capture_error_slot, OK)
@@ -499,6 +506,7 @@ func end_session() -> void:
 	_discarded = false
 	_pending_recovery = {}
 	_recovery_fallback_error = OK
+	return OK
 
 func shutdown() -> void:
 	end_session()

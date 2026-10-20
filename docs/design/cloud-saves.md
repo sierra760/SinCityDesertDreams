@@ -64,6 +64,12 @@ and checkpoints resume. Saving As onto a name another city has reserved moves
 that reservation to a free name instead of taking the other city's slot.
 Unresolved branches remain available and cloud slots have no automatic expiry.
 
+For an existing cloud session with synchronization off, a cancellable Don't Save
+stays local to the session until another city replaces it. That choice must reach
+the journal before New, Load, Import or Close City can release the current city.
+A journal failure keeps the city and its save destination open, reports the failure and permits
+retry. Cancelling the leave keeps the edited checkpoint without journal work.
+
 Application suspension stores local recovery bytes with a journal-owned receipt
 binding the exact path and hash to its captured owner, conditional generation
 and manual baseline. Recovery continues that identity only with pending-commit

@@ -379,8 +379,8 @@ func import_city(path: String) -> bool:
 
 
 ## Bind an already loaded or generated city and enter play (see `CitySession.begin_city`).
-func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CityStats, topology: StreetTopology = null) -> void:
-	session.begin_city(city, snapshot, seed_value, stats, topology)
+func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CityStats, topology: StreetTopology = null) -> bool:
+	return session.begin_city(city, snapshot, seed_value, stats, topology)
 
 
 func save_city() -> Error:

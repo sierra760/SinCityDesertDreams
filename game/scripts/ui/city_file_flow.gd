@@ -378,6 +378,7 @@ func _city_action_blocked() -> bool:
 
 
 func _quit_now() -> void:
+	if not finish_cloud_session(): return
 	_host.force_close_casino()
 	_host.street_names.leave()
 	_host.sim.set_process(false)
@@ -389,6 +390,14 @@ func _quit_now() -> void:
 		# Finish the dialog's closed signal before freeing its host. A fresh Main
 		# releases the city, simulation, queued notices and Explore resources.
 		get_tree().change_scene_to_file.call_deferred("res://scenes/main.tscn")
+
+
+## Settle a pending Don't Save before replacing or closing the live city.
+## Failure retains that city, its save destination and the retryable choice.
+func finish_cloud_session() -> bool:
+	if _host.cloud_saves == null or _host.cloud_saves.end_session() == OK: return true
+	_host.notices.show("Cannot Discard Yet", "Your local save choice could not be recorded. Check free space and try again.")
+	return false
 
 
 ## What a save would write, for comparing with the last save when leaving;

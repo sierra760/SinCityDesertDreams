@@ -47,7 +47,7 @@ func start_new_city(params: Dictionary, prebuilt: City = null) -> City:
 		var imported_settings := params.duplicate(true)
 		imported_settings["seed"] = imported.tree_seed
 		imported_settings["name"] = prebuilt.name
-		begin_editing(prebuilt, imported_settings)
+		if not begin_editing(prebuilt, imported_settings): return null
 		_host.save_path = ""
 		_host.files.mark_generated()
 		if _host.cloud_saves != null: _host.cloud_saves.begin_session()
@@ -60,7 +60,7 @@ func start_new_city(params: Dictionary, prebuilt: City = null) -> City:
 	var settings := params.duplicate()
 	settings["seed"] = seed_value
 	settings["name"] = city.name
-	begin_editing(city, settings)
+	if not begin_editing(city, settings): return null
 	_host.save_path = ""
 	_host.files.mark_generated()
 	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
@@ -68,7 +68,7 @@ func start_new_city(params: Dictionary, prebuilt: City = null) -> City:
 
 
 ## Show a map in the editing stage: terrain tools only, free, clock stopped.
-func begin_editing(city: City, settings: Dictionary) -> void:
+func begin_editing(city: City, settings: Dictionary) -> bool:
 	if settings.get("source") == "real_world":
 		settings = settings.duplicate(true)
 		var imported := restore_imported_terrain(settings, city)
@@ -78,7 +78,7 @@ func begin_editing(city: City, settings: Dictionary) -> void:
 		city.terrain_origin = RealWorldManifest.sanitize_origin(settings.get("terrain_origin"))
 		settings["terrain_origin"] = city.terrain_origin.duplicate(true)
 	var had_surface := city.terrain_surface != null
-	begin_city(city, {}, _simulation_seed(settings), null)
+	if not begin_city(city, {}, _simulation_seed(settings), null): return false
 	var host := _host
 	host.stage = GameHost.Stage.EDITING
 	host.refresh_street_menus()
@@ -97,6 +97,7 @@ func begin_editing(city: City, settings: Dictionary) -> void:
 	host.select_tool(GameHost.NO_TOOL)
 	host.status_bar.show_editing(city.name)
 	host.status_bar.set_message(editing_message(city.name))
+	return true
 
 
 ## Found the city on the shaped land: fix the founding year and difficulty
@@ -123,7 +124,7 @@ func found_city() -> bool:
 	if not options.is_empty():
 		stats.disasters_enabled = bool(options["disasters_enabled"])
 		stats.auto_budget = bool(options["auto_budget"])
-	begin_city(city, {}, _simulation_seed(settings), stats)
+	if not begin_city(city, {}, _simulation_seed(settings), stats): return false
 	sim.set_speed(speed)
 	_host.speed_before_modal = sim.speed
 	_host.show_message("Welcome to %s, founded %d." % [city.name, city.founded_year])
@@ -158,7 +159,7 @@ func regenerate(seed_value: int = -1) -> City:
 		settings["difficulty"] = city.difficulty
 		settings["founded_year"] = city.founded_year
 		settings["terrain_origin"] = city.terrain_origin.duplicate(true)
-		begin_editing(city, settings)
+		if not begin_editing(city, settings): return null
 		_restore_city_options(options)
 		_host.files.mark_generated()
 		if _host.cloud_saves != null: _host.cloud_saves.begin_session()
@@ -172,7 +173,7 @@ func regenerate(seed_value: int = -1) -> City:
 	city.mayor = current.mayor
 	# Vegetation zones the player chose stay with the city on new land.
 	city.vegetation = current.vegetation.duplicate(true)
-	begin_editing(city, settings)
+	if not begin_editing(city, settings): return null
 	_restore_city_options(options)
 	_host.files.mark_generated()
 	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
@@ -236,7 +237,7 @@ func load_city(path: String, personal: bool = true) -> bool:
 	if String(result["stage"]) == SaveFormat.STAGE_EDITING:
 		var settings: Dictionary = result["generator"]
 		settings["name"] = city.name
-		begin_editing(city, settings)
+		if not begin_editing(city, settings): return false
 		_restore_mod_progress(result)
 		_host.save_path = manual_path
 		_host.files.mark_saved()
@@ -245,7 +246,7 @@ func load_city(path: String, personal: bool = true) -> bool:
 		_host.show_message("Loaded the unfounded map %s." % city.name)
 		return true
 	var snapshot: Dictionary = result["snapshot"]
-	begin_city(city, snapshot, -1, null, topology)
+	if not begin_city(city, snapshot, -1, null, topology): return false
 	_restore_mod_progress(result)
 	var sim := _host.sim
 	_host.save_path = manual_path
@@ -304,7 +305,7 @@ func import_city(path: String) -> bool:
 	stats.tax_residential = int(taxes.get("residential", stats.tax_residential))
 	stats.tax_commercial = int(taxes.get("commercial", stats.tax_commercial))
 	stats.tax_industrial = int(taxes.get("industrial", stats.tax_industrial))
-	begin_city(city, {}, -1, stats)
+	if not begin_city(city, {}, -1, stats): return false
 	_host.save_path = ""
 	_host.sim.set_speed(GameClock.Speed.PAUSED)
 	_host.speed_before_modal = GameClock.Speed.SLOW
@@ -318,10 +319,10 @@ func import_city(path: String) -> bool:
 ## Bind `city` to the simulation (restoring `snapshot` when given), the
 ## builder, street names, the views and the shell, and enter play. Anything
 ## still open from the previous city is closed first.
-func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CityStats, topology: StreetTopology = null) -> void:
+func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CityStats, topology: StreetTopology = null) -> bool:
 	var host := _host
 	var sim := host.sim
-	if host.cloud_saves != null and sim.city != city: host.cloud_saves.end_session()
+	if sim.city != city and not host.files.finish_cloud_session(): return false
 	host.street_names.leave()
 	host.files.reset()
 	host.message_seconds_left = 0.0
@@ -371,6 +372,7 @@ func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CitySt
 	host.menu_bar.set_checked(&"auto_budget", sim.stats.auto_budget)
 	host.menu_bar.set_checked(&"underground", host.presentation.is_underground())
 	view.set_active(true)
+	return true
 
 
 ## A negative seed asks the simulation for a random one, so an imported
