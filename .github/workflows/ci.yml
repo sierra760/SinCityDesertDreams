@@ -165,6 +165,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+      # Godot 4.7's iOS template links against the iOS 26 SDK, newer than the
+      # runner's default Xcode; use the newest Xcode 26 installed.
+      - name: Select Xcode 26
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -n 1)
+          test -d "$xcode" || { echo "::error::no Xcode 26 on this runner"; exit 1; }
+          echo "DEVELOPER_DIR=$xcode/Contents/Developer" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
