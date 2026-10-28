@@ -50,45 +50,8 @@ jobs:
       - name: Tool tests
         run: python -m pytest -q tools/tests
 
-  # Imports the project once per platform and caches game/.godot for the jobs
-  # below. Later runs restore the newest earlier cache and import only changes.
-  import:
-    name: Import (${{ matrix.platform.name }})
-    runs-on: ${{ matrix.platform.runner }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - { name: Windows, runner: windows-2025 }
-          - { name: macOS, runner: macos-15 }
-    steps:
-      # Keep checked-out files byte-identical to the repository on Windows.
-      - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - uses: ./.github/actions/setup-godot
-        with:
-          version: ${{ env.GODOT_VERSION }}
-      - id: cache
-        uses: actions/cache/restore@v4
-        with:
-          path: game/.godot
-          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
-          restore-keys: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-
-      - if: steps.cache.outputs.cache-hit != 'true'
-        run: '"$GODOT" --headless --audio-driver Dummy --path game --import'
-      - if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: game/.godot
-          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
-
   test:
     name: Tests (${{ matrix.platform.name }} ${{ matrix.shard }}/4)
-    needs: import
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 180
     strategy:
@@ -108,17 +71,14 @@ jobs:
       - uses: ./.github/actions/setup-godot
         with:
           version: ${{ env.GODOT_VERSION }}
-      - uses: actions/cache/restore@v4
-        with:
-          path: game/.godot
-          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
-          fail-on-cache-miss: true
-      # The runner is disposable, so the checkout itself serves as the
-      # isolated test project and keeps the restored import cache.
       - name: Godot test suite
         env:
-          TEST_GAME_PATH: ${{ github.workspace }}/game
           TEST_LOG_DIR: ${{ runner.temp }}/test-logs
+          # Keep the runner's private project copy on a short path for Windows.
+          TMPDIR: ${{ runner.temp }}
+          # Shared runners are slower than a development machine; real-time
+          # traversal fixtures need more than the local 600 s per file.
+          TEST_TIMEOUT: "1200"
         run: python tools/run_tests.py --shard ${{ matrix.shard }}/4
       - if: failure()
         uses: actions/upload-artifact@v4
@@ -129,7 +89,6 @@ jobs:
 
   windows:
     name: Build Windows
-    needs: import
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
@@ -142,15 +101,11 @@ jobs:
         with:
           version: ${{ env.GODOT_VERSION }}
           templates: windows_release_x86_64.exe windows_debug_x86_64.exe
-      - uses: actions/cache/restore@v4
-        with:
-          path: game/.godot
-          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
-          fail-on-cache-miss: true
       - run: python tools/ci/prepare_export_presets.py
       - name: Export
         run: |
           mkdir -p build/windows
+          "$GODOT" --headless --audio-driver Dummy --path game --import
           "$GODOT" --headless --path game --export-release "Windows x64" "$GITHUB_WORKSPACE/build/windows/SC2D.exe"
           # Without these beside the .exe the game silently falls back to GDScript.
           for file in SC2D.exe SCDDGeometry.windows.x86_64.dll SCDDExploreLua.windows.x86_64.dll; do
@@ -167,7 +122,6 @@ jobs:
 
   macos:
     name: Build macOS
-    needs: import
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -184,15 +138,11 @@ jobs:
         with:
           version: ${{ env.GODOT_VERSION }}
           templates: macos.zip
-      - uses: actions/cache/restore@v4
-        with:
-          path: game/.godot
-          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
-          fail-on-cache-miss: true
       - run: python tools/ci/prepare_export_presets.py
       - name: Export
         run: |
           mkdir -p build/macos
+          "$GODOT" --headless --audio-driver Dummy --path game --import
           "$GODOT" --headless --path game --export-release "macOS" "$GITHUB_WORKSPACE/build/macos/SC2D-macos.zip"
           ditto -x -k build/macos/SC2D-macos.zip build/macos/unpacked
           app=$(find build/macos/unpacked -maxdepth 1 -name '*.app' -print -quit)
@@ -211,7 +161,6 @@ jobs:
 
   ios:
     name: Build iOS
-    needs: import
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -223,15 +172,11 @@ jobs:
         with:
           version: ${{ env.GODOT_VERSION }}
           templates: ios.zip
-      - uses: actions/cache/restore@v4
-        with:
-          path: game/.godot
-          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
-          fail-on-cache-miss: true
       - run: python tools/ci/prepare_export_presets.py
       - name: Export Xcode project
         run: |
           mkdir -p build/ios
+          "$GODOT" --headless --audio-driver Dummy --path game --import
           "$GODOT" --headless --path game --export-release "iOS" "$GITHUB_WORKSPACE/build/ios/SC2D.xcodeproj"
           plist=$(find build/ios -maxdepth 2 -name '*-Info.plist' -print -quit)
           test -n "$plist" || { echo "::error::export contains no Info.plist"; exit 1; }
