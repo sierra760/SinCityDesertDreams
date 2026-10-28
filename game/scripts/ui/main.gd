@@ -119,6 +119,8 @@ var _active_drag_from := Vector2i(-1, -1)
 var _active_drag_to := Vector2i(-1, -1)
 var _last_click_button := MOUSE_BUTTON_LEFT
 var _query_refresh_pending := false
+## A batched day changed data grids; refresh their presentation once per batch.
+var _day_presentation_pending := false
 var _previous_auto_accept_quit := true
 var _application_suspended := false
 ## False while another application has focus (minimized or behind another window).
@@ -319,6 +321,7 @@ func _connect_simulation() -> void:
 		mini_map.generate_image()
 		_query_refresh_pending = true)
 	sim.day_advanced.connect(_on_day_advanced)
+	sim.days_batch_finished.connect(_on_days_batch_finished)
 	sim.year_ended.connect(func(_y: int) -> void: refresh_toolbar())
 	sim.funds_changed.connect(func(funds: int) -> void: status_bar.set_funds(funds))
 	sim.population_changed.connect(func(p: int) -> void: status_bar.set_population(p))
@@ -1249,6 +1252,20 @@ func release_sim_process_hold(owner: StringName) -> void:
 # ── Time ─────────────────────────────────────────────────────────────────
 
 func _on_day_advanced(_year: int, _month: int, _day: int) -> void:
+	# Several days can run in one frame; present only the last of them.
+	if sim.batching:
+		_day_presentation_pending = true
+		return
+	_present_day()
+
+
+func _on_days_batch_finished() -> void:
+	if not _day_presentation_pending: return
+	_day_presentation_pending = false
+	_present_day()
+
+
+func _present_day() -> void:
 	# Daily simulation also changes data grids and utility flags without
 	# touching geometry. Refresh their cached presentation afterwards.
 	city_view_3d.refresh_analytics()

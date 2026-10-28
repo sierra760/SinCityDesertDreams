@@ -1091,13 +1091,6 @@ static func _clip_plane(polygon: Array[Vector3], normal: Vector2, distance: floa
 
 ## Make an unindexed colored triangle mesh.
 static func mesh_from_faces(faces: PackedVector3Array, colors: PackedColorArray, grain_strength: float = 0.0, surface_kind: int = SurfaceKind.DETAIL) -> ArrayMesh:
-	var mesh := ArrayMesh.new()
-	if faces.is_empty():
-		return mesh
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = faces
-	arrays[Mesh.ARRAY_COLOR] = colors
 	var normals := PackedVector3Array()
 	normals.resize(faces.size())
 	for i: int in range(0, faces.size(), 3):
@@ -1105,6 +1098,19 @@ static func mesh_from_faces(faces: PackedVector3Array, colors: PackedColorArray,
 		normals[i] = normal
 		normals[i + 1] = normal
 		normals[i + 2] = normal
+	return mesh_from_arrays(faces, colors, normals, grain_strength, surface_kind)
+
+
+## mesh_from_faces with flat face normals the caller already computed the
+## same way, so cached pieces can be joined without recomputing them.
+static func mesh_from_arrays(faces: PackedVector3Array, colors: PackedColorArray, normals: PackedVector3Array, grain_strength: float = 0.0, surface_kind: int = SurfaceKind.DETAIL) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	if faces.is_empty():
+		return mesh
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = faces
+	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	# Identical parameters render identically: share one immutable material per

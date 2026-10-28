@@ -490,8 +490,7 @@ func _changed_regions(full: bool) -> Array[Rect2i]:
 			if state[7].size()!=_geometry_state[7].size():
 				full = true
 			else:
-				for i: int in state[7].size():
-					if state[7][i] == _geometry_state[7][i]: continue
+				for i: int in _changed_indices(_geometry_state[7], state[7], City.WIDTH):
 					if NetworkShapes.underground_mask(state[7][i],NetworkShapes.Family.SUBWAY) != NetworkShapes.underground_mask(_geometry_state[7][i],NetworkShapes.Family.SUBWAY):
 						_mark_dirty(dirty,Vector2i(i % City.WIDTH,i / City.WIDTH))
 	# Standing-water height depends on the complete patch's lowest bank.

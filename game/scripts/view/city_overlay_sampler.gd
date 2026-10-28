@@ -69,6 +69,22 @@ static func value_at(city: City, kind: StringName, tile: Vector2i) -> int:
 	return 0
 
 
+## The city bytes value_at reads for `kind`; equal bytes sample equally.
+static func source_data(city: City, kind: StringName) -> Variant:
+	match kind:
+		&"crime": return city.crime.data
+		&"pollution": return city.pollution.data
+		&"land_value": return city.land_value.data
+		&"traffic": return city.traffic.data
+		&"police": return city.police.data
+		&"fire": return city.fire_cover.data
+		&"density": return city.density.data
+		&"growth": return city.growth.data
+		&"power", &"water": return city.flags.data
+		&"zones": return city.zone.data
+	return PackedByteArray()
+
+
 static func cell_color(kind: StringName, value: int) -> Color:
 	match kind:
 		&"power":

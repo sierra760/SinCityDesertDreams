@@ -22,6 +22,9 @@ signal disaster_started(kind: StringName, center: Vector2i)
 signal disaster_ended(kind: StringName)
 signal map_changed(rect: Rect2i)
 signal speed_changed(speed: int)
+## Interactive processing admitted one or more days this frame. Listeners may
+## defer per-day presentation work to it while `batching` is true.
+signal days_batch_finished
 
 ## Which systems run their monthly job on which day of the month. A key listed
 ## more than once gets a later phase number each time.
@@ -85,6 +88,9 @@ const INTERACTIVE_BUDGET_USEC := 4000
 const MAX_DAYS_PER_FRAME := 8
 
 var budget_review_pending := false
+## True while _process admits this frame's days; direct advance_day calls are
+## never batched.
+var batching := false
 var _system_index: Dictionary = {}
 var _ctx := SimContext.new()
 var _accumulator := 0.0
@@ -112,6 +118,7 @@ func _process(delta: float) -> void:
 		_accumulator += minf(delta, 0.25)
 	var started := Time.get_ticks_usec()
 	var guard := 0
+	batching = true
 	while guard < MAX_DAYS_PER_FRAME:
 		# Signals emitted by a day can pause, change speed, or open a modal.
 		if not _ready_to_run or speed == GameClock.Speed.PAUSED or budget_review_pending:
@@ -126,6 +133,9 @@ func _process(delta: float) -> void:
 			_accumulator -= per_day
 		advance_day()
 		guard += 1
+	batching = false
+	if guard > 0:
+		days_batch_finished.emit()
 
 
 # ── Lifecycle ────────────────────────────────────────────────────────────

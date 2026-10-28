@@ -12,6 +12,17 @@ var active_layer: StringName = &""
 var mesh_instance: MeshInstance3D
 var rebuild_count := 0
 var _fingerprint := PackedByteArray()
+## Detached layer, source bytes and sampled block values of the current mesh,
+## and each tile row's triangles in the row-major order of a full build.
+var _source: Variant = null
+var _values := PackedByteArray()
+var _row_faces: Array[PackedVector3Array] = []
+var _row_colors: Array[PackedColorArray] = []
+var _row_normals: Array[PackedVector3Array] = []
+## Raised corners and diagonal of each tile (empty until drawn). They read only
+## the surface inputs, so they stay valid until those change.
+var _corners: Array = []
+var _surface := PackedByteArray()
 
 
 func _init() -> void:
@@ -25,7 +36,7 @@ func _init() -> void:
 
 func bind_city(value: City) -> void:
 	city = value
-	_fingerprint.clear()
+	_forget()
 	refresh()
 
 
@@ -39,38 +50,98 @@ func set_layer(kind: StringName) -> void:
 
 func clear() -> void:
 	city = null
+	_forget()
+
+
+func _forget() -> void:
 	_fingerprint.clear()
+	_source = null
+	_values.clear()
+	_corners.clear()
+	_surface.clear()
+	_row_faces.clear()
+	_row_colors.clear()
+	_row_normals.clear()
 	mesh_instance.mesh = null
 
 
+## Unchanged source bytes return at once; changed sample values rebuild only
+## the tile rows of their blocks. The mesh equals a full rebuild's.
 func refresh() -> void:
 	if city == null or active_layer == &"":
-		mesh_instance.mesh = null
-		_fingerprint.clear()
+		_forget()
 		return
+	var surface := var_to_bytes(surface_inputs(city))
+	if surface != _surface:
+		_surface = surface
+		_corners.clear()
+	var fingerprint := var_to_bytes([active_layer, surface])
+	var source: Variant = CityOverlaySampler.source_data(city, active_layer)
+	var full := fingerprint != _fingerprint or _row_faces.is_empty()
+	if not full and source == _source: return
 	var values := PackedByteArray()
 	var block := CityOverlaySampler.tiles_per_cell(active_layer)
 	for y in range(0, City.HEIGHT, block):
 		for x in range(0, City.WIDTH, block):
 			values.append(CityOverlaySampler.value_at(city, active_layer, Vector2i(x, y)))
-	var fingerprint := var_to_bytes([active_layer, values, surface_inputs(city)])
-	if fingerprint == _fingerprint: return
+	_source = source.duplicate()
+	if not full and values == _values: return
+	var blocks_per_row := City.WIDTH / block
+	var dirty := PackedByteArray()
+	dirty.resize(City.HEIGHT)
+	if full:
+		dirty.fill(1)
+		for list: Array in [_row_faces, _row_colors, _row_normals]: list.resize(City.HEIGHT)
+	else:
+		for by in City.HEIGHT / block:
+			var at := by * blocks_per_row
+			if values.slice(at, at + blocks_per_row) == _values.slice(at, at + blocks_per_row): continue
+			for y in range(by * block, (by + 1) * block): dirty[y] = 1
 	_fingerprint = fingerprint
-	var faces := PackedVector3Array()
-	var colors := PackedColorArray()
+	_values = values
+	if _corners.is_empty(): _corners.resize(City.WIDTH * City.HEIGHT)
+	var ground_sampling := CityGeometry3D.begin_ground_sampling(city)
 	var cells: Array[Vector2i] = []
 	for y in City.HEIGHT:
+		if not dirty[y]: continue
+		var faces := PackedVector3Array()
+		var colors := PackedColorArray()
+		var by := y / block
 		for x in City.WIDTH:
 			var cell := Vector2i(x, y)
-			var color := CityOverlaySampler.cell_color(active_layer, CityOverlaySampler.value_at(city, active_layer, cell))
+			var color := CityOverlaySampler.cell_color(active_layer, values[by * blocks_per_row + x / block])
 			if color.a <= 0.003: continue
-			var points := CityGeometry3D.surface_corners(city, cell)
-			for i in points.size(): points[i].y += SURFACE_OFFSET
-			if CityGeometry3D.uses_nw_se_diagonal(points):
+			var raised: Array = _corners[y * City.WIDTH + x] if _corners[y * City.WIDTH + x] != null else []
+			if raised.is_empty():
+				var corners := CityGeometry3D.surface_corners(city, cell)
+				for i in corners.size(): corners[i].y += SURFACE_OFFSET
+				raised = [corners, CityGeometry3D.uses_nw_se_diagonal(corners)]
+				_corners[y * City.WIDTH + x] = raised
+			var points: PackedVector3Array = raised[0]
+			if raised[1]:
 				CityGeometry3D.quad(faces, cells, colors, points[1], points[3], points[0], points[2], cell, color)
 			else:
 				CityGeometry3D.quad(faces, cells, colors, points[0], points[1], points[2], points[3], cell, color)
-	mesh_instance.mesh = CityGeometry3D.mesh_from_faces(faces, colors)
+		cells.clear()
+		var normals := PackedVector3Array()
+		normals.resize(faces.size())
+		for n: int in range(0, faces.size(), 3):
+			var normal := (faces[n + 2] - faces[n]).cross(faces[n + 1] - faces[n]).normalized()
+			normals[n] = normal
+			normals[n + 1] = normal
+			normals[n + 2] = normal
+		_row_faces[y] = faces
+		_row_colors[y] = colors
+		_row_normals[y] = normals
+	CityGeometry3D.end_ground_sampling(ground_sampling)
+	var faces := PackedVector3Array()
+	var colors := PackedColorArray()
+	var normals := PackedVector3Array()
+	for y in City.HEIGHT:
+		faces.append_array(_row_faces[y])
+		colors.append_array(_row_colors[y])
+		normals.append_array(_row_normals[y])
+	mesh_instance.mesh = CityGeometry3D.mesh_from_arrays(faces, colors, normals)
 	rebuild_count += 1
 
 
