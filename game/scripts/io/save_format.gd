@@ -406,6 +406,8 @@ static func _shapes() -> Dictionary:
 		_system_shapes.rewards.military.sites = [[0, 0, 0, 0]]
 		_system_shapes.economy["sector_base"] = [0]
 		_system_shapes.economy["sector_offset"] = 0
+		# Neighbor names are text; older saves hold legacy pool indices.
+		_system_shapes.neighbors.names = []
 		for pair in [["economy", "announced"], ["disasters", "advice"],
 			["rewards", "seen_standing"], ["ports", "opened"], ["statistics", "status_lines"]]:
 			_system_shapes[pair[0]][pair[1]] = [""]

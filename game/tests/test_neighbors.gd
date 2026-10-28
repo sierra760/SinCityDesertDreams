@@ -51,6 +51,35 @@ func test_founding_gives_four_named_towns() -> void:
 	check_gt(ctx.stats.neighbor_populations[0], 0)
 
 
+func test_neighbors_are_named_from_the_full_inventory_but_never_after_the_city() -> void:
+	var c := flat_city()
+	var seen := {}
+	for seed_value in 40:
+		c.name = CityNames.random_name(SimRng.new(seed_value))
+		var n := make_neighbors(make_ctx(c, seed_value))
+		for edge in 4:
+			var name := n.neighbor_name(edge)
+			check(CityNames.all().has(name), "%s comes from the name inventory" % name)
+			check_ne(name, c.name, "a neighbor is not named after the city")
+			seen[name] = true
+	check_gt(seen.size(), 100, "forty regions use far more than the old twelve names")
+
+
+func test_old_saves_keep_their_neighbor_names() -> void:
+	var n := make_neighbors(make_ctx(flat_city()))
+	n.load({"names": [8.0, 0.0, 11.0, 3.0]})
+	check_eq(n.neighbor_name(0), "Searchlight")
+	check_eq(n.neighbor_name(1), "Ironwood Flats")
+	check_eq(n.neighbor_name(2), "Jean Dry Lake")
+	check_eq(n.neighbor_name(3), "Mesquite Bend")
+	n.load({"names": ["Rhyolite", "Goldfield", "Fool's Gold", "Pahrump"]})
+	check_eq(n.neighbor_name(2), "Fool's Gold")
+	n.load({"names": [null, "", {}, "Ely"]})
+	check_eq(n.neighbor_name(0), "Rhyolite", "a damaged entry keeps the town")
+	check_eq(n.neighbor_name(1), "Goldfield", "an empty entry keeps the town")
+	check_eq(n.neighbor_name(3), "Ely")
+
+
 func test_neighbors_grow_with_the_economy() -> void:
 	var ctx := make_ctx(flat_city())
 	var n := make_neighbors(ctx)

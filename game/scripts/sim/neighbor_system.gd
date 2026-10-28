@@ -11,8 +11,8 @@ const TRADE_KEY := &"neighbor_trade"
 
 var _ctx: SimContext
 var _founded := false
-## Index into NeighborParams.NAME_POOL per edge.
-var _name_index: PackedInt32Array = PackedInt32Array([0, 1, 2, 3])
+## Town name per edge.
+var _names: PackedStringArray = PackedStringArray(NeighborParams.LEGACY_NAME_POOL.slice(0, NeighborParams.EDGE_COUNT))
 ## Economic output per edge; grows alongside population.
 var _output: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
 ## Per edge: {"road": bool, "rail": bool, "power": bool, "water": bool}.
@@ -61,7 +61,7 @@ func networks_changed(ctx: SimContext, _rect: Rect2i) -> void:
 # ── Public queries ───────────────────────────────────────────────────────
 
 func neighbor_name(edge: int) -> String:
-	return NeighborParams.NAME_POOL[_name_index[edge] % NeighborParams.NAME_POOL.size()]
+	return _names[edge]
 
 
 ## One entry per edge: name, edge, population, output, connections, trade.
@@ -130,7 +130,7 @@ func save() -> Dictionary:
 		conns.append(c.duplicate())
 	return {
 		"founded": _founded,
-		"names": Array(_name_index),
+		"names": Array(_names),
 		"output": Array(_output),
 		"connections": conns,
 		"trade_twelfths": _trade_twelfths,
@@ -140,12 +140,12 @@ func save() -> Dictionary:
 
 func load(data: Dictionary) -> void:
 	_founded = bool(data.get("founded", _founded))
-	var names: Array = data.get("names", Array(_name_index))
+	var names: Array = data.get("names", Array(_names))
 	var output: Array = data.get("output", Array(_output))
 	var trade: Array = data.get("trade_by_edge", Array(_trade_by_edge))
 	for edge in NeighborParams.EDGE_COUNT:
 		if edge < names.size():
-			_name_index[edge] = int(names[edge])
+			_names[edge] = _loaded_name(names[edge], _names[edge])
 		if edge < output.size():
 			_output[edge] = int(output[edge])
 		if edge < trade.size():
@@ -158,6 +158,17 @@ func load(data: Dictionary) -> void:
 	_trade_twelfths = int(data.get("trade_twelfths", 0))
 
 
+## A saved name is the town's name, or in older saves an index into the
+## legacy pool. Anything else keeps `current`.
+static func _loaded_name(saved: Variant, current: String) -> String:
+	if saved is String and not saved.is_empty():
+		return saved
+	if typeof(saved) in [TYPE_INT, TYPE_FLOAT]:
+		var pool := NeighborParams.LEGACY_NAME_POOL
+		return pool[posmod(int(saved), pool.size())]
+	return current
+
+
 # ── Rules ────────────────────────────────────────────────────────────────
 
 static func _has_region(stats: CityStats) -> bool:
@@ -168,12 +179,10 @@ static func _has_region(stats: CityStats) -> bool:
 
 
 func _found(ctx: SimContext) -> void:
-	var pool: Array[int] = []
-	for i in NeighborParams.NAME_POOL.size():
-		pool.append(i)
+	var pool := CityNames.pool([ctx.city.name])
 	for edge in NeighborParams.EDGE_COUNT:
 		var pick := ctx.rng.below(pool.size())
-		_name_index[edge] = pool[pick]
+		_names[edge] = pool[pick]
 		pool.remove_at(pick)
 		var population := NeighborParams.FOUNDING_MIN + ctx.rng.below(NeighborParams.FOUNDING_SPREAD)
 		for _roll in 2:

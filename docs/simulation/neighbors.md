@@ -17,7 +17,8 @@ city with them.
 - `stats.economy_phase`: the national trend, 0 (recession) to 3 (boom).
 - `stats.power_capacity`, `stats.power_demand`, `stats.water_capacity`,
   `stats.water_demand`: the city's utility balance for trade.
-- `ctx.rng`: founding populations, growth jitter and shocks.
+- `ctx.rng`: founding names and populations, growth jitter and shocks.
+- `city.name`: the one name a neighbor never takes.
 
 ## Outputs
 
@@ -48,7 +49,10 @@ city with them.
 
 ## Rules
 
-1. **Founding.** Each neighbor takes a distinct name from `NAME_POOL` and a
+1. **Founding.** Each neighbor takes a distinct name from `CityNames`, our
+   invented desert names plus every real Nevada place name, never the city's
+   own name. Saves store the names as text; older saves that stored an index
+   into `LEGACY_NAME_POOL` keep their towns. Each neighbor also takes a
    population equal to the smallest of three draws of
    `FOUNDING_MIN + rng.below(FOUNDING_SPREAD)`. Its output starts at the
    population divided by `1 + rng.below(OUTPUT_DIVISOR_SPREAD)`.
@@ -91,7 +95,7 @@ city with them.
 
 | Name | Tunes |
 |---|---|
-| `NAME_POOL` | the names neighbors are drawn from |
+| `LEGACY_NAME_POOL` | neighbor names in saves made before names were stored as text |
 | `FOUNDING_MIN`, `FOUNDING_SPREAD` | founding population range |
 | `OUTPUT_DIVISOR_SPREAD` | how far founding output lags population |
 | `GROWTH_JITTER`, `GROWTH_DIVISOR` | monthly population growth speed and noise |
@@ -105,6 +109,6 @@ city with them.
 
 ## Save state
 
-`save()` stores the four name indices, outputs, connection flags, the trade
+`save()` stores the four names, outputs, connection flags, the trade
 carry in cents and this year's trade per neighbor. Populations are saved in
 `stats.neighbor_populations` with `CityStats`.

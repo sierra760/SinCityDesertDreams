@@ -14,8 +14,9 @@ const EDGE_WEST := 3
 const EDGE_COUNT := 4
 const EDGE_NAMES: Array[String] = ["north", "east", "south", "west"]
 
-## Names the four neighbors are drawn from at founding, without repeats.
-const NAME_POOL: Array[String] = ["Ironwood Flats", "Pahranagat", "Silverbell", "Mesquite Bend",
+## Neighbors are named from CityNames at founding. Saves from before names
+## were stored as text list each neighbor by its index into this pool.
+const LEGACY_NAME_POOL: Array[String] = ["Ironwood Flats", "Pahranagat", "Silverbell", "Mesquite Bend",
 	"Coyote Springs", "Amargosa", "Tonopah Wells", "Goldfield Junction", "Searchlight",
 	"Beatty Crossing", "Ash Meadows", "Jean Dry Lake"]
 

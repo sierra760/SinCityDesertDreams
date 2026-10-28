@@ -10,15 +10,21 @@ func has_braces(text: String) -> bool:
 
 
 func test_city_names_are_plentiful_and_distinct() -> void:
-	check_ge(CityNames.count(), 60)
+	check_ge(CityNames.INVENTED.size(), 150)
+	check_ge(NevadaPlaceNames.NAMES.size(), 1000)
+	check_eq(CityNames.count(), CityNames.INVENTED.size() + NevadaPlaceNames.NAMES.size(),
+		"invented names do not repeat real ones")
 	var seen: Dictionary = {}
-	for n in CityNames.NAMES:
+	for n in CityNames.all():
 		check(not seen.has(n), "duplicate name %s" % n)
 		check(n.strip_edges() == n and n.length() > 2, "name is clean: %s" % n)
+		check(n.length() <= 24, "name fits the new-city field: %s" % n)
 		seen[n] = true
+	for real in ["Las Vegas", "Reno", "Henderson", "Rhyolite", "Goldfield", "Tonopah", "Pahrump", "Searchlight"]:
+		check(seen.has(real), "real Nevada town %s is offered" % real)
 	var rng := SimRng.new(11)
 	var city := CityNames.random_name(rng)
-	check(CityNames.NAMES.has(city))
+	check(seen.has(city))
 	var around: Array[String] = CityNames.neighbors(rng, city)
 	check_eq(around.size(), 4)
 	var distinct: Dictionary = {}
@@ -26,7 +32,7 @@ func test_city_names_are_plentiful_and_distinct() -> void:
 		check_ne(n, city, "a neighbour is not the city itself")
 		distinct[n] = true
 	check_eq(distinct.size(), 4, "neighbours are distinct")
-	check_eq(CityNames.pick(rng, 100).size(), CityNames.count(), "picking more than exist yields them all")
+	check_eq(CityNames.pick(rng, CityNames.count() + 5).size(), CityNames.count(), "picking more than exist yields them all")
 
 
 func test_story_templates_have_variants_and_paragraphs() -> void:
