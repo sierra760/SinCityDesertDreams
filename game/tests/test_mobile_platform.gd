@@ -62,16 +62,21 @@ func test_ios_picker_is_bounded_to_files_visible_userdata() -> void:
 	check(not picker.show_hidden_files)
 	picker.free()
 
+## A starting directory that exists on every desktop OS; a missing one such as
+## /tmp on Windows makes FileDialog fall back to the working directory.
+func _existing_dir() -> String:
+	return OS.get_user_data_dir()
+
 func test_desktop_picker_configuration_is_preserved() -> void:
 	var platform: Variant = _platform()
 	if platform == null: return
 	var picker := FileDialog.new()
 	root.add_child(picker)
 	picker.access = FileDialog.ACCESS_FILESYSTEM
-	picker.current_dir = "/tmp"
+	picker.current_dir = _existing_dir()
 	platform.configure_file_picker(picker,{"os_name":"macOS","native_file_dialog":false})
 	check_eq(picker.access,FileDialog.ACCESS_FILESYSTEM)
-	check_eq(picker.current_dir,"/tmp")
+	check_eq(picker.current_dir,_existing_dir())
 	check(not picker.use_native_dialog,"unsupported display server retains the custom picker")
 	picker.free()
 
@@ -82,12 +87,12 @@ func test_available_native_picker_is_used_on_every_platform() -> void:
 		var picker := FileDialog.new()
 		root.add_child(picker)
 		picker.access = FileDialog.ACCESS_FILESYSTEM
-		picker.current_dir = "/tmp"
+		picker.current_dir = _existing_dir()
 		platform.configure_file_picker(picker,{"os_name":os_name,"native_file_dialog":true})
 		check(picker.use_native_dialog,"available OS picker is preferred on " + os_name)
 		check_eq(picker.access,FileDialog.ACCESS_FILESYSTEM,"native picker can access selected external city files on " + os_name)
 		if os_name not in ["Android","iOS"]:
-			check_eq(picker.current_dir,"/tmp","desktop starting directory is retained on " + os_name)
+			check_eq(picker.current_dir,_existing_dir(),"desktop starting directory is retained on " + os_name)
 		picker.free()
 
 func test_unavailable_native_picker_falls_back_on_every_platform() -> void:
