@@ -1,0 +1,26 @@
+name: Set up Godot
+description: >-
+  Install the official Godot editor and the named export templates, cached
+  between runs, and export its path as GODOT.
+inputs:
+  version:
+    description: Godot stable version.
+    default: "4.7.2"
+  templates:
+    description: Space-separated export template file names from the .tpz, for example "macos.zip".
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/godot
+        key: godot-${{ runner.os }}-${{ inputs.version }}-${{ inputs.templates }}
+    - shell: bash
+      env:
+        TEMPLATES: ${{ inputs.templates }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        args=()
+        for template in $TEMPLATES; do args+=(--template "$template"); done
+        python tools/ci/setup_godot.py --dir "$RUNNER_TEMP/godot" --version "$VERSION" "${args[@]}"

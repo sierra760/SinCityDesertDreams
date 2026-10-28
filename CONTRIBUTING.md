@@ -2,7 +2,8 @@
 
 Use Godot 4.7.2 standard and Python 3.10 or later. Set `GODOT=/path/to/godot`
 if the engine is not on your PATH. The checks below need only the Python
-standard library.
+standard library, except the tool tests, which need `pytest`, `Pillow` and
+`numpy`.
 
 The optional asset build scripts have extra requirements:
 `tools/build_disaster_models.py`, `tools/build_traffic_models.py` and the
@@ -17,8 +18,19 @@ python3 tools/check_provenance.py
 python3 tools/check_3d_assets.py
 python3 tools/check_resort_assets.py
 python3 tools/run_tests.py
-python3 -m unittest discover -s tools/tests -v
+python3 -m pytest tools/tests
 ```
+
+GitHub Actions runs the same checks on every pull request and on `main`
+(`.github/workflows/ci.yml`). It runs the Godot suite in four shards each on
+Windows and macOS, exports unsigned Windows and macOS builds and smoke-launches
+them headless, and builds the exported iOS Xcode project without signing.
+Download the builds from the run's artifacts. Release signing and
+notarization are not part of CI.
+
+On Windows, set `GODOT` to the `_console.exe` editor so the runner can read its
+output. `python3 tools/run_tests.py --shard 2/4` runs every fourth test file
+starting with the second.
 
 A test file passes only when it reports zero failures and the engine prints no
 script, engine or resource errors. If a test leaks resources at shutdown, free

@@ -1,0 +1,251 @@
+# SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See LICENSE and LICENSING.md in the repository root.
+
+# Repository checks, the headless Godot suite on Windows and macOS, and
+# unsigned Windows, macOS and iOS builds. Release signing, notarization and
+# store submission stay outside CI.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GODOT_VERSION: "4.7.2"
+  PYTHON_VERSION: "3.12"
+  PYTHONUTF8: "1"
+  PYTHONUNBUFFERED: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python -m pip install pytest pillow numpy
+      - run: python tools/check_provenance.py
+      - run: python tools/check_3d_assets.py
+      - run: python tools/check_resort_assets.py
+      - run: python tools/check_agriculture_assets.py
+      - run: python tools/check_agriculture_parcels.py
+      - run: python tools/check_apple_cloud_export.py --source
+      - name: Tool tests
+        run: python -m pytest -q tools/tests
+
+  # Imports the project once per platform and caches game/.godot for the jobs
+  # below. Later runs restore the newest earlier cache and import only changes.
+  import:
+    name: Import (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: Windows, runner: windows-2025 }
+          - { name: macOS, runner: macos-15 }
+    steps:
+      # Keep checked-out files byte-identical to the repository on Windows.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+      - id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: game/.godot
+          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
+          restore-keys: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: '"$GODOT" --headless --audio-driver Dummy --path game --import'
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: game/.godot
+          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
+
+  test:
+    name: Tests (${{ matrix.platform.name }} ${{ matrix.shard }}/4)
+    needs: import
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: Windows, runner: windows-2025 }
+          - { name: macOS, runner: macos-15 }
+        # Keep in step with the shard count passed to run_tests.py below.
+        shard: [1, 2, 3, 4]
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+      - uses: actions/cache/restore@v4
+        with:
+          path: game/.godot
+          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
+          fail-on-cache-miss: true
+      # The runner is disposable, so the checkout itself serves as the
+      # isolated test project and keeps the restored import cache.
+      - name: Godot test suite
+        env:
+          TEST_GAME_PATH: ${{ github.workspace }}/game
+          TEST_LOG_DIR: ${{ runner.temp }}/test-logs
+        run: python tools/run_tests.py --shard ${{ matrix.shard }}/4
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.platform.name }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-logs
+          retention-days: 14
+
+  windows:
+    name: Build Windows
+    needs: import
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          templates: windows_release_x86_64.exe windows_debug_x86_64.exe
+      - uses: actions/cache/restore@v4
+        with:
+          path: game/.godot
+          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
+          fail-on-cache-miss: true
+      - run: python tools/ci/prepare_export_presets.py
+      - name: Export
+        run: |
+          mkdir -p build/windows
+          "$GODOT" --headless --path game --export-release "Windows x64" "$GITHUB_WORKSPACE/build/windows/SC2D.exe"
+          # Without these beside the .exe the game silently falls back to GDScript.
+          for file in SC2D.exe SCDDGeometry.windows.x86_64.dll SCDDExploreLua.windows.x86_64.dll; do
+            test -f "build/windows/$file" || { echo "::error::export is missing $file"; exit 1; }
+          done
+          ls -l build/windows
+      - name: Smoke run
+        run: python tools/ci/smoke_export.py build/windows/SC2D.exe --log build/smoke-windows.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SC2D-windows-x64
+          path: build/windows
+          retention-days: 14
+
+  macos:
+    name: Build macOS
+    needs: import
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # The CloudKit transport harness runs its x86_64 build under Rosetta.
+      - name: CloudKit transport harness
+        run: |
+          /usr/bin/arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+          python native/apple-cloud/build.py --test-only
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          templates: macos.zip
+      - uses: actions/cache/restore@v4
+        with:
+          path: game/.godot
+          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
+          fail-on-cache-miss: true
+      - run: python tools/ci/prepare_export_presets.py
+      - name: Export
+        run: |
+          mkdir -p build/macos
+          "$GODOT" --headless --path game --export-release "macOS" "$GITHUB_WORKSPACE/build/macos/SC2D-macos.zip"
+          ditto -x -k build/macos/SC2D-macos.zip build/macos/unpacked
+          app=$(find build/macos/unpacked -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$app" || { echo "::error::export contains no .app"; exit 1; }
+          for library in libSCDDGeometry.dylib libSCDDExploreLua.dylib libSCDDNativeShare.dylib libSCDDAppleCloud.dylib; do
+            find "$app" -name "$library" | grep -q . || { echo "::error::export is missing $library"; exit 1; }
+          done
+          echo "APP=$app" >> "$GITHUB_ENV"
+      - name: Smoke run
+        run: python tools/ci/smoke_export.py "$APP" --log build/smoke-macos.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SC2D-macos-universal
+          path: build/macos/SC2D-macos.zip
+          retention-days: 14
+
+  ios:
+    name: Build iOS
+    needs: import
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          templates: ios.zip
+      - uses: actions/cache/restore@v4
+        with:
+          path: game/.godot
+          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ github.sha }}
+          fail-on-cache-miss: true
+      - run: python tools/ci/prepare_export_presets.py
+      - name: Export Xcode project
+        run: |
+          mkdir -p build/ios
+          "$GODOT" --headless --path game --export-release "iOS" "$GITHUB_WORKSPACE/build/ios/SC2D.xcodeproj"
+          plist=$(find build/ios -maxdepth 2 -name '*-Info.plist' -print -quit)
+          test -n "$plist" || { echo "::error::export contains no Info.plist"; exit 1; }
+          python tools/clean_ios_usage_descriptions.py "$plist" --apply
+      - name: Build unsigned device app
+        run: |
+          xcodebuild -version
+          scheme=$(xcodebuild -list -json -project build/ios/SC2D.xcodeproj | python -c 'import json, sys; print(json.load(sys.stdin)["project"]["schemes"][0])')
+          xcodebuild -quiet -project build/ios/SC2D.xcodeproj -scheme "$scheme" -configuration Release \
+            -destination generic/platform=iOS -derivedDataPath build/ios/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          app=$(find build/ios/DerivedData/Build/Products -maxdepth 2 -name '*.app' -print -quit)
+          test -n "$app" || { echo "::error::xcodebuild produced no .app"; exit 1; }
+          for framework in SCDDGeometry SCDDNativeShare SCDDAppleCloud; do
+            test -d "$app/Frameworks/$framework.framework" || { echo "::error::app is missing $framework.framework"; exit 1; }
+          done
+          du -sh "$app"
