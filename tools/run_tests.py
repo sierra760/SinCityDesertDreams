@@ -9,7 +9,7 @@ Every game/tests/test_*.gd file is run in its own Godot process. A file passes
 only when it prints a final "Results: N passed, 0 failed" line and the engine
 reports no engine/script/resource diagnostics and exits successfully.
 
-Usage: python3 tools/run_tests.py [--no-import] [pattern ...]
+Usage: python3 tools/run_tests.py [--no-import] [--shard K/N] [pattern ...]
 Set GODOT to point at the engine binary if it is not on PATH. The project is
 copied to a temporary test project with unique user data, then imported and run.
 Only the copied project's custom user-data directory setting changes; player
@@ -21,13 +21,14 @@ caller must ensure its user data cannot reference a player's saves/preferences;
 this override is neither copied nor removed. Only this override supports
 --no-import; a fresh default copy always requires import. TEST_TIMEOUT overrides
 the per-file timeout (600 seconds by default for real-time traversal fixtures).
+--shard K/N runs every Nth matching file starting with the Kth (1-based), so N
+CI runners can split the suite between them.
 """
 
 from __future__ import annotations
 
 from contextlib import contextmanager
 from collections.abc import Iterator
-import fcntl
 import os
 import re
 import shutil
@@ -36,6 +37,12 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
 
 ROOT = Path(__file__).resolve().parent.parent
 GAME = Path(os.environ.get("TEST_GAME_PATH", str(ROOT / "game"))).resolve()
@@ -93,7 +100,7 @@ def retain_output(name: str, output: str) -> None:
     if destination:
         directory = Path(destination)
         directory.mkdir(parents=True, exist_ok=True)
-        (directory / name).write_text(output)
+        (directory / name).write_text(output, encoding="utf-8")
 
 
 def engine_log(name: str) -> list[str]:
@@ -106,6 +113,25 @@ def timeout_output(exc: subprocess.TimeoutExpired) -> str:
     def decode(raw: str | bytes | None) -> str:
         return raw.decode(errors="replace") if isinstance(raw, bytes) else (raw or "")
     return decode(exc.stdout) + decode(exc.stderr) + "\n[timeout]"
+
+
+def run_engine(cmd: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    # The engine prints UTF-8 whatever the host locale; Windows defaults to a
+    # legacy code page that cannot decode it.
+    return subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout)
+
+
+def lock_exclusive(lock) -> None:
+    if fcntl is not None:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return
+    while True:
+        try:
+            msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+            return
+        except OSError:
+            # LK_LOCK gives up after ten seconds; keep waiting like flock.
+            continue
 
 
 def find_godot() -> str:
@@ -145,10 +171,9 @@ def refresh_class_cache(godot: str) -> None:
     lock_path = GAME / ".godot" / "run_tests.lock"
     lock_path.parent.mkdir(exist_ok=True)
     with open(lock_path, "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        lock_exclusive(lock)
         try:
-            proc = subprocess.run([godot, "--headless", "--audio-driver", "Dummy", "--path", str(GAME), "--import"] + engine_log("import"),
-                                  capture_output=True, text=True, timeout=600)
+            proc = run_engine([godot, "--headless", "--audio-driver", "Dummy", "--path", str(GAME), "--import"] + engine_log("import"), 600)
         except subprocess.TimeoutExpired as exc:
             out = timeout_output(exc)
             retain_output("import.log", out)
@@ -162,7 +187,7 @@ def refresh_class_cache(godot: str) -> None:
 def run_one(godot: str, test: Path, timeout: int) -> tuple[bool, str]:
     cmd = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(GAME), "-s", "res://tests/" + test.name] + engine_log(test.stem)
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        proc = run_engine(cmd, timeout)
     except subprocess.TimeoutExpired as exc:
         out = timeout_output(exc)
         retain_output(test.stem + ".log", out)
@@ -173,7 +198,25 @@ def run_one(godot: str, test: Path, timeout: int) -> tuple[bool, str]:
     return ok, out
 
 
+def parse_shard(argv: list[str]) -> tuple[list[str], tuple[int, int] | None]:
+    """Remove a --shard K/N (or --shard=K/N) option from argv."""
+    rest: list[str] = []
+    shard: tuple[int, int] | None = None
+    values = iter(argv)
+    for arg in values:
+        if arg == "--shard" or arg.startswith("--shard="):
+            value = arg.partition("=")[2] if "=" in arg else next(values, "")
+            match = re.fullmatch(r"(\d+)/(\d+)", value)
+            if not match or not 1 <= int(match.group(1)) <= int(match.group(2)):
+                raise ValueError(f"--shard needs K/N with 1 <= K <= N, not {value!r}")
+            shard = (int(match.group(1)), int(match.group(2)))
+        else:
+            rest.append(arg)
+    return rest, shard
+
+
 def _run_suite(godot: str, argv: list[str]) -> int:
+    argv, shard = parse_shard(argv)
     if "--no-import" in argv:
         argv = [a for a in argv if a != "--no-import"]
     else:
@@ -189,6 +232,8 @@ def _run_suite(godot: str, argv: list[str]) -> int:
             pattern = f"*{pattern}*.gd"
         tests.extend(sorted((GAME / "tests").glob(pattern)))
     tests = sorted(set(t for t in tests if t.name.startswith("test_") and t.name != "test_case.gd"))
+    if shard:
+        tests = tests[shard[0] - 1::shard[1]]
     if not tests:
         print("no tests matched")
         return 1

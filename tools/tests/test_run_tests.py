@@ -188,5 +188,52 @@ class IsolatedProjectTests(unittest.TestCase):
             self.assertEqual(self.hashes(source), before)
 
 
+class WindowsLockTests(unittest.TestCase):
+    def test_lock_keeps_waiting_past_the_ten_second_retry_limit(self):
+        attempts = []
+        def locking(_fd, _mode, _length):
+            attempts.append(1)
+            if len(attempts) < 3:
+                raise OSError("deadlock avoided")
+        fake = type("msvcrt", (), {"LK_LOCK": 1, "locking": staticmethod(locking)})
+        with tempfile.TemporaryFile() as lock, patch.object(runner, "fcntl", None), \
+             patch.object(runner, "msvcrt", fake, create=True):
+            runner.lock_exclusive(lock)
+        self.assertEqual(len(attempts), 3)
+
+
+class ShardTests(unittest.TestCase):
+    def run_shard(self, shard_args):
+        with tempfile.TemporaryDirectory() as fixture_dir:
+            source = Path(fixture_dir) / "game"
+            (source / "tests").mkdir(parents=True)
+            for name in ["test_a.gd", "test_b.gd", "test_c.gd", "test_d.gd", "test_e.gd", "test_case.gd"]:
+                (source / "tests" / name).write_text("extends SceneTree\n")
+            with patch.dict(os.environ, {"TEST_GAME_PATH": str(source)}, clear=True), \
+                 patch.object(runner, "find_godot", return_value="godot"), \
+                 patch.object(runner, "run_one", return_value=(True, "Results: 1 passed, 0 failed\n")) as run:
+                result = runner.main(["--no-import"] + shard_args)
+            return result, [call.args[1].name for call in run.call_args_list]
+
+    def test_shards_partition_the_suite(self):
+        seen = []
+        for k in (1, 2, 3):
+            result, names = self.run_shard(["--shard", f"{k}/3"])
+            self.assertEqual(result, 0)
+            seen.extend(names)
+        self.assertEqual(sorted(seen), ["test_a.gd", "test_b.gd", "test_c.gd", "test_d.gd", "test_e.gd"])
+        self.assertEqual(self.run_shard(["--shard=2/3"])[1], ["test_b.gd", "test_e.gd"])
+
+    def test_shard_applies_after_patterns(self):
+        self.assertEqual(self.run_shard(["--shard", "2/2", "test_[abc].gd"])[1], ["test_b.gd"])
+
+    def test_invalid_shard_fails_before_running(self):
+        for value in ("0/2", "3/2", "1", "a/b"):
+            with self.subTest(value=value):
+                result, names = self.run_shard(["--shard", value])
+                self.assertEqual(result, 1)
+                self.assertEqual(names, [])
+
+
 if __name__ == "__main__":
     unittest.main()

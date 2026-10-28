@@ -79,9 +79,10 @@ instructions; check with
 
 Matching output has been verified on arm64 macOS and on the x86_64 macOS
 engine under Rosetta (the same SSE float32 arithmetic the Windows engine uses).
-The Windows DLL itself has not yet been run on Windows. `tools/run_tests.py`
-needs a Unix host, so on Windows run the two suites directly from a copy of the
-`game` folder with the Godot 4.7.2 console executable:
+CI runs the full suite, including both kernel suites, on Windows with this DLL.
+To check it by hand on Windows, use `tools/run_tests.py` with
+`GODOT` set to the Godot 4.7.2 console executable, or run the two suites
+directly from a copy of the `game` folder:
 
 ```bat
 Godot_v4.7.2-stable_win64_console.exe --headless --path game --import
