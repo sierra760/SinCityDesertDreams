@@ -76,9 +76,9 @@ jobs:
           TEST_LOG_DIR: ${{ runner.temp }}/test-logs
           # Keep the runner's private project copy on a short path for Windows.
           TMPDIR: ${{ runner.temp }}
-          # Shared runners are slower than a development machine; real-time
-          # traversal fixtures need more than the local 600 s per file.
-          TEST_TIMEOUT: "1200"
+          # Shared runners are slower than a development machine; the longest
+          # real-time traversal fixture needs over 20 minutes there.
+          TEST_TIMEOUT: "2400"
         run: python tools/run_tests.py --shard ${{ matrix.shard }}/4
       - if: failure()
         uses: actions/upload-artifact@v4
