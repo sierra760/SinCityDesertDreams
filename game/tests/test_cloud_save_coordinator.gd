@@ -540,7 +540,7 @@ func test_source_device_is_stable_random_installation_identity_across_accounts()
 	store.stage(store.create_slot(), _city(root))
 	var coordinator := _ready(store, fake)
 	check_eq(fake.last("save").args.metadata.source_device, id)
-	check_eq(fake.last("save").args.metadata.source_device_label, OS.get_name())
+	check_eq(fake.last("save").args.metadata.source_device_label, CloudSaveStore.coarse_device_label(OS.get_name()))
 	coordinator.shutdown()
 
 func test_payload_metadata_preserves_actual_legacy_application_save_version() -> void:

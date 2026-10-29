@@ -347,8 +347,12 @@ func test_conflict_copy_roundtrip_keeps_coarse_device_date_and_identity() -> voi
 	receiver.advance(0)
 	other.finish(other.last("prepare_zone"))
 	receiver.advance(0)
+	# The branch arrives from a Mac whatever system runs the test; only Apple
+	# platforms record a device label.
+	var metadata: Dictionary = upload.args.metadata.duplicate()
+	metadata.source_device_label = "macOS"
 	var remote := {"slot_id":alternate,"commit_id":upload.args.pending.commit_id,"change_tag":"branch-tag","system_fields":PackedByteArray([4]),
-		"continuation_sha256":upload.args.pending.continuation.sha256,"manual_sha256":"","tombstone":false,"metadata":upload.args.metadata}
+		"continuation_sha256":upload.args.pending.continuation.sha256,"manual_sha256":"","tombstone":false,"metadata":metadata}
 	other.finish(other.last("changes"), {"records":[remote],"deleted_ids":[],"token":PackedByteArray([6]),"more":false})
 	receiver.advance(1)
 	var waiting := receiver.library_entries([])
