@@ -3,10 +3,6 @@
 # See LICENSE and LICENSING.md in the repository root.
 extends "res://tests/test_case.gd"
 const Fixtures = preload("res://tests/real_world/terrain_source_fixtures.gd")
-const Hashes := preload("res://tests/fixtures/output_hashes.gd")
-# Reference plan hashes that differ on Windows, which rounds the projection
-# math differently, by case index.
-const PLATFORM_PLAN_HASHES := {"Windows": {0: "179e71ca969c3749157697c6c53256664fc67b44d3817a75ea719b3fe245de96", 1: "e81c297c68ed1106d6628e9509461b15bcb73041536cdb437d3ef6dad65df930"}}
 
 func distance(a: Vector2,b: Vector2) -> float:
  var lat1 := deg_to_rad(a.y)
@@ -136,9 +132,67 @@ func test_plan_samples_match_recorded_reference_bytes() -> void:
   [{"latitude":36.1699,"longitude":-115.1398,"side_km":8.0,"bearing":0.0},"032e3dc43b598d060aad2b9ca5c601f70c66840eb31eb53ecc83df7417ecbb0f"],
   [{"latitude":-33.9,"longitude":18.4,"side_km":100.0,"bearing":300.0},"b7faaefecf4dad51a56beda916465476900e478ed897b60ac250ecf646ed317c"],
   [{"latitude":0.0,"longitude":179.999999,"side_km":0.5,"bearing":0.0},"cc007e221dad6084ad9181ba752ce361a6fbf7732943f4cc9cf7ad9ef7995ea8"]]
- var expected: Array = Hashes.for_platform(cases.map(func(item: Array) -> String: return item[1]), PLATFORM_PLAN_HASHES)
- for i in cases.size():
-  check_eq(_digest(TerrainGeography.plan_samples(cases[i][0])),expected[i],"plan bytes for "+str(cases[i][0]))
+ for item in cases:
+  var plan := TerrainGeography.plan_samples(item[0])
+  if OS.get_name()=="Windows": _check_plan_against_reference(item[0],plan)
+  else: check_eq(_digest(plan),item[1],"plan bytes for "+str(item[0]))
+# Windows picks its math routines by CPU, so a plan's last bits there change
+# with the machine. Check Windows plans against a per-sample plan built from
+# the scalar helpers on the same machine instead: positions within a millionth
+# of a pixel, and every tile, group and source exactly.
+const PIXEL_TOLERANCE := 0.000001
+func _check_plan_against_reference(selection: Dictionary,plan: Dictionary) -> void:
+ check(plan.ok)
+ if not plan.ok: return
+ var reference := _reference_plan(selection,int(plan.zoom))
+ var label := " for "+str(selection)
+ check(_largest_difference(plan.vertex_stencils,reference.vertex_stencils)<=PIXEL_TOLERANCE,"vertex stencils match the per-sample projection"+label)
+ check(_largest_difference(plan.centers,reference.centers)<=PIXEL_TOLERANCE,"centers match the per-sample projection"+label)
+ check(plan.water_groups==reference.water_groups,"water groups match the per-sample addresses"+label)
+ check(plan.sources==reference.sources,"sources match the per-sample tiles"+label)
+static func _reference_plan(selection: Dictionary,zoom: int) -> Dictionary:
+ var mpt := float(selection.side_km)*1000.0/128.0
+ var tiles := {}
+ var vertices := PackedFloat64Array()
+ for y in 129:
+  for x in 129:
+   for oy in [-0.5,0.0,0.5]:
+    for ox in [-0.5,0.0,0.5]: vertices.append_array(_reference_pixel(selection,zoom,mpt,x+ox,y+oy,tiles))
+ var centers := PackedFloat64Array()
+ for y in 128:
+  for x in 128: centers.append_array(_reference_pixel(selection,zoom,mpt,x+0.5,y+0.5,tiles))
+ var groups := {}
+ for y in 128:
+  for x in 128:
+   for sy in 8:
+    for sx in 8:
+     var geo := TerrainGeography._local_to_geo_scalars(selection,(x+(sx+0.5)/8.0-64.0)*mpt,(y+(sy+0.5)/8.0-64.0)*mpt)
+     var address := TerrainGeography._worldcover_address_scalars(geo[0],geo[1])
+     if not groups.has(address.tile): groups[address.tile]=PackedInt32Array()
+     groups[address.tile].append_array(PackedInt32Array([(y*128+x)*64+sy*8+sx,address.x,address.y]))
+ var descriptors := {}
+ for key: int in tiles: descriptors["%d/%d/%d"%[zoom,key>>16,key&0xFFFF]]={"source":"terrarium","z":zoom,"x":key>>16,"y":key&0xFFFF}
+ var sources: Array[Dictionary] = []
+ var keys := descriptors.keys()
+ keys.sort()
+ for key in keys: sources.append(descriptors[key])
+ keys=groups.keys()
+ keys.sort()
+ for key in keys: sources.append({"source":"worldcover","tile":key})
+ return {"vertex_stencils":vertices,"centers":centers,"water_groups":groups,"sources":sources}
+static func _reference_pixel(selection: Dictionary,zoom: int,mpt: float,gx: float,gy: float,tiles: Dictionary) -> PackedFloat64Array:
+ var geo := TerrainGeography._local_to_geo_scalars(selection,(gx-64.0)*mpt,(gy-64.0)*mpt)
+ var pixel := TerrainGeography._elevation_pixel_scalars(geo[0],geo[1],zoom)
+ TerrainGeography._neighbor_keys(pixel[0],pixel[1],zoom,tiles)
+ return pixel
+static func _largest_difference(a: PackedFloat64Array,b: PackedFloat64Array) -> float:
+ if a.size()!=b.size(): return INF
+ var largest := 0.0
+ for i in a.size():
+  var difference := absf(a[i]-b[i])
+  if is_nan(difference): return INF
+  largest=maxf(largest,difference)
+ return largest
 # Planning polls its owner's cancellation once per row in each sampling phase.
 func test_plan_samples_stop_promptly_when_cancelled() -> void:
  var polls := [0]
