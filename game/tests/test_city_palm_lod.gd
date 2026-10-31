@@ -24,7 +24,7 @@ func test_close_and_far_palm_geometry() -> void:
 		check(identity, "near index stream reproduces every original unindexed triangle in order")
 		arrays[Mesh.ARRAY_INDEX] = null
 		hash.update(var_to_bytes(arrays))
-		check(hash.finish().hex_encode() == BASE_HASHES[variant], "variant%d complete close geometry/colors/normals unchanged" % variant)
+		check_eq(hash.finish().hex_encode(), BASE_HASHES[variant], "variant%d complete close geometry/colors/normals unchanged" % variant)
 		check(Palm.is_static_crown_material(mesh.surface_get_material(0)), "crown material batching contract unchanged")
 		var lods: Array = mesh.get("_surfaces")[0].get("lods", [])
 		check(lods.size() == 4, "variant%d has two automatic crown LODs" % variant)

@@ -6,11 +6,20 @@
 ## Main projects it. Performance work must not move a vertex: regenerate these
 ## hashes with tools/golden_networks.gd only for a deliberate geometry change.
 extends "res://tests/test_case.gd"
+const Hashes := preload("res://tests/fixtures/output_hashes.gd")
 
 const GOLDEN := {
 	"La Presa": ["93348fb6d204533c6c1d0815f3be8239869efe82b24207b536159fd85e1f94d6", "20585491d0c1cbccc81b63d52df8e1a69f6e705d1e38f08083303f62e68bfd6d", "261796cb069db2b083fd44d2283585504b30a90575e20dcbe96c7fd2cf9c75ca", "4c1478e1d48e6bd55c48cfc9260f40caf271c9f1bf53015d75544ee0e830e050", "abac17f420fe294f5635d18ca08a81529c876f4215d9d6e521b2517e578df1bf"],
 	"Valle del Mar": ["deae851e260d70c5b16c9c0804cdb6b4832152c18e81f3bf18827d1e956f7dc5", "a93ce20ec8eaede53e9a36384b1bc43c85e28e9ca07ad387d5d73123c4cd2a62", "b2c4487ac7c9405b8f7a18fe5ddcbe562a69fb93df41a73b527fc984036ee520", "eedddcf5444adfe37d5ade1cf4a423f705f16e5bff7287e6646291b09cfa7794", "7371ed6850b5930cc8804d943ebad827227d44c35729b40e5eab9d3bdd741280"],
 	"Salton Shores": ["42299189ba9c26a1a1b46a4dd9b3f7c96c52fc0c8d972ed42e0163262d471775", "1afd3474220fb5191a1a1a209ad2ec3b52d4529af740756c49e88307fe708956", "66aa160616d9eff2a598ec080de6638d8d43ce28d24fd431b840688c3978acbc", "211e9ec6b3881a2a513f888bfb7695136c34ee08d33243a225f1c35e6f6d74ed", "37ec2af6ee3229242371154ab3ecac19b2d6054fac49a2f5d6f4559d2af739e1"],
+}
+# Cities whose projection differs on Windows, which rounds some engine math
+# differently.
+const PLATFORM_GOLDEN := {
+	"Windows": {
+		"La Presa": ["8c5e9aefc0ddb6e4598730967a7776a75ee3eb542374c441cf168ae13ec841bc", "20585491d0c1cbccc81b63d52df8e1a69f6e705d1e38f08083303f62e68bfd6d", "e5f6b2781f5612d1848239ca8628ec52d4c5742e1939b3c1b268a592bd9a7701", "4c1478e1d48e6bd55c48cfc9260f40caf271c9f1bf53015d75544ee0e830e050", "abac17f420fe294f5635d18ca08a81529c876f4215d9d6e521b2517e578df1bf"],
+		"Valle del Mar": ["b5aebcf296a75cc75967e62dd76cfe7cbd7a7903ac0fc7962cbd2ceac4318325", "a93ce20ec8eaede53e9a36384b1bc43c85e28e9ca07ad387d5d73123c4cd2a62", "cb4106000efcb7354d7420fa47e4a60dea4344a9c11538486a52bab807839ce8", "eedddcf5444adfe37d5ade1cf4a423f705f16e5bff7287e6646291b09cfa7794", "7371ed6850b5930cc8804d943ebad827227d44c35729b40e5eab9d3bdd741280"],
+	},
 }
 
 static func sha(value: Variant) -> String:
@@ -49,12 +58,13 @@ static func hashes(city: City) -> Array[String]:
 	return result
 
 func test_bundled_cities_project_exactly() -> void:
-	for name: String in GOLDEN:
+	var golden: Dictionary = Hashes.for_platform(GOLDEN, PLATFORM_GOLDEN)
+	for name: String in golden:
 		var loaded := Sc2Import.load("res://assets/cities/%s.sc2" % name)
 		check(loaded.ok, "%s imports" % name)
 		if not loaded.ok: continue
 		var actual := hashes(loaded.city)
-		var expected: Array = GOLDEN[name]
+		var expected: Array = golden[name]
 		for i: int in expected.size():
 			if String(expected[i]).is_empty(): continue
 			check_eq(actual[i], expected[i], "%s %s hash" % [name, ["visible", "tunnels", "physical", "boxes", "obstacles"][i]])

@@ -21,9 +21,9 @@ game/tests/test_tourism_save.gd:356
 # that look like hex addresses to the scanner.
 game/tests/test_real_world_importer.gd:206
 game/tests/test_real_world_importer.gd:208
-game/tests/test_real_world_geography.gd:103
-game/tests/test_real_world_geography.gd:117
-game/tests/test_real_world_geography.gd:118
+game/tests/test_real_world_geography.gd:107
+game/tests/test_real_world_geography.gd:121
+game/tests/test_real_world_geography.gd:122
 game/tests/test_real_world_transport.gd:306
 game/tests/test_real_world_transport.gd:307
 # A Unicode em-space escape used to test name whitespace normalization.

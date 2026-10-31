@@ -4,6 +4,7 @@
 
 ## Independent traversal geometry preserves the construction and render contracts.
 extends "res://tests/test_case.gd"
+const Hashes := preload("res://tests/fixtures/output_hashes.gd")
 
 # SHA-256 of the render/query arrays built for each terrain, ramp and network case.
 # After an intended geometry change, copy the new hash from the failing check here.
@@ -45,6 +46,20 @@ const BASELINES := {
 	"network 76 false": "2cd208579ad6b607953c6d4a84814728c3513b5c6c5e25595d00bc26b881418f",
 	"network 76 true": "2cd208579ad6b607953c6d4a84814728c3513b5c6c5e25595d00bc26b881418f",
 }
+# Hashes that differ on Windows, which rounds some engine math differently.
+const PLATFORM_BASELINES := {
+	"Windows": {
+		"ramp 0 false": "ac7433d776840b0c4cbcff38a2fd962c42bb1b7e579a8cf2566762fe49a0ca58",
+		"ramp 1 false": "febcbc6e6cd3b2c534c9f484511d3662b96eaf5a77d7bd0d85489a36d4ce16b1",
+		"ramp 2 false": "d68da3cce7632ba446a871ca0768207bb78e6e73cdd60d4f99674920be55ca7b",
+		"ramp 3 false": "2211a5a116a7656f476c8b410ef593f2341418bafa4ec98fa37e1144f3e5c1eb",
+		"ramp 0 true": "34cc23a2eb13ea03089dddfa3bd621f4d83ecb126451cb899e87b14fab1f5843",
+		"ramp 1 true": "ea359de23d0952ea3a8ebfbdd63aeaf244c1ea34cfbb3fb7c2eb4a8d8277bcd3",
+		"ramp 2 true": "3b8431dadc27a296acb34c97c48514d7b51ed430684e0532a37ffb4e2de59ad5",
+		"ramp 3 true": "56fd721309a70e476ead27533804b1ce4f70b5e4566bd8721e354f15c63ec49f",
+	},
+}
+var baselines: Dictionary = Hashes.for_platform(BASELINES, PLATFORM_BASELINES)
 
 
 func terrain_data(city: City, cell: Vector2i) -> Dictionary:
@@ -81,7 +96,7 @@ func test_terrain_roles_water_streams_shore_and_diagonals() -> void:
 		var before := var_to_bytes(SaveFormat.encode_city(city))
 		var data := terrain_data(city,cell)
 		if city.is_water(10,10):
-			check_eq(var_to_bytes([data.faces,data.face_cells,data.mesh.surface_get_arrays(0)]).hex_encode().sha256_text(), BASELINES["terrain %d" % code], "terrain render/query arrays match baseline sha256")
+			check_eq(var_to_bytes([data.faces,data.face_cells,data.mesh.surface_get_arrays(0)]).hex_encode().sha256_text(), baselines["terrain %d" % code], "terrain render/query arrays match baseline sha256")
 		else:
 			check_eq(data.faces,data.physical_floor_faces,"shared dry query and support facets match")
 			check_eq(data.physical_obstacle_faces.size(),0,"isolated dry slope joins its level neighbors")
@@ -119,7 +134,7 @@ func test_all_ramp_orientations_have_floor_and_underside() -> void:
 		for index: int in 4:
 			var city:=flat_city(); city.building.put(10,10,93+index);city.flags.put(10,10,2 if axis else 0)
 			var layer:=CityNetworks3D.new();layer.rebuild(city)
-			check_eq(var_to_bytes([layer._faces,layer._colors,layer._cells]).hex_encode().sha256_text(), BASELINES["ramp %d %s" % [index,str(axis)]], "ramp render arrays match baseline sha256")
+			check_eq(var_to_bytes([layer._faces,layer._colors,layer._cells]).hex_encode().sha256_text(), baselines["ramp %d %s" % [index,str(axis)]], "ramp render arrays match baseline sha256")
 			var data:=network_data(layer)
 			if not data.is_empty():
 				var road: Vector2=pairs[index][0];var high: Vector2=pairs[index][1]
@@ -154,7 +169,7 @@ func test_imported_highway_turns_and_bridge_axes() -> void:
 						city.building.put(anchor.x+dx,anchor.y+dy,code);city.zone.put(anchor.x+dx,anchor.y+dy,[[128,16],[64,32]][dy][dx])
 			var before:=var_to_bytes(SaveFormat.encode_city(city))
 			var layer:=CityNetworks3D.new();layer.rebuild(city)
-			check_eq(var_to_bytes([layer._faces,layer._colors,layer._cells]).hex_encode().sha256_text(), BASELINES["network %d %s" % [code,str(axis)]], "network render arrays match baseline sha256")
+			check_eq(var_to_bytes([layer._faces,layer._colors,layer._cells]).hex_encode().sha256_text(), baselines["network %d %s" % [code,str(axis)]], "network render arrays match baseline sha256")
 			var data:=network_data(layer)
 			if not data.is_empty():
 				if code==92: check(data.physical_floor_faces.is_empty(),"power wire is not a floor")

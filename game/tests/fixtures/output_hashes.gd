@@ -7,6 +7,10 @@
 ## alter them unnoticed. A mismatch prints the current hash. When an output
 ## changes on purpose, run the affected tests with PRINT_GOLDENS=1 and paste
 ## the printed lines here.
+##
+## The goldens are recorded on macOS. Windows rounds some engine math
+## differently, so PLATFORM_HASHES holds that platform's hash for each output
+## that differs there; record a Windows change there the same way.
 extends RefCounted
 
 const HASHES := {
@@ -48,6 +52,27 @@ const HASHES := {
 	"growth_batcher/synthetic": "8dcae3a61c329ba42deaede987e93462214ae1def30a8021b45d84d5a1d2e365",
 }
 
+const PLATFORM_HASHES := {
+	"Windows": {
+		"network_physics/mixed_far_city": "f8b3fede66ac8d41e39b7daab3f0d04aac82347b41d68aab4913b0e9d5768588",
+		"ramp/32_3": "3b1b1adbbf13b8e1afa5a50beece0595f6938708a68fbab2a06c78dbb303c403",
+		"ramp/32_5": "2cb8908033fa4ce13d82bd4267af844edb0d1ccfda1554001210c5b29c9e6f26",
+		"ramp/32_10": "b22092a676621280f2eb71b1b2a33d6b64ebdf9651eee8e46d665a24edea1ad0",
+		"ramp/32_12": "3838bcef746c55e7bc4049dadc467b572b1db526258467ee4cdec8ca7aaf05c1",
+	},
+}
+
+
+## Returns a copy of reference in which the entries recorded for the running
+## platform in overrides (keyed by OS.get_name()) replace their counterparts.
+## Works for golden dictionaries and for arrays of goldens keyed by index.
+static func for_platform(reference: Variant, overrides: Dictionary) -> Variant:
+	var table: Variant = reference.duplicate()
+	var platform: Dictionary = overrides.get(OS.get_name(), {})
+	for key: Variant in platform:
+		table[key] = platform[key]
+	return table
+
 
 static func sha(value: Variant) -> String:
 	var hash := HashingContext.new()
@@ -80,7 +105,7 @@ static func _sorted(value: Variant) -> Variant:
 
 ## True when digest equals the stored hash for key.
 static func matches(key: String, digest: String) -> bool:
-	var expected: String = HASHES.get(key, "")
+	var expected: String = for_platform(HASHES, PLATFORM_HASHES).get(key, "")
 	if digest != expected or not OS.get_environment("PRINT_GOLDENS").is_empty():
 		print("\t\"%s\": \"%s\"," % [key, digest])
 	return digest == expected
