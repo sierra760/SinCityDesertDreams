@@ -5,13 +5,18 @@
 ## Close geometry remains byte-identical; far crowns use continuous coarse ribbons.
 extends "res://tests/test_case.gd"
 const Palm := preload("res://scripts/view/city_palm_3d.gd")
+const Hashes := preload("res://tests/fixtures/output_hashes.gd")
 const BASE_HASHES := [
 	"043e2a49b35f9926c473c1c681f0baf33ae272cf0df9e625e87be536a48e7688",
 	"5899483d531e09ffcd5edb41686bf3bfcf9434f6cd9a6d65b1f67c47b375d6ef",
 	"ea53e1703f79cea1da3a5d08437b1355afde529c469f266776ed710e94feea40",
 	"901e840d3694c47b584c87893dc19548aa4fdf39d2c5117048e9ac848db5506c",
 ]
+# Variants whose geometry differs on Windows, which rounds some engine math
+# differently.
+const PLATFORM_HASHES := {"Windows": {0: "75d3d6083f5b57e56d16ac2a00e230636f589a70c5ad1bd4660f2a6e7cd157b0"}}
 func test_close_and_far_palm_geometry() -> void:
+	var base_hashes: Array = Hashes.for_platform(BASE_HASHES, PLATFORM_HASHES)
 	for variant: int in 4:
 		var palm := Palm.create(0.7,0.18,variant)
 		var mesh: ArrayMesh = palm.get_child(2).mesh
@@ -24,7 +29,7 @@ func test_close_and_far_palm_geometry() -> void:
 		check(identity, "near index stream reproduces every original unindexed triangle in order")
 		arrays[Mesh.ARRAY_INDEX] = null
 		hash.update(var_to_bytes(arrays))
-		check_eq(hash.finish().hex_encode(), BASE_HASHES[variant], "variant%d complete close geometry/colors/normals unchanged" % variant)
+		check_eq(hash.finish().hex_encode(), base_hashes[variant], "variant%d complete close geometry/colors/normals unchanged" % variant)
 		check(Palm.is_static_crown_material(mesh.surface_get_material(0)), "crown material batching contract unchanged")
 		var lods: Array = mesh.get("_surfaces")[0].get("lods", [])
 		check(lods.size() == 4, "variant%d has two automatic crown LODs" % variant)
