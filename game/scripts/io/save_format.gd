@@ -29,6 +29,10 @@ extends RefCounted
 const FORMAT := "sc2d"
 const VERSION := 2
 const EXTENSION := "sc2d"
+## Each save stages its document in a private sibling folder with this prefix.
+const STAGING_PREFIX := ".sc2d-save-"
+## File in a staging folder naming the save it replaces.
+const STAGING_TARGET := "target"
 ## A save of a founded, running city.
 const STAGE_PLAY := "play"
 ## A save of a map still being shaped; loading it returns to the editing stage.
@@ -123,7 +127,7 @@ static func _write_replacement(path: String, bytes: PackedByteArray) -> Error:
 	var staging := ""
 	var nonce := "%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]
 	for attempt in range(16):
-		var candidate := parent.path_join(".sc2d-save-%s-%d" % [nonce, attempt])
+		var candidate := parent.path_join(STAGING_PREFIX + "%s-%d" % [nonce, attempt])
 		var made := DirAccess.make_dir_absolute(candidate)
 		if made == OK:
 			staging = candidate
@@ -132,6 +136,15 @@ static func _write_replacement(path: String, bytes: PackedByteArray) -> Error:
 			return made
 	if staging.is_empty():
 		return ERR_ALREADY_EXISTS
+	# Name the save being replaced, so recover_interrupted_saves() can put the
+	# previous city back if publication stops halfway.
+	var marker := FileAccess.open(staging.path_join(STAGING_TARGET), FileAccess.WRITE)
+	if marker == null:
+		var opened := FileAccess.get_open_error()
+		_discard_staged_save(staging)
+		return opened
+	marker.store_string(absolute.get_file())
+	marker.close()
 	var temporary := staging.path_join("document")
 	var file := FileAccess.open(temporary, FileAccess.WRITE)
 	if file == null:
@@ -166,6 +179,7 @@ static func _write_replacement(path: String, bytes: PackedByteArray) -> Error:
 static func _publish_staged_save(staging: String, absolute: String, preserve_backup: bool) -> Error:
 	var previous := staging.path_join("previous.sc2d")
 	var has_previous := preserve_backup and FileAccess.file_exists(absolute)
+	var original := PackedByteArray()
 	if has_previous:
 		var source := FileAccess.open(absolute, FileAccess.READ)
 		if source == null:
@@ -173,7 +187,7 @@ static func _publish_staged_save(staging: String, absolute: String, preserve_bac
 			_discard_staged_save(staging)
 			return opened
 		var expected_size := source.get_length()
-		var original := source.get_buffer(expected_size)
+		original = source.get_buffer(expected_size)
 		var read_error := source.get_error()
 		source.close()
 		if original.size() != expected_size or read_error != OK:
@@ -193,6 +207,12 @@ static func _publish_staged_save(staging: String, absolute: String, preserve_bac
 			return copied if copied != OK else ERR_FILE_CANT_WRITE
 	var replaced := DirAccess.rename_absolute(staging.path_join("document"), absolute)
 	if replaced != OK and has_previous:
+		# A destination still holding the previous city makes the copy redundant;
+		# Windows refuses the move this way while another program has it open.
+		if FileAccess.file_exists(absolute) and FileAccess.get_file_as_bytes(absolute) == original:
+			DirAccess.remove_absolute(previous)
+			_discard_staged_save(staging)
+			return replaced
 		# Restore only a missing destination, never overwrite a file another
 		# process may have published. Preserve recovery bytes if this also fails.
 		_restore_previous_save(staging, absolute)
@@ -201,6 +221,34 @@ static func _publish_staged_save(staging: String, absolute: String, preserve_bac
 		DirAccess.remove_absolute(previous)
 	_discard_staged_save(staging)
 	return replaced
+
+
+## Puts back cities that an interrupted save left only as a recovery copy in
+## dir. Windows removes a save before moving its replacement into place, so a
+## save stopped between the two leaves the previous city in its staging folder
+## and nothing at its path. Restores each such city whose path is still empty
+## and returns how many were restored.
+static func recover_interrupted_saves(dir: String) -> int:
+	var absolute := ProjectSettings.globalize_path(dir)
+	var directory := DirAccess.open(absolute)
+	if directory == null:
+		return 0
+	directory.include_hidden = true
+	var restored := 0
+	for name: String in directory.get_directories():
+		if not name.begins_with(STAGING_PREFIX):
+			continue
+		var staging := absolute.path_join(name)
+		var marker := staging.path_join(STAGING_TARGET)
+		if not FileAccess.file_exists(marker) or not FileAccess.file_exists(staging.path_join("previous.sc2d")):
+			continue
+		var target := FileAccess.get_file_as_string(marker).strip_edges()
+		# The marker names a file beside the staging folder, never another path.
+		if target.is_empty() or target.get_file() != target or target.begins_with("."):
+			continue
+		if _restore_previous_save(staging, absolute.path_join(target)) == OK:
+			restored += 1
+	return restored
 
 
 static func _restore_previous_save(staging: String, absolute: String) -> Error:
@@ -213,9 +261,9 @@ static func _restore_previous_save(staging: String, absolute: String) -> Error:
 
 
 static func _discard_staged_save(staging: String) -> void:
-	var temporary := staging.path_join("document")
-	if FileAccess.file_exists(temporary):
-		DirAccess.remove_absolute(temporary)
+	for name: String in ["document", STAGING_TARGET]:
+		if FileAccess.file_exists(staging.path_join(name)):
+			DirAccess.remove_absolute(staging.path_join(name))
 	DirAccess.remove_absolute(staging)
 
 
@@ -231,6 +279,8 @@ const MESSAGE_DAMAGED := "This city file is damaged and can't be opened."
 ## `error` is player-facing, and a technical `detail` may accompany it.
 static func load(path: String) -> Dictionary:
 	var result := {"ok": false, "city": null, "snapshot": {}, "stage": STAGE_PLAY, "generator": {}, "error": "", "version": 0, "topology": null, "explore_mods": {}, "mod_notices": []}
+	if not FileAccess.file_exists(path):
+		recover_interrupted_saves(path.get_base_dir())
 	if not FileAccess.file_exists(path):
 		result["error"] = MESSAGE_MISSING
 		return result
@@ -600,6 +650,7 @@ static func _point_problem(value: Variant, where: String) -> String:
 ## year, day, funds, stage}]. No city layer decoding is needed for the headers.
 static func list_saves(dir: String = default_dir()) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	recover_interrupted_saves(dir)
 	var d := DirAccess.open(dir)
 	if d == null:
 		return out
