@@ -262,8 +262,7 @@ func open(table_sim: Simulation, resort_key: StringName, game_kind: StringName, 
 	_line_rng = CasinoRng.new(posmod(_rng.state() * 7 + 11, 2147483647))
 	game = ResortThemes.make_game(kind)
 	game.begin(_rng, _limits())
-	if is_instance_valid(stage):
-		stage.queue_free()
+	_retire_stage()
 	stage = _make_stage(kind)
 	stage.name = "Stage"
 	stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -454,12 +453,28 @@ func session_net() -> int:
 func _finish_close() -> void:
 	if is_instance_valid(stage):
 		stage.skip()
-		stage.queue_free()
-	stage = null
+	_retire_stage()
 	_emit_settled()
 	rules_panel.visible = false
 	visible = false
 	closed.emit()
+
+
+## Take the stage out of play now. A stage queued for deletion keeps
+## processing until the frame ends, and a live launch's climb would then act
+## on whichever table opens next.
+func _retire_stage() -> void:
+	if not is_instance_valid(stage):
+		stage = null
+		return
+	stage.spot_pressed.disconnect(_on_spot_pressed)
+	stage.stage_action.disconnect(_on_stage_action)
+	stage.event_started.disconnect(_on_event_started)
+	stage.event_finished.disconnect(_on_event_finished)
+	stage.idle.disconnect(_refresh)
+	stage.get_parent().remove_child(stage)
+	stage.queue_free()
+	stage = null
 
 
 func _make_stage(game_kind: StringName) -> CasinoStage:

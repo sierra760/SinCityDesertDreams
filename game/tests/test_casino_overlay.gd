@@ -314,6 +314,26 @@ func test_leave_is_refused_while_playing_and_force_close_refunds() -> void:
 	check_eq(closed_count, 1)
 
 
+func test_a_closed_launch_cannot_act_on_the_next_table() -> void:
+	overlay.open(sim, ORBIT, &"trajectory", CasinoRng.new(2))
+	overlay.press_chip(0)
+	overlay.game.rig([50.0])
+	overlay.perform_action(&"launch")
+	var rocket := overlay.stage as TrajectoryStage
+	check(rocket.live, "fixture: the climb is live")
+	overlay.force_close()
+	overlay.open(sim, COMSTOCK, &"blackjack", CasinoRng.new(6))
+	overlay.game.rig([_card(10, 0), _card(9, 1), _card(5, 2), _card(8, 3)])
+	overlay.press_chip(2)
+	overlay.perform_action(&"deal")
+	check_eq(overlay.game.state, CasinoGame.PLAYING, "fixture: the hand is in play")
+	check(not rocket.is_inside_tree(), "the closed launch leaves the table at once")
+	# A slow frame before the closed stage is freed climbs a whole second.
+	rocket._advance_clock(1.0)
+	check_eq(overlay._message, "", "the closed launch cannot act on the hand")
+	check_eq(overlay.game.state, CasinoGame.PLAYING)
+
+
 func test_bets_beyond_the_treasury_are_refused_without_a_debit() -> void:
 	overlay.open(sim, COMSTOCK, &"chuck_a_luck", CasinoRng.new(1))
 	overlay.bet_on(&"die_3")
