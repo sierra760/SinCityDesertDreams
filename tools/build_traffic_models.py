@@ -231,7 +231,9 @@ def transit(part):
             box('End lower wall',(0,y,.8),(3.4,.22,.8),'panel')
             box('End header',(0,y,3.03),(3.4,.22,.62),'teal')
             for x in [-1.65,0,1.65]:box('End window mullion',(x,y,1.99),(.11,.22,1.46),'panel')
-            box('End brass sill',(0,y*.9735,1.28),(3.4,.08,.04),'gold')
+            # Bottom below the mullions' 1.26 m and ends well past the mullions'
+            # and bench backs' outer faces, so no same-facing faces can z-fight.
+            box('End brass sill',(0,y*.9735,1.27),(3.43,.08,.06),'gold')
         box('Roof',(0,0,3.42),(3.84,10,.16),'teal')
         box('Perforated ceiling panel',(0,0,3.329),(3.38,9.76,.008),'ceiling')
         for x in [-.8,.8]:box('Cabin light strip',(x,0,3.305),(.22,8.4,.035),'light')
