@@ -316,11 +316,11 @@ func test_native_absolute_zero_relative_precedence_and_budget_types() -> void:
 # Real OS descheduling: a helper process stops and resumes this whole process,
 # so callbacks lose wall time while their thread CPU time stays small.
 # The resume gap is generous: Rosetta can take several ms to resume a process.
-# Perl sleeps in-process: a shell starts an external sleep while this process is
-# stopped, which held a 6 ms stop for over 60 ms on a busy CI runner.
+# The helper spins through each stop rather than sleeping: macOS coalesces a
+# background process's short timers, which held 6 ms stops for 50-60 ms on CI.
 func _preempt_self(pause: String, cycles: int) -> int:
 	var pid := OS.get_process_id()
-	var script := "use Time::HiRes qw(sleep); END { kill 'CONT', %d } for (1..%d) { kill 'STOP', %d; sleep %s; kill 'CONT', %d; sleep 0.02 }" % [pid, cycles, pid, pause, pid]
+	var script := "use Time::HiRes qw(time sleep); END { kill 'CONT', %d } for (1..%d) { kill 'STOP', %d; my $t = time; 1 while time - $t < %s; kill 'CONT', %d; sleep 0.02 }" % [pid, cycles, pid, pause, pid]
 	return OS.create_process("/usr/bin/perl", ["-e", script])
 
 func _wait_for(helper: int) -> void:
