@@ -362,6 +362,7 @@ func test_wall_backstop_still_ends_a_stalled_callback() -> void:
 	if OS.get_name() == "Windows": return
 	var faulted := {}
 	for attempt in 10:
+		faulted = {}
 		var vm = Bridge.new()
 		check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end end}", {}, context(), 7).ok)
 		var helper := _preempt_self("0.08", 1)
@@ -372,7 +373,9 @@ func test_wall_backstop_still_ends_a_stalled_callback() -> void:
 				break
 		_wait_for(helper)
 		vm.close()
-		if not faulted.is_empty(): break
+		# A busy runner can spend the CPU budget before the stop lands; that
+		# callback was busy, not stalled, so try again.
+		if String(faulted.get("diagnostic", "")).contains("wall-time backstop"): break
 	check_eq(faulted.get("fault", ""), "deadline")
 	check(String(faulted.get("diagnostic", "")).contains("wall-time backstop"), str(faulted))
 	check(int(faulted.get("timing", {}).get("thread_cpu_usec", 99999)) < 1500, "stalled, not busy: " + str(faulted.get("timing", {})))

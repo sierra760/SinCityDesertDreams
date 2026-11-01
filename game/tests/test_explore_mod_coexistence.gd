@@ -98,11 +98,11 @@ func _mission(delivery_first: bool, endpoint_blocked: bool = false) -> void:
 		service.step(.1,false)
 		await physics_frame
 	check(service.activate_interaction(),"actual proximity activation")
-	for i in 3: service.step(.1,false)
+	_step_until(service,func() -> bool: return service.api.interactions._dialogue.get("owner","") == "desert_delivery")
 	check_eq(service.api.interactions._dialogue.get("owner",""),"desert_delivery","courier offer rather than fabricated interaction")
 	if service.api.interactions._dialogue.get("owner","") != "desert_delivery": return
 	service.api.interactions.choose("accept")
-	for i in 3: service.step(.1,false)
+	_step_until(service,func() -> bool: return not service.api.interactions._owned.get("desert_delivery",{}).has("parcel"))
 	check(not service.api.interactions._owned.get("desert_delivery",{}).has("parcel"),"real accepted shift retires the offer")
 	check(_actor(service,"desert_delivery","courier").is_empty(),"acceptance clears only own courier")
 	check(not _actor(service,"desert_stroll","stroller1").is_empty(),"handoff preserves foreign walker")
@@ -146,7 +146,7 @@ func _mission(delivery_first: bool, endpoint_blocked: bool = false) -> void:
 	check(Vector2(session.occupied.feet_position().x-target.x,session.occupied.feet_position().z-target.z).length()<.8,"arrival compares actual target point")
 	check_eq(service.api.interactions._dialogue.get("key",""),"drop","recipient thanks the courier")
 	service.api.interactions.choose("stop")
-	for i in 3: service.step(.1,false)
+	_step_until(service,func() -> bool: return service.api.interactions._dialogue.get("key","") == "radio")
 	check_eq(service.api.interactions._dialogue.get("key",""),"radio","ending the shift radios dispatch")
 	service.api.interactions.choose("done")
 	for i in 30: service.step(.1,false)
@@ -162,6 +162,14 @@ func _mission(delivery_first: bool, endpoint_blocked: bool = false) -> void:
 	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
 	service.leave("test")
 	check(service.actors._actors.is_empty(),"normal leave clears owned actors")
+
+## Steps at least three ticks, then until `done` holds. A callback starts only
+## while its tick's wall-clock budget allows, so a slow runner can defer a
+## mod's reply by a few ticks.
+func _step_until(service: ExploreModService, done: Callable, steps := 30) -> void:
+	for i in steps:
+		service.step(.1,false)
+		if i >= 2 and done.call(): return
 
 func _blocking_pack(source: String) -> Dictionary:
 	return ExploreModPack._snapshot({"manifest.json":'{"id":"street_blocker","name":"Street blocker fixture","version":"1.0.0","api_version":1,"state_version":1,"entry":"main.lua"}'.to_utf8_buffer(),"main.lua":source.to_utf8_buffer()})
@@ -181,7 +189,7 @@ func test_occupied_origin_and_common_landmark_use_actual_vacancies() -> void:
 	check(not _actor(service,"desert_delivery","courier").is_empty(),"occupied origin does not permanently lose courier")
 	check(service.api.interactions._owned.get("desert_delivery",{}).has("parcel"))
 	service.runtime.deliver("desert_delivery",{"kind":"interaction","key":"parcel","code":"ok","data":{}})
-	for i in 3: service.step(.1,false)
+	_step_until(service,func() -> bool: return service.api.interactions._dialogue.get("owner","") == "desert_delivery")
 	service.api.interactions.choose("accept")
 	for i in 12: service.step(.1,false)
 	var recipient := _recipient(service)
