@@ -201,3 +201,17 @@ jobs:
             test -d "$app/Frameworks/$framework.framework" || { echo "::error::app is missing $framework.framework"; exit 1; }
           done
           du -sh "$app"
+          echo "APP=$app" >> "$GITHUB_ENV"
+      # Unsigned: re-sign before installing or uploading to App Store Connect.
+      - name: Package unsigned IPA
+        run: |
+          rm -rf build/ios/ipa && mkdir -p build/ios/ipa/Payload
+          ditto "$APP" "build/ios/ipa/Payload/$(basename "$APP")"
+          (cd build/ios/ipa && zip -qry ../SC2D-ios-unsigned.ipa Payload)
+          unzip -l build/ios/SC2D-ios-unsigned.ipa | grep -q 'Payload/[^/]*\.app/Info\.plist$' || { echo "::error::IPA has no Payload app"; exit 1; }
+          ls -l build/ios/SC2D-ios-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SC2D-ios-unsigned
+          path: build/ios/SC2D-ios-unsigned.ipa
+          retention-days: 14
