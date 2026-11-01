@@ -126,15 +126,12 @@ func test_played_phone_rounds_keep_controls_inside_and_gameplay_central() -> voi
 					if action.get("primary",false) and action.get("enabled",true):
 						overlay.perform_action(action.id)
 						break
-				# Results appear after real-time animation; check the played-out
-				# round with its feedback, not however far a slow frame reached.
-				overlay.stage.skip()
 				for frame in 8: await process_frame
 				var bounds := layout.logical_rect().grow(.5)
 				check(bounds.encloses(overlay._root.get_global_rect()),"played table fits %s/%s at %s" % [resort,kind,size])
 				for button: Button in overlay.find_children("*","Button",true,false):
 					if button.is_visible_in_tree(): check(bounds.encloses(button.get_global_rect()),"played action fits %s/%s %s" % [resort,kind,button.name])
-				check_ge(overlay.stage.size.y,size.y*.5,"played game keeps the main screen area %s/%s at %s" % [resort,kind,size])
+				check_ge(overlay.stage.size.y,size.y*.5,"played game keeps the main screen area %s/%s at %s (message %s, confirming %s, message panel %s, bet bar %s)" % [resort,kind,size,JSON.stringify(overlay._message),overlay.awaiting_confirmation(),overlay._patter_panel.visible,overlay.bet_bar.size.y])
 				overlay.force_close()
 
 func test_phone_large_stake_confirmation_remains_visible_and_bounded() -> void:
