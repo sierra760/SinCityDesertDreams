@@ -1,5 +1,6 @@
 extends "res://tests/test_case.gd"
 const Bridge = preload("res://scripts/exploration/mods/explore_lua_bridge.gd")
+const WALL_BACKSTOP_USEC := 50000 # WALL_BACKSTOP_USEC in native/explore-lua/lua_vm.cpp
 func context() -> Dictionary:
 	return {"owner":"test.mod", "generation":3, "progress":{}, "queries":{}}
 func test_native_instruction_and_memory_limits() -> void:
@@ -315,33 +316,43 @@ func test_native_absolute_zero_relative_precedence_and_budget_types() -> void:
 # Real OS descheduling: a helper process stops and resumes this whole process,
 # so callbacks lose wall time while their thread CPU time stays small.
 # The resume gap is generous: Rosetta can take several ms to resume a process.
+# Perl sleeps in-process: a shell starts an external sleep while this process is
+# stopped, which held a 6 ms stop for over 60 ms on a busy CI runner.
 func _preempt_self(pause: String, cycles: int) -> int:
 	var pid := OS.get_process_id()
-	var script := "for i in $(seq 1 %d); do kill -STOP %d; sleep %s; kill -CONT %d; sleep 0.02; done; kill -CONT %d" % [cycles, pid, pause, pid, pid]
-	return OS.create_process("/bin/sh", ["-c", script])
+	var script := "use Time::HiRes qw(sleep); END { kill 'CONT', %d } for (1..%d) { kill 'STOP', %d; sleep %s; kill 'CONT', %d; sleep 0.02 }" % [pid, cycles, pid, pause, pid]
+	return OS.create_process("/usr/bin/perl", ["-e", script])
 
 func _wait_for(helper: int) -> void:
 	while OS.is_process_running(helper): OS.delay_msec(1)
 
 func test_preempted_callbacks_are_not_charged_for_lost_wall_time() -> void:
-	# Windows has no /bin/sh helper and enforces only the wall backstop there.
+	# Windows has no stop/resume helper and enforces only the wall backstop there.
 	if OS.get_name() == "Windows": return
-	var vm = Bridge.new()
-	check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end; api.state.set('n',n) end}", {}, context(), 7).ok)
-	var helper := _preempt_self("0.006", 25)
-	check(helper > 0)
 	var stalled := 0
 	var calls := 0
 	var failure := {}
-	while OS.is_process_running(helper):
-		var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
-		calls += 1
-		if not result.ok:
-			failure = result
-			break
-		var cpu := int(result.get("timing", {}).get("thread_cpu_usec", -1))
-		if int(result.elapsed_usec) > 1500 and cpu >= 0 and cpu < 1500: stalled += 1
-	_wait_for(helper)
+	var vm = null
+	for attempt in 5:
+		vm = Bridge.new()
+		check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end; api.state.set('n',n) end}", {}, context(), 7).ok)
+		var helper := _preempt_self("0.006", 25)
+		check(helper > 0)
+		stalled = 0
+		calls = 0
+		failure = {}
+		while OS.is_process_running(helper):
+			var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
+			calls += 1
+			if not result.ok:
+				failure = result
+				break
+			var cpu := int(result.get("timing", {}).get("thread_cpu_usec", -1))
+			if int(result.elapsed_usec) > 1500 and cpu >= 0 and cpu < 1500: stalled += 1
+		_wait_for(helper)
+		# A stop the OS itself held past the backstop rightly faults; try again.
+		if failure.is_empty() or int(failure.get("elapsed_usec", 0)) < WALL_BACKSTOP_USEC: break
+		vm.close()
 	check(failure.is_empty(), "a 6 ms stall with low CPU must not fault: " + str(failure))
 	check(stalled > 0, "a stop landed inside a callback (" + str(calls) + " calls)")
 	check_eq(vm.dispatch("on_tick", {}, context(), {}).progress_writes, {"n":4501500})

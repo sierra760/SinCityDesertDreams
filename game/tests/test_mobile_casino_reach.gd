@@ -126,6 +126,9 @@ func test_played_phone_rounds_keep_controls_inside_and_gameplay_central() -> voi
 					if action.get("primary",false) and action.get("enabled",true):
 						overlay.perform_action(action.id)
 						break
+				# Results appear after real-time animation; check the played-out
+				# round with its feedback, not however far a slow frame reached.
+				overlay.stage.skip()
 				for frame in 8: await process_frame
 				var bounds := layout.logical_rect().grow(.5)
 				check(bounds.encloses(overlay._root.get_global_rect()),"played table fits %s/%s at %s" % [resort,kind,size])
