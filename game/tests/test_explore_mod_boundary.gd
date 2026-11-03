@@ -11,7 +11,22 @@ func after_each() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://f8-boundary.cfg"))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(CityFileFlow.autosave_path()))
 	await process_frame
-func _begin(enabled: bool) -> bool:
+# Model a busy scheduler through the real bridge's expired-deadline path;
+# admitted callbacks still execute the actual Lua source and native VM.
+class DeferredBridge extends ExploreLuaBridge:
+	var inner: ExploreLuaBridge
+	var remaining: int
+	func _init(bridge: ExploreLuaBridge, count: int) -> void:
+		inner = bridge
+		remaining = count
+	func dispatch(handler: String, payload: Dictionary, context: Dictionary, budget: Dictionary) -> Dictionary:
+		if remaining > 0 and budget.has("deadline_usec"):
+			remaining -= 1
+			return inner.dispatch(handler,payload,context,{"deadline_usec":0})
+		return inner.dispatch(handler,payload,context,budget)
+	func close() -> void: inner.close()
+
+func _begin(enabled: bool, deferred_callbacks := 0) -> bool:
 	var city := flat_city()
 	for x in range(18,34): city.building.put(x,20,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
 	host.begin_city(city,{},173,null)
@@ -25,6 +40,9 @@ func _begin(enabled: bool) -> bool:
 	var entered := host.explore_switch.enter()
 	check(entered,"actual Main supported entry")
 	host.exploration.set_physics_process(false)
+	if enabled and deferred_callbacks > 0:
+		for session: Dictionary in host.exploration.mod_service.runtime._sessions.values():
+			session.vm = DeferredBridge.new(session.vm,deferred_callbacks)
 	return entered
 func _state() -> Dictionary:
 	return {"city":SaveFormat.encode_city(host.sim.city).duplicate(true),"simulation":host.sim.snapshot().duplicate(true)}
@@ -38,9 +56,13 @@ func _events() -> void:
 	service.api.environment.step(.1,true)
 	service.api.environment.step(.1,false)
 func test_running_city_continuation_with_mods_matches_control() -> void:
+	await _running_city_continuation(0)
+func test_deferred_mod_continuation_matches_control() -> void:
+	await _running_city_continuation(50)
+func _running_city_continuation(deferred_callbacks: int) -> void:
 	var control: Array[Dictionary] = []
 	for enabled in [false,true]:
-		if not await _begin(enabled): return
+		if not await _begin(enabled,deferred_callbacks): return
 		host.sim.set_speed(GameClock.Speed.SLOW)
 		for day in 32:
 			# Identical player edit and explicit day stepping isolate simulation from wall time.
@@ -52,9 +74,17 @@ func test_running_city_continuation_with_mods_matches_control() -> void:
 			if enabled: check_eq(_state(),control[day],"all city layers/metadata/stats/systems/RNG on day %d" % day)
 			else: control.append(_state())
 		if enabled:
-			check(host.exploration.mod_service.runtime.has_owner("desert_stroll"))
-			check(host.exploration.mod_service.runtime.has_owner("desert_atmosphere"))
-			check(host.exploration.mod_progress.get_state("desert_stroll",1).data.get("strolls",0) >= 1)
+			# City days do not determine when the active-time walk finishes:
+			# legal callback deferrals can start its route later. Finish the
+			# real routine with a bounded wait, without advancing the city.
+			for tick in 900:
+				if host.exploration.mod_progress.get_state("desert_stroll",1).data.get("strolls",0) >= 1: break
+				if not host.exploration.mod_service.runtime.has_owner("desert_stroll"): break
+				host.exploration.mod_service.step(.1,false)
+			check_eq(_state(),control.back(),"mod-only completion leaves city layers/metadata/stats/systems/RNG exact")
+			check(host.exploration.mod_service.runtime.has_owner("desert_stroll"),"stroll stays active: "+str(host.exploration.mod_service.runtime.diagnostics))
+			check(host.exploration.mod_service.runtime.has_owner("desert_atmosphere"),"atmosphere stays active: "+str(host.exploration.mod_service.runtime.diagnostics))
+			check(host.exploration.mod_progress.get_state("desert_stroll",1).data.get("strolls",0) >= 1,"real walk and wait finish")
 		host.explore_switch.leave()
 func test_paused_city_interactions_environment_save_teardown_reentry() -> void:
 	if not await _begin(true): return
