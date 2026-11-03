@@ -310,7 +310,7 @@ func test_loaded_city_opens_paused_and_p_resumes_its_speed() -> void:
 	host.sim.set_speed(GameClock.Speed.SLOW)
 	check(host.load_city(path))
 	check_eq(host.sim.speed,GameClock.Speed.PAUSED,"a loaded city opens paused")
-	check_eq(host.status_bar.message_label.text,"Loaded %s. %s" % [host.sim.city.name,CitySession.PAUSED_HINT])
+	check_eq(host.status_bar.message_label.text,"Loaded %s. Paused — choose a speed (Speed menu or P) to start." % host.sim.city.name)
 	host._unhandled_key_input(_key(KEY_P))
 	check_eq(host.sim.speed,GameClock.Speed.FAST,"P resumes the saved speed")
 

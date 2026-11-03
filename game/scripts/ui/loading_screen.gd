@@ -9,6 +9,11 @@ extends Control
 
 var heading: Label
 var detail: Label
+var _center: CenterContainer
+var _column: VBoxContainer
+var _layout: DisplayLayout
+var _brand: Label
+var _wait: Label
 
 func _init() -> void:
 	name = "LoadingScreen"
@@ -22,8 +27,10 @@ func _init() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(backdrop)
 	var center := CenterContainer.new()
+	_center = center
 	center.name = "Center"
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	center.minimum_size_changed.connect(_fit)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 	var panel := UIFactory.make_panel()
@@ -31,19 +38,24 @@ func _init() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(panel)
 	var column := VBoxContainer.new()
+	_column = column
 	column.custom_minimum_size.x = 400
 	column.add_theme_constant_override("separation",16)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(column)
 	var brand := UIFactory.make_label("SIN CITY · DESERT DREAMS",UITheme.FONT_SMALL,UITheme.HEADER)
+	_brand = brand
 	brand.add_theme_font_override("font",UITheme.LOGO_FONT)
+	brand.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(brand)
 	heading = UIFactory.make_label("Loading…",UITheme.FONT_TITLE)
 	heading.add_theme_font_override("font",UITheme.DISPLAY_FONT)
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	column.add_child(heading)
 	detail = UIFactory.make_label("",UITheme.FONT_BODY,UITheme.TEXT_MUTED)
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	column.add_child(detail)
 	var activity := ProgressBar.new()
 	activity.custom_minimum_size.y = 8
@@ -58,12 +70,43 @@ func _init() -> void:
 	fill.bg_color = UITheme.ACCENT_BRASS
 	activity.add_theme_stylebox_override("fill",fill)
 	column.add_child(activity)
-	column.add_child(UIFactory.make_label("Please wait.",UITheme.FONT_SMALL,UITheme.TEXT_MUTED))
+	_wait = UIFactory.make_label("Please wait.",UITheme.FONT_SMALL,UITheme.TEXT_MUTED)
+	column.add_child(_wait)
 	hide()
+	resized.connect(_fit)
+
+func _ready() -> void:
+	var ancestor := get_parent()
+	while ancestor != null:
+		if ancestor is GameHost:
+			_layout = ancestor.display_layout
+			_layout.metrics_changed.connect(func(_metrics: Dictionary) -> void: _fit())
+			break
+		ancestor = ancestor.get_parent()
+	_fit()
+
+func _fit() -> void:
+	if not is_inside_tree(): return
+	var usable := _layout.logical_rect() if is_instance_valid(_layout) else Rect2(Vector2.ZERO, size)
+	# Long filenames cannot grow this noninteractive surface off screen.
+	# With a keyboard or short landscape, retain the operation and activity
+	# indicator while the secondary branding yields its space.
+	var short := usable.size.y < 280.0
+	_brand.visible = not short
+	_wait.visible = not short
+	_column.add_theme_constant_override("separation", 8 if short else 16)
+	heading.max_lines_visible = 1 if short else 2
+	detail.max_lines_visible = 2 if short else 3
+	_center.position = usable.position
+	_center.size = usable.size
+	var panel := _column.get_parent() as PanelContainer
+	var padding := panel.get_theme_stylebox("panel").get_minimum_size().x
+	_column.custom_minimum_size.x = maxf(1.0, minf(400.0, usable.size.x - 32.0 - padding))
 
 func open(title: String, message: String) -> void:
 	heading.text = title
 	detail.text = message
+	_fit()
 	show()
 	grab_focus()
 

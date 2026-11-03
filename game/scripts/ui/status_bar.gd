@@ -35,6 +35,7 @@ var _tool_name := "None"
 var _full_date := "—"
 var _demand_caption: Label
 var speed_label: Label
+var controls := ControlBindings.new()
 var alert_label: Label
 var message_label: Label
 var demand_meter: DemandMeter
@@ -102,6 +103,7 @@ func set_phone_layout(on: bool) -> void:
 		if _counts_row.get_parent() != _metrics_row: _counts_row.reparent(_metrics_row,false)
 		_metrics_row.move_child(_counts_row,3)
 	set_details_open(false)
+	_sync_speed_hint()
 
 func set_details_open(on: bool) -> void:
 	_details_open = on and _phone
@@ -439,10 +441,16 @@ func set_agricultural_demand(value: int) -> void:
 
 
 func set_speed(speed: int) -> void:
-	var editing_hint := "Found City to start the simulation clock."
 	speed_label.text = "Stopped" if _editing else String(GameClock.SPEED_NAMES.get(speed, "Paused"))
-	speed_label.tooltip_text = editing_hint if _editing else "Simulation speed. Change it from the Speed menu; %s pauses or resumes." % ("P" if not _phone else "Menu → Speed")
+	_sync_speed_hint()
 	_sync_phone_summary()
+
+
+func _sync_speed_hint() -> void:
+	if speed_label == null: return
+	if _editing: speed_label.tooltip_text = "Found City to start the simulation clock."
+	elif _phone: speed_label.tooltip_text = "Simulation speed. Change it from Menu → Speed."
+	else: speed_label.tooltip_text = "Simulation speed. Change it from the Speed menu; %s pauses or resumes." % controls.caption(&"pause")
 
 
 ## Short warnings shown in red, joined with separators.

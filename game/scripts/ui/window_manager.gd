@@ -33,6 +33,7 @@ var windows: Dictionary = {}
 var open_windows: Array[Control] = []
 var _host: GameHost
 var _report_bounds_bound := false
+var _focus_bound := false
 
 
 func _init(host: GameHost) -> void:
@@ -71,6 +72,7 @@ func open(window_name: String) -> Control:
 	_place(w)
 	layer.move_child(w, layer.get_child_count() - 1)
 	_schedule_report_bounds(w)
+	UIFactory.contain_window_focus(w)
 	return w
 
 
@@ -82,9 +84,15 @@ func window(window_name: String) -> Control:
 	if not SCRIPTS.has(window_name):
 		return null
 	var w: Control = SCRIPTS[window_name].new()
+	w.set_meta("nonmodal_window", true)
 	w.set_meta("city_report", GameMenuBar.WINDOW_NAMES.has(window_name))
 	w.visible = false
 	_host.ui_layer.add_child(w)
+	if not _focus_bound:
+		_focus_bound = true
+		var viewport := _host.get_viewport()
+		viewport.gui_focus_changed.connect(_on_gui_focus_changed)
+		_host.tree_exiting.connect(func() -> void: viewport.gui_focus_changed.disconnect(_on_gui_focus_changed))
 	_place(w)
 	w.connect("closed", _on_window_closed.bind(w))
 	if w.has_signal("report_requested"):
@@ -155,7 +163,24 @@ static func _place(w: Control) -> void:
 func _on_window_closed(w: Control) -> void:
 	open_windows.erase(w)
 	_host.prefs.flush()
-	if _host.title_screen.visible and open_windows.is_empty(): _host.title_screen.new_button.grab_focus()
+	if _host.title_screen.visible and open_windows.is_empty() and _host.get_viewport().gui_get_focus_owner() == null:
+		_host.title_screen.new_button.grab_focus()
+
+
+## Clicking an exposed control in an older report selects that window for
+## subsequent keyboard navigation, just as opening it from the menu does.
+func _on_gui_focus_changed(control: Control) -> void:
+	# The annual Budget review also holds modal_depth, but its reports remain
+	# interactive. Actual dialogs retain priority through their focus guard.
+	if control == null or _host.loading_screen.visible: return
+	for w: Control in open_windows:
+		if not w.is_visible_in_tree() or not w.is_ancestor_of(control): continue
+		if w != front():
+			open_windows.erase(w)
+			open_windows.append(w)
+			w.get_parent().move_child(w, w.get_parent().get_child_count() - 1)
+			UIFactory.contain_window_focus(w)
+		return
 
 
 func close_all() -> void:

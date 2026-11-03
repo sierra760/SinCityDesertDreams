@@ -130,6 +130,8 @@ func refresh(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void
 	# keep the current list, selection, scroll position and details as they are.
 	if visible and rows == _saves and item_list.item_count == _saves.size(): return
 	var identity := _selection_identity()
+	var browsing := visible
+	var scroll := item_list.get_v_scroll_bar().value
 	item_list.clear()
 	_saves = rows
 	details_label.text = ""
@@ -167,7 +169,16 @@ func refresh(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void
 		var next := 0
 		for i in _saves.size():
 			if _entry_identity(_saves[i]) == identity: next = i
-		select(next)
+		if browsing:
+			item_list.select(next)
+			_show_details(next)
+		else:
+			select(next)
+	if browsing:
+		# Selection and the viewport are independent: the player may be
+		# browsing far from the selected row when a sync update arrives.
+		item_list.force_update_list_size()
+		item_list.get_v_scroll_bar().value = scroll
 
 
 func open(saves: Array[Dictionary], included: Array[Dictionary] = []) -> void:

@@ -159,6 +159,18 @@ static func contain_modal_focus(modal: Control, preferred: Control = null) -> vo
 	guard.refresh(preferred)
 
 
+## Reports keep their ordinary size and clock behavior while keyboard
+## navigation follows the front window rather than controls behind it.
+static func contain_window_focus(window: Control) -> void:
+	var guard := window.get_node_or_null("ModalFocusGuard") as ModalFocusGuard
+	if guard == null: guard = window.get_node_or_null("WindowFocusGuard") as ModalFocusGuard
+	if guard == null:
+		guard = ModalFocusGuard.new()
+		guard.name = "WindowFocusGuard"
+		window.add_child(guard)
+	guard.activate()
+
+
 class ModalFocusGuard:
 	extends Node
 	static var _active: Array[WeakRef] = []
@@ -170,22 +182,40 @@ class ModalFocusGuard:
 	func _visibility_changed() -> void:
 		var modal := get_parent() as Control
 		if not modal.is_visible_in_tree() and _was_visible:
+			var restore := _is_front(true)
 			_was_visible = false
 			_remove_active()
+			if not restore: return
 			var old := previous.get_ref() as Control if previous != null else null
 			if is_instance_valid(old) and old.is_visible_in_tree(): old.grab_focus()
+			# The previous owner may belong to a window that was subsequently
+			# closed or lowered. Give the exposed front window the final say.
+			for reference: WeakRef in _active.duplicate():
+				var guard := reference.get_ref() as ModalFocusGuard
+				if guard != null and guard._is_front(): guard.refresh()
 	func _exit_tree() -> void:
 		_remove_active()
 	func _remove_active() -> void:
 		for i in range(_active.size()-1,-1,-1):
 			if _active[i].get_ref() == null or _active[i].get_ref() == self: _active.remove_at(i)
-	func _is_front() -> bool:
+	func _is_front(include_self := false) -> bool:
+		var front: ModalFocusGuard
 		for i in range(_active.size()-1,-1,-1):
 			var guard := _active[i].get_ref() as ModalFocusGuard
-			if guard == null or not (guard.get_parent() as Control).is_visible_in_tree():
+			if guard == null or (not (guard.get_parent() as Control).is_visible_in_tree() and not (include_self and guard == self)):
 				_active.remove_at(i)
-			else: return guard == self
-		return false
+			else:
+				# A report opened underneath a notice never takes its input.
+				if not guard.get_parent().get_meta("nonmodal_window", false): return guard == self
+				if front == null: front = guard
+		return front == self
+	func activate() -> void:
+		if _was_visible:
+			var current := get_viewport().gui_get_focus_owner()
+			if current != null and not get_parent().is_ancestor_of(current): previous = weakref(current)
+			_remove_active()
+			_active.append(weakref(self))
+		refresh()
 	func refresh(preferred: Control = null) -> void:
 		var modal := get_parent() as Control
 		if not modal.is_visible_in_tree(): return
@@ -247,6 +277,7 @@ class WrappingActions:
 		while ancestor != null:
 			if ancestor is ResponsivePanel: ancestor._schedule_fit()
 			var guard := ancestor.get_node_or_null("ModalFocusGuard") as ModalFocusGuard
+			if guard == null: guard = ancestor.get_node_or_null("WindowFocusGuard") as ModalFocusGuard
 			if guard != null: guard.refresh.call_deferred()
 			ancestor = ancestor.get_parent()
 

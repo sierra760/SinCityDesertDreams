@@ -254,6 +254,7 @@ func _ready() -> void:
 
 func _build_chrome() -> void:
 	shell.build_chrome(ui_layer)
+	status_bar.controls = controls
 	menu_bar.action_requested.connect(_on_menu_action)
 	menu_bar.tools_requested.connect(func() -> void: shell.set_phone_tools_open(not shell.phone_tools_open))
 	menu_bar.inspect_requested.connect(func() -> void:

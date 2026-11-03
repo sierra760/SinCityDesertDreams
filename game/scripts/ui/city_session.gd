@@ -15,8 +15,10 @@
 class_name CitySession
 extends RefCounted
 
-## Imported and included cities open paused; tell the player how to start.
-const PAUSED_HINT := "Paused — choose a speed (Speed menu or P) to start."
+## Imported and included cities open paused; use the player's real controls.
+func paused_hint() -> String:
+	var route := "Menu → Speed" if DisplayLayout.is_phone(_host.display_layout.metrics) else "Speed menu or " + _host.controls.caption(&"pause")
+	return "Paused — choose a speed (%s) to start." % route
 
 
 ## The status line during the editing stage, before the city is founded.
@@ -265,7 +267,7 @@ func load_city(path: String, personal: bool = true) -> bool:
 	# snapshot already reported its running speed, so P resumes that speed.
 	sim.set_speed(GameClock.Speed.PAUSED)
 	_host.speed_before_modal = GameClock.Speed.PAUSED
-	_host.show_message("Loaded %s. %s" % [city.name, PAUSED_HINT])
+	_host.show_message("Loaded %s. %s" % [city.name, paused_hint()])
 	return true
 
 
@@ -288,7 +290,7 @@ func open_included_city(path: String) -> bool:
 	else:
 		sim.set_speed(GameClock.Speed.PAUSED)
 		_host.speed_before_modal = resume_speed
-	_host.show_message("Opened %s. %s" % [sim.city.name, PAUSED_HINT])
+	_host.show_message("Opened %s. %s" % [sim.city.name, paused_hint()])
 	return true
 
 
@@ -312,7 +314,7 @@ func import_city(path: String) -> bool:
 	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
 	var warnings: Array = result.get("warnings", [])
 	# Import details stay out of the status line; say only that defaults filled gaps.
-	_host.show_message("Imported %s. %s" % [city.name, PAUSED_HINT] if warnings.is_empty() else "Imported %s. Some city details were missing and use defaults. %s" % [city.name, PAUSED_HINT])
+	_host.show_message("Imported %s. %s" % [city.name, paused_hint()] if warnings.is_empty() else "Imported %s. Some city details were missing and use defaults. %s" % [city.name, paused_hint()])
 	return true
 
 

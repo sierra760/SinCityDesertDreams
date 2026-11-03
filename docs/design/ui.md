@@ -108,6 +108,14 @@ New City's form and preview stack in compact mode. Tables may scroll horizontall
 Display settings persist in `user://display.cfg`, separately from city saves;
 fullscreen does not overwrite the saved windowed size.
 
+Opening a report or settings window transfers keyboard focus into it. Tab
+stays within the active window; selecting an exposed control in another
+report brings that report forward. Closing returns focus to the exposed
+window or initiating control. Real modal dialogs retain priority, while
+reports keep their ordinary size and do not pause the city clock.
+Loading cards fit the usable safe area, including phone widths and keyboard
+space; long operation details are bounded rather than growing off screen.
+
 ## Input and construction
 
 Load City lists personal saves and recovery copies first, followed by nine
@@ -116,6 +124,10 @@ native `.sc2d` saves opened by the native loader; they are credited to the
 player's Mayor name and begin paused with no native save path, so Save creates
 a personal `.sc2d` copy. A personal save with the same name remains a separate
 native entry. `tools/build_bundled_cities.py` regenerates them.
+Background list updates preserve the selected save identity and browsing
+scroll position. Explicitly selecting a save still brings its row into view.
+Paused-city guidance and the speed tooltip use the current pause bindings;
+phone guidance names Menu → Speed.
 
 `CityPresentationController` emits map click, hover and drag signals. Preview
 shows allowed tiles and the cost or refusal; a completed drag reaches Main's
