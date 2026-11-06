@@ -9,6 +9,7 @@ extends Node3D
 const QUERY_LAYER := 2
 const MIN_MARINA_SCALE := 0.45
 const RegionIndex := preload("res://scripts/view/city_region_index_2d.gd")
+const Landscaping := preload("res://scripts/view/city_lot_landscaping_3d.gd")
 static var _pier_join_mesh: BoxMesh
 static var _marina_sources: Dictionary = {}
 static var _lot_scan_margin := 0
@@ -16,6 +17,8 @@ var missing: Dictionary = {}
 var last_updated_lots := 0
 var last_retained_lots := 0
 var _names_city: City
+## Vegetation zone per ground level for this update (VegetationZones.level_table).
+var _vegetation_levels := PackedByteArray()
 ## Lots by 16-cell bucket of their dependency reach (footprint grown by two
 ## cells), so an update visits only lots that can meet its regions. Any lot
 ## whose reach meets a region shares a bucket with it; the exact predicate is
@@ -133,6 +136,7 @@ func clear() -> void:
 func rebuild(city: City, catalog: CityModelCatalog = null) -> void:
 	clear()
 	_names_city = city
+	_vegetation_levels = VegetationZones.level_table(VegetationZones.resolve(city))
 	for record: Dictionary in collect(city):
 		_add_record(city, catalog, record)
 
@@ -150,9 +154,10 @@ func update_regions(city: City, catalog: CityModelCatalog, regions: Array[Rect2i
 	var query := RegionIndex.new(regions)
 	var desired: Dictionary = {}
 	var ordered: Array[Dictionary] = []
+	_vegetation_levels = VegetationZones.level_table(VegetationZones.resolve(city))
 	for record: Dictionary in collect_regions(city,regions,query):
 		if not query.intersects(record.footprint.grow(2)): continue
-		desired[_record_key(record)] = record
+		desired[_record_key(record, _lot_zone(city, record))] = record
 		ordered.append(record)
 	var comparable := previous.size() == 8 and current.size() == 8
 	var kept: Dictionary = {}
@@ -176,7 +181,7 @@ func update_regions(city: City, catalog: CityModelCatalog, regions: Array[Rect2i
 				var code: int = child.get_meta("code")
 				missing[code] = int(missing.get(code, 0)) + 1
 	for record: Dictionary in ordered:
-		if kept.has(_record_key(record)): continue
+		if kept.has(_record_key(record, _lot_zone(city, record))): continue
 		affected.append(record.footprint)
 		_add_record(city, catalog, record)
 	return affected
@@ -236,8 +241,26 @@ func _unregister_lot(model: Node) -> void:
 	if model.get_meta("missing_model", false): _missing_lots -= 1
 
 
-static func _record_key(record: Dictionary) -> String:
+## Desert lots keep their plain key; an upland zone plants other trees.
+static func _record_key(record: Dictionary, vegetation: int = VegetationZones.Zone.PALM) -> String:
+	if vegetation != VegetationZones.Zone.PALM:
+		return "%d:%d:%d:%d" % [record.anchor.x, record.anchor.y, record.code, vegetation]
 	return "%d:%d:%d" % [record.anchor.x, record.anchor.y, record.code]
+
+
+## The vegetation zone of a tree-planting lot's highest ground; desert otherwise.
+func _lot_zone(city: City, record: Dictionary) -> int:
+	if not Landscaping.has_trees(record.code): return VegetationZones.Zone.PALM
+	if _vegetation_levels.is_empty(): _vegetation_levels = VegetationZones.level_table(VegetationZones.resolve(city))
+	return lot_vegetation_zone(city, record.footprint, _vegetation_levels)
+
+
+static func lot_vegetation_zone(city: City, rect: Rect2i, levels: PackedByteArray) -> int:
+	var level := 0
+	for y: int in range(rect.position.y, rect.end.y):
+		for x: int in range(rect.position.x, rect.end.x):
+			if city.in_bounds(x, y): level = maxi(level, city.ground_height(x, y))
+	return levels[level]
 
 
 ## Codes whose projection reads beyond their footprint and its shared ground
@@ -313,6 +336,7 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 	last_updated_lots += 1
 	var rect: Rect2i = record.footprint
 	var code: int = record.code
+	var vegetation := _lot_zone(city, record)
 	var ground := base_height(city, rect, code)
 	var model: Node3D = catalog.instantiate_model(code) if catalog != null else null
 	var missing_model := model == null
@@ -321,7 +345,7 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 		height = 4.0
 	if model != null:
 		height = float(catalog.entries[code].height)
-		preload("res://scripts/view/city_lot_landscaping_3d.gd").add_to(model, code, catalog.entries[code])
+		Landscaping.add_to(model, code, catalog.entries[code], vegetation)
 	else:
 		missing[code] = int(missing.get(code, 0)) + 1
 		model = _placeholder(rect.size, height)
@@ -349,7 +373,7 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 	model.set_meta("missing_model", missing_model)
 	model.set_meta("code", code)
 	model.set_meta("cell", record.anchor)
-	model.set_meta("lot_key", _record_key(record))
+	model.set_meta("lot_key", _record_key(record, vegetation))
 	if record.has("source_key"): model.set_meta("source_key",record.source_key)
 	# A projected lot never changes after this call; replacement makes a new node.
 	model.set_meta("batch_immutable", true)

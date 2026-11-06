@@ -18,6 +18,25 @@ batches with the palm crowns. Every crown has two coarser automatic LODs. Each
 tree has a physical body on the building layer: tall trees by their trunk,
 shrubby junipers and piñons by their low bulk.
 
+## Trees on building lots
+
+Building lots plant trees at the palm spots listed for their model in
+`game/assets/desert-dreams-3d/landscaping.json`: courtyard, parking and
+frontage palms that were once part of the models (see
+[3d-models.md](../art/3d-models.md)), plus perimeter pockets. A lot belongs to
+the zone of its highest ground. In the desert each spot carries the same arched
+palm as the natural groves, at the spot's height and crown size, so the city
+has one kind of palm. In the woodland the spots alternate junipers and piñons
+at about 60% of the palm's height; in the forest pines and firs at about 125%.
+An upland tree is never wider than the palm crown its pocket was checked to
+clear.
+
+Each model's planting for a zone is built once and packed; every lot
+instantiates it, sharing meshes, materials and collision shapes, and the
+crowns join the static batches like grove crowns. Lots that plant trees carry
+their zone in their identity, so moving a boundary re-plants only the lots on
+the levels that changed zone; their buildings, terrain and networks stay.
+
 ## Choosing the zones
 
 **View → Vegetation Zones…** opens the city's elevation histogram. One bar per
@@ -35,7 +54,8 @@ While a line is dragged, the chart, ranges and tree counts follow it live; the
 city's trees are replanted once when the line is let go. Arrow-key steps apply
 0.35 s after the last key. Replanting rebuilds every map chunk holding a tree
 whose zone changed (on a heavily wooded city, roughly 20 chunks per level moved),
-so it is done per gesture rather than per pointer movement. Switches and
+so it is done per gesture rather than per pointer movement. Planted lots on
+the moved levels are replaced in the same refresh. Switches and
 Automatic apply at once.
 
 Elevations are real metres for real-world cities (source minimum plus

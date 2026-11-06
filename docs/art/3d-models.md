@@ -15,11 +15,13 @@ surface, analytical and underground views share its simulation and save format.
 
 The orthographic camera uses a 2:1 tile projection with matching terrain
 relief. Roads use the same network connections, asphalt width, shoulders and
-palette. Palm groves follow the tile families' planting layouts. Supplemental
-lot planting is recorded in `landscaping.json`, bound to each model's content
-hash, and kept inside its footprint. A model keeps its building code and lot
-size when it is revised, and its supplemental planting is rechecked for
-clearance.
+palette. Palm groves follow the tile families' planting layouts. Building
+models carry no trees of their own: every lot tree is a planting row in
+`landscaping.json`, bound to each model's content hash and kept inside its
+footprint. The game plants each row with the lot's vegetation zone tree (see
+[vegetation-zones.md](../design/vegetation-zones.md)). A model keeps its
+building code and lot size when it is revised, and its planting is rechecked
+for clearance.
 
 ## Building surfaces and identity
 
@@ -97,6 +99,26 @@ New models should export plain repeat with seamless textures.
 folder that is not packaged; `revert` restores those bytes. Both keep the
 catalog, landscaping and material-provenance hashes in step, and
 [texture-wrap-fix.json](texture-wrap-fix.json) records each model's state.
+
+### Palms split out of the models
+
+The authored building models came with palms in their courtyards, lots and
+frontages. `tools/split_model_palms.py` finds each one (a thin trunk and its
+rings under a wide, flat frond crown, plus its collision post), removes exactly
+those triangles and appends a planting row for it (trunk base, trunk height,
+crown radius). All other geometry, materials and collision keep their bytes;
+shrubs, shade trees and roof planters stay in the model. New models should
+leave palms out and list their spots in `landscaping.json` instead.
+
+    python3 tools/split_model_palms.py status
+    python3 tools/split_model_palms.py apply all | CODE ...
+    python3 tools/split_model_palms.py revert all | CODE ...
+
+`apply` keeps the exact original GLB in `assets/palm-split-originals/` (local,
+not packaged); `revert` restores those bytes and removes the rows it added.
+Both keep the catalog, landscaping and material-provenance hashes in step, and
+[palm-split.json](palm-split.json) records each model's state. A model that
+went through both tools reverts in reverse order: palms first, then textures.
 
 ## Ground materials
 

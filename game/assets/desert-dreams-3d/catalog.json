@@ -677,9 +677,9 @@
         2,
         2
       ],
-      "triangles": 11258,
+      "triangles": 10768,
       "source_kind": "authored_blender",
-      "glb_sha256": "5d6ee1438b7af1e4c6df6db93f0a438a705e343d38339134bedaa5d6d1331514",
+      "glb_sha256": "94691667ef6c0a250c0dc47ea73127d6ee0a93d433ce35ac7dd186d3a6d2b4c4",
       "meters_per_tile": 16
     },
     {
@@ -697,9 +697,9 @@
         2,
         2
       ],
-      "triangles": 7312,
+      "triangles": 7032,
       "source_kind": "authored_blender",
-      "glb_sha256": "9bcb0b84410686810ec4b339efa36cc8f6372ac13b3fba935dbfc218a7ec3cd9",
+      "glb_sha256": "3b8203ea5164f812d0c1ab7f3fc10af60be013caaafb709a1bd19c67034b4286",
       "meters_per_tile": 16
     },
     {
@@ -717,9 +717,9 @@
         2,
         2
       ],
-      "triangles": 7642,
+      "triangles": 7292,
       "source_kind": "authored_blender",
-      "glb_sha256": "9e8801698937d116229f2ec425569f9a4dee35d7fec63b0c24a1c2de4df5d12e",
+      "glb_sha256": "feef0300c1d99af686f310dae54a39c15cbdaafceb024d8356bab08387c326bf",
       "meters_per_tile": 16
     },
     {
@@ -737,9 +737,9 @@
         2,
         2
       ],
-      "triangles": 6202,
+      "triangles": 5852,
       "source_kind": "authored_blender",
-      "glb_sha256": "d33e50fe8217eeaa621f6337a401cf29255b721bfc5d75a435de0b1e3fa513a0",
+      "glb_sha256": "0fb9e15e9d417c9fee3115931da6c1f5cc92798e377d7524d6bf80d516405f30",
       "meters_per_tile": 16
     },
     {
@@ -777,9 +777,9 @@
         2,
         2
       ],
-      "triangles": 3718,
+      "triangles": 3368,
       "source_kind": "authored_blender",
-      "glb_sha256": "85e70db90a1e3f2e7ff4d5e117569652bb8237f12dcaecc089777fdc26e68896",
+      "glb_sha256": "57218743c210c63590d9fc2f0febc213a292b1e906ac6d6ab54f97faca63435b",
       "meters_per_tile": 16
     },
     {
@@ -797,9 +797,9 @@
         2,
         2
       ],
-      "triangles": 9636,
+      "triangles": 9146,
       "source_kind": "authored_blender",
-      "glb_sha256": "a75f28d9ffa98ed1e955f2f20480961ecf399a96131e5bf51e71b3e823131a87",
+      "glb_sha256": "ab229bcc584db1b2b62a0b5a0031111971a1b38228c95d3d3572ad75429de4e5",
       "meters_per_tile": 16
     },
     {
@@ -837,9 +837,9 @@
         2,
         2
       ],
-      "triangles": 3660,
+      "triangles": 3380,
       "source_kind": "authored_blender",
-      "glb_sha256": "30897049115c0865c5a10349811eac5b7b483333dc19e6a88c0fd7f112602076",
+      "glb_sha256": "c6825444d4c70108d60980f10a0821351e80efd6cc9066ca521924900b9fd061",
       "meters_per_tile": 16
     },
     {
@@ -857,9 +857,9 @@
         2,
         2
       ],
-      "triangles": 7028,
+      "triangles": 6748,
       "source_kind": "authored_blender",
-      "glb_sha256": "9cbcd6efda388e59571823cb5da230030ff72ae78d2c8d9addb674da5ae7bf49",
+      "glb_sha256": "f260fc1db3692842a745e2d1c6a513c0bfca95c2a94162684fd247e152223d00",
       "meters_per_tile": 16
     },
     {
@@ -877,9 +877,9 @@
         2,
         2
       ],
-      "triangles": 5158,
+      "triangles": 4808,
       "source_kind": "authored_blender",
-      "glb_sha256": "a79b63f1409d0c5420bd508538a0d9d99dd4a818fd3928ec4f7159a1e32b9b25",
+      "glb_sha256": "79c2fc75d5c5e5a989856b72bf813a59063413414422fc5818f35981f29f6d52",
       "meters_per_tile": 16
     },
     {
@@ -897,9 +897,9 @@
         2,
         2
       ],
-      "triangles": 11436,
+      "triangles": 11156,
       "source_kind": "authored_blender",
-      "glb_sha256": "ec6754500d56d02a6b9517c1c9311532dac06d673b76f4733d684c5b038d232e",
+      "glb_sha256": "da3912925634cb5a31cc46673eb43854edb51ac72e9f8df3711f0e99f9c1c329",
       "meters_per_tile": 16
     },
     {
@@ -917,9 +917,9 @@
         2,
         2
       ],
-      "triangles": 12132,
+      "triangles": 11852,
       "source_kind": "authored_blender",
-      "glb_sha256": "4f16f9f2a88a38b003e96680656d876f50b745e6dd4478562d94e30695c1c255",
+      "glb_sha256": "29ff5e0e1b224aeeb2f909634c5488eeb479348c0053d15c2a28d3d7fcb610ff",
       "meters_per_tile": 16
     },
     {
@@ -937,9 +937,9 @@
         2,
         2
       ],
-      "triangles": 3068,
+      "triangles": 2718,
       "source_kind": "authored_blender",
-      "glb_sha256": "d11fa3066c9ef350056ed2e4bc8cb18f261de54f31c44d4c4516ebb5f9507a76",
+      "glb_sha256": "e7b5205aca064273f79987067df8abe6b31076cd4f00760c0cae56553cc2feb8",
       "meters_per_tile": 16
     },
     {
@@ -957,9 +957,9 @@
         2,
         2
       ],
-      "triangles": 8421,
+      "triangles": 8211,
       "source_kind": "authored_blender",
-      "glb_sha256": "f084e0904d37d7a6cfec6336640bc8685640c65009b58b7b49e9ee9047a27df1",
+      "glb_sha256": "82980e76cb5f186a0f6f25e0005a2675dc12bf39d6e0026d1a6e715986914a7d",
       "meters_per_tile": 16
     },
     {
@@ -1037,9 +1037,9 @@
         2,
         2
       ],
-      "triangles": 5092,
+      "triangles": 4812,
       "source_kind": "authored_blender",
-      "glb_sha256": "e2bca5def96b5e752daf5c64249854e4ec7e864eecc5af9ae06da89b78404396",
+      "glb_sha256": "bbf3084de45e80651d4e1e77dcddbbf77c9fa0a4091b0e0ed3991d398fa65e91",
       "meters_per_tile": 16
     },
     {
@@ -1057,9 +1057,9 @@
         2,
         2
       ],
-      "triangles": 15970,
+      "triangles": 15760,
       "source_kind": "authored_blender",
-      "glb_sha256": "1b400b3f8249edef31e7363773ad3d273811c4d42a27d8d681ac65623675d57d",
+      "glb_sha256": "afb89e3eb9f42fc45cd0040c2259e6e0b39654d12d32310b24ec1e939c69a3c2",
       "meters_per_tile": 16
     },
     {
@@ -1077,9 +1077,9 @@
         2,
         2
       ],
-      "triangles": 11376,
+      "triangles": 11096,
       "source_kind": "authored_blender",
-      "glb_sha256": "9298c35ec8e77875f4bbcfc339b136c50afc6a45319e57e7a2fd5191c5fd8af6",
+      "glb_sha256": "dd3acc42687f19a09039aadb741dab68a520cbc1940d7f48d2de236015c9172c",
       "meters_per_tile": 16
     },
     {
@@ -1097,9 +1097,9 @@
         2,
         2
       ],
-      "triangles": 2882,
+      "triangles": 2532,
       "source_kind": "authored_blender",
-      "glb_sha256": "8e6997ff84f64b39419a35fe977f028e3cf54b53d89e3c6219e6e1c3f9a59b2e",
+      "glb_sha256": "764e37384d31641bbfbb0d7c365b7e6a6e331b2f596678aa484d88557c56ddcf",
       "meters_per_tile": 16
     },
     {
@@ -1257,9 +1257,9 @@
         3,
         3
       ],
-      "triangles": 18776,
+      "triangles": 12824,
       "source_kind": "authored_blender",
-      "glb_sha256": "682306ee22ed2e4f4a2d0c60dd56129311adc39029273f268488a1f1deea6d1b",
+      "glb_sha256": "3b133000fb5d6606265d2b19ab373cd1b7c627763f163dce4c26f63435c9ace2",
       "meters_per_tile": 16
     },
     {
@@ -1277,9 +1277,9 @@
         3,
         3
       ],
-      "triangles": 18400,
+      "triangles": 14064,
       "source_kind": "authored_blender",
-      "glb_sha256": "c6685589ba5473f26bd8d770889f7d66460ab4716974de3940490c6f5e321f80",
+      "glb_sha256": "a301acd30d4c53ea5b84443d1a46c3c25d860861d5298226f4ced4d18c971d63",
       "meters_per_tile": 16
     },
     {
@@ -1297,9 +1297,9 @@
         3,
         3
       ],
-      "triangles": 13820,
+      "triangles": 8124,
       "source_kind": "authored_blender",
-      "glb_sha256": "eecf1fae89d288dbf00ff912c2e16421216e464a5e86a624e96c5e5310ba1501",
+      "glb_sha256": "5e9b83afda4527197279faea8dd465cfb3c69adedbe3de8792342beb76e41280",
       "meters_per_tile": 16
     },
     {
@@ -1317,9 +1317,9 @@
         3,
         3
       ],
-      "triangles": 21602,
+      "triangles": 17106,
       "source_kind": "authored_blender",
-      "glb_sha256": "1896cc05011832c10c1f0416d61504bf8d8cef4cd72ce466fb4119b6fdd3aff0",
+      "glb_sha256": "0a014e9eeec0feff976968797f18f5ca64c107dc8ce6e85f98049261a70220a5",
       "meters_per_tile": 16
     },
     {
@@ -1337,9 +1337,9 @@
         3,
         3
       ],
-      "triangles": 21246,
+      "triangles": 16878,
       "source_kind": "authored_blender",
-      "glb_sha256": "f93655386115b88422e7afee85e22132ac3397b748a981b3348becebd257da64",
+      "glb_sha256": "4db3fb1bb4b971026e5e8cc543e461d2e37df86fb4b31764003b4eed9f2b4f0c",
       "meters_per_tile": 16
     },
     {
@@ -1357,9 +1357,9 @@
         3,
         3
       ],
-      "triangles": 13920,
+      "triangles": 9264,
       "source_kind": "authored_blender",
-      "glb_sha256": "299d18ab22e283cc303785ea324f623a6ab625e3726cc9313a69314ba8338468",
+      "glb_sha256": "752a9a955488ce3a8b0536ae34da25edde5e49c7b4365708cb2895f70dc57125",
       "meters_per_tile": 16
     },
     {
@@ -1377,9 +1377,9 @@
         3,
         3
       ],
-      "triangles": 4980,
+      "triangles": 2548,
       "source_kind": "authored_blender",
-      "glb_sha256": "485fc1bea4ed772c5e7828604fb0bf60b83ade2ab0330aeee5b566f82a38f6e0",
+      "glb_sha256": "b52f005fc370c43295f731fdebadbe678abd9f0dd92b1b934585aeabdcd93669",
       "meters_per_tile": 16
     },
     {
@@ -1397,9 +1397,9 @@
         3,
         3
       ],
-      "triangles": 6334,
+      "triangles": 3518,
       "source_kind": "authored_blender",
-      "glb_sha256": "4e40653ad61b8eb89d9eec3e122ba51f0b38e43d2cd5923ed175917c257a1038",
+      "glb_sha256": "37d1fcdcdb9d80ad7855546a7a888d8d6c5d2e18bafb3f23ddf02a046e17de89",
       "meters_per_tile": 16
     },
     {
@@ -1417,9 +1417,9 @@
         3,
         3
       ],
-      "triangles": 9158,
+      "triangles": 6726,
       "source_kind": "authored_blender",
-      "glb_sha256": "10e707b2c53ef715bd52cc18b39a18651af02934af0427452f6cc4b3eaa94550",
+      "glb_sha256": "6c5f6994daeaae4dfee6562f039aa93fd0509d4b0f2c2fd1510c3cf3295421ca",
       "meters_per_tile": 16
     },
     {
@@ -1437,9 +1437,9 @@
         3,
         3
       ],
-      "triangles": 8156,
+      "triangles": 4044,
       "source_kind": "authored_blender",
-      "glb_sha256": "7aa1a84dc28734b72b4dd1aff6e643277243b66969e7261d150cc1c093252b13",
+      "glb_sha256": "cfbb5aab7589bd7cb608b0f5e684149f84a2cd23c7c651ad834798445bcb32a6",
       "meters_per_tile": 16
     },
     {
@@ -1457,9 +1457,9 @@
         3,
         3
       ],
-      "triangles": 8498,
+      "triangles": 5050,
       "source_kind": "authored_blender",
-      "glb_sha256": "418754055e3741e54484e5edd50b8798c739e339dbd372bbff2df2d9a10aba06",
+      "glb_sha256": "534d2d92ce382e231a299f47565b38a002515481644a8a20a69b69d082f412d2",
       "meters_per_tile": 16
     },
     {
@@ -1477,9 +1477,9 @@
         3,
         3
       ],
-      "triangles": 10562,
+      "triangles": 8034,
       "source_kind": "authored_blender",
-      "glb_sha256": "61e7f425b1ceeeab3d9a7a01cb4b6c002e2b7e9d5dd7be66a6bf6484119d4d7f",
+      "glb_sha256": "f672fadc89a843c2a573705f71bba16866faf39b82453fcf4bfccca0c2d7d706",
       "meters_per_tile": 16
     },
     {
@@ -1497,9 +1497,9 @@
         3,
         3
       ],
-      "triangles": 5746,
+      "triangles": 2898,
       "source_kind": "authored_blender",
-      "glb_sha256": "254748215082461301c3911bf89d5504940d8c4cd9e16d0d750718a107b5083c",
+      "glb_sha256": "8dc27c528ad23e4d5cb3175f703371a5289c0961a1598bc81f35a7e1665180cb",
       "meters_per_tile": 16
     },
     {
@@ -1517,9 +1517,9 @@
         3,
         3
       ],
-      "triangles": 8124,
+      "triangles": 4460,
       "source_kind": "authored_blender",
-      "glb_sha256": "1359296332547761f4dd2ed33ea9dbe084eea3305f9c5b41cec38ed1f1133278",
+      "glb_sha256": "a5988c399f3e0404a16cd4650f8802e36fcfc8eec87da3383c78a3bd934b0663",
       "meters_per_tile": 16
     },
     {
@@ -1537,9 +1537,9 @@
         3,
         3
       ],
-      "triangles": 14348,
+      "triangles": 9084,
       "source_kind": "authored_blender",
-      "glb_sha256": "b9b7bb4511755b311741c136444d3cd1f92c69261efc017349a07582ce3963e4",
+      "glb_sha256": "3bf83b5a3b9be2499b57600eec532737ff5d5c19191d5e9682310c807ce5f5a3",
       "meters_per_tile": 16
     },
     {
@@ -1557,9 +1557,9 @@
         3,
         3
       ],
-      "triangles": 32992,
+      "triangles": 29088,
       "source_kind": "authored_blender",
-      "glb_sha256": "19c932e0c3b518d68b5ea2f93e623e1de596bd07d2f8ea5eb618d7fb7b30ff5f",
+      "glb_sha256": "6cefdf855fa2aaad4db9c2cecfbda9a9600396fdb08f6e39e237935079964866",
       "meters_per_tile": 16
     },
     {
@@ -1577,9 +1577,9 @@
         3,
         3
       ],
-      "triangles": 10192,
+      "triangles": 2440,
       "source_kind": "authored_blender",
-      "glb_sha256": "894f0502d98b4a1407e7068a2f1904b1801d5c3d65ac3a68bab4d1a655ded0e5",
+      "glb_sha256": "f26f6df15b7dd497e85c9a3572b31626faffe186d74374e98e17aa62a4169f8b",
       "meters_per_tile": 16
     },
     {
@@ -1597,9 +1597,9 @@
         3,
         3
       ],
-      "triangles": 8808,
+      "triangles": 4840,
       "source_kind": "authored_blender",
-      "glb_sha256": "d15092739cb5f74ab3507c6883597f60b83c67cffa01641c90bbecb6f9a26f67",
+      "glb_sha256": "a47f0609d6e0b4da9e8bf86e70f29e6834cfa542a9805406a97229e0cf768c3f",
       "meters_per_tile": 16
     },
     {
@@ -1617,9 +1617,9 @@
         3,
         3
       ],
-      "triangles": 9265,
+      "triangles": 3713,
       "source_kind": "authored_blender",
-      "glb_sha256": "40947f180221442dfb3591c3ac8fb00b275ea8f52e9d92b81dbd2312378d9cd7",
+      "glb_sha256": "508f814e73418507fb6e1aace5058e476bd67cd1fd212304609e5c3dd5ef745c",
       "meters_per_tile": 16
     },
     {
@@ -1637,9 +1637,9 @@
         3,
         3
       ],
-      "triangles": 11612,
+      "triangles": 2628,
       "source_kind": "authored_blender",
-      "glb_sha256": "c610ef3f6673e97d22b1569a607781e5da0e2c2012d752705342a08f50fbf781",
+      "glb_sha256": "e447646cebbccf058245865918b56859e70f12653133a482067821739829fcb8",
       "meters_per_tile": 16
     },
     {
@@ -1797,9 +1797,9 @@
         4,
         4
       ],
-      "triangles": 12550,
+      "triangles": 8196,
       "source_kind": "authored_blender",
-      "glb_sha256": "0bd78cfb61f75b927d23b2be35ae4f52c67191f550bf8c5ee648dec5570b5e39",
+      "glb_sha256": "8105d1987d97bcd1309bc2b167dfb5320f7381eeb4a6050c5f11c46d58ac457a",
       "meters_per_tile": 16
     },
     {
@@ -1817,9 +1817,9 @@
         4,
         4
       ],
-      "triangles": 10354,
+      "triangles": 7844,
       "source_kind": "authored_blender",
-      "glb_sha256": "4b4701a6310b4c0683647885b4a58ba718ab2302874310db79de3a6224c664b0",
+      "glb_sha256": "0d057bfdd1d05cb1f5d4385aed7691aee6777b5779bbad6c1ac572793d27d2eb",
       "meters_per_tile": 16
     },
     {
@@ -1837,9 +1837,9 @@
         4,
         4
       ],
-      "triangles": 11008,
+      "triangles": 6232,
       "source_kind": "authored_blender",
-      "glb_sha256": "7379304615012f9810ada052581dc765c9cdd0a22e417abed99dcbdae74581c9",
+      "glb_sha256": "45424f60add50da5ece458a3debba067193be269916b0820193be31de5c312d6",
       "meters_per_tile": 16
     },
     {
@@ -1857,9 +1857,9 @@
         4,
         4
       ],
-      "triangles": 5512,
+      "triangles": 1680,
       "source_kind": "authored_blender",
-      "glb_sha256": "6c587d76e62d151252414662226a9217c30dad3cd1af4c5cb6185e03fd1c7d1f",
+      "glb_sha256": "ccf1d7ec42ff754b54126a47aa815cc6b1679482d84ea3f7c9b502e49827ced9",
       "meters_per_tile": 16
     },
     {
@@ -1877,9 +1877,9 @@
         4,
         4
       ],
-      "triangles": 7656,
+      "triangles": 5536,
       "source_kind": "authored_blender",
-      "glb_sha256": "f6f733a0d9bef4525ae8053286a7f232348fb1a7ea1671c7cc3026562eb7704c",
+      "glb_sha256": "54b3fc6f8177539efeb2a67f932a0036bf7ab41e4cf27c660049f3ee87503ac3",
       "meters_per_tile": 16
     },
     {
@@ -1897,9 +1897,9 @@
         4,
         4
       ],
-      "triangles": 6178,
+      "triangles": 4562,
       "source_kind": "authored_blender",
-      "glb_sha256": "96cebd0a13ec869e5e7495422f7863c76a8e961c217344f16471d6b22b0f9ca1",
+      "glb_sha256": "e4649258cb5ef7b1185d9282f285d9616d06a10d9314f8be326a491b8aa6ca4e",
       "meters_per_tile": 16
     },
     {
@@ -1917,9 +1917,9 @@
         4,
         4
       ],
-      "triangles": 11742,
+      "triangles": 10662,
       "source_kind": "authored_blender",
-      "glb_sha256": "a2e74939b6c36f5f6ff364baa9305e9b4193620505a821035ee06ce2f90d43c3",
+      "glb_sha256": "79d3d361a503470ea29458799cdd0dddaa0a47f4a2497576db6c2b095aef73de",
       "meters_per_tile": 16
     },
     {
@@ -1937,9 +1937,9 @@
         3,
         3
       ],
-      "triangles": 8110,
+      "triangles": 5542,
       "source_kind": "authored_blender",
-      "glb_sha256": "98e63a33fa82b42eb2928495419bd3f1afcc058217d7185714745d476812d136",
+      "glb_sha256": "8fd0a148a2d0cad5143cea169fbe85dcb4a41ff1fc822988a08fa29f3a82d4ba",
       "meters_per_tile": 16
     },
     {
@@ -1957,9 +1957,9 @@
         3,
         3
       ],
-      "triangles": 8960,
+      "triangles": 4936,
       "source_kind": "authored_blender",
-      "glb_sha256": "080e797360bb962937878f139ab471a6c5dcc1900713805d8c51cb15da200ab7",
+      "glb_sha256": "9845e8839d0db8c41859cabe109c575e85d6ef1d3d7a1f29ac9bfc6451a40b41",
       "meters_per_tile": 16
     },
     {
@@ -1977,9 +1977,9 @@
         3,
         3
       ],
-      "triangles": 5252,
+      "triangles": 2844,
       "source_kind": "authored_blender",
-      "glb_sha256": "aefcdbdf6aeacbb71d6dab4f8ef2198e193b2e13abcb13e532d775ebb5b89b68",
+      "glb_sha256": "f44dff77588d0b13db6ac7ebec7901bb846839bdd9ed17f58e7dd3fd4ab10353",
       "meters_per_tile": 16
     },
     {
@@ -1997,9 +1997,9 @@
         3,
         3
       ],
-      "triangles": 6560,
+      "triangles": 2568,
       "source_kind": "authored_blender",
-      "glb_sha256": "6174c38c81d0d6c614a7079d56338c075c8eea3e3683c988cdcd36f3f223b5bd",
+      "glb_sha256": "4ed3921c1812e6f61acfa260b7e1c94caebb822d6ecf73da80e895eebc7a889a",
       "meters_per_tile": 16
     },
     {
@@ -2017,9 +2017,9 @@
         3,
         3
       ],
-      "triangles": 8820,
+      "triangles": 3228,
       "source_kind": "authored_blender",
-      "glb_sha256": "14de2a1a92fd63516928f58f52f03f8d25520ae2bbc68631cc452c55cf560eca",
+      "glb_sha256": "36d96dd10ab0bbae0c6cb3d0f6541a118111e686c9ca65b2856bc96e30a53a01",
       "meters_per_tile": 16
     },
     {
@@ -2037,9 +2037,9 @@
         3,
         3
       ],
-      "triangles": 10555,
+      "triangles": 3483,
       "source_kind": "authored_blender",
-      "glb_sha256": "af7e1884ad7cc3e1a444d4ed470484b1112fc15479e050cd270693fea1a21094",
+      "glb_sha256": "f13059c352552b3a5f9d65d61b7f5a7ebd1cfcdb8e8b6792685fccfad7c48cd4",
       "meters_per_tile": 16
     },
     {
@@ -2057,9 +2057,9 @@
         3,
         3
       ],
-      "triangles": 12560,
+      "triangles": 4176,
       "source_kind": "authored_blender",
-      "glb_sha256": "d3e592b41e9a66008d80f6fea44e0ba561ad8d2b57437ba71a8de336ffc439ec",
+      "glb_sha256": "c5e83be24789e21de3684fa8b2eeec74e37e550010871878f481ccc1dd2f63d3",
       "meters_per_tile": 16
     },
     {
@@ -2077,9 +2077,9 @@
         4,
         4
       ],
-      "triangles": 28232,
+      "triangles": 24744,
       "source_kind": "authored_blender",
-      "glb_sha256": "9d311abd43be6d77fdeab1ba50994efa02b6c2ea59e6495eb0779d08e513a27a",
+      "glb_sha256": "e4f805577484fcb0f6361e35a8ab1add4183069f08717c996171a51d25a050fc",
       "meters_per_tile": 16
     },
     {
@@ -2097,9 +2097,9 @@
         4,
         4
       ],
-      "triangles": 11618,
+      "triangles": 4922,
       "source_kind": "authored_blender",
-      "glb_sha256": "4f1d74e33582dcfc78ec8639128739fbf4c9c60a2c9389be5ac6c463f4ef0633",
+      "glb_sha256": "2a3cebbedf4fd89b590f570f284bddb942b76b210b3bc1bd97413cf714b42526",
       "meters_per_tile": 16
     },
     {
@@ -2117,9 +2117,9 @@
         4,
         4
       ],
-      "triangles": 15844,
+      "triangles": 7044,
       "source_kind": "authored_blender",
-      "glb_sha256": "4d34b24197be188fc6ab3fe545adb05c73da0c3f4ae7c08cd385d43bb23b9315",
+      "glb_sha256": "79e8a7408ef45d1ed9e4d43e28e588e48c4c245fba34054b22eb5a1f6c927635",
       "meters_per_tile": 16
     },
     {
@@ -2137,9 +2137,9 @@
         4,
         4
       ],
-      "triangles": 20679,
+      "triangles": 13087,
       "source_kind": "authored_blender",
-      "glb_sha256": "eebb5cf499ea571c348b3238ec0caabb8451eb9ddd205a242f256eb56d16de50",
+      "glb_sha256": "fd7780218c11d5dd489c70421db91366927607e02dcbc22b0adcf3c13c89a1f1",
       "meters_per_tile": 16
     },
     {
@@ -2317,9 +2317,9 @@
         1,
         1
       ],
-      "triangles": 5402,
+      "triangles": 1370,
       "source_kind": "authored_blender",
-      "glb_sha256": "a6d4762859cb054646009e6c5c2d19be2a6b982945820fa6d93d4e8e33409100",
+      "glb_sha256": "7398448897acc3022a875e7a58b865159623104159501cde9ad26b49e92466fb",
       "meters_per_tile": 16
     },
     {
@@ -2337,9 +2337,9 @@
         1,
         1
       ],
-      "triangles": 6762,
+      "triangles": 1634,
       "source_kind": "authored_blender",
-      "glb_sha256": "ffdde940b472ecb21b8684c575aa62513acefcbfcfd4394c92d3acbc278e81bf",
+      "glb_sha256": "c812297a3fb356b01ade0651d57992342ad247b268f0997205059e90ea384c90",
       "meters_per_tile": 16
     },
     {
@@ -2457,9 +2457,9 @@
         1,
         1
       ],
-      "triangles": 3274,
+      "triangles": 1882,
       "source_kind": "authored_blender",
-      "glb_sha256": "808fdd2110ce3931891b0da07d49f504be16a8fddc62541d086e51030beedd29",
+      "glb_sha256": "406566afbf843f0efe38612bc516541e86b7d2cdaea3aaa7b95cb33e6a89ced1",
       "meters_per_tile": 16
     },
     {
@@ -2477,9 +2477,9 @@
         2,
         2
       ],
-      "triangles": 11516,
+      "triangles": 7620,
       "source_kind": "authored_blender",
-      "glb_sha256": "6dffb039e977af851aaf5abeaaee31a81102658f70602db708240609bddcc2df",
+      "glb_sha256": "da4b0aab845d52e6bcd08367d07ed6bcf65be3d703b58cbb806220f23ddcd187",
       "meters_per_tile": 16
     },
     {
@@ -2497,9 +2497,9 @@
         2,
         2
       ],
-      "triangles": 5826,
+      "triangles": 2834,
       "source_kind": "authored_blender",
-      "glb_sha256": "85ee2748af616a69847d0406d67673f154e011cf91a78a5e01a3b762de11d99e",
+      "glb_sha256": "5088ace9803eef26acc0d804e99c12fff1ea45c0c20ba5b57e1b0c5642aa2962",
       "meters_per_tile": 16
     },
     {
@@ -2517,9 +2517,9 @@
         2,
         2
       ],
-      "triangles": 24676,
+      "triangles": 22372,
       "source_kind": "authored_blender",
-      "glb_sha256": "46bc6f0d4376e587ac7dff3878c31e6072bd9480b5550e42f7e1c49f401d201f",
+      "glb_sha256": "2ed268b4874e4658ca6f5d8ad155dc069de0aefa3847d0b0bf18bc890e72004d",
       "meters_per_tile": 16
     },
     {
@@ -2537,9 +2537,9 @@
         2,
         2
       ],
-      "triangles": 2835,
+      "triangles": 2625,
       "source_kind": "authored_blender",
-      "glb_sha256": "3fdc027f7bfa2d2e2c8f070c62dd450b0e89c7de55f72e9734325c7e017aa2d6",
+      "glb_sha256": "8c0122f12050f76deac52cf57190b4a01c3ae41380e629ecfd05aa254155746e",
       "meters_per_tile": 16
     },
     {
@@ -2577,9 +2577,9 @@
         2,
         2
       ],
-      "triangles": 5382,
+      "triangles": 1910,
       "source_kind": "authored_blender",
-      "glb_sha256": "559d6b4b9dc5873362cf957206a4b0a3fbd64401bc58c27d2b4488f7b94eb010",
+      "glb_sha256": "45cc6404fd1303c26927abd2b8dba7984b63d5925ce6fd4c82dd940ba5068608",
       "meters_per_tile": 16
     },
     {
@@ -2597,9 +2597,9 @@
         2,
         2
       ],
-      "triangles": 9706,
+      "triangles": 7098,
       "source_kind": "authored_blender",
-      "glb_sha256": "6e79c5db29055d22e08bdb21756454d332b4332d22bdac781b4694b855531419",
+      "glb_sha256": "405e7aea7657c57e2ea7fa7cf082a324ba3b5205d583abd87860d852d7c045ea",
       "meters_per_tile": 16
     },
     {
@@ -2617,9 +2617,9 @@
         2,
         2
       ],
-      "triangles": 6640,
+      "triangles": 3812,
       "source_kind": "authored_blender",
-      "glb_sha256": "a3c459e8284796d1f65cd3dcf1508e0f708081c6fd2f21fd9d4fac69b7e7f499",
+      "glb_sha256": "11b8d23f661e53d126abafde6102de26f29115689215674879fd80417d9306a1",
       "meters_per_tile": 16
     },
     {
@@ -2637,9 +2637,9 @@
         2,
         2
       ],
-      "triangles": 9346,
+      "triangles": 4874,
       "source_kind": "authored_blender",
-      "glb_sha256": "aece3bbbee345b1e13a0f1bbf7e1de19eb8f40abb2b21dd61ac132b11a821c62",
+      "glb_sha256": "ebdde1fbdf559b59df7e90c0777059a32a2c5dda411dc8d311230fb08e7a8dc0",
       "meters_per_tile": 16
     },
     {
@@ -2657,9 +2657,9 @@
         2,
         2
       ],
-      "triangles": 12270,
+      "triangles": 6590,
       "source_kind": "authored_blender",
-      "glb_sha256": "8d1f45eb485eac7599d0d2e2094bae2e0f2f8a3e7712114cd473cb904ae1442c",
+      "glb_sha256": "811b93f3ccd774718ddcc47b4c86df456b88d3eb7eccf3c57bb3f307fc653f65",
       "meters_per_tile": 16
     },
     {
@@ -2677,9 +2677,9 @@
         2,
         2
       ],
-      "triangles": 9818,
+      "triangles": 4898,
       "source_kind": "authored_blender",
-      "glb_sha256": "370e6a436b8bdab8b5e6c2231ed29bef29d6129ced898b95a4fcf58868e9f309",
+      "glb_sha256": "da82a29733a9f0a357a439ed99449e9cb29f5f5d939b181e4629aa68db1763cf",
       "meters_per_tile": 16
     },
     {
@@ -2697,9 +2697,9 @@
         2,
         2
       ],
-      "triangles": 7264,
+      "triangles": 3168,
       "source_kind": "authored_blender",
-      "glb_sha256": "73c46c7a94cd981423e2b68f325dcfc93524536e0928bb47668cd46d6e7d55d1",
+      "glb_sha256": "c06e2c7ef668f00cf9c54c0bd415a8bb41371dd51cb730fab0b340713656315e",
       "meters_per_tile": 16
     },
     {
@@ -2717,9 +2717,9 @@
         2,
         2
       ],
-      "triangles": 25984,
+      "triangles": 21288,
       "source_kind": "authored_blender",
-      "glb_sha256": "094b03e4676e4e971dcd798a6da25c0ae4dbc5eaea5645575bfff60d37623de1",
+      "glb_sha256": "56b6f19ab1248f05dbe35a29e8a5501f2b466001eaba443fb610bfae30f8ae50",
       "meters_per_tile": 16
     },
     {
@@ -2737,9 +2737,9 @@
         3,
         3
       ],
-      "triangles": 9328,
+      "triangles": 5800,
       "source_kind": "authored_blender",
-      "glb_sha256": "6ef7ed585fbec2c02bc041e163eb25566bc932bbdaac79657b5d4ecb7d0c3f56",
+      "glb_sha256": "c8a494b3774171a400f76450ef42de5b49d19b87f2d13042da89c14c3f6b7aa3",
       "meters_per_tile": 16
     },
     {
@@ -2757,9 +2757,9 @@
         3,
         3
       ],
-      "triangles": 9466,
+      "triangles": 6098,
       "source_kind": "authored_blender",
-      "glb_sha256": "e0d7dd23e414a7247c1c837f730d0f3f257287c0ac97dca425b05bd1f2c82185",
+      "glb_sha256": "e51542bb73c70ff4febff99805827899ab6e3679cf0eaabc164c8bad59e7afb0",
       "meters_per_tile": 16
     },
     {
@@ -2797,9 +2797,9 @@
         4,
         4
       ],
-      "triangles": 25898,
+      "triangles": 25618,
       "source_kind": "authored_blender",
-      "glb_sha256": "526ae5f28b233e954d5fa48ba35319c94bf9a8999e428a552b625aeaa3cd7f5f",
+      "glb_sha256": "a234778860dfe5610097f5309d579b47a9484b179a2e72100662446073c17806",
       "meters_per_tile": 16
     },
     {
@@ -2817,9 +2817,9 @@
         4,
         4
       ],
-      "triangles": 12436,
+      "triangles": 12016,
       "source_kind": "authored_blender",
-      "glb_sha256": "e9ded01ef1dfebbd0333e692d54a65733a71cf2097251a330bf9d66823f0a96b",
+      "glb_sha256": "c30a89034cdeefba2b505efa1323b0c9882d26cd790bfc58f242b1bcef62a10d",
       "meters_per_tile": 16
     },
     {
@@ -2837,9 +2837,9 @@
         4,
         4
       ],
-      "triangles": 10336,
+      "triangles": 10196,
       "source_kind": "authored_blender",
-      "glb_sha256": "ef6d1c1f43b9afb15ab772b605f37db99ce6e5bb8ea2b24ab3b8c7df802880ef",
+      "glb_sha256": "f747084c1a6ee2d20fe31950c451991fff1d5436aa7ea0a83d25269833f70302",
       "meters_per_tile": 16
     },
     {
@@ -2857,9 +2857,9 @@
         4,
         4
       ],
-      "triangles": 13188,
+      "triangles": 12768,
       "source_kind": "authored_blender",
-      "glb_sha256": "6b024c95358e7393d542ce8dcbe353e50a5a293930e26f608fde2d94009a4937",
+      "glb_sha256": "3abea9f3d4d133233c126f3ced51a2b7fa3a59c2c2f1b0079e9dbb8ecac7dd86",
       "meters_per_tile": 16
     },
     {
@@ -2877,9 +2877,9 @@
         4,
         4
       ],
-      "triangles": 21388,
+      "triangles": 12380,
       "source_kind": "authored_blender",
-      "glb_sha256": "c83e07c0a7d11bc9b587b9e90305337b8ce11770934e6131fbe0856fe2a75c56",
+      "glb_sha256": "936422198c38425c752f9cfd6396d190ccfbc43a9be49532b11c78d35a722d4b",
       "meters_per_tile": 16
     },
     {

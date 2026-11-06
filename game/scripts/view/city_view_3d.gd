@@ -24,6 +24,7 @@ const PAN_GESTURE_PIXELS := 32.0
 const RenderQuality := preload("res://scripts/view/city_render_quality.gd")
 const WaterStyle := preload("res://scripts/view/city_water_style_3d.gd")
 const MeshBatcher := preload("res://scripts/view/city_mesh_batcher_3d.gd")
+const Landscaping := preload("res://scripts/view/city_lot_landscaping_3d.gd")
 const EXPLORE_SKY := preload("res://assets/environment/desert_day_sky.tres")
 
 var water_style := WaterStyle.new()
@@ -333,7 +334,7 @@ func refresh(force_full: bool = false) -> void:
 	if _sign_state != city.signs:
 		_sign_state = city.signs.duplicate(true)
 		_update_labels()
-	if regions.is_empty():
+	if regions.is_empty() and _lot_regions.is_empty():
 		CityGeometry3D.end_ground_sampling(ground_sampling)
 		refresh_statistics = {"terrain_chunks": 0, "network_chunks": 0, "lots": 0,
 			"microseconds": Time.get_ticks_usec()-started}
@@ -512,7 +513,8 @@ func _changed_regions(full: bool) -> Array[Rect2i]:
 		_road_tunnel_state = tunnels
 		_road_tunnel_inputs = [state[0], state[1], state[2], state[5], state[6]]
 	# Vegetation zones are a presentation choice, not map data: when they move,
-	# only the chunks holding a tree tile whose zone changed are redrawn.
+	# only the chunks holding a tree tile whose zone changed are redrawn, and
+	# only the planted lots standing on those levels are re-planted.
 	var vegetation := VegetationZones.resolve(city)
 	if not full and not _vegetation_state.is_empty() and vegetation != _vegetation_state:
 		var now := VegetationZones.level_table(vegetation)
@@ -524,8 +526,11 @@ func _changed_regions(full: bool) -> Array[Rect2i]:
 		var altitude := city.altitude.data
 		for i: int in codes.size():
 			var code: int = codes[i]
-			if code < Buildings.TREES_1 or code > Buildings.TREES_7 or moved[altitude[i] & City.ALT_MASK] == 0: continue
-			dirty[Vector2i(i % City.WIDTH / CHUNK_SIZE, i / City.WIDTH / CHUNK_SIZE) * CHUNK_SIZE] = true
+			if moved[altitude[i] & City.ALT_MASK] == 0: continue
+			if code >= Buildings.TREES_1 and code <= Buildings.TREES_7:
+				dirty[Vector2i(i % City.WIDTH / CHUNK_SIZE, i / City.WIDTH / CHUNK_SIZE) * CHUNK_SIZE] = true
+			elif Landscaping.has_trees(code):
+				_changed_lot_cells[Vector2i(i % City.WIDTH, i / City.WIDTH)] = true
 	_vegetation_state = vegetation
 	_previous_geometry_state = _geometry_state
 	_geometry_state = state
