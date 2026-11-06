@@ -6,9 +6,7 @@
 class_name TitleScreen
 extends Control
 
-const BRAND_FONT := preload("res://assets/fonts/biorhyme-expanded/BioRhymeExpanded-Bold.ttf")
-const EDITION_FONT := preload("res://assets/fonts/biorhyme-expanded/BioRhymeExpanded-Regular.ttf")
-const EDITION_SIZE_RATIO := 0.42
+const BRAND_LOGO := preload("res://assets/ui/desert-dreams-logo.png")
 
 signal new_city_requested
 signal load_requested
@@ -45,8 +43,7 @@ var _city_actions: BoxContainer
 var _preferences: BoxContainer
 var _actions: VBoxContainer
 var _small_brand: Label
-var _logo: Label
-var _title: Label
+var _logo: TextureRect
 var _eyebrow: Label
 var _guide: Label
 var _artwork: TextureRect
@@ -93,18 +90,15 @@ func _build() -> void:
 	_header = HBoxContainer.new()
 	_header.add_theme_constant_override("separation", 24)
 	_content.add_child(_header)
-	var identity := VBoxContainer.new()
-	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	identity.add_theme_constant_override("separation", 0)
-	_header.add_child(identity)
-	_title = UIFactory.make_label("SIN CITY", 56, UITheme.HEADER)
-	_title.name = "BrandTitle"
-	_title.add_theme_font_override("font", BRAND_FONT)
-	identity.add_child(_title)
-	_logo = UIFactory.make_label("DESERT DREAMS", 24, UITheme.TEXT_MUTED)
-	_logo.name = "BrandEdition"
-	_logo.add_theme_font_override("font", EDITION_FONT)
-	identity.add_child(_logo)
+	_logo = TextureRect.new()
+	_logo.name = "BrandLogo"
+	_logo.texture = BRAND_LOGO
+	_logo.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+	_logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_header.add_child(_logo)
 	subtitle = UIFactory.make_label("Big plans.\nRoom to grow.", UITheme.FONT_BODY, UITheme.TEXT_MUTED)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	subtitle.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
@@ -233,16 +227,16 @@ func _reflow() -> void:
 	_small_brand.visible = short
 	_eyebrow.visible = not short and not (compact and available.size.y < 420 and not actions_only)
 	_guide.visible = not compact and available.size.y >= 700
-	# The expanded face stays proportional without extra tracking. Fit the
-	# title to the identity column before deriving the edition's smaller size.
+	# Size the complete sign as one image; its lettering never stretches or
+	# crops. Short screens retain the compact text identity in the actions.
 	var identity_width := wanted.x - float(padding) * 2.0
 	if subtitle.visible:
 		identity_width -= subtitle.get_combined_minimum_size().x + 24.0
-	var preferred_size := 32 if compact else 56
-	var title_width := BRAND_FONT.get_string_size(_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, preferred_size).x
-	var title_size := mini(preferred_size, maxi(1, floori(float(preferred_size) * identity_width / title_width)))
-	_title.add_theme_font_size_override("font_size", title_size)
-	_logo.add_theme_font_size_override("font_size", maxi(1, roundi(float(title_size) * EDITION_SIZE_RATIO)))
+	var logo_ratio := BRAND_LOGO.get_size().aspect()
+	var preferred_height := 96.0 if compact else 156.0
+	if actions_only and available.size.y >= 500:
+		preferred_height = 156.0
+	_logo.custom_minimum_size.y = minf(preferred_height, identity_width / logo_ratio)
 	_content.add_theme_constant_override("separation", 8 if compact else 12)
 	_body.vertical = portrait and not actions_only
 	_body.add_theme_constant_override("separation", 16 if compact else 32)
