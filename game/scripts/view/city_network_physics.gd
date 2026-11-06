@@ -320,19 +320,26 @@ static func resolve_boundaries(deck: PackedVector3Array, deck_depths: PackedFloa
 	return {"walls":walls,"wall_ends":wall_ends}
 
 
-static func _partition_polygons(polygons: Array[PackedVector2Array]) -> Array:
+## Optional work counters are used by repeatable preparation benchmarks.
+static func _partition_polygons(polygons: Array[PackedVector2Array], work: Dictionary = {}) -> Array:
+	var measure := not work.is_empty()
+	if measure: work["candidates"] = 0
 	var occupied: Array[PackedVector2Array] = []
 	var occupied_bounds: Array[Rect2] = []
 	# Curved approaches contain thousands of disjoint little triangles in one
 	# cell. Preserve subtraction order, but only visit overlapping AABB bins.
 	var indexed := polygons.size() > 64
+	# Dense curved approaches need smaller buckets than ordinary tile facets.
+	# Candidate indices remain sorted and every surviving pair still uses the
+	# original bounds/clipping predicates; broad facets retain the full fallback.
+	var scale := 64 if polygons.size()>1024 else (32 if polygons.size()>256 else 16)
 	var bins: Dictionary = {}
 	var broad: Array[int] = []
 	var result: Array = []
 	for polygon: PackedVector2Array in polygons:
 		var polygon_bounds := _polygon_bounds(polygon)
 		var pieces: Array[PackedVector2Array] = [polygon]
-		var cells := _partition_cells(polygon_bounds) if indexed else Rect2i()
+		var cells := _partition_cells(polygon_bounds,scale) if indexed else Rect2i()
 		var candidates: Array[int] = []
 		if indexed and cells.get_area() <= 4096:
 			var seen: Dictionary = {}
@@ -344,6 +351,7 @@ static func _partition_polygons(polygons: Array[PackedVector2Array]) -> Array:
 			candidates.sort()
 		else:
 			for index: int in occupied.size(): candidates.append(index)
+		if measure: work["candidates"] += candidates.size()
 		for cut_index: int in candidates:
 			var cut := occupied[cut_index]
 			var cut_bounds := occupied_bounds[cut_index]
@@ -368,9 +376,9 @@ static func _partition_polygons(polygons: Array[PackedVector2Array]) -> Array:
 	return result
 
 
-static func _partition_cells(bounds: Rect2) -> Rect2i:
-	var start := Vector2i(floori(bounds.position.x*16),floori(bounds.position.y*16))
-	var end := Vector2i(floori(bounds.end.x*16)+1,floori(bounds.end.y*16)+1)
+static func _partition_cells(bounds: Rect2, scale: int = 16) -> Rect2i:
+	var start := Vector2i(floori(bounds.position.x*scale),floori(bounds.position.y*scale))
+	var end := Vector2i(floori(bounds.end.x*scale)+1,floori(bounds.end.y*scale)+1)
 	return Rect2i(start,end-start)
 
 
@@ -403,6 +411,23 @@ static func _physical_polygon_area(polygon: PackedVector2Array) -> float:
 
 
 static func _clip_physical_plane(polygon: PackedVector2Array, origin: Vector2, edge: Vector2, sign_value: float) -> PackedVector2Array:
+	# Most cuts still have three vertices. Compute each signed distance once
+	# and keep the same last-to-first traversal as the general polygon path.
+	# Keep wholly admitted triangles detached from caller-owned packed arrays.
+	if polygon.size()==3:
+		var a := polygon[0];var b := polygon[1];var c := polygon[2]
+		var da := edge.cross(a-origin)*sign_value
+		var db := edge.cross(b-origin)*sign_value
+		var dc := edge.cross(c-origin)*sign_value
+		if da>=0 and db>=0 and dc>=0: return polygon.duplicate()
+		var clipped := PackedVector2Array()
+		if (dc>=0)!=(da>=0): clipped.append(c.lerp(a,dc/(dc-da)))
+		if da>=0: clipped.append(a)
+		if (da>=0)!=(db>=0): clipped.append(a.lerp(b,da/(da-db)))
+		if db>=0: clipped.append(b)
+		if (db>=0)!=(dc>=0): clipped.append(b.lerp(c,db/(db-dc)))
+		if dc>=0: clipped.append(c)
+		return clipped
 	var result := PackedVector2Array()
 	if polygon.is_empty(): return result
 	var previous := polygon[-1]

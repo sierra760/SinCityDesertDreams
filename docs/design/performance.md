@@ -9,6 +9,13 @@ The **High** 3D profile preserves full shadows, four-sample antialiasing and clo
 - City geometry is kept in spatial regions. Raw city layer writes are detected, while utility-only flags do not rebuild static meshes. Lot footprints, terrain neighbors and whole bridge spans participate in invalidation.
 - Network regions compare their actual projection inputs. A building change that leaves the network untouched preserves its geometry. Walking surfaces are built only when exploration requests a traversal snapshot; each returned snapshot describes one completed geometry revision.
 - Dense curved-road collision extraction indexes bounding boxes while keeping the same clipping, wall tests and output order. Curved drawing reuses local clipping templates and samples repeated points once per invocation. Hidden Underground projection is deferred until requested.
+- The portable physical-surface resolver uses finer candidate bins for dense
+  curved groups, retaining sorted subtraction order and a conservative full
+  search for broad facets. Triangle clipping computes each signed distance
+  once and keeps admitted arrays detached. The packed full-resolution fallback
+  consumes packed inputs directly instead of allocating a dictionary and
+  triangle copy per patch; its floor, obstacle-prefix, deck-bottom and wall
+  order matches the dictionary and native resolvers.
 - Underground and data-map layers keep each tile's (or tile row's) finished triangles. A refresh first compares the raw layer bytes natively and returns when nothing they read changed; otherwise it re-projects only tiles within reach of a changed input (cardinal conduit and rail neighbours, plus the water-facility footprint search) and rejoins the cached rows in full-build order. Surface corners are sampled once per terrain state; subway track reuses them and records no walking surfaces. Utility-only bits such as power service never re-project pipes or subways. The joined mesh equals a full rebuild (`game/tests/test_underground_incremental.gd`, `game/tests/test_city_overlay_incremental.gd`).
 - Days admitted together in one frame refresh their presentation (analytics, power markers, status and toolbar) once, after the last day. Direct `advance_day` calls still refresh immediately.
 - Binding another city with exactly matching detached geometry inputs reuses the completed meshes and traversal snapshot. Live presentation layers still bind the new City; different geometric inputs use a fresh projection.
@@ -41,5 +48,10 @@ The **High** 3D profile preserves full shadows, four-sample antialiasing and clo
 `game/tools/golden_networks.gd` prints the complete chunked network-layer output hashes of each city path argument; refresh `game/tests/test_network_layer_golden.gd` from it only after a deliberate geometry change.
 
 Focused regression coverage includes incremental/full rebuild equivalence, immutable traversal snapshots, compiled mesh/shadow equivalence, graphics preference roundtrips and reduced-resolution picking, resource reuse, exact scheduled simulation results, and backlog save/reload.
+
+`test_network_physics_fallback_work.gd` also bounds dense candidate work without
+wall-clock thresholds and preserves pre-optimization output hashes, including
+facets that become broad at finer bin sizes. It checks interleaved edge owners,
+clipping boundary vertices/winding, detached outputs and empty packed inputs.
 
 Simulation cache regressions compare full-scan district discovery, cold transport graphs, legacy commuter paths/work counts and full-scan farm eligibility, including raw layer edits and city rebinds (`test_tourism_site_reuse.gd`, `test_tourism_structure_reuse.gd`, `test_transport_transition_reuse.gd`, `test_agricultural_growth_sparse_work.gd`).

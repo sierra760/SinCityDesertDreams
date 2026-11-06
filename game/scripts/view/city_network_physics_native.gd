@@ -41,7 +41,15 @@ static func resolve(patch_inputs: Array[Dictionary], box_inputs: Array[Dictionar
 ## Packed patches: cells hold two ints per patch, triangles three points per patch.
 static func resolve_packed(cells: PackedInt32Array, groups: PackedInt32Array, roles: PackedInt32Array, depths: PackedFloat64Array, triangles: PackedVector3Array, box_inputs: Array[Dictionary], obstacle_inputs: PackedVector3Array) -> Dictionary:
 	if available(): return _resolve_native(cells, groups, roles, depths, triangles, box_inputs, obstacle_inputs)
-	return Fallback.resolve(unpack_patches(cells, groups, roles, depths, triangles), box_inputs, obstacle_inputs)
+	# The detailed resolver already consumes packed inputs and emits the same
+	# ordered group blocks. Avoid a Dictionary and triangle copy per patch on
+	# platforms without the native kernel, including large Explore snapshots.
+	var detail := Fallback.resolve_detailed(cells,groups,roles,depths,triangles,true)
+	var obstacles := obstacle_inputs.duplicate()
+	obstacles.append_array(detail.bottoms)
+	obstacles.append_array(detail.walls)
+	return {"physical_floor_faces":detail.floor,"physical_obstacle_faces":obstacles,
+		"physical_boxes":box_inputs.duplicate(true)}
 
 
 ## Returns [cells, groups, roles, depths, triangles] for the native entry point.
