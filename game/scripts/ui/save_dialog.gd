@@ -106,17 +106,34 @@ func is_open() -> bool:
 	return visible
 
 
-## Where saves go, with the home folder shortened to "~" so the hint stays
-## short and a screenshot does not show the account name. The full folder is
-## the hint's tooltip.
+## Where saves go, with the home folder shortened ("~", or %APPDATA% on
+## Windows) so the hint stays short and a screenshot does not show the account
+## name. The full folder is the hint's tooltip.
 func folder_hint() -> String:
 	var folder := ProjectSettings.globalize_path(SaveFormat.default_dir())
 	if hint_label != null: hint_label.tooltip_text = folder
 	return "Save folder: %s" % display_folder(folder)
 
 
-static func display_folder(folder: String) -> String:
-	var home := OS.get_environment("USERPROFILE" if OS.get_name() == "Windows" else "HOME").replace("\\", "/").trim_suffix("/")
+static func display_folder(folder: String, os_name: String = OS.get_name(), environment: Dictionary = {}) -> String:
+	if os_name == "iOS":
+		# user:// is the app's Documents folder, which the Files app shows as
+		# On My iPhone (or iPad) → SC2D; a container path means nothing there.
+		var base := String(environment.get("user_dir", ProjectSettings.globalize_path("user://"))).trim_suffix("/")
+		var inside := folder.trim_suffix("/")
+		var relative := inside.substr(base.length()).trim_prefix("/") if inside == base or inside.begins_with(base + "/") else ""
+		var device := "iPad" if String(environment.get("model", OS.get_model_name())).begins_with("iPad") else "iPhone"
+		return "Files → On My %s → SC2D%s" % [device, "" if relative.is_empty() else " → " + relative.replace("/", " → ")]
+	if os_name == "Windows":
+		# Windows players paste %APPDATA% paths into Explorer; "~" and forward
+		# slashes are Unix shorthand there.
+		var shown_windows := folder.replace("/", "\\")
+		for variable: String in ["APPDATA", "USERPROFILE"]:
+			var base := String(environment.get(variable, OS.get_environment(variable))).replace("/", "\\").trim_suffix("\\")
+			if base.length() > 1 and (shown_windows.to_lower() == base.to_lower() or shown_windows.to_lower().begins_with(base.to_lower() + "\\")):
+				return "%" + variable + "%" + shown_windows.substr(base.length())
+		return shown_windows
+	var home := String(environment.get("HOME", OS.get_environment("HOME"))).replace("\\", "/").trim_suffix("/")
 	var shown := folder.replace("\\", "/")
 	if home.length() > 1 and (shown == home or shown.begins_with(home + "/")):
 		return "~" + shown.substr(home.length())

@@ -47,6 +47,12 @@ var _phone := false
 var _camera_wings := false
 var _tools_open := false
 var _inspect_available := false
+var _bindings: ControlBindings
+## Key captions and Cmd/Ctrl accelerators are shown unless this is a touch
+## device without a hardware keyboard, where they name keys nobody can press.
+var show_key_hints := true
+## Platform readings for `show_key_hints`; tests supply an iOS environment.
+var key_hint_environment: Dictionary = {}
 
 ## Reuse the desktop PopupMenus and action registry in the phone menu.
 ## Reparenting keeps radio/check/disabled states and dynamic captions intact.
@@ -244,20 +250,47 @@ func _menu(title: String) -> PopupMenu:
 	set_menu_title(get_menu_count() - 1, title)
 	m.id_pressed.connect(_on_id_pressed.bind(m))
 	m.about_to_popup.connect(func() -> void: popup_opened.emit())
+	m.about_to_popup.connect(_refresh_key_hints)
 	_menus[title] = m
 	return m
 
 func set_bindings(bindings: ControlBindings) -> void:
+	_bindings = bindings
+	_refresh_key_hints()
+
+
+## Rewrite the key-bearing captions. A keyboard can be attached or removed
+## while the app runs, so each menu re-checks just before it opens.
+func _refresh_key_hints() -> void:
+	show_key_hints = not MobilePlatform.uses_touch(key_hint_environment) or MobilePlatform.has_keyboard(key_hint_environment)
+	var menus: Array[PopupMenu] = []
+	for top: PopupMenu in _menus.values():
+		menus.append(top)
+		for child: Node in top.find_children("*","PopupMenu",true,false): menus.append(child as PopupMenu)
+	for menu: PopupMenu in menus:
+		if show_key_hints: menu.remove_theme_color_override("font_accelerator_color")
+		else: menu.add_theme_color_override("font_accelerator_color",Color.TRANSPARENT)
+	if _bindings == null: return
+	var bindings := _bindings
 	for entry: Dictionary in _entries.values():
 		var caption := ""
+		var key := ""
 		match entry.action:
-			&"rotate": caption = "Rotate [%s]" % bindings.caption(&"rotate")
-			&"underground": caption = "Underground [%s]" % bindings.caption(&"underground")
+			&"rotate":
+				caption = "Rotate"
+				key = bindings.caption(&"rotate")
+			&"underground":
+				caption = "Underground"
+				key = bindings.caption(&"underground")
 			&"speed":
 				if int(entry.value) == GameClock.Speed.PAUSED:
-					caption = "%s [%s]" % [String(GameClock.SPEED_NAMES[GameClock.Speed.PAUSED]), bindings.caption(&"pause")]
-			&"zoom": caption = "%s [%s]" % [String(UIFactory.ZOOM_NAMES[int(entry.value)]).capitalize(),bindings.caption(StringName("zoom_%d" % (int(entry.value)+1)))]
+					caption = String(GameClock.SPEED_NAMES[GameClock.Speed.PAUSED])
+					key = bindings.caption(&"pause")
+			&"zoom":
+				caption = String(UIFactory.ZOOM_NAMES[int(entry.value)]).capitalize()
+				key = bindings.caption(StringName("zoom_%d" % (int(entry.value)+1)))
 		if not caption.is_empty():
+			if show_key_hints: caption = "%s [%s]" % [caption, key]
 			var menu: PopupMenu = entry.menu
 			menu.set_item_text(menu.get_item_index(int(entry.id)),caption)
 
@@ -269,6 +302,7 @@ func _submenu(parent: PopupMenu, title: String) -> PopupMenu:
 	parent.add_submenu_item(title, String(popup.name))
 	popup.id_pressed.connect(_on_id_pressed.bind(popup))
 	popup.about_to_popup.connect(func() -> void: popup_opened.emit())
+	popup.about_to_popup.connect(_refresh_key_hints)
 	return popup
 
 

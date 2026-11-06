@@ -139,6 +139,9 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	# Windows borderless fullscreen keeps a 1-pixel frame in the clear color,
+	# and a resize can briefly show it; match the shell backdrop, not stock gray.
+	RenderingServer.set_default_clear_color(UITheme.BACKDROP)
 	IOSGestureScroll.install_tree(self)
 	shell = GameShellLayout.new(self)
 	add_child(shell)
@@ -784,9 +787,13 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C \
-			and (event.ctrl_pressed or event.meta_pressed) and event.alt_pressed and event.shift_pressed:
-		open_cheat_dialog()
-		get_viewport().set_input_as_handled()
+			and (event.ctrl_pressed or event.meta_pressed) and event.alt_pressed and event.shift_pressed \
+			and not _is_text_field(get_viewport().gui_get_focus_owner()):
+		# Windows reports AltGr as Ctrl+Alt, so a text field keeps the chord
+		# (AltGr+Shift+C types a letter on some layouts) and an unopened dialog
+		# leaves the key for whoever else wants it.
+		if open_cheat_dialog():
+			get_viewport().set_input_as_handled()
 		return
 	if _is_mac_fullscreen_chord(event):
 		if not loading_screen.visible: prefs.set_option(&"fullscreen", not display_layout.fullscreen)
@@ -1035,11 +1042,16 @@ func _on_about_closed(choice: StringName) -> void:
 
 ## Secret codes are entered explicitly so text never doubles as map/actor input.
 ## The notice queue handles pausing, touch focus, cancelling and restoring speed.
-func open_cheat_dialog() -> void:
-	if stage != Stage.PLAY or is_input_blocked() or WindowDrag.is_dragging(): return
+func open_cheat_dialog() -> bool:
+	if stage != Stage.PLAY or is_input_blocked() or WindowDrag.is_dragging(): return false
 	var lines := preload("res://scripts/content/cheat_lines.gd")
 	notices.queue("Secret Municipal Paperwork", lines.PROMPT,
 		[["Submit", &"submit"], ["Never mind", &"cancel"]], _on_cheat_submitted, true)
+	return true
+
+
+static func _is_text_field(control: Control) -> bool:
+	return control is LineEdit or control is TextEdit
 
 
 func _on_cheat_submitted(choice: StringName) -> void:

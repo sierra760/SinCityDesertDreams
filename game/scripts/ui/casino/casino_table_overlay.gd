@@ -277,7 +277,7 @@ func open(table_sim: Simulation, resort_key: StringName, game_kind: StringName, 
 	chrome.setup(palette, ResortThemes.resort_name(resort), ResortThemes.floor_name(resort), ResortThemes.game_name(resort, kind),PHONE_GAME_NAMES.get(kind,ResortThemes.game_name(resort,kind)))
 	chrome.rules_button.set_pressed_no_signal(false)
 	rules_panel.visible = false
-	rules_label.text = rules_text(kind, resort, game.limits)
+	rules_label.text = rules_text(kind, resort, game.limits, keyboard_hints())
 	_committed = 0
 	_settled = false
 	_session_net = 0
@@ -636,7 +636,7 @@ func perform_action(action: StringName, payload: Dictionary = {}) -> Dictionary:
 		return {"ok": false, "reason": CasinoLines.NO_CREDIT, "stake": 0}
 	var opening := game.state == CasinoGame.BETTING and action == game.commit_action()
 	if opening and not _stake_confirmed(expected):
-		var question := CasinoLines.confirm_stake(expected, sim.city.funds, game.commit_label())
+		var question := CasinoLines.confirm_stake(expected, sim.city.funds, game.commit_label(), keyboard_hints())
 		_say_message(question)
 		return {"ok": false, "reason": question, "stake": 0, "confirm": true}
 	if not opening and action != &"advance" and action != &"hold":
@@ -940,7 +940,7 @@ func _show_rules(shown: bool) -> void:
 	chrome.rules_button.set_pressed_no_signal(shown)
 	if shown:
 		if game != null:
-			rules_label.text = "Treasury %s · This sitting %s\n\n%s\n\n%s" % [CasinoLines.money(_shown_funds),UIFactory.format_money(_shown_net),patter_label.text,rules_text(kind,resort,game.limits)]
+			rules_label.text = "Treasury %s · This sitting %s\n\n%s\n\n%s" % [CasinoLines.money(_shown_funds),UIFactory.format_money(_shown_net),patter_label.text,rules_text(kind,resort,game.limits,keyboard_hints())]
 		_rules_close.grab_focus()
 	UIFactory.contain_modal_focus(self, _rules_close if shown else chrome.rules_button)
 
@@ -1122,8 +1122,15 @@ func _action_enabled(action: StringName) -> bool:
 
 # ── Rules ────────────────────────────────────────────────────────────────
 
-## The rules sheet for a game at a resort with the table's limits.
-static func rules_text(game_kind: StringName, resort_key: StringName, limits: Dictionary) -> String:
+## Whether rules and prompts may name keys: not on a touch device without a
+## hardware keyboard.
+func keyboard_hints() -> bool:
+	return not MobilePlatform.uses_touch() or MobilePlatform.has_keyboard()
+
+
+## The rules sheet for a game at a resort with the table's limits. Without a
+## keyboard the key instructions are left out and taps are named instead.
+static func rules_text(game_kind: StringName, resort_key: StringName, limits: Dictionary, keyboard: bool = true) -> String:
 	var table := CasinoParams.table_limits(resort_key)
 	var lines: Array[String] = []
 	if game_kind in OriginalSignatureStage.KINDS:
@@ -1131,12 +1138,15 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 		if rules_game != null:
 			rules_game.begin(CasinoRng.new(1), limits)
 			lines.append(String(rules_game.view_state().get("rules_text", "")))
-		lines.append("During a round, choose on the board or use Tab to reach each action button. Enter chooses the enabled primary action. Backgrounding finishes a committed round using the displayed safe decision; it never restores a lost stake.")
+		if keyboard:
+			lines.append("During a round, choose on the board or use Tab to reach each action button. Enter chooses the enabled primary action. Backgrounding finishes a committed round using the displayed safe decision; it never restores a lost stake.")
+		else:
+			lines.append("During a round, choose on the board or tap an action button. Backgrounding finishes a committed round using the displayed safe decision; it never restores a lost stake.")
 	match game_kind:
 		&"blackjack":
 			lines.append("Get closer to 21 than the dealer without going over. Number cards count their value, court cards ten, aces one or eleven. The dealer draws to 16 and stands on every 17.")
 			lines.append("A two-card 21 pays 3 to 2; other wins pay 1 to 1; a tie returns the bet. Double on any first two cards for one more card. Split a pair once; split aces take one card each.")
-			lines.append("Keys: Enter deals, then stands during a hand (Enter never draws a card); H hits, S stands, D doubles, P splits.")
+			if keyboard: lines.append("Keys: Enter deals, then stands during a hand (Enter never draws a card); H hits, S stands, D doubles, P splits.")
 		&"roulette":
 			lines.append("A single-zero wheel, 0 to 36. Bet on as many spots as you like; the table maximum applies to the total.")
 			lines.append("A number pays 35 to 1. Red or black, odd or even, 1 to 18 or 19 to 36 pay 1 to 1. Dozens and columns pay 2 to 1. Zero loses every bet except a bet on zero.")
@@ -1157,7 +1167,7 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 			for rank: String in CasinoParams.POKER_RETURNS:
 				if rank != "nothing":
 					rows.append("%s %d" % [String(VideoPokerGame.LABELS[rank]), int(CasinoParams.POKER_RETURNS[rank])])
-			lines.append("Jacks or better, a fresh deck every hand. Deal five cards, hold the ones you want (press them, or keys 1 to 5), then draw.")
+			lines.append("Jacks or better, a fresh deck every hand. Deal five cards, hold the ones you want (%s), then draw." % ("press them, or keys 1 to 5" if keyboard else "tap them"))
 			lines.append("Pays for 1, bet included: %s." % ", ".join(rows))
 		&"faro":
 			lines.append("Bet on ranks of the layout. Each turn the banker's card shows first and bets on its rank lose; then the player's card shows and bets on its rank win 1 to 1.")
@@ -1168,10 +1178,10 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 			lines.append("Player and Banker each take two cards, and a third by the standard tableau. Closest to nine wins: tens and court cards count zero, and only a total's last digit counts.")
 			lines.append("Player pays 1 to 1, Banker 1 to 1 less a 5% commission, Tie 8 to 1. Player and Banker bets come back on a tie.")
 		&"trajectory":
-			lines.append("Launch and watch the multiplier climb. Cash out (Enter or Space) before the engine burns out to collect the stake times the multiplier; a burn-out loses the stake.")
-			lines.append("One launch in %d fails on the pad. Set an automatic cash-out (A) before launch to let the flight decide." % CasinoParams.TRAJECTORY_FAIL_ONE_IN)
+			lines.append("Launch and watch the multiplier climb. Cash out" + (" (Enter or Space)" if keyboard else "") + " before the engine burns out to collect the stake times the multiplier; a burn-out loses the stake.")
+			lines.append("One launch in %d fails on the pad. Set an automatic cash-out%s before launch to let the flight decide." % [CasinoParams.TRAJECTORY_FAIL_ONE_IN, " (A)" if keyboard else ""])
 	lines.append("Table limits %s to %s per round; the treasury caps the maximum. Every bet comes from the city treasury and every win goes back to it." % [
 		CasinoLines.money(int(limits.get("minimum", table["minimum"]))), CasinoLines.money(int(table["maximum"]))])
-	lines.append("A round that stakes more than half of the treasury asks first: press Enter or the button again to confirm.")
-	lines.append("Keys: arrows choose a spot, 1 to 5 or the chips add a bet, + and - adjust it (hold to repeat), Enter plays, R repeats the last bet, Escape finishes the animation and then leaves between rounds.")
+	lines.append("A round that stakes more than half of the treasury asks first: %s the button again to confirm." % ("press Enter or" if keyboard else "tap"))
+	if keyboard: lines.append("Keys: arrows choose a spot, 1 to 5 or the chips add a bet, + and - adjust it (hold to repeat), Enter plays, R repeats the last bet, Escape finishes the animation and then leaves between rounds.")
 	return "\n\n".join(lines)

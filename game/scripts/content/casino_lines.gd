@@ -348,7 +348,10 @@ static func no_credit(minimum: int, funds: int) -> String:
 
 ## The dealer's question before a round that stakes more than half of the
 ## treasury; `commit_label` names the button that confirms (Deal, Spin...).
-static func confirm_stake(stake: int, funds: int, commit_label: String) -> String:
+## Without a keyboard (iPhone, iPad) the question names only the button.
+static func confirm_stake(stake: int, funds: int, commit_label: String, keyboard: bool = true) -> String:
+	if not keyboard:
+		return "Bet %s of the city's %s? Tap %s again to confirm." % [money(stake), money(funds), commit_label]
 	return "Bet %s of the city's %s? Press Enter or %s again to confirm." % [money(stake), money(funds), commit_label]
 
 

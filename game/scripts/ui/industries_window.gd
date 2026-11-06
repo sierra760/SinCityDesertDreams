@@ -88,11 +88,16 @@ func refresh() -> void:
 	var economy: SimSystem = _sim.get_system(&"economy") if has_city else null
 	_status_label.text = _sim.date_text() if has_city else "No city loaded"
 	_phase_label.text = "National trend: " + EconomySystem.phase_name(stats.economy_phase)
-	_value_label.text = "City value %s, industry tax %d%%" % [
-		UIFactory.format_amount(stats.city_value), stats.tax_industrial]
 	var report: Array = []
 	if economy != null:
 		report = economy.call("sector_report")
+	if has_city and stats.population > 0 and stats.city_value == 0 and _no_units(report):
+		# A city opened before its first monthly economy update has no readings
+		# yet; say so rather than print a row of zeros as if they were measured.
+		_value_label.text = "Industry tax %d%%. City value and sector figures arrive at the end of the month." % stats.tax_industrial
+	else:
+		_value_label.text = "City value %s, industry tax %d%%" % [
+			UIFactory.format_amount(stats.city_value), stats.tax_industrial]
 	for i in _sector_rows.size():
 		var row: Array = _sector_rows[i]
 		var name_label: Label = row[0]
@@ -133,6 +138,14 @@ func sector_text(index: int) -> String:
 	return "%s | %s | %s | %s | %d" % [name_label.text, demand_label.text, units_label.text, share_label.text, int(spinner.value)]
 
 
+## Whether no sector has recorded any units yet.
+static func _no_units(report: Array) -> bool:
+	for entry in report:
+		if int((entry as Dictionary).get("units", 0)) != 0:
+			return false
+	return true
+
+
 func phase_text() -> String:
 	return _phase_label.text
 
@@ -147,6 +160,7 @@ func _build() -> void:
 	_status_label = UIFactory.make_label("No city loaded", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	_phase_label = UIFactory.make_label("", UITheme.FONT_HEADER)
 	_value_label = UIFactory.make_label("")
+	_value_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body.add_child(_status_label)
 	_body.add_child(_phase_label)
 	_body.add_child(_value_label)

@@ -579,7 +579,8 @@ func capture_event(event: InputEvent) -> bool:
 		cancel_capture()
 		return true
 	if event.ctrl_pressed or event.meta_pressed or event.alt_pressed:
-		binding_hint.text = "Choose a single key without Ctrl, Cmd or Alt."
+		binding_hint.text = "Choose a single key without Ctrl, Cmd or Option." if OS.get_name() == "macOS" \
+				else "Choose a single key without Ctrl or Alt."
 		_footer_label.text = binding_hint.text
 		return true
 	if code == KEY_BACKSPACE and _capture_slot == 1:

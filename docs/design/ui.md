@@ -298,8 +298,24 @@ Automatic backups use `user://autosaves/autosave.sc2d`, separate from named save
 Load lists the managed backup with recovery guidance; recovery leaves the manual
 save target unset so Save asks for a name. Legacy `saves/autosave.sc2d` remains a
 normal save. Save As accepts a pasted .sc2d suffix once and shows the actual save
-folder. Load City shows saved dates in local time without seconds. File
-pickers keep their task title.
+folder: `%APPDATA%\...` on Windows, `~/...` on macOS and its Files app location
+(On My iPhone or iPad → SC2D) on iOS. Load City shows saved dates in local time
+without seconds. File pickers keep their task title.
+
+## Platform wording
+
+Text names the keys of the platform that shows it: Cmd and Option on macOS,
+Ctrl and Alt elsewhere. On a touch device without a hardware keyboard, menus omit
+key captions and Cmd/Ctrl accelerators, casino rules omit key lists, and the
+large-bet confirmation asks for a second tap. Attaching a keyboard restores them
+the next time a menu opens. Help separates iPhone rows (Menu → Speed, the Tools
+drawer) from iPad rows (the Speed and City menus). The phone Details panel shows
+every alert, the whole status message and the city summary that desktop players
+read in the population tooltip: class, employment, approval, rain and wind, and
+water storage. A report
+opened before a city's first monthly update says its readings arrive at month's
+end instead of printing zeros. The secret-codes chord is ignored while a text
+field has focus, because Windows reports AltGr as Ctrl+Alt.
 
 Saving writes the whole document to a staging file and verifies it before
 replacing the old save. Write and flush failures are reported, and a partial

@@ -85,7 +85,7 @@ func _init() -> void:
   sources_dialog.open()
   data_sources_requested.emit())
  _label(body,"Elevation: Mapzen / Joerd terrain providers · Water: ESA WorldCover 2021 v200 (CC BY 4.0) · Map: © OpenStreetMap contributors")
- _label(body,"Search for a place, or drag the square center to move it and a corner to resize it. Arrow keys pan; + / − zoom; F fits the selection.")
+ _label(body,"Search for a place, or drag the square center to move it and a corner to resize it. " + ("Arrow keys pan; + / − zoom; F fits the selection." if not MobilePlatform.uses_touch() or MobilePlatform.has_keyboard() else "Pinch to zoom, or use the map buttons."))
  var search_row := HBoxContainer.new()
  search_row.add_theme_constant_override("separation",8)
  body.add_child(search_row)

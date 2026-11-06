@@ -19,8 +19,8 @@ const ROWS: Array = [
 	["Shape, then found", "Choose terrain and edit the land for free. Found City starts the clock and opens your treasury."],
 	["Build a neighborhood", "Zone level land; provide power, water and road access. Watch demand and review your budget."],
 	["Choose a speed", "Cities open paused. Pick a speed from the Speed menu; {pause} pauses and resumes at the same speed. Fastest runs as quickly as your device allows.", "desktop"],
-	["Choose a speed", "Cities open paused. Pick a speed from Menu → Speed. Fastest runs as quickly as your device allows.", "touch"],
-	["Save and recover", "Save your city or an unfounded map from the City menu (Cmd/Ctrl+S). Load City also lists yearly automatic backups and recovery copies; save a recovered city under a name to keep it."],
+	["Choose a speed", "Cities open paused. Pick a speed from {speed_menu}. Fastest runs as quickly as your device allows.", "touch"],
+	["Save and recover", "Save your city or an unfounded map from {city_menu}{save_key}. Load City also lists yearly automatic backups and recovery copies; save a recovered city under a name to keep it."],
 	["#Agriculture"],
 	["Zone a farm", "Choose low-density ($2/tile) or high-density Agriculture ($5/tile) on dry, level land near a road or station. Low-density farmland forms fields and pastures automatically. Each parcel stays on one flat ground height and spans at most 12 tiles in either direction; a pasture needs at least four connected tiles with room for its animals. Olive shades identify both densities on the maps."],
 	["Edit farmland", "Bulldozing or building a road on one cell of a new field or pasture removes that cell. Its remaining pieces may become separate parcels. Older square farms keep their original whole-lot demolition behavior."],
@@ -61,7 +61,7 @@ const ROWS: Array = [
 	["View", "Choose zoom and overlays; show or hide traffic, labels and the minimap."],
 	["View → Vegetation Zones", "See your city's ground by elevation and set where desert palms give way to piñon-juniper woodland and then pines. Drag a boundary, switch zones on or off, or choose Automatic to follow the terrain."],
 	["Help → Secret Codes", "Try your luck in a founded city. DOUBLEDOWN bets a tenth of the virtual treasury; HIGHROLLER brings city funds and permits; MARKER adds simulated city debt; CHAPEL is just for fun."],
-	["iPhone layout", "Tools opens the tool drawer; choosing a tool closes it. Inspect selects tile inspection; beside the portrait camera use Menu → Inspect. Menu contains the city, view and report commands. Details expands the status; Alerts opens current warnings.", "touch"],
+	["iPhone layout", "Tools opens the tool drawer; choosing a tool closes it. Inspect selects tile inspection; beside the portrait camera use Menu → Inspect. Menu contains the city, view and report commands. Details expands the status; Alerts opens current warnings.", "phone"],
 	["iPhone / iPad files", "Copy .sc2 or .sc2d files into On My iPhone or On My iPad → SC2D in the Files app. Import Classic City or Load City → Browse opens the app folder.", "touch"],
 ]
 
@@ -145,11 +145,11 @@ func _fill_rows() -> void:
 	var touch := MobilePlatform.uses_touch()
 	if not _descriptions.is_empty():
 		for index: int in _descriptions.size():
-			if is_instance_valid(_descriptions[index]): _descriptions[index].text = fill_keys(_templates[index],bindings,touch)
+			if is_instance_valid(_descriptions[index]): _descriptions[index].text = fill_keys(_templates[index],bindings,touch,OS.get_name(),_is_phone())
 		return
-	var audience := "touch" if touch else "desktop"
+	var phone := _is_phone()
 	for row in ROWS:
-		if row.size() > 2 and String(row[2]) != audience:
+		if row.size() > 2 and not shows_row(String(row[2]),touch,phone):
 			continue
 		var first := String(row[0])
 		if first.begins_with("#"):
@@ -161,13 +161,34 @@ func _fill_rows() -> void:
 		key.custom_minimum_size.x = 160
 		key.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_grid.add_child(key)
-		var description := UIFactory.make_label(fill_keys(String(row[1]),bindings,touch),UITheme.FONT_BODY,UITheme.TEXT_MUTED)
+		var description := UIFactory.make_label(fill_keys(String(row[1]),bindings,touch,OS.get_name(),phone),UITheme.FONT_BODY,UITheme.TEXT_MUTED)
 		description.custom_minimum_size.x = 240
 		description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_grid.add_child(description)
 		_descriptions.append(description)
 		_templates.append(String(row[1]))
+
+
+## Whether a row tagged desktop, touch, phone (iPhone layout) or tablet
+## (touch without the iPhone layout) belongs in this guide.
+static func shows_row(tag: String, touch: bool, phone: bool) -> bool:
+	match tag:
+		"desktop": return not touch
+		"touch": return touch
+		"phone": return touch and phone
+		"tablet": return touch and not phone
+	return true
+
+
+## The iPhone layout moves the top menus into Menu; an iPad keeps them.
+func _is_phone() -> bool:
+	var node := get_parent()
+	while node != null:
+		var shell: Variant = node.get("shell")
+		if shell is GameShellLayout: return (shell as GameShellLayout).phone_layout
+		node = node.get_parent()
+	return false
 
 
 func _bindings() -> ControlBindings:
@@ -183,11 +204,14 @@ func _bindings() -> ControlBindings:
 ## Replace each braced binding name in `text` with the bound key captions.
 ## Trackpad swipes differ by OS: macOS reports a two-finger swipe as panning,
 ## while Windows and Linux report a vertical swipe as wheel scrolling (zoom).
-static func fill_keys(text: String, bindings: ControlBindings, touch: bool = false, os_name: String = OS.get_name()) -> String:
+static func fill_keys(text: String, bindings: ControlBindings, touch: bool = false, os_name: String = OS.get_name(), phone: bool = false) -> String:
 	var out := text
 	var mac := os_name == "macOS"
+	out = out.replace("{speed_menu}", "Menu → Speed" if phone else "the Speed menu")
+	out = out.replace("{city_menu}", "Menu → City" if phone else "the City menu")
 	out = out.replace("{swipe_pan}", "or a two-finger trackpad swipe" if mac else "or a sideways two-finger touchpad swipe")
 	out = out.replace("{swipe_zoom}", "" if mac else " (or a vertical two-finger touchpad swipe)")
+	out = out.replace("{save_key}", "" if touch else (" (Cmd+S)" if mac else " (Ctrl+S)"))
 	out = out.replace("{pan}", _key_set(bindings, [&"pan_forward", &"pan_left", &"pan_back", &"pan_right"]))
 	out = out.replace("{move}", _key_set(bindings, [&"move_forward", &"move_left", &"move_back", &"move_right"]))
 	out = out.replace("{zoom}", _zoom_keys(bindings))

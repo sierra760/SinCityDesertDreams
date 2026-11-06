@@ -54,6 +54,10 @@ var _phone_summary: Label
 var _details_button: Button
 var _details_scroll: ScrollContainer
 var _details_content: VBoxContainer
+## The city summary (class, employment, approval, weather, storage) that a
+## desktop pointer reads from the population tooltip; Details shows it on phones.
+var details_label: Label
+var _summary_extras := ""
 var _phone_height_limit := 240.0
 var _bottom_edge_fill := Vector3.ZERO
 
@@ -88,6 +92,11 @@ func set_phone_layout(on: bool) -> void:
 		_details_content.add_theme_constant_override("separation",8)
 		_details_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_details_scroll.add_child(_details_content)
+		details_label = UIFactory.make_label("", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
+		details_label.name = "PhoneCitySummary"
+		details_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		details_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_details_content.add_child(details_label)
 		_column.add_child(_details_scroll)
 	if _details_scroll != null:
 		var parent: Control = _details_content if on else _column
@@ -111,7 +120,11 @@ func set_details_open(on: bool) -> void:
 	_phone_row.visible = _phone
 	_metrics_row.visible = not _phone or _details_open
 	alert_label.visible = not alert_label.text.is_empty() and (not _phone or _details_open)
-	message_label.max_lines_visible = 1 if _phone else 2
+	# Expanded Details is the only place a phone can read every warning and
+	# the whole status message.
+	alert_label.max_lines_visible = -1 if _details_open else 2
+	message_label.max_lines_visible = (-1 if _details_open else 1) if _phone else 2
+	_sync_details_label()
 	if _details_scroll != null:
 		_details_scroll.visible = _details_open
 		var parent: Control = _details_content if _details_open else _column
@@ -453,6 +466,12 @@ func _sync_speed_hint() -> void:
 	else: speed_label.tooltip_text = "Simulation speed. Change it from the Speed menu; %s pauses or resumes." % controls.caption(&"pause")
 
 
+func _sync_details_label() -> void:
+	if details_label == null: return
+	details_label.text = "" if _editing else _summary_extras
+	details_label.visible = _details_open and not _editing and not details_label.text.is_empty()
+
+
 ## Short warnings shown in red, joined with separators.
 func set_alerts(alerts: PackedStringArray) -> void:
 	alert_label.text = " · ".join(alerts)
@@ -474,6 +493,7 @@ func show_editing(city_name: String) -> void:
 	_editing = true
 	_population = 0
 	_population_details = ""
+	_sync_details_label()
 	_tourists = 0
 	set_emergency_available(false)
 	# There is no treasury before founding.
@@ -514,6 +534,13 @@ func refresh(sim: Simulation) -> void:
 		var lines: Array = statistics.call("status_lines_now") if statistics.has_method("status_lines_now") \
 			else statistics.call("status_lines")
 		_population_details = ("\n" + "\n".join(PackedStringArray(lines))) if not lines.is_empty() else ""
+		# Lines 1-3 (date, population, funds) repeat the Details rows beside it.
+		var extras := PackedStringArray([lines[0]] if not lines.is_empty() else [])
+		extras.append_array(PackedStringArray(lines.slice(4)))
+		_summary_extras = "\n".join(extras)
+	else:
+		_summary_extras = ""
+	_sync_details_label()
 	set_speed(sim.speed)
 	set_alerts(alerts_for(sim))
 	var disasters := sim.get_system(&"disasters") as DisasterSystem

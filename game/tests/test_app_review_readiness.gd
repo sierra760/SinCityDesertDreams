@@ -26,7 +26,7 @@ func test_ios_has_no_unavailable_mods_routes() -> void:
 func test_touch_guide_names_current_betting_and_virtual_funds() -> void:
 	var rows := ""
 	for row: Array in HelpWindow.ROWS:
-		if row.size()>1 and (row.size()<3 or row[2]=="touch"): rows+=str(row[1])+"\n"
+		if row.size()>1 and (row.size()<3 or row[2] in ["touch","phone"]): rows+=str(row[1])+"\n"
 	check(rows.contains("denomination") and rows.contains("+"),"phone betting instructions name the chooser and plus")
 	check(rows.contains("Menu → Inspect"),"portrait Inspect is discoverable")
 	check(rows.contains("virtual") and rows.contains("real money"),"casino funds are clearly simulated")

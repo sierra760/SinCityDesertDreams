@@ -62,6 +62,8 @@ class GraphCanvas extends Control:
 	const PAD_TOP := 12.0
 	const PAD_BOTTOM := 22.0
 	const GRID_LINES := 4
+	## Shown in the plot until the city records its first month.
+	const EMPTY_NOTE := "Readings begin at the end of the month"
 
 	## [{name: StringName, label: String, values: PackedInt32Array, color: Color}]
 	var series: Array[Dictionary] = []
@@ -83,7 +85,55 @@ class GraphCanvas extends Control:
 		var s := size
 		if s.x <= 0.0 or s.y <= 0.0:
 			s = custom_minimum_size
-		return Rect2(PAD_LEFT, PAD_TOP, maxf(s.x - PAD_LEFT - PAD_RIGHT, 1.0), maxf(s.y - PAD_TOP - PAD_BOTTOM, 1.0))
+		var left := pad_left()
+		var right := pad_right()
+		return Rect2(left, PAD_TOP, maxf(s.x - left - right, 1.0), maxf(s.y - PAD_TOP - PAD_BOTTOM, 1.0))
+
+	## Whether any drawn series has at least one monthly reading.
+	func has_readings() -> bool:
+		for row in series:
+			var values: PackedInt32Array = row["values"]
+			if not values.is_empty():
+				return true
+		return false
+
+	## Shared-axis numbers as [fraction of the plot height, text], bottom up.
+	## A narrow range rounds several grid lines to one number; it is listed once.
+	func axis_labels() -> Array:
+		var out := []
+		if own_scales() or not has_readings():
+			return out
+		var range_v := value_range()
+		var axis_name: StringName = series[0]["name"] if series.size() == 1 else &""
+		var labelled := {}
+		for i in GRID_LINES + 1:
+			var t := float(i) / float(GRID_LINES)
+			var value := int(round(float(range_v.x) + float(range_v.y - range_v.x) * t))
+			if labelled.has(value):
+				continue
+			labelled[value] = true
+			out.append([t, value_text(axis_name, value)])
+		return out
+
+	## Room left of the plot for the widest axis number, so large values such
+	## as Funds print in full instead of being cut at the edge.
+	func pad_left() -> float:
+		var font := get_theme_default_font()
+		var widest := 0.0
+		for label: Array in axis_labels():
+			widest = maxf(widest, font.get_string_size(String(label[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_SMALL).x)
+		return maxf(PAD_LEFT, ceilf(widest) + 8.0)
+
+	## Room right of the plot for the widest current value.
+	func pad_right() -> float:
+		var font := get_theme_default_font()
+		var widest := 0.0
+		for row in series:
+			var values: PackedInt32Array = row["values"]
+			if not values.is_empty():
+				var text := value_text(row["name"], values[values.size() - 1])
+				widest = maxf(widest, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_SMALL).x)
+		return maxf(PAD_RIGHT, ceilf(widest) + 8.0)
 
 	## Lowest and highest value across every drawn series, widened so a flat
 	## line still has room.
@@ -176,7 +226,7 @@ class GraphCanvas extends Control:
 			var values: PackedInt32Array = row.values
 			labels.append({"name":row.name, "text":value_text(row.name, values[values.size()-1]),
 				"color":row.color, "point":last,
-				"rect":Rect2(rect.end.x+4.0, clampf(last.y-height/2.0,rect.position.y,rect.end.y-height),PAD_RIGHT-4.0,height)})
+				"rect":Rect2(rect.end.x+4.0, clampf(last.y-height/2.0,rect.position.y,rect.end.y-height),pad_right()-4.0,height)})
 		labels.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return a.point.y < b.point.y)
 		var next_y := rect.position.y
 		for label in labels:
@@ -194,25 +244,19 @@ class GraphCanvas extends Control:
 		var font_size := UITheme.FONT_SMALL
 		draw_rect(rect, UITheme.BEVEL_LIGHT, true)
 		draw_rect(rect, UITheme.BEVEL_DARK, false, 1.0)
-		var range_v := value_range()
+		for i in range(1, GRID_LINES):
+			var y := rect.position.y + rect.size.y * (1.0 - float(i) / float(GRID_LINES))
+			draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), UITheme.DIVIDER, 1.0)
 		# Axis numbers only when every line shares the axis; dollars when the
 		# one line is Funds.
-		var axis_name: StringName = series[0]["name"] if series.size() == 1 else &""
-		# A narrow range rounds several grid lines to one number; label it once.
-		var labelled := {}
-		for i in GRID_LINES + 1:
-			var t := float(i) / float(GRID_LINES)
-			var y := rect.position.y + rect.size.y * (1.0 - t)
-			if i > 0 and i < GRID_LINES:
-				draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), UITheme.DIVIDER, 1.0)
-			if own_scales():
-				continue
-			var value := int(round(float(range_v.x) + float(range_v.y - range_v.x) * t))
-			if labelled.has(value):
-				continue
-			labelled[value] = true
-			draw_string(font, Vector2(2.0, y + 4.0), value_text(axis_name, value),
-				HORIZONTAL_ALIGNMENT_LEFT, PAD_LEFT - 4.0, font_size, UITheme.TEXT_MUTED)
+		for label: Array in axis_labels():
+			var y := rect.position.y + rect.size.y * (1.0 - float(label[0]))
+			draw_string(font, Vector2(2.0, y + 4.0), String(label[1]),
+				HORIZONTAL_ALIGNMENT_LEFT, rect.position.x - 4.0, font_size, UITheme.TEXT_MUTED)
+		if not series.is_empty() and not has_readings():
+			# Between the grid lines, so no rule strikes through the text.
+			draw_string(font, Vector2(rect.position.x, rect.position.y + rect.size.y * 0.375 + 4.0), EMPTY_NOTE,
+				HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, font_size, UITheme.TEXT_MUTED)
 		var years := maxi(months / GameClock.MONTHS_PER_YEAR, 1)
 		draw_string(font, Vector2(rect.position.x, rect.end.y + 16.0), "%d year%s" % [years, "" if years == 1 else "s"],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, UITheme.TEXT_MUTED)
@@ -331,7 +375,7 @@ func refresh() -> void:
 	var legend: Array[String] = []
 	for row in rows:
 		var values: PackedInt32Array = row["values"]
-		var current := "-" if values.is_empty() else GraphCanvas.value_text(row["name"], values[values.size() - 1])
+		var current := "no readings yet" if values.is_empty() else GraphCanvas.value_text(row["name"], values[values.size() - 1])
 		legend.append("%s: %s" % [String(row["label"]), current])
 	_legend_label.text = ", ".join(legend) if not legend.is_empty() else "No series selected"
 	_scale_label.visible = _canvas.own_scales()
