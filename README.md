@@ -219,7 +219,7 @@ and comes with no warranty. See [LICENSE](LICENSE) and the
 cities are licensed under **Creative Commons Attribution-NonCommercial-ShareAlike
 4.0** (CC BY-NC-SA 4.0): share and adapt them non-commercially, with credit, under
 the same license. See [LICENSE-ASSETS](LICENSE-ASSETS).
-The bundled BioRhyme and Atomic Age fonts are under the SIL Open Font License,
+The bundled BioRhyme, Atomic Age and Overpass fonts are under the SIL Open Font License,
 and Fontdiner Swanky is under the Apache License 2.0. The main menu's **License** button shows the full GPL
 offline.
 

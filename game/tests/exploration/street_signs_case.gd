@@ -82,7 +82,7 @@ func _floor_contact(triangles: PackedVector3Array, contact: Vector3) -> Dictiona
 		if hit is Vector3: height=maxf(height,hit.y)
 	return {} if height==-INF else {"height":height}
 
-func _rendered_mesh_contact(networks: CityNetworks3D, contact: Vector3) -> bool:
+func _rendered_mesh_contact(networks: CityNetworks3D, contact: Vector3, tolerance: float = .00001) -> bool:
 	for node: MeshInstance3D in networks.find_children("*","MeshInstance3D",true,false):
 		for surface: int in node.mesh.get_surface_count():
 			var arrays:=node.mesh.surface_get_arrays(surface)
@@ -93,5 +93,5 @@ func _rendered_mesh_contact(networks: CityNetworks3D, contact: Vector3) -> bool:
 				var triangle: Array[Vector3]=[]
 				for j: int in 3: triangle.append(node.global_transform*vertices[indices[i+j] if not indices.is_empty() else i+j])
 				var hit: Variant=Geometry3D.ray_intersects_triangle(contact+Vector3.UP,Vector3.DOWN,triangle[0],triangle[1],triangle[2])
-				if hit is Vector3 and absf(hit.y-contact.y)<.00001: return true
+				if hit is Vector3 and absf(hit.y-contact.y)<tolerance: return true
 	return false

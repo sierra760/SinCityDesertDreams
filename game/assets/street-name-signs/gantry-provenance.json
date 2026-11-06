@@ -1,0 +1,22 @@
+{
+  "asset_terms": "CC-BY-NC-SA-4.0; see LICENSING.md; code GPL-3.0-or-later",
+  "builder": "highway_gantry_signs.py (Blender authoring script, kept outside this repository)",
+  "builder_sha256": "93c57adac45ded89e37d54f34f09e9e5c976e6b2823e6504e312c59964218118",
+  "copyright": "\u00a9 2026 Bristlecone Artists LLC",
+  "creator": "Bristlecone Artists LLC",
+  "files": {
+    "gantry-distance.blend": "31db8f5411ae3cd8c9ab6c2e0df7a37aa373838099337768424f15398bc41744",
+    "gantry-distance.glb": "82f2e5efd1df79c60fa0b75d398dce5b275684d7d6e04688aba623609b6cc37b",
+    "gantry-metrics.json": "946fed3b9e519fad5080834e9e403277652b5718d3b759e171fd0c50182c9179",
+    "gantry-templates.json": "4e2631ffc69154dc8c06ceb772c8eff6de2494b3c4492b5b9e3623f321e89dec",
+    "highway-gantry.blend": "de01a1bea6da467ac134904c4d6fd942874c98300f2edecf472042923687865a",
+    "highway-gantry.glb": "e7386f8f008ade09b4929195701c23d55366b08b78d9f2673a2d6491300c8872"
+  },
+  "origin": "Original scripted geometry and the shared deterministic 32\u00d732 enamel/metal texture pixels; no imported art or paid generation",
+  "runtime_exports": "Byte-identical GLBs; each embeds its shared palette textures.",
+  "schema": 1,
+  "shared_helpers": {
+    "path": "street_name_signs.py (Blender authoring script, kept outside this repository)",
+    "sha256": "def32f0cf744f0a42c4b12b1e6eca5738ac456e433b30d5525ea812a2cba10d0"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "family": "Overpass",
+  "designer": "Delve Withrington, Dave Bailey, Thomas Jockin",
+  "license": "SIL OFL 1.1",
+  "google_fonts_commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "modified": false,
+  "note": "Variable font bytes are unmodified; the file is stored as Overpass-wght.ttf (upstream name Overpass[wght].ttf). overpass-bold.tres selects the wght 700 instance at runtime for road-sign lettering.",
+  "files": [
+    {
+      "file": "Overpass-wght.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/overpass/Overpass%5Bwght%5D.ttf",
+      "sha256": "970717df17a7f9911dee45f60695d05bfa9d745fa0a11fc5c348371fa21f0073",
+      "bytes": 318700
+    },
+    {
+      "file": "OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/overpass/OFL.txt",
+      "sha256": "86e5ff25c701ec446d20b1a85b02ee6d36de8503a7288a4c948f5459809af1f0",
+      "bytes": 4392
+    },
+    {
+      "file": "METADATA.pb",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/overpass/METADATA.pb",
+      "sha256": "cf13131c476da758ce788b2650f285d9b235d7aae5a89f125e21acefc15747cd",
+      "bytes": 1373
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+[gd_resource type="FontVariation" load_steps=2 format=3]
+; SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC
+; SPDX-License-Identifier: GPL-3.0-or-later
+; See LICENSE and LICENSING.md in the repository root.
+
+[ext_resource type="FontFile" path="res://assets/fonts/overpass/Overpass-wght.ttf" id="1"]
+
+[resource]
+base_font = ExtResource("1")
+variation_opentype = {2003265652: 700}

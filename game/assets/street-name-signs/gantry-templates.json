@@ -1,0 +1,129 @@
+{
+  "distance_scale": {
+    "rounding": "nearest quarter mile, at least one quarter",
+    "tiles_per_mile": 16
+  },
+  "font": "res://assets/fonts/overpass/overpass-bold.tres",
+  "meters_per_tile": 16,
+  "runtime_axes": "Godot +Y up, +Z front (toward oncoming traffic)",
+  "schema": 1,
+  "source_axes": "Blender Z up, -Y front",
+  "templates": {
+    "gantry-distance": {
+      "base_board_size_m": [
+        7.0,
+        2.6,
+        0.07
+      ],
+      "board_node": "Board",
+      "board_pivot_m": [
+        0,
+        0,
+        0
+      ],
+      "bounds_m": {
+        "max": [
+          3.5,
+          0.0,
+          0.052000001072883606
+        ],
+        "min": [
+          -3.5,
+          -2.5999999046325684,
+          -0.05147000029683113
+        ],
+        "size": [
+          7.0,
+          2.5999999046325684,
+          0.10346999764442444
+        ]
+      },
+      "faces": {
+        "back": "Board/BlankFaceBack",
+        "front": "Board/BlankFaceFront"
+      },
+      "layout": {
+        "coordinate_space": "board metres, origin at top edge; row centre y = -(row_top_inset + pitch*(i+.5))",
+        "distance_em_m": 0.3,
+        "distance_right_m": 3.28,
+        "distance_safe_m": [
+          1.55,
+          0.56
+        ],
+        "line_gap_m": 0.04,
+        "max_destination_lines": 1,
+        "name_em_m": 0.3,
+        "name_left_m": -3.28,
+        "name_safe_m": [
+          4.85,
+          0.56
+        ]
+      },
+      "maximum_board_scale": [
+        1,
+        1,
+        1
+      ],
+      "mounts": {
+        "back": "Board/TextMountBack",
+        "front": "Board/TextMountFront"
+      },
+      "operational_faces": [
+        "front"
+      ],
+      "row_pitch_m": 0.8,
+      "row_rules": [
+        "Board/RowRule1",
+        "Board/RowRule2"
+      ],
+      "row_top_inset_m": 0.1,
+      "rows": 3,
+      "sha256": "82f2e5efd1df79c60fa0b75d398dce5b275684d7d6e04688aba623609b6cc37b",
+      "source_sha256": "31db8f5411ae3cd8c9ab6c2e0df7a37aa373838099337768424f15398bc41744"
+    },
+    "highway-gantry": {
+      "board_top_m": [
+        0,
+        7.95,
+        0.51
+      ],
+      "bounds_m": {
+        "max": [
+          7.960000038146973,
+          8.40000057220459,
+          0.5
+        ],
+        "min": [
+          -7.960000038146973,
+          0.0,
+          -0.44999998807907104
+        ],
+        "size": [
+          15.920000076293945,
+          8.40000057220459,
+          0.949999988079071
+        ]
+      },
+      "note": "Origin is the carriageway centre on its pavement. Posts/shoes stretch to each foot; truss and boards stay rigid.",
+      "post_nodes": [
+        "GantryPostL",
+        "GantryPostR"
+      ],
+      "post_size_m": 0.36,
+      "post_x_m": 7.68,
+      "sha256": "e7386f8f008ade09b4929195701c23d55366b08b78d9f2673a2d6491300c8872",
+      "shoe_nodes": [
+        "GantryShoeL",
+        "GantryShoeR"
+      ],
+      "shoe_size_m": 0.56,
+      "source_sha256": "de01a1bea6da467ac134904c4d6fd942874c98300f2edecf472042923687865a",
+      "truss_m": {
+        "half_depth": 0.38,
+        "half_span": 7.859999999999999,
+        "high": 8.0,
+        "low": 7.0
+      }
+    }
+  }
+}

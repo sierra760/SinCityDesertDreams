@@ -93,13 +93,31 @@ func test_blank_faces_and_two_text_mounts_point_outside_board() -> void:
 			var sign_z := 1.0 if side == "front" else -1.0
 			check(mount.basis.z.dot(Vector3(0, 0, sign_z)) > 0.999, "text local +Z points outward")
 			check(mount.position.z * sign_z > absf(face.position.z) + face.mesh.get_aabb().size.z * 0.5, "text clears opaque face")
+			# US guide signs: highway green on lettered faces, bare aluminium on an unused back.
+			var colour := String(face.mesh.surface_get_material(0).resource_name)
+			check_eq(colour, "HighwayGreen" if entry.operational_faces.has(side) else "Aluminum", id + " " + side + " face colour")
 		check(float(entry.maximum_board_scale[0]) >= 1.0 and float(entry.maximum_board_scale[1]) >= 1.0, "explicit safe expansion")
 		scene.free()
+
+func test_road_signs_use_overpass_bold() -> void:
+	var contract := _contract()
+	if contract.is_empty(): return
+	check_eq(contract.font, "res://assets/fonts/overpass/overpass-bold.tres")
+	var font := load(String(contract.font)) as FontVariation
+	check(font != null, "weight is selected by a FontVariation over the unmodified variable font")
+	if font == null: return
+	check_eq(int(font.variation_opentype.get(TextServerManager.get_primary_interface().name_to_tag("wght"), 0)), 700)
+	check_eq(font.base_font.resource_path, "res://assets/fonts/overpass/Overpass-wght.ttf")
+	for glyph: String in ["←", "→", "¼", "½", "¾", "&"]: check(font.has_char(glyph.unicode_at(0)), glyph + " glyph")
+	var provenance: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/fonts/overpass/provenance.json"))
+	check_eq(provenance.modified, false)
+	for record: Dictionary in provenance.files:
+		check_eq(FileAccess.get_sha256("res://assets/fonts/overpass/" + String(record.file)), record.sha256, String(record.file) + " matches pinned Google Fonts bytes")
 
 func test_complete_longest_names_and_exit_labels_fit_positive_margins() -> void:
 	var contract := _contract()
 	if contract.is_empty(): return
-	var font := load("res://assets/fonts/biorhyme/BioRhyme-Medium.ttf") as Font
+	var font := load(String(contract.font)) as Font
 	for id: String in ["street-blade", "highway-exit"]:
 		var entry: Dictionary = contract.templates[id]
 		var count := 48 if id == "street-blade" else 99

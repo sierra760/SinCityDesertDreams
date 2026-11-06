@@ -18,11 +18,26 @@ The panel counts the selection as road segments and, with nothing selected,
 says "Click or tap a road to select it."
 Applied names travel with native saves and recovery copies.
 
-Explore places original teal and ivory street blades at actual named junctions
-and destination boards at usable outward highway ramps. Exit destinations follow
-the connected ordinary road, stopping at the first named connector or junction.
-Signs require actual supported, clear space; exceptional unsafe locations may
-remain unplaced. Street labels follow the existing label visibility option.
+Explore signs follow US guide-sign style: highway green faces, a reflective
+white border and white Overpass Bold lettering. Every sign stands on the road
+or highway tile it names, so buildings on neighbouring lots never hide it.
+
+- **Street blades** stand in one sand-verge corner of each named junction tile,
+  inset from the sidewalk line. Each blade lies along its street inside that
+  corner, never over a lane. On a graded junction (a hill or bridge approach)
+  the post seats on the lowest part of the verge.
+- **Exit gantries** span the departing carriageway one or two tiles before a
+  named exit: EXIT, an arrow toward the ramp, and the destination. Exit
+  destinations follow the connected ordinary road, stopping at the first named
+  connector or junction.
+- **Distance gantries** follow each interchange by a few tiles and repeat about
+  once a mile on open highway, listing up to three named exits ahead with
+  their distances along the carriageway. Sign distances use an exaggerated
+  scale, one tile to a sixteenth of a mile, rounded to the nearest quarter.
+
+Gantries need a straight carriageway tile, not a crossing, bridge deck or ramp
+mouth; a junction tile needs a verge corner no steeper than about 40 degrees.
+Signs follow the existing label visibility option.
 
 Rail and subway stations use nearby accessible street or intersection names.
 Palms, rubble and small parks do not block that access; water, highways,

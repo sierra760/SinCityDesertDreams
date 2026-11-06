@@ -415,6 +415,11 @@ func _build_exits(city: City) -> void:
 func exit_approaches() -> Array[Dictionary]:
 	return _exits.duplicate(true)
 
+## The projected traffic graph this topology was built from, for presentation
+## layers that sample actual travel surfaces and highway lane routes. Read only.
+func traffic_graph() -> CityTrafficGraph:
+	return _graph
+
 func _junction_names(node: String, assignments: Dictionary) -> Array[int]:
 	var result: Array[int] = []
 	for link: String in _incident(node):

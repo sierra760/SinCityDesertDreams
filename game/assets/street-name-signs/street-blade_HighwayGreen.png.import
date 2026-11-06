@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cik8v5wf40edn"
-path.s3tc="res://.godot/imported/street-blade_Ivory.png-b018ad045d497fda633b72e49c59888b.s3tc.ctex"
-path.etc2="res://.godot/imported/street-blade_Ivory.png-b018ad045d497fda633b72e49c59888b.etc2.ctex"
+uid="uid://bwjfy5pch2olo"
+path.s3tc="res://.godot/imported/street-blade_HighwayGreen.png-403e01595ca376c6921644f869f26d50.s3tc.ctex"
+path.etc2="res://.godot/imported/street-blade_HighwayGreen.png-403e01595ca376c6921644f869f26d50.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "7e4bd61ca9d29d2c3ea9bd0994b53697"
+"md5": "016663ad8c815f2af785c0c314aaf6d4"
 }
 
 [deps]
 
-source_file="res://assets/street-name-signs/street-blade_Ivory.png"
-dest_files=["res://.godot/imported/street-blade_Ivory.png-b018ad045d497fda633b72e49c59888b.s3tc.ctex", "res://.godot/imported/street-blade_Ivory.png-b018ad045d497fda633b72e49c59888b.etc2.ctex"]
+source_file="res://assets/street-name-signs/street-blade_HighwayGreen.png"
+dest_files=["res://.godot/imported/street-blade_HighwayGreen.png-403e01595ca376c6921644f869f26d50.s3tc.ctex", "res://.godot/imported/street-blade_HighwayGreen.png-403e01595ca376c6921644f869f26d50.etc2.ctex"]
 
 [params]
 

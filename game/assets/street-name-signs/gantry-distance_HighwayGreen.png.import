@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://mhobbc0kqw5d"
-path.s3tc="res://.godot/imported/street-blade_DeepTeal.png-5d70a3c3cc623e4e369a918f630bfd72.s3tc.ctex"
-path.etc2="res://.godot/imported/street-blade_DeepTeal.png-5d70a3c3cc623e4e369a918f630bfd72.etc2.ctex"
+uid="uid://d0m38icxs1go2"
+path.s3tc="res://.godot/imported/gantry-distance_HighwayGreen.png-77f952525b3c383b81a9133e5c393133.s3tc.ctex"
+path.etc2="res://.godot/imported/gantry-distance_HighwayGreen.png-77f952525b3c383b81a9133e5c393133.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "d066d7c06d42727538fb55c2cf264e40"
+"md5": "016663ad8c815f2af785c0c314aaf6d4"
 }
 
 [deps]
 
-source_file="res://assets/street-name-signs/street-blade_DeepTeal.png"
-dest_files=["res://.godot/imported/street-blade_DeepTeal.png-5d70a3c3cc623e4e369a918f630bfd72.s3tc.ctex", "res://.godot/imported/street-blade_DeepTeal.png-5d70a3c3cc623e4e369a918f630bfd72.etc2.ctex"]
+source_file="res://assets/street-name-signs/gantry-distance_HighwayGreen.png"
+dest_files=["res://.godot/imported/gantry-distance_HighwayGreen.png-77f952525b3c383b81a9133e5c393133.s3tc.ctex", "res://.godot/imported/gantry-distance_HighwayGreen.png-77f952525b3c383b81a9133e5c393133.etc2.ctex"]
 
 [params]
 

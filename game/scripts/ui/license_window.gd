@@ -16,6 +16,7 @@ const FONT_NOTICES := [
 	["BioRhyme", "res://assets/fonts/biorhyme/OFL.txt"],
 	["BioRhyme Expanded", "res://assets/fonts/biorhyme-expanded/OFL.txt"],
 	["Atomic Age", "res://assets/fonts/atomic-age/OFL.txt"],
+	["Overpass", "res://assets/fonts/overpass/OFL.txt"],
 	["Fontdiner Swanky", "res://assets/fonts/fontdiner-swanky/LICENSE.txt"],
 ]
 ## godot-cpp ships inside the native extensions of Apple and Windows builds.

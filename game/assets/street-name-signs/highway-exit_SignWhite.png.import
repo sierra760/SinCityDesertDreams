@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://k0xe6ykbfdsf"
-path.s3tc="res://.godot/imported/highway-exit_Ivory.png-9162fed5dee73f591896ea8efae03a0d.s3tc.ctex"
-path.etc2="res://.godot/imported/highway-exit_Ivory.png-9162fed5dee73f591896ea8efae03a0d.etc2.ctex"
+uid="uid://c6boyc8kiou2d"
+path.s3tc="res://.godot/imported/highway-exit_SignWhite.png-d61633a8b712e23ba5cf2054225a6d82.s3tc.ctex"
+path.etc2="res://.godot/imported/highway-exit_SignWhite.png-d61633a8b712e23ba5cf2054225a6d82.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "7e4bd61ca9d29d2c3ea9bd0994b53697"
+"md5": "ee378696362282baa5b6125261728df1"
 }
 
 [deps]
 
-source_file="res://assets/street-name-signs/highway-exit_Ivory.png"
-dest_files=["res://.godot/imported/highway-exit_Ivory.png-9162fed5dee73f591896ea8efae03a0d.s3tc.ctex", "res://.godot/imported/highway-exit_Ivory.png-9162fed5dee73f591896ea8efae03a0d.etc2.ctex"]
+source_file="res://assets/street-name-signs/highway-exit_SignWhite.png"
+dest_files=["res://.godot/imported/highway-exit_SignWhite.png-d61633a8b712e23ba5cf2054225a6d82.s3tc.ctex", "res://.godot/imported/highway-exit_SignWhite.png-d61633a8b712e23ba5cf2054225a6d82.etc2.ctex"]
 
 [params]
 

@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d2tf7i10hnuaf"
-path.s3tc="res://.godot/imported/street-blade_Brass.png-3a5c22dea0941f6ee813f52b68af32d3.s3tc.ctex"
-path.etc2="res://.godot/imported/street-blade_Brass.png-3a5c22dea0941f6ee813f52b68af32d3.etc2.ctex"
+uid="uid://qvltr3lpa650"
+path.s3tc="res://.godot/imported/highway-gantry_Brass.png-fcbd0d6201a833d5ea7d3ea671c045f5.s3tc.ctex"
+path.etc2="res://.godot/imported/highway-gantry_Brass.png-fcbd0d6201a833d5ea7d3ea671c045f5.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -15,8 +15,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://assets/street-name-signs/street-blade_Brass.png"
-dest_files=["res://.godot/imported/street-blade_Brass.png-3a5c22dea0941f6ee813f52b68af32d3.s3tc.ctex", "res://.godot/imported/street-blade_Brass.png-3a5c22dea0941f6ee813f52b68af32d3.etc2.ctex"]
+source_file="res://assets/street-name-signs/highway-gantry_Brass.png"
+dest_files=["res://.godot/imported/highway-gantry_Brass.png-fcbd0d6201a833d5ea7d3ea671c045f5.s3tc.ctex", "res://.godot/imported/highway-gantry_Brass.png-fcbd0d6201a833d5ea7d3ea671c045f5.etc2.ctex"]
 
 [params]
 

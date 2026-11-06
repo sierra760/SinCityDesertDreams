@@ -103,7 +103,7 @@ as `addons/apple_share/GODOT-CPP-LICENSE.md`,
 file.
 
 Third-party material retains its existing licenses and notices. In particular,
-the bundled BioRhyme, BioRhyme Expanded and Atomic Age fonts retain their SIL
+the bundled BioRhyme, BioRhyme Expanded, Atomic Age and Overpass fonts retain their SIL
 Open Font License notices, and Fontdiner Swanky its Apache License 2.0 notice,
 under `game/assets/fonts/`. Godot and its exported
 iOS template code are not relicensed by this project; retain their notices and

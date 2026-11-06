@@ -4,11 +4,12 @@
 class_name StreetSignText3D
 extends RefCounted
 
-const FONT := "res://assets/fonts/biorhyme/BioRhyme-Medium.ttf"
+## US guide-sign lettering: Overpass at weight 700.
+const FONT := "res://assets/fonts/overpass/overpass-bold.tres"
 const LIMIT := 128
 static var _cache: Dictionary = {}
 static var _order: Array[String] = []
-static var _ivory: StandardMaterial3D
+static var _legend: StandardMaterial3D
 
 static func cache_size() -> int:
 	return _cache.size()
@@ -26,7 +27,7 @@ static func layout(text: String, face: Dictionary) -> Dictionary:
 	var safe := Vector2(config.destination_safe_m[0],config.destination_safe_m[1])
 	var em := float(config.destination_em_m)
 	var candidates: Array = [[text]]
-	if text.length()>1:
+	if text.length()>1 and int(config.get("max_destination_lines",2))>1:
 		# Compare real one/two-line fits, preserving all characters at the split.
 		var split := 1
 		var best := INF
@@ -72,6 +73,15 @@ static func layout(text: String, face: Dictionary) -> Dictionary:
 		bounds = mounted if records.is_empty() else bounds.merge(mounted)
 		records.append({"mesh":mesh,"transform":transform,"text":lines[i]})
 		cursor-=box.size.y+gap
+	# Optional row alignment keeps a positive inset inside the safe rectangle.
+	var align := String(config.get("align","center"))
+	if align!="center" and not records.is_empty():
+		var shift := (center.x-safe.x*.48)-bounds.position.x if align=="left" else (center.x+safe.x*.48)-bounds.end.x
+		for record: Dictionary in records:
+			var moved: Transform3D = record.transform
+			moved.origin.x += shift
+			record.transform = moved
+		bounds.position.x+=shift
 	var result := {"lines":lines,"meshes":records,"bounds":bounds}
 	_cache[key] = result
 	_order.append(key)
@@ -79,15 +89,16 @@ static func layout(text: String, face: Dictionary) -> Dictionary:
 	return result.duplicate(true)
 
 static func _mesh(text: String, font: Font, em: float) -> TextMesh:
-	if _ivory==null:
-		_ivory=StandardMaterial3D.new()
-		_ivory.albedo_color=Color("f5eed7")
-		_ivory.roughness=.8
+	if _legend==null:
+		# Reflective white legend on highway green.
+		_legend=StandardMaterial3D.new()
+		_legend.albedo_color=Color("f3f5f1")
+		_legend.roughness=.55
 	var mesh:=TextMesh.new()
 	mesh.font=font
 	mesh.font_size=64
 	mesh.pixel_size=em/64.0
 	mesh.depth=.001
 	mesh.text=text
-	mesh.material=_ivory
+	mesh.material=_legend
 	return mesh

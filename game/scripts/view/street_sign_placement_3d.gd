@@ -5,84 +5,77 @@ class_name StreetSignPlacement3D
 extends RefCounted
 
 const METRES := 16.0
-const STEP := .045
-const Tunnels := preload("res://scripts/view/city_road_tunnels_3d.gd")
 
 static func _failed(reason: String) -> Dictionary:
 	return {"ok":false,"reason":reason,"transform":Transform3D.IDENTITY,"support":{},"bounds":AABB()}
 
-static func intersection(city: City, junction: Dictionary, faces: Array[Dictionary]) -> Dictionary:
+## On-tile blade corner. The post stands in the junction tile's own sand
+## verge, inset from a tile corner and clear of the sidewalk walking line
+## (0.10 tile from the edge). Each blade lies along its street, wholly inside
+## that corner square: never over a lane and never over a neighbouring tile,
+## so lots built around the junction cannot hide or clip the sign.
+const POST_INSET := .145
+const BLADE_OUTER := .008
+const LANE_EDGE := (1.0 - CityNetworks3D.ROAD_WIDTH) * .5
+const BLADE_BASE_M := 2.4
+## About 42 degrees across the 0.22 m shoe; the shoe may bed into the uphill side.
+const MAX_SHOE_SPREAD := .0125
+
+static func blade_length_m() -> float:
+	return (LANE_EDGE - BLADE_OUTER) * METRES
+
+## Blade centres sit between the tile edge and the lane edge, toward the corner.
+static func _corner_blades(faces: Array[Dictionary], inward: Vector2) -> Array[Dictionary]:
+	var shift := (BLADE_OUTER + LANE_EDGE) * .5 - POST_INSET
+	var blades: Array[Dictionary] = []
+	for face: Dictionary in faces:
+		var direction: Vector2i = face.direction
+		var offset := Vector2(inward.x * shift, 0) if direction.x != 0 else Vector2(0, inward.y * shift)
+		blades.append({"shift": offset, "scale_x": blade_length_m() / BLADE_BASE_M})
+	return blades
+
+static func intersection(city: City, junction: Dictionary, faces: Array[Dictionary], graph: CityTrafficGraph = null) -> Dictionary:
 	if city==null or faces.is_empty(): return _failed("No named faces or city")
 	if junction.channel!=&"open": return _failed("Underground junction has no safe open sign support")
-	var center:=Vector2(junction.position.x,junction.position.z)
+	var cell:=Vector2i(floori(junction.position.x),floori(junction.position.z))
 	var rejected: Array[String]=[]
-	# Outside the complete road/shoulder and the central .30-tile walking paths.
-	for corner: Vector2 in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
-		var p:=center+corner*.68
-		var cell:=Vector2i(floori(p.x),floori(p.y))
-		if not city.in_bounds(cell.x,cell.y): continue
-		var ground:=CityGeometry3D.point_on_ground(city,cell,p-Vector2(cell))
-		var local:=AABB(Vector3(-1.9,0,-1.9)/METRES,Vector3(3.8,2.85,3.8)/METRES)
-		var transform:=Transform3D(Basis.IDENTITY,ground)
-		var bounds: AABB=transform*local
-		var checked:=_clear(city,bounds,false)
-		if not checked.is_empty():
-			rejected.append(checked)
-			continue
-		var feet:=_feet(city,transform,[Vector3.ZERO],.11/METRES)
-		if not feet.ok:
-			rejected.append("Uneven shoe support")
-			continue
-		return {"ok":true,"reason":"","transform":transform,"bounds":bounds,"support":{"kind":"ground_corner","height":ground.y,"contacts":feet.contacts,"clearance_checked":true}}
+	var verge := graph!=null and city.in_bounds(cell.x,cell.y) and graph.has_cell(cell,&"road") and not graph._decks.has(cell) \
+		and NetworkShapes.in_road_family(city.building.atv(cell)) and not city.is_water(cell.x,cell.y)
+	if verge:
+		for corner: Vector2 in [Vector2(0,0),Vector2(1,0),Vector2(1,1),Vector2(0,1)]:
+			var inward:=Vector2.ONE-corner*2
+			var uv:=corner+inward*POST_INSET
+			var center:=graph.walk_point(cell,uv)
+			var contacts: Array[Vector3]=[]
+			var lowest:=INF
+			var highest:=-INF
+			for delta: Vector2 in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
+				var p:=graph.walk_point(cell,uv+delta*(.11/METRES))
+				lowest=minf(lowest,p.y);highest=maxf(highest,p.y)
+				contacts.append(p)
+			# Graded junctions (hills, bridge approaches) keep their sign: the
+			# upright post seats its shoe on the lowest corner, so it never floats.
+			if not is_finite(lowest) or highest-lowest>MAX_SHOE_SPREAD:
+				rejected.append("Verge too steep")
+				continue
+			center.y=lowest
+			var transform:=Transform3D(Basis.IDENTITY,center)
+			var blades:=_corner_blades(faces,inward)
+			var components:=_street_components(transform,faces,blades)
+			var square:=Rect2(Vector2(cell)+corner*(1.0-LANE_EDGE),Vector2(LANE_EDGE,LANE_EDGE)).grow(.0005)
+			var bounds:=components[0]
+			var inside:=true
+			for component: AABB in components:
+				bounds=bounds.merge(component)
+				if not square.encloses(_rect_xz(component)): inside=false
+			if not inside:
+				rejected.append("Blade beyond verge corner")
+				continue
+			return {"ok":true,"reason":"","transform":transform,"bounds":bounds,"support":{"kind":"junction_verge","height":center.y,"contacts":contacts,
+				"corner":corner,"blades":blades,"component_bounds":components,"clearance_checked":true}}
 	var fallback:=_existing_support(city,junction,faces)
 	if fallback.ok: return fallback
-	return _failed("No supported corner: "+", ".join(rejected)+"; "+fallback.reason)
-
-static func exit(city: City, approach: Dictionary, _face: Dictionary) -> Dictionary:
-	if city==null: return _failed("No city")
-	var direction:=Vector2(approach.direction)
-	var right:=Vector2(-direction.y,direction.x)
-	var front:=Vector3(-direction.x,0,-direction.y)
-	var basis:=Basis(Vector3.UP.cross(front),Vector3.UP,front)
-	var cells: Array=approach.upstream_cells.duplicate()
-	cells.reverse()
-	var graph:=CityTrafficGraph.new()
-	graph.bind_city(city)
-	for cell: Vector2i in cells:
-		# The entire expanded board is outside the roadway, with both shoes on
-		# real adjacent ground. Rigid board remains upright on longitudinal grade.
-		for distance: float in [.71,.80,.90,1.71,1.80,1.90]:
-			var p:=Vector2(cell)+Vector2(.5,.5)+right*distance-direction*.32
-			var ground_cell:=Vector2i(floori(p.x),floori(p.y))
-			if not city.in_bounds(ground_cell.x,ground_cell.y): continue
-			var ground:=CityGeometry3D.point_on_ground(city,ground_cell,p-Vector2(ground_cell))
-			var deck:=graph.point(cell,&"highway",Vector2(.5,.5)+right*.46-direction*.32)
-			var transform:=Transform3D(basis,Vector3(ground.x,deck.y,ground.z))
-			var adapted:=_exit_support(city,transform,_face)
-			if not adapted.ok: continue
-			var bounds: AABB=adapted.bounds
-			if not _clear(city,bounds,true).is_empty(): continue
-			var clear:=true
-			for component: AABB in adapted.components:
-				if not _walking_clear(city,component): clear=false;break
-			if not clear: continue
-			return {"ok":true,"reason":"","transform":transform,"bounds":bounds,"support":{"kind":"roadside_ground","height":deck.y,"contacts":adapted.contacts,"part_transforms":adapted.transforms,"highway_cell":cell,"deck_height":deck.y,"lateral_offset":distance,"component_bounds":adapted.components,"clearance_checked":true}}
-
-	return _failed("No upstream or mouth support clear of highway lanes, passages and water")
-
-## All post-shoe corners must contact real supported dry ground, within the
-## pedestrian step tolerance; the rigid feet never bridge a cliff.
-static func _feet(city: City, transform: Transform3D, centers: Array, radius: float) -> Dictionary:
-	var contacts: Array[Vector3]=[]
-	for center: Vector3 in centers:
-		for delta: Vector2 in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
-			var at:=transform*(center+Vector3(delta.x*radius,0,delta.y*radius))
-			var cell:=Vector2i(floori(at.x),floori(at.z))
-			if not city.in_bounds(cell.x,cell.y) or city.is_water(cell.x,cell.y): return {"ok":false}
-			var floor_point:=CityGeometry3D.point_on_ground(city,cell,Vector2(at.x,at.z)-Vector2(cell))
-			if absf(floor_point.y-at.y)>.002: return {"ok":false}
-			contacts.append(floor_point)
-	return {"ok":true,"contacts":contacts}
+	return _failed("No supported verge corner: "+", ".join(rejected)+"; "+fallback.reason)
 
 ## Conservative maximum-envelope check, local only. Developed lots include
 ## their full footprints; mouth exclusion includes approach walking space.
@@ -133,72 +126,39 @@ static func _clear(city: City, bounds: AABB, highway: bool, existing_support: bo
 	return ""
 
 
-static var _exit_parts: Dictionary={}
-
-## Imported closed supports retain their authored top and positive orientation.
-## Only their vertical length changes; each shoe lands on its own actual floor.
-static func _exit_support(city: City, transform: Transform3D, face: Dictionary) -> Dictionary:
-	if _exit_parts.is_empty():
-		var scene:=load("res://assets/street-name-signs/highway-exit.glb").instantiate() as Node3D
-		for node: Node in scene.find_children("*","MeshInstance3D",true,false):
-			_exit_parts[String(node.name)]={"transform":node.transform,"bounds":node.mesh.get_aabb(),"board":node.get_parent().name=="Board"}
-		scene.free()
-	var changed: Dictionary={}
-	var contacts: Array[Vector3]=[]
-	var components: Array[AABB]=[]
-	var size:=Vector3(face.maximum_board_scale[0],face.maximum_board_scale[1],face.maximum_board_scale[2])
-	var pivot:=Vector3(face.board_pivot_m[0],face.board_pivot_m[1],face.board_pivot_m[2])
-	var growth:=Transform3D(Basis.from_scale(size),pivot-pivot*size)
-	var bounds:=AABB()
-	var begun:=false
-	for name: String in _exit_parts:
-		var part: Dictionary=_exit_parts[name]
-		var local: Transform3D=part.transform
-		var box: AABB=part.bounds
-		if part.board: local=growth*local
-		elif name.begins_with("ShoulderPost") or name.begins_with("ShoulderShoe"):
-			var foot:=transform*(Vector3(local.origin.x,0,local.origin.z)/METRES)
-			var cell:=Vector2i(floori(foot.x),floori(foot.z))
-			if not city.in_bounds(cell.x,cell.y) or city.is_water(cell.x,cell.y): return {"ok":false}
-			var floor_point:=CityGeometry3D.point_on_ground(city,cell,Vector2(foot.x,foot.z)-Vector2(cell))
-			var floor_m: float=(floor_point.y-transform.origin.y)*METRES
-			if name.begins_with("ShoulderPost"):
-				var top: float=(local*box).end.y
-				if floor_m>=top-.1: return {"ok":false}
-				local.basis=Basis.from_scale(Vector3(1,(top-floor_m)/box.size.y,1))
-				local.origin.y=floor_m-box.position.y*local.basis.y.y
-			else:
-				local.origin.y=floor_m-box.position.y
-				var foot_transform:=transform*Transform3D(Basis.IDENTITY,Vector3(local.origin.x,floor_m,local.origin.z)/METRES)
-				var checked:=_feet(city,foot_transform,[Vector3.ZERO],maxf(box.size.x,box.size.z)/METRES*.5)
-				if not checked.ok: return {"ok":false}
-				contacts.append_array(checked.contacts)
-			changed[name]=local
-		var world: AABB=transform*Transform3D(Basis.from_scale(Vector3.ONE/METRES),Vector3.ZERO)*local*box
-		components.append(world)
-		bounds=bounds.merge(world) if begun else world
-		begun=true
-	# Operational text mount is just beyond enamel; reserve its millimetre depth.
-	bounds=bounds.grow(.002/METRES)
-	return {"ok":true,"bounds":bounds,"transforms":changed,"contacts":contacts,"components":components}
-
-
-static func _walking_clear(city: City, bounds: AABB) -> bool:
-	var rect:=Rect2(Vector2(bounds.position.x,bounds.position.z),Vector2(bounds.size.x,bounds.size.z))
-	for y: int in range(floori(rect.position.y),ceili(rect.end.y)):
-		for x: int in range(floori(rect.position.x),ceili(rect.end.x)):
-			var floor_y:=CityGeometry3D.ground_height(city,Vector2i(x,y))
-			if bounds.position.y>=floor_y+.14: continue # overhead board clears standing actor
-			if rect.intersects(Rect2(Vector2(x,y+.35),Vector2(1,.30))) or rect.intersects(Rect2(Vector2(x+.35,y),Vector2(.30,1))): return false
-	return true
-
-
 static var _street_parts: Dictionary={}
 static var _street_scale:=1.0
 
+## Stacked blades: the top blade is centred at 2.45 m and each further blade
+## hangs 0.65 m lower; blades are 0.60 m tall at their fixed height scale.
+const BLADE_TOP_CENTRE_M := 2.45
+const BLADE_PITCH_M := .65
+const BLADE_HALF_HEIGHT_M := .30
+const CAP_GAP_M := .012
+const COLLAR_GAP_M := .02
+
+## Authored post parts fitted to a stack of `count` blades. The cap sits just
+## above the top blade and the post rises into it; the collar, wider than a
+## blade's face plane, clamps the post just below the lowest blade, so no part
+## pokes through a blade face or its lettering.
+static func fitted_post_part(name: String, local: Transform3D, box: AABB, count: int) -> Transform3D:
+	var top:=BLADE_TOP_CENTRE_M+BLADE_HALF_HEIGHT_M
+	var bottom:=BLADE_TOP_CENTRE_M-(maxi(count,1)-1)*BLADE_PITCH_M-BLADE_HALF_HEIGHT_M
+	match name:
+		"IvoryCap":
+			local.origin.y=top+CAP_GAP_M-box.position.y
+		"BrassCollar":
+			local.origin.y=bottom-COLLAR_GAP_M-box.end.y
+		"Post":
+			var floor_m: float=(local*box).position.y
+			var height: float=top+CAP_GAP_M+.004-floor_m
+			local.basis=Basis.from_scale(Vector3(1,height/box.size.y,1))
+			local.origin.y=floor_m-box.position.y*local.basis.y.y
+	return local
+
 ## Imported component envelopes, with the same expansion/stack/yaw used
 ## by the renderer. Cache detached bounds/transforms, never scene nodes.
-static func _street_components(transform: Transform3D, faces: Array[Dictionary]) -> Array[AABB]:
+static func _street_components(transform: Transform3D, faces: Array[Dictionary], blades: Array[Dictionary] = []) -> Array[AABB]:
 	if _street_parts.is_empty():
 		var contract: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://assets/street-name-signs/templates.json")).templates["street-blade"]
 		_street_scale=contract.maximum_board_scale[0]
@@ -206,16 +166,19 @@ static func _street_components(transform: Transform3D, faces: Array[Dictionary])
 			var scene:=load("res://assets/street-name-signs/"+id+".glb").instantiate() as Node3D
 			var parts: Array[Dictionary]=[]
 			for node: MeshInstance3D in scene.find_children("*","MeshInstance3D",true,false):
-				parts.append({"transform":node.transform,"bounds":node.mesh.get_aabb()})
+				parts.append({"name":String(node.name),"transform":node.transform,"bounds":node.mesh.get_aabb()})
 			_street_parts[id]=parts
 			scene.free()
 	var result: Array[AABB]=[]
 	var metres:=Transform3D(Basis.from_scale(Vector3.ONE/METRES),Vector3.ZERO)
-	for part: Dictionary in _street_parts["street-post"]: result.append(transform*metres*part.transform*part.bounds)
+	for part: Dictionary in _street_parts["street-post"]:
+		result.append(transform*metres*fitted_post_part(part.name,part.transform,part.bounds,faces.size())*part.bounds)
 	for i: int in faces.size():
 		var direction: Vector2i=faces[i].direction
-		var blade:=Transform3D(Basis(Vector3.UP,atan2(float(direction.y),float(direction.x))),Vector3(0,2.45-i*.65,0))
-		var expansion:=Transform3D(Basis.from_scale(Vector3(_street_scale,1,1)),Vector3.ZERO)
+		var shift: Vector2=blades[i].shift if i<blades.size() else Vector2.ZERO
+		var scale_x: float=blades[i].scale_x if i<blades.size() else _street_scale
+		var blade:=Transform3D(Basis(Vector3.UP,atan2(float(direction.y),float(direction.x))),Vector3(shift.x*METRES,BLADE_TOP_CENTRE_M-i*BLADE_PITCH_M,shift.y*METRES))
+		var expansion:=Transform3D(Basis.from_scale(Vector3(scale_x,1,1)),Vector3.ZERO)
 		for part: Dictionary in _street_parts["street-blade"]: result.append((transform*metres*blade*expansion*part.transform*part.bounds).grow(.002/METRES))
 	return result
 
@@ -237,19 +200,14 @@ static func _existing_support(city: City, junction: Dictionary, faces: Array[Dic
 	if data.is_empty(): return _failed("No current rendered verge/bridge-side support")
 	var cell:=Vector2i(floori(junction.position.x),floori(junction.position.z))
 	var candidates: Array[Dictionary]=[]
-	for uv: Vector2 in [Vector2(.02,.02),Vector2(.98,.02),Vector2(.98,.98),Vector2(.02,.98)]:
-		var hit:=_patch_hit(data.patches,Vector2(cell)+uv)
-		if not hit.is_empty() and hit.role==CityNetworks3D.PhysicalRole.VERGE:
-			candidates.append({"point":hit.point,"kind":"rendered_verge"})
-	# Renderer boxes (bridge beams and guards), bounded to two
-	# tiles from the junction. Prefer the highest support, then stable X/Z.
+	# Renderer boxes (bridge beams and guards) on the junction's own tile, for
+	# a junction without a ground verge. Prefer the highest support, then X/Z.
 	var bridge: Array[Dictionary]=[]
 	for box: Dictionary in data.boxes:
 		var bounds: AABB=box.transform*AABB(-Vector3(box.size)*.5,box.size)
 		var p:=Vector3(bounds.get_center().x,bounds.end.y,bounds.get_center().z)
 		var support_cell:=Vector2i(floori(p.x),floori(p.z))
-		if not city.in_bounds(support_cell.x,support_cell.y) or not NetworkShapes.is_road_bridge(city.building.atv(support_cell)): continue
-		if Vector2(p.x-junction.position.x,p.z-junction.position.z).length()>2: continue
+		if support_cell!=cell or not NetworkShapes.is_road_bridge(city.building.atv(support_cell)): continue
 		# Only flat, real top faces; never the top of a slanted beam's AABB.
 		var up: Vector3=box.transform.basis.inverse()*Vector3.UP
 		if maxf(absf(up.x),maxf(absf(up.y),absf(up.z)))<.99999: continue

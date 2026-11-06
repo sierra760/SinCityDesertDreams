@@ -1,5 +1,5 @@
 {
-  "font": "res://assets/fonts/biorhyme/BioRhyme-Medium.ttf",
+  "font": "res://assets/fonts/overpass/overpass-bold.tres",
   "meters_per_tile": 16,
   "runtime_axes": "Godot +Y up, +Z front; mount local XY is lettering plane",
   "schema": 1,
@@ -108,8 +108,8 @@
       "operational_faces": [
         "front"
       ],
-      "sha256": "cc817de5c0265ac69a5e4611a749ffbc84f70447ee673fdfbd9a6eff9a19b74b",
-      "source_sha256": "efa194db68d7617a36cdb7e05c500604c56bdd31c08c9dce42bb76e56cbfcc03"
+      "sha256": "1b37f8260346626e78d8624f33b3462d3be354b55085660cd1f86a0a253ec73c",
+      "source_sha256": "04fe7989720fc6f45835c895878918781d56f6858dbf619b4d4d4cbc47a56e8f"
     },
     "street-blade": {
       "base_board_size_m": [
@@ -192,8 +192,8 @@
         "front",
         "back"
       ],
-      "sha256": "67eff8aeac1277845d9537ac63749e761d5a2ed4ee9ffc349952e66bd903f4eb",
-      "source_sha256": "d9804aa5720b1ff1d4dbe719a1da4d0fa90f1a8f5f079db306bb666585ea69f4"
+      "sha256": "eff7b237f5a8a960bc9c76c3c8bc995e262867f6e79115f13f4cc676e0edfdef",
+      "source_sha256": "fe31cdaf040584c1fbcf229e31f3ee56100adb07710e3011b183a4931b5329f8"
     },
     "street-post": {
       "blade_mount": "BladeMount",
@@ -227,7 +227,7 @@
         ]
       },
       "sha256": "e561691cb6a13e74d3d19779420ce7b570dae1e976b78c358c6317ea204e99ed",
-      "source_sha256": "2a0b7a3df1fd695e0485f688f5535471deeb11b36a82a0f501818a273fe3860f"
+      "source_sha256": "c4817695a0982a1d3a771f1b5cdbc37bd4008adcc7c444e333625e16bed45ef0"
     }
   },
   "text_policy": "Retain complete spelling; fit actual glyph bounds, at most two destination lines. Never truncate. Face expansion is bounded. Separate header/arrow rectangles."
