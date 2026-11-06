@@ -96,12 +96,14 @@ quality choices are preserved. Text is rendered at the interface resolution.
 These defaults require measurement on the target iPad, especially in large cities
 and during the first Explore entry.
 
-Sound uses the iOS **Ambient** audio session with mixing on
-(`audio/general/ios/mix_with_others=true` in `project.godot`): the game mixes
-with the player's own music or podcast instead of stopping it, and like other
-ambient game audio it is silenced by the Ring/Silent switch, music included.
-Choose the Playback category instead if the soundtrack should play in silent
-mode. This has not been checked on a device.
+Sound uses the iOS **Playback** audio session with mixing on
+(`audio/general/ios/session_category=3` and
+`audio/general/ios/mix_with_others=true` in `project.godot`): the game mixes
+with the player's own music or podcast instead of stopping it, and it plays in
+Silent mode. Godot's default Ambient session left an iPad Pro (M4) silent
+although the game was mixing sound; Playback was heard on the same device.
+Without a background audio mode the game is quiet while it is in the
+background.
 
 ## Creating a device build
 

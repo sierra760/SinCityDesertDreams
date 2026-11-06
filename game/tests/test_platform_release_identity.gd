@@ -52,6 +52,8 @@ func test_platform_project_settings() -> void:
 	check_eq(ProjectSettings.get_setting("application/config/quit_on_go_back", true), false, "Android Back reaches the game")
 	check_eq(ProjectSettings.get_setting("display/window/energy_saving/keep_screen_on", true), false, "the game decides when to keep the display awake")
 	check_eq(ProjectSettings.get_setting("audio/general/ios/mix_with_others", false), true, "iOS mixes with the player's own audio")
+	# An iPad left the default Ambient session silent while the game was mixing sound.
+	check_eq(ProjectSettings.get_setting("audio/general/ios/session_category", 0), 3, "iOS uses the Playback audio session")
 	check_eq(ProjectSettings.get_setting("application/boot_splash/stretch_mode", -1), 1, "the splash keeps its whole picture on portrait phones")
 	var splash: Color = ProjectSettings.get_setting("application/boot_splash/bg_color", Color.BLACK)
 	var presets := _presets()

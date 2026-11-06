@@ -63,7 +63,7 @@ const ROWS: Array = [
 	["Help → Secret Codes", "Try your luck in a founded city. DOUBLEDOWN bets a tenth of the virtual treasury; HIGHROLLER brings city funds and permits; MARKER adds simulated city debt; CHAPEL is just for fun."],
 	["iPhone layout", "Tools opens the tool drawer; choosing a tool closes it. Inspect selects tile inspection; beside the portrait camera use Menu → Inspect. Menu contains the city, view and report commands. Details expands the status; Alerts opens current warnings.", "phone"],
 	["iPhone / iPad files", "Copy .sc2 or .sc2d files into On My iPhone or On My iPad → SC2D in the Files app. Import Classic City or Load City → Browse opens the app folder.", "touch"],
-	["iPhone / iPad sound", "Silent mode mutes the game's music and effects. Turn Silent off with the ring/silent switch, the Action Button or Control Center to hear them; Settings → Sound sets their levels.", "touch"],
+	["iPhone / iPad sound", "Music and effects play even in Silent mode and mix with music from other apps. Use the volume buttons, or Settings → Sound to set or turn off music and effects.", "touch"],
 ]
 
 var panel: PanelContainer

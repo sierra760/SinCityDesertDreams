@@ -32,6 +32,7 @@ config/name.ios="SC2D"
 [audio]
 
 general/ios/mix_with_others=true
+general/ios/session_category=3
 
 [display]
 
