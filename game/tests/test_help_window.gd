@@ -79,3 +79,15 @@ func test_camera_swipe_wording_follows_the_operating_system() -> void:
 	check(not windows.contains("two-finger trackpad swipe."),windows)
 	for text: String in [mac,windows]:
 		check(not text.contains("{") and not text.contains("}"),"no placeholder left: "+text)
+
+# Guards against: iPhone and iPad players thinking sound is broken when the
+# device's Silent mode mutes it (the iOS session follows Silent mode).
+func test_touch_guide_explains_silent_mode() -> void:
+	var row: Array = []
+	for entry: Array in HelpWindow.ROWS:
+		if String(entry[0]) == "iPhone / iPad sound": row = entry
+	check(row.size() == 3,"the guide has an iPhone / iPad sound row")
+	if row.size() != 3: return
+	check_eq(String(row[2]),"touch","the Silent mode row is shown only to touch players")
+	check(String(row[1]).contains("Silent mode") and String(row[1]).contains("Settings → Sound"),String(row[1]))
+	check(HelpWindow.shows_row("touch",true,true) and not HelpWindow.shows_row("touch",false,false))
