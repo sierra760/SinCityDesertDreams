@@ -872,9 +872,14 @@ func request_interaction() -> bool:
 func _leave_vehicle(pose: Transform3D) -> void:
 	occupied.stop_input()
 	if occupied == helicopter: _helicopter_in_flight = false
-	var returned_ambient := not _traffic_claim.is_empty() and occupied == selected_vehicle
 	var ended_rail_drive: bool = occupied is ExploreRouteVehicle and occupied.kind in [&"train",&"subway"]
-	_release_traffic_claim()
+	var claimed_here := not _traffic_claim.is_empty() and (_claimed_vehicle == occupied or not is_instance_valid(_claimed_vehicle))
+	# A borrowed traffic vehicle stays parked exactly where it stopped, still held
+	# from traffic, until another vehicle replaces it or Explore ends. Scripted
+	# (mod) vehicles and rail drives go back to their owners straight away.
+	var keep_parked := claimed_here and occupied == selected_vehicle and not ended_rail_drive and not _claim_owned_by_mod()
+	var returned_ambient := claimed_here and occupied == selected_vehicle and not keep_parked
+	if claimed_here and not keep_parked: _release_traffic_claim()
 	pedestrian.place(pose)
 	pedestrian.collision_layer = ExploreActorProfile.ACTOR
 	pedestrian.collision_mask = ExploreActorProfile.WORLD|ExploreActorProfile.ACTOR
@@ -1085,9 +1090,12 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 			_message = "The helicopter has no clear landing space here."
 			_publish_status()
 			return false
-		_release_traffic_claim()
-		_traffic_claim = claim
-		_claimed_vehicle = helicopter if not claim.is_empty() else null
+		# Flying the session helicopter keeps any parked borrowed car; boarding an
+		# ambient helicopter hands that car back, as only one claim is held.
+		if not claim.is_empty():
+			_release_traffic_claim()
+			_traffic_claim = claim
+			_claimed_vehicle = helicopter
 		_occupy(helicopter)
 		return true
 	var traffic: Node3D = view.get("traffic")
@@ -1104,7 +1112,11 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 		if not route.is_empty():
 			route["transit"] = true
 			route_graph = transit_service.network
-	else: route = traffic.get_drive_route(kind,origin)
+	else:
+		# A boarded train starts where it stands, running the way it faces.
+		if not claim.is_empty() and CityTrafficCatalog.domain(kind) == &"rail":
+			route = traffic.get_drive_route(kind,origin,Basis(Vector3.UP,float(claim.get("yaw",0.0)))*Vector3.FORWARD)
+		if route.is_empty(): route = traffic.get_drive_route(kind,origin)
 	if route.is_empty():
 		_message = _no_route_message(kind)
 		_publish_status()
@@ -1116,7 +1128,14 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 		road.bind(traversal)
 		road.configure_kind(kind)
 		road.route_graph = traffic.graph
+		# A boarded traffic vehicle keeps its own valid pose and heading. Only a
+		# vehicle chosen from the menu, or one with no clear pose, goes on the route.
+		var kept := _claimed_road_pose(road,claim)
+		if not kept.is_empty():
+			road.apply_safe_pose(kept.transform)
+			if road.has_support(): candidate = road
 		for point: Vector3 in route.points:
+			if candidate != null: break
 			if point.distance_to(origin)>8.0: continue
 			var support := traversal.support_near(point,.1,.2,[pedestrian.get_rid()])
 			if support.is_empty(): continue
@@ -1124,7 +1143,6 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 			if traversal.has_clearance(_actor_shape_pose(road,pose),road.collision_shape(),[road.get_rid(),pedestrian.get_rid()]):
 				road.apply_safe_pose(pose)
 				candidate = road
-				break
 		if candidate == null: road.free()
 	else:
 		var route_actor := ExploreRouteVehicle.new()
@@ -1132,6 +1150,7 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 		if route_actor.configure(kind,route_graph,route):
 			var exclude: Array[RID]=[route_actor.get_rid(),pedestrian.get_rid()]
 			if is_instance_valid(selected_vehicle): exclude.append(selected_vehicle.get_rid())
+			if route_actor.domain==&"water" and not claim.is_empty(): _keep_claimed_boat_pose(route_actor,claim,exclude)
 			if route_actor.domain!=&"water" or traversal.has_clearance(route_actor.collision_pose(),route_actor.collision_shape(),exclude): candidate=route_actor
 		if candidate == null: route_actor.free()
 	if candidate == null:
@@ -1169,6 +1188,49 @@ func _land_helicopter_at(claim: Dictionary) -> bool:
 	_last_safe[helicopter.get_instance_id()] = pose
 	return true
 
+## The claimed traffic pose for a road vehicle, when the car fits there on a
+## road (or in a road tunnel) with full clearance; otherwise empty.
+func _claimed_road_pose(road: ExploreCar, claim: Dictionary) -> Dictionary:
+	var at: Variant = claim.get("position")
+	if not (at is Vector3) or not (at as Vector3).is_finite(): return {}
+	var point: Vector3 = at
+	if not road.route_graph.has_cell(Vector2i(floori(point.x),floori(point.z)),&"road") and not traversal.inside_road_tunnel(point): return {}
+	var exclusions: Array[RID] = [road.get_rid(),pedestrian.get_rid()]
+	var support := traversal.support_near(point,.1,.2,exclusions)
+	if support.is_empty(): return {}
+	var feet: Vector3 = support.position+Vector3.UP*.002
+	if traversal.touches_water(feet): return {}
+	var pose := Transform3D(Basis(Vector3.UP,float(claim.get("yaw",0.0))),feet)
+	if not traversal.has_clearance(_actor_shape_pose(road,pose),road.collision_shape(),exclusions): return {}
+	return {"transform":pose}
+
+## A boarded boat keeps the pose it was floating in when its whole hull is over
+## water and clear; otherwise it stays at the start of its route.
+func _keep_claimed_boat_pose(boat: ExploreRouteVehicle, claim: Dictionary, exclude: Array[RID]) -> void:
+	var at: Variant = claim.get("position")
+	if not (at is Vector3) or not (at as Vector3).is_finite(): return
+	var point: Vector3 = at
+	var cell := Vector2i(floori(point.x),floori(point.z))
+	if not boat.graph.has_cell(cell,&"water"): return
+	var configured := boat.global_transform
+	point.y = boat.graph.point(cell,&"water").y
+	boat.global_transform = Transform3D(Basis(Vector3.UP,float(claim.get("yaw",0.0))),point)
+	if boat.has_support() and traversal.has_clearance(boat.collision_pose(),boat.collision_shape(),exclude): return
+	boat.global_transform = configured
+
+## True when the held traffic claim is a mod-scripted vehicle, including one
+## handed to the session when its mod stopped; mods take it back at exit.
+func _claim_owned_by_mod() -> bool:
+	var traffic: Node3D = view.get("traffic")
+	if traffic == null: return false
+	var id := int(_traffic_claim.get("id",-1))
+	if mod_service != null:
+		for detached: Dictionary in mod_service.actors._detached.values():
+			if int(detached.record.id) == id: return true
+	for actor: Dictionary in traffic.actors:
+		if actor.id == id: return actor.has("mod_owner")
+	return false
+
 func _occupy(actor: CharacterBody3D) -> void:
 	pedestrian.stop_input()
 	pedestrian.clear_support_frame()
@@ -1192,22 +1254,29 @@ func _board_ambient() -> bool:
 	if claim.is_empty(): return false
 	for actor: Dictionary in traffic.actors:
 		if actor.id == claim.id and actor.has("mod_owner") and not actor.get("mod_enterable",false):
-			traffic.release_vehicle(claim,claim.position)
+			traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
 			return false
 	_ambient_claimed = true
 	if _select_vehicle(StringName(claim.kind),claim): return true
-	traffic.release_vehicle(claim,claim.position)
+	traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
 	return false
 
 func _release_traffic_claim() -> void:
 	if _traffic_claim.is_empty(): return
+	# A parked borrowed vehicle hands its place back to traffic with the claim.
+	var parked: CharacterBody3D = _claimed_vehicle if is_instance_valid(_claimed_vehicle) and _claimed_vehicle == selected_vehicle and occupied != selected_vehicle else null
 	var traffic: Node3D = view.get("traffic") if is_instance_valid(view) else null
 	if traffic != null and traffic.has_method("release_vehicle"):
 		var position: Vector3 = _claimed_vehicle.global_position if is_instance_valid(_claimed_vehicle) else _traffic_claim.position
-		traffic.release_vehicle(_traffic_claim,position)
+		var yaw: float = _claimed_vehicle.global_basis.get_euler().y if is_instance_valid(_claimed_vehicle) else float(_traffic_claim.get("yaw",INF))
+		traffic.release_vehicle(_traffic_claim,position,yaw)
 		if mod_service != null: mod_service.actors.release_detached()
 	_traffic_claim.clear()
 	_claimed_vehicle = null
+	if parked != null:
+		_last_safe.erase(parked.get_instance_id())
+		parked.free()
+		selected_vehicle = null
 
 static func _no_route_message(kind: StringName) -> String:
 	var noun := CityTrafficCatalog.display_name(kind).to_lower()
@@ -1260,10 +1329,10 @@ func _board_mod_vehicle() -> bool:
 	var claim := view.traffic.claim_nearby_vehicle(pedestrian.global_position,.65)
 	if claim.is_empty(): return false
 	if claim.id != nearby.id:
-		view.traffic.release_vehicle(claim,claim.position)
+		view.traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
 		return false
 	if _select_vehicle(StringName(claim.kind),claim): return true
-	view.traffic.release_vehicle(claim,claim.position)
+	view.traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
 	return false
 
 ## A map opened during a manual pause returns to that pause. One opened

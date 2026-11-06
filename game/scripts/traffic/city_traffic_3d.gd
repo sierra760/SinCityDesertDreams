@@ -991,7 +991,10 @@ func nearest_drivable_vehicle(position: Vector3, max_distance: float = .65) -> D
 			best = {"id":record.presentation_id,"kind":record.kind,"position":record.presentation_position,"yaw":record.presentation_yaw}
 	return best
 
-func release_vehicle(claim: Dictionary, position: Vector3) -> void:
+## Return a claimed vehicle to traffic. With its heading, a vehicle left on
+## one of the cell's traffic paths resumes exactly there; otherwise it joins
+## the nearest path at the middle of the cell.
+func release_vehicle(claim: Dictionary, position: Vector3, yaw: float = INF) -> void:
 	var id := int(claim.get("id",-1))
 	_claims.erase(id)
 	for i: int in actors.size():
@@ -1015,12 +1018,63 @@ func release_vehicle(claim: Dictionary, position: Vector3) -> void:
 					break
 			if not found: actors.remove_at(i); return
 		a.t = .5
+		if a.domain!=&"highway" or not graph.highways.routes.has(cell): _fit_release(a,choices,position,yaw)
 		a.erase("_render_previous")
 		a.erase("_cadence_pose")
 		a.erase("_render_pose")
 		return
 
-func get_drive_route(kind: StringName, near_position: Vector3) -> Dictionary:
+## Largest gap between a released vehicle and the fitted traffic path; further
+## away (a car parked across the road, say) it joins the default path instead.
+const RELEASE_FIT := .02
+
+## Place a released record on the cell path and progress that reproduce its
+## actual position and heading, keeping the default placement when none does.
+func _fit_release(a: Dictionary, choices: Array, position: Vector3, yaw: float) -> void:
+	if not is_finite(yaw) or not position.is_finite(): return
+	var forward := Basis(Vector3.UP,yaw)*Vector3.FORWARD
+	var fallback := [a.previous,a.next,a.t,a.get(&"reversed",false)]
+	var best := [INF,a.previous,a.next,a.t]
+	a.reversed = false
+	for previous: Vector2i in choices:
+		for next: Vector2i in choices:
+			if previous == next and choices.size()>1: continue
+			a.previous = previous
+			a.next = next
+			var low := 0.0
+			var high := 1.0
+			# A coarse scan, then a narrowing search around the closest sample.
+			for pass_index: int in 3:
+				var steps := 16
+				var closest := INF
+				var at := low
+				for index: int in steps+1:
+					var t := lerpf(low,high,float(index)/steps)
+					a.t = t
+					var pose := actor_pose(a)
+					if (-pose.basis.z).dot(forward)<.9: continue
+					var gap := Vector2(pose.origin.x-position.x,pose.origin.z-position.z).length()
+					if gap<closest:
+						closest = gap
+						at = t
+				if closest == INF: break
+				var span := (high-low)/steps
+				low = maxf(0,at-span)
+				high = minf(1,at+span)
+				if pass_index == 2 and closest<best[0]: best = [closest,previous,next,at]
+	if best[0]<=RELEASE_FIT:
+		a.previous = best[1]
+		a.next = best[2]
+		a.t = best[3]
+		return
+	a.previous = fallback[0]
+	a.next = fallback[1]
+	a.t = fallback[2]
+	a.reversed = fallback[3]
+
+## A route from the nearest cell. Given the vehicle's `forward` direction, the
+## route instead starts at `near_position` itself and runs the way it faces.
+func get_drive_route(kind: StringName, near_position: Vector3, forward: Vector3 = Vector3.ZERO) -> Dictionary:
 	graph.refresh()
 	var domain := CityTrafficCatalog.domain(kind)
 	var cell := graph.nearest_cell(near_position,domain,8)
@@ -1033,6 +1087,25 @@ func get_drive_route(kind: StringName, near_position: Vector3) -> Dictionary:
 	var points: Array[Vector3] = []
 	var cells: Array[Vector2i] = []
 	var previous := CityTrafficGraph.INVALID
+	var heading := Vector2(forward.x,forward.z)
+	if heading.length_squared()>.000001:
+		heading = heading.normalized()
+		var here := Vector2i(floori(near_position.x),floori(near_position.z))
+		if not graph.has_cell(here,domain): return {}
+		var ahead := CityTrafficGraph.INVALID
+		var best := .3
+		for next: Vector2i in graph.neighbors(here,domain):
+			var along := Vector2(next-here).normalized().dot(heading)
+			if along>best:
+				best = along
+				ahead = next
+		if ahead == CityTrafficGraph.INVALID: return {}
+		cells.append(here)
+		points.append(near_position)
+		var center := graph.point(here,domain)
+		if Vector2(center.x-near_position.x,center.z-near_position.z).dot(heading)>.02: points.append(center)
+		previous = here
+		cell = ahead
 	for i: int in 128:
 		if cells.has(cell): break
 		cells.append(cell)
