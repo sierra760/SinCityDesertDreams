@@ -55,6 +55,45 @@ var _keyboard_poll := 0.0
 var _release_code := 0
 
 
+## Keep the two choices together when a binding's label needs its own line.
+## Reflow in place so resizing cannot interrupt focus or an active key capture.
+class BindingRow:
+	extends BoxContainer
+	var _scroll: ScrollContainer
+	var _reveal_pending := false
+	func _ready() -> void:
+		_scroll = UIFactory.report_scroll(self)
+		item_rect_changed.connect(func() -> void: _reveal_focused_key.call_deferred())
+		if _scroll != null:
+			_scroll.resized.connect(_reflow)
+			_scroll.get_v_scroll_bar().visibility_changed.connect(func() -> void: _reflow.call_deferred())
+		_reflow.call_deferred()
+	func _reflow() -> void:
+		if not is_inside_tree() or not is_instance_valid(_scroll): return
+		var available := _scroll.size.x
+		if _scroll.get_v_scroll_bar().is_visible_in_tree(): available -= _scroll.get_v_scroll_bar().size.x
+		var needed := float(get_theme_constant("separation"))
+		for child: Control in get_children(): needed += child.get_combined_minimum_size().x
+		vertical = available < needed
+	func _reveal_focused_key() -> void:
+		if _reveal_pending or not is_inside_tree() or not is_visible_in_tree(): return
+		var focused := get_viewport().gui_get_focus_owner()
+		if focused == null or not is_ancestor_of(focused): return
+		_reveal_pending = true
+		get_tree().process_frame.connect(_reveal_after_layout.bind(1),CONNECT_ONE_SHOT)
+	func _reveal_after_layout(frames_left: int) -> void:
+		if not is_inside_tree():
+			_reveal_pending = false
+			return
+		if frames_left > 0:
+			get_tree().process_frame.connect(_reveal_after_layout.bind(frames_left-1),CONNECT_ONE_SHOT)
+			return
+		_reveal_pending = false
+		if not is_visible_in_tree() or not is_instance_valid(_scroll): return
+		var focused := get_viewport().gui_get_focus_owner()
+		if focused != null and is_ancestor_of(focused): _scroll.ensure_control_visible(focused)
+
+
 func _init() -> void:
 	name = "OptionsWindow"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -434,19 +473,23 @@ func _build_controls(body: VBoxContainer) -> void:
 	for group: String in ControlBindings.GROUPS: picker.add_item(group)
 	keyboard_section.add_child(picker)
 	for group: String in ControlBindings.GROUPS:
-		var rows := GridContainer.new()
-		rows.columns = 3
-		rows.add_theme_constant_override("h_separation",8)
-		rows.add_theme_constant_override("v_separation",6)
+		var rows := VBoxContainer.new()
+		rows.add_theme_constant_override("separation",6)
 		keyboard_section.add_child(rows)
 		_groups[group] = rows
 		rows.visible = group == "Build"
 		for action: String in ControlBindings.GROUPS[group]:
+			var row := BindingRow.new()
+			row.add_theme_constant_override("separation",8)
+			rows.add_child(row)
 			var label := UIFactory.make_label(ControlBindings.LABELS[action])
 			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			label.custom_minimum_size.x = 96
 			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			rows.add_child(label)
+			row.add_child(label)
+			var keys := HBoxContainer.new()
+			keys.add_theme_constant_override("separation",8)
+			row.add_child(keys)
 			if action == "fullscreen":
 				_fullscreen_binding_row.append(label)
 				label.visible = not _mobile_display
@@ -454,10 +497,11 @@ func _build_controls(body: VBoxContainer) -> void:
 			for slot: int in 2:
 				var button := UIFactory.make_button(controls.caption(StringName(action),slot))
 				button.custom_minimum_size.x = 88
+				button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				button.clip_text = true
 				button.tooltip_text = "%s — %s" % [ControlBindings.LABELS[action],"primary key" if slot == 0 else "alternate key"]
 				button.pressed.connect(begin_capture.bind(StringName(action),slot))
-				rows.add_child(button)
+				keys.add_child(button)
 				if action == "fullscreen":
 					_fullscreen_binding_row.append(button)
 					button.visible = not _mobile_display

@@ -100,6 +100,9 @@ stays visible. The status bar wraps metrics and alerts, shows the current speed,
 and offers **Go to emergency** while an incident is active. The same action is
 in Disasters; it follows the live hazard and returns Explore to Build. Speed
 controls remain in the Speed menu.
+Settings → Controls keeps primary and alternate keys together. On the smallest
+phone widths, each action label sits above its key buttons; resizing keeps an
+active key edit focused and visible.
 The 3D render texture remains at drawable resolution as the UI scale changes.
 
 Window bodies scroll, while titles and actions remain fixed. Dragged windows,
