@@ -71,10 +71,12 @@ The uncropped artwork and grouped actions share one grid; portrait windows stack
 the artwork above the actions. Narrow safe areas or a keyboard reserve the whole
 column for scrolling actions. Reflow keeps the focused action inside the scroll
 viewport.
-Supporting copy gives the menu a restrained welcome: “Big plans. Room to grow.”
-and “Welcome, Mayor.” Setup prompts explain previewing and free terrain editing;
-included-city guidance asks the player to save a personal copy. Button labels
-remain direct, and recovery/save consequences stay explicit.
+Supporting copy gives the menu a welcome: a two-line frontier saying beside the
+logo, picked at random each launch from `scripts/ui/title_sayings.gd` (lines
+stay within 22 characters so the logo never shrinks), and “Welcome, Mayor.”
+Setup prompts explain previewing and free terrain editing; included-city
+guidance asks the player to save a personal copy. Button labels remain direct,
+and recovery/save consequences stay explicit.
 Reports, dialogs, loading feedback and Explore controls share the same theme.
 Compact Explore temporarily hides the minimap so it cannot cover actions;
 roomy windows and returning to Build restore the saved visibility choice.

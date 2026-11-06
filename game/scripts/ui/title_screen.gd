@@ -7,6 +7,7 @@ class_name TitleScreen
 extends Control
 
 const BRAND_LOGO := preload("res://assets/ui/desert-dreams-logo.png")
+const TitleSayings := preload("res://scripts/ui/title_sayings.gd")
 
 signal new_city_requested
 signal load_requested
@@ -99,7 +100,8 @@ func _build() -> void:
 	_logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_header.add_child(_logo)
-	subtitle = UIFactory.make_label("Big plans.\nRoom to grow.", UITheme.FONT_BODY, UITheme.TEXT_MUTED)
+	# Main builds the title once, so each launch shows one random saying.
+	subtitle = UIFactory.make_label(TitleSayings.pick(), UITheme.FONT_BODY, UITheme.TEXT_MUTED)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	subtitle.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_header.add_child(subtitle)
