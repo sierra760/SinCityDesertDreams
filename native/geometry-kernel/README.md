@@ -33,8 +33,9 @@ the GDScript packing cost (about 0.4 s for La Presa).
 
 The runtime dispatcher `game/scripts/view/city_network_physics_native.gd` loads
 `res://addons/scdd_geometry/scdd_geometry.cfg` explicitly on macOS/iOS and
-x86_64 Windows and falls back to the GDScript resolver elsewhere (Linux,
-Android, Web, Windows on ARM) or when the library is missing. Exports copy the
+x86_64 Windows, plus extension-enabled single-threaded wasm32 Web exports.
+It falls back to GDScript elsewhere (Linux, Android, Windows on ARM and Web
+templates without the matching extension capabilities) or if a runtime load fails. Exports copy the
 library beside the executable: the Windows build needs
 `SCDDGeometry.windows.x86_64.dll` next to the `.exe`, or it silently uses the
 GDScript resolver.
@@ -92,3 +93,42 @@ Godot_v4.7.2-stable_win64_console.exe --headless --audio-driver Dummy --path gam
 
 Each must end with `Results: N passed, 0 failed`, and the first must not print
 "native geometry kernel unavailable".
+
+## WebAssembly
+
+The Web preset enables GDExtension support and keeps threads disabled. Its
+export plugin delivers `SCDDGeometry.web.nothreads.wasm` beside the generated
+HTML/JavaScript/engine modules, and includes the explicit geometry descriptor
+and license notice in the PCK. The same release kernel serves both debug and
+release Web templates. Other native binaries are not rebuilt or included.
+
+Activate **Emscripten 4.0.20**, matching the official Godot 4.7.2 Web templates,
+and use a clean checkout of the pinned godot-cpp revision above. From the
+repository root:
+
+```sh
+python3 native/geometry-kernel/build.py --godot-cpp /path/to/godot-cpp --platform web --scons /path/to/scons
+```
+
+The build tool creates the bindings with `platform=web`, `arch=wasm32`,
+`target=template_release` and `threads=no` if their archive is missing. Keep
+binding build directories separate for different SDK versions. The module
+uses the Web side-module ABI, WebAssembly BigInt, wasm longjmp and the same
+`-ffp-contract=off` math contract as the native kernel. A failed build leaves
+any previous Wasm artifact intact. The default build still selects only the
+three existing native platforms; Web is opt-in.
+
+Use the matching Godot `web_dlink_nothreads` template when exporting. Deploy
+all generated files, including the engine's `.side.wasm` and the geometry
+module, with the `.wasm` MIME type `application/wasm`. An accelerated export
+loads its side modules during startup; missing downloads can prevent engine
+startup before GDScript fallback is available. A Web preset with extension
+support disabled continues to use the GDScript path. Threaded or non-wasm32
+Web templates do not select this single-threaded kernel.
+
+The single-threaded module has been exercised in Chromium both with and
+without cross-origin isolation headers. This does not establish support for
+every browser or hosted embedding; consult Godot's Web export documentation
+and verify the deployment headers. Enabling threads requires a matching
+threaded kernel and cross-origin isolation. Firefox/Safari and mobile-browser
+acceptance remain separate from the Chromium checks.

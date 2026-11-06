@@ -3,8 +3,8 @@
 # See LICENSE and LICENSING.md in the repository root.
 
 ## Dispatches physical surface extraction to the native geometry kernel on
-## Apple platforms and x86_64 Windows, and to the GDScript resolver everywhere
-## else. Both paths
+## Apple platforms, x86_64 Windows and single-threaded extension-enabled Web
+## templates, and to the GDScript resolver everywhere else. Both paths
 ## produce the same results; the kernel only removes the GDScript cost.
 extends RefCounted
 
@@ -28,8 +28,16 @@ static func available() -> bool:
 
 
 ## Platforms that ship a kernel library (see scdd_geometry.cfg).
-static func supported_platform() -> bool:
-	return OS.get_name() in ["macOS","iOS"] or (OS.get_name()=="Windows" and OS.has_feature("x86_64"))
+static func supported_platform(platform_name: String = "", has_feature: Callable = Callable()) -> bool:
+	if platform_name.is_empty(): platform_name = OS.get_name()
+	if platform_name in ["macOS", "iOS"]: return true
+	if not has_feature.is_valid(): has_feature = OS.has_feature
+	if platform_name == "Windows": return has_feature.call("x86_64")
+	if platform_name == "Web":
+		return has_feature.call("wasm32") and has_feature.call("web_extensions") \
+			and has_feature.call("nothreads") and not has_feature.call("threads") \
+			and not has_feature.call("web_noextensions")
+	return false
 
 
 static func resolve(patch_inputs: Array[Dictionary], box_inputs: Array[Dictionary], obstacle_inputs: PackedVector3Array) -> Dictionary:

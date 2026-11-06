@@ -5,6 +5,8 @@
 
 """Build the unsigned geometry-kernel libraries into game/addons/scdd_geometry/bin:
 a universal macOS dylib, an arm64 iOS framework and an x86_64 Windows DLL.
+An explicit --platform web builds the single-threaded WebAssembly side module
+with Emscripten on PATH; the default desktop/Apple build remains unchanged.
 Requires macOS with Xcode, MinGW-w64 (`brew install mingw-w64`) and the pinned
 godot-cpp checkout with its template_release static libraries (built with
 native/apple-share/build_profile.json; Windows with use_mingw=yes).
@@ -15,17 +17,19 @@ Windows build also targets baseline x86_64 (no FMA instructions exist to contrac
 import argparse
 import pathlib
 import plistlib
+import re
 import shutil
 import subprocess
 
 GODOT_CPP_REVISION = 'e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77'  # godot-4.5-stable
+WEB_EMSCRIPTEN_VERSION = '4.0.20'  # Official Godot 4.7.2 Web templates.
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--godot-cpp', type=pathlib.Path, required=True)
 parser.add_argument('--scons',
                     help='Only used to build a missing godot-cpp static library with the shared build profile.')
-parser.add_argument('--platform', action='append', choices=['macos', 'ios', 'windows'],
-                    help='Build only these libraries (repeatable); default builds all three.')
+parser.add_argument('--platform', action='append', choices=['macos', 'ios', 'windows', 'web'],
+                    help='Build only these libraries (repeatable); default builds macos, ios and windows.')
 args = parser.parse_args()
 platforms = args.platform or ['macos', 'ios', 'windows']
 
@@ -85,6 +89,37 @@ for platform, arch, sdk in [('macos', 'universal', 'macosx'), ('ios', 'arm64', '
         }
         with (target.parent / 'Info.plist').open('wb') as f:
             plistlib.dump(info, f)
+
+# Web: the bindings and side module must agree with the non-threaded export
+# template. The existing three native artifacts are never rebuilt by this path.
+if 'web' in platforms:
+    compiler = shutil.which('em++')
+    if not compiler:
+        raise SystemExit('Missing em++; activate the documented Emscripten SDK before building WebAssembly.')
+    version = subprocess.check_output([compiler, '--version'], text=True)
+    found = re.search(r'\b(\d+\.\d+\.\d+)\b', version)
+    if found is None or found.group(1) != WEB_EMSCRIPTEN_VERSION:
+        raise SystemExit(f'WebAssembly requires Emscripten {WEB_EMSCRIPTEN_VERSION} to match the Godot 4.7.2 templates.')
+    library = cpp / 'bin' / 'libgodot-cpp.web.template_release.wasm32.nothreads.a'
+    if not library.exists():
+        if not args.scons:
+            raise SystemExit(f'Missing {library}; pass --scons to build the single-threaded Web bindings.')
+        subprocess.run([args.scons, '-C', str(cpp), 'platform=web', 'target=template_release',
+                        'arch=wasm32', 'threads=no', f'build_profile={profile}', '-j4'], check=True)
+    includes = ['-I' + str(cpp / x) for x in ['include', 'gen/include', 'gdextension']]
+    target = out / 'SCDDGeometry.web.nothreads.wasm'
+    temporary = target.with_name(target.stem + '.tmp.wasm')
+    try:
+        subprocess.run([compiler, '-std=c++17', '-O3', '-ffp-contract=off', '-fno-exceptions',
+                        '-fvisibility=hidden', '-sSIDE_MODULE=1', '-sWASM_BIGINT',
+                        '-sSUPPORT_LONGJMP=wasm', *prefix_maps, *includes,
+                        str(source / 'geometry_kernel.cpp'), str(library), '-o', str(temporary)], check=True)
+        with temporary.open('rb') as artifact:
+            if artifact.read(8) != b'\0asm\x01\0\0\0':
+                raise SystemExit('Compiler output is not a WebAssembly version 1 module.')
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 # Windows: MinGW-w64 cross build, C++ runtime linked statically so the DLL needs
 # only KERNEL32 and the Universal CRT that ships with Windows 10 and later.

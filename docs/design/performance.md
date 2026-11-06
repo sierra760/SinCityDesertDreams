@@ -55,3 +55,10 @@ facets that become broad at finer bin sizes. It checks interleaved edge owners,
 clipping boundary vertices/winding, detached outputs and empty packed inputs.
 
 Simulation cache regressions compare full-scan district discovery, cold transport graphs, legacy commuter paths/work counts and full-scan farm eligibility, including raw layer edits and city rebinds (`test_tourism_site_reuse.gd`, `test_tourism_structure_reuse.gd`, `test_transport_transition_reuse.gd`, `test_agricultural_growth_sparse_work.gd`).
+
+The single-threaded Web export can use the same C++ physical-geometry kernel
+compiled to WebAssembly. It requires the matching extension-enabled wasm32
+template and packaged side module. Other Web template variants keep the
+portable resolver; native-kernel availability does not change graphics quality
+or simulation behavior. See `native/geometry-kernel/README.md` for the pinned
+SDK, rebuild command and Web packaging requirements.
