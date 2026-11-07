@@ -9,6 +9,21 @@ extends CharacterBody3D
 signal recovery_requested(reason: String)
 const VISUAL := preload("res://assets/desert-dreams-exploration/car.tscn")
 const STEP := .045
+## Onramps are one-tile quarter turns about 8 m in radius; at full speed the
+## car's turning circle is about 1.6 tiles and cannot follow them. On a ramp,
+## or with one just ahead, the car eases to a speed whose circle fits the turn.
+const RAMP_SPEED := .65
+const RAMP_LOOKAHEAD := .55
+const RAMP_BRAKING := 1.5
+## Leaving the road graph restores the previous pose. A glancing exit turns the
+## car along the crossed edge and scrubs this fraction of its speed once per
+## contact (consecutive brushes within EDGE_CONTACT_TICKS do not compound),
+## like brushing a curb; only a near head-on exit stops it.
+const EDGE_SCRUB := .3
+const EDGE_TURN := .6
+const EDGE_CONTACT_TICKS := 30
+## Distance the restored pose steps back from the crossed tile edge.
+const EDGE_BACKOFF := .02
 var kind: StringName = &"car"
 var route_graph: RefCounted
 var _world: CityTraversalWorld3D
@@ -18,6 +33,7 @@ var _speed := 0.0
 var _grounded := false
 var _reported := false
 var _reported_pose := Vector3.ZERO
+var _edge_contact := 0
 
 func _init() -> void:
 	collision_layer = ExploreActorProfile.ACTOR
@@ -196,6 +212,39 @@ func _curb(motion: Vector3) -> void:
 		global_transform = lifted
 		return
 
+## RAMP_SPEED while the car is on an onramp or one lies within RAMP_LOOKAHEAD
+## along its direction of travel; otherwise no limit. Several samples keep a
+## turn into a ramp mouth from skipping past the ramp's inside corner.
+func _ramp_speed_cap() -> float:
+	if route_graph == null or not route_graph.has_method(&"is_ramp"): return INF
+	var direction := -global_basis.z*(1.0 if _speed>=0 else -1.0)
+	for i: int in 5:
+		var point := global_position+direction*RAMP_LOOKAHEAD*i/4.0
+		if route_graph.is_ramp(Vector2i(floori(point.x),floori(point.z))): return RAMP_SPEED
+	return INF
+
+## Returns to `before` after the move left the road graph. Heading components
+## across each crossed tile edge are removed: a glancing exit continues along the
+## edge with scrubbed speed, while a near head-on exit (or a corner) stops.
+func _deflect_from_edge(before: Transform3D) -> void:
+	var inside := Vector2i(floori(before.origin.x),floori(before.origin.z))
+	var outside := Vector2i(floori(global_position.x),floori(global_position.z))
+	var heading := Vector2(-before.basis.z.x,-before.basis.z.z).normalized()
+	var along := heading
+	if outside.x != inside.x: along.x = 0.0
+	if outside.y != inside.y: along.y = 0.0
+	global_transform = before
+	velocity = Vector3.ZERO
+	# Back off the crossed edge so the next move does not slide over it again.
+	var back := Vector3(signf(inside.x-outside.x),0,signf(inside.y-outside.y))*EDGE_BACKOFF
+	if not test_move(global_transform,back): global_position += back
+	if along.length()<.3:
+		_speed = 0.0
+		return
+	if _edge_contact<=0: _speed *= 1.0-EDGE_SCRUB
+	_edge_contact = EDGE_CONTACT_TICKS
+	rotation.y = lerp_angle(rotation.y,atan2(-along.x,-along.y),EDGE_TURN)
+
 func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	if not is_instance_valid(_world) or not is_inside_tree(): return
 	if not global_transform.is_finite() or not velocity.is_finite() or not frame.move.is_finite() or not is_finite(delta) or not is_finite(camera_yaw):
@@ -211,6 +260,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 		_request("water")
 		return
 	var before := global_transform
+	if _edge_contact>0: _edge_contact -= 1
 	var dt := clampf(delta,0,.1)
 	if dt<=0: return
 	var support := _ground_support()
@@ -221,7 +271,10 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	var throttle := clampf(-frame.move.y,-1,1)
 	var opposing := _speed*throttle<0
 	var target := 0.0 if opposing else 1.2*maxf(throttle,0)-.3*maxf(-throttle,0)
+	var cap := _ramp_speed_cap()
+	target = clampf(target,-cap,cap)
 	_speed = move_toward(_speed,target,(1.1 if opposing else .55)*dt)
+	if absf(_speed)>cap: _speed = move_toward(_speed,signf(_speed)*cap,RAMP_BRAKING*dt)
 	if frame.brake: _speed = move_toward(_speed,0,1.5*dt)
 	var steering := clampf(frame.move.x,-1,1)
 	if absf(_speed)>.001:
@@ -248,7 +301,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	apply_floor_snap()
 	velocity /= factor
 	if route_graph != null and not route_graph.has_cell(Vector2i(floori(global_position.x),floori(global_position.z)),&"road") and not _world.inside_road_tunnel(global_position):
-		apply_safe_pose(before)
+		_deflect_from_edge(before)
 	_grounded = not _ground_support().is_empty()
 	if not global_position.is_finite(): _request("nonfinite")
 	elif not _inside(): _request("bounds")

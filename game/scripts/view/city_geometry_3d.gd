@@ -1187,7 +1187,9 @@ void fragment() {
 		vec3 aggregate = texture_ratio(road_texture, map_position.xz, 3.3, vec3(0.154489, 0.163048, 0.163720), vec3(0.417961, 0.430275, 0.433608));
 		// Colored paint, steel and sleepers retain their authored identity.
 		float neutral = 1.0 - smoothstep(0.10, 0.22, max(max(base.r, base.g), base.b) - min(min(base.r, base.g), base.b));
-		if (distance(COLOR.rgb,vec3(.74,.72,.65))<.005) {
+		// Shoulders, elevated-deck soffits/fascias and barriers share concrete.
+		if (distance(COLOR.rgb,vec3(.74,.72,.65))<.005 || distance(COLOR.rgb,vec3(.52,.50,.46))<.005
+				|| distance(COLOR.rgb,vec3(.66,.64,.58))<.005 || distance(COLOR.rgb,vec3(.79,.77,.71))<.005) {
 			base=paving_finish(base,map_position,map_normal);
 		} else if (distance(COLOR.rgb,vec3(.77,.63,.47))<.005) {
 			vec3 n=abs(map_normal);

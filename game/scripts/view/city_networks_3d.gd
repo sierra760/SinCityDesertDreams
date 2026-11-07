@@ -113,6 +113,29 @@ const POWER_WIRE_WIDTH := 0.015
 const HIGHWAY_ELEVATION := 0.38
 ## Bridge drawing offsets are measured relative to the resolved span profile.
 const BRIDGE_REFERENCE_ELEVATION := 0.65
+## Elevated highway and ramp slabs: 1.5 m of concrete below the shoulder, the
+## same depth their physical decks already have, so piers meet the soffit.
+const DECK_DEPTH := 0.095
+const DECK_SOFFIT := Color(0.52, 0.50, 0.46)
+const DECK_FASCIA := Color(0.66, 0.64, 0.58)
+## Concrete safety-shape barriers, about 0.9 m tall: edge barriers stand just
+## inside each open deck edge and a wider median splits paired carriageways.
+const BARRIER := Color(0.79, 0.77, 0.71)
+const BARRIER_HEIGHT := 0.055
+const BARRIER_WIDTH := 0.022
+const MEDIAN_WIDTH := 0.034
+const BARRIER_INSET := 0.002
+## Collision rises vertically from each barrier's traffic face to above any
+## road vehicle's roof: a car scrapes along it instead of climbing the slope.
+const BARRIER_GUARD_HEIGHT := 0.14
+## Cross-sections as (inward offset, height). Edge barriers rise from their
+## outer face; medians are centred on their line. The open bottom edge sits
+## slightly below the deck surface.
+const EDGE_BARRIER := [Vector2(0, -0.004), Vector2(0, BARRIER_HEIGHT), Vector2(BARRIER_WIDTH * 0.55, BARRIER_HEIGHT),
+	Vector2(BARRIER_WIDTH, BARRIER_HEIGHT * 0.3), Vector2(BARRIER_WIDTH, -0.004)]
+const MEDIAN_BARRIER := [Vector2(-MEDIAN_WIDTH * 0.5, -0.004), Vector2(-MEDIAN_WIDTH * 0.5, BARRIER_HEIGHT * 0.3),
+	Vector2(-MEDIAN_WIDTH * 0.2, BARRIER_HEIGHT), Vector2(MEDIAN_WIDTH * 0.2, BARRIER_HEIGHT),
+	Vector2(MEDIAN_WIDTH * 0.5, BARRIER_HEIGHT * 0.3), Vector2(MEDIAN_WIDTH * 0.5, -0.004)]
 
 
 ## Connections encoded by one visible tile, including slopes and crossings.
@@ -368,6 +391,8 @@ func _emit_cell(city: City, region: Rect2i, cell: Vector2i, drawn_blocks: Dictio
 		if family == NetworkShapes.Family.RAIL:
 			elevation += 0.015
 		_draw_network(city, cell, family, mask, elevation)
+	if not bridge and NetworkShapes.is_highway(code):
+		_highway_deck(city, cell, code)
 
 
 func _finish_region() -> void:
@@ -667,10 +692,12 @@ func _draw_network(city: City, cell: Vector2i, family: int, mask: int, elevation
 	_draw_path(city, cell, mask, width, Color(0.34, 0.38, 0.40), elevation, PhysicalRole.FLOOR)
 	if family == NetworkShapes.Family.ROAD and not _deck_profiles.has(cell) and not _drawing_tunnel:
 		# Close each raised layer down to the terrain without moving its travel
-		# height; top-only sheets would expose daylight at street level.
+		# height; top-only sheets would expose daylight at street level. Upper
+		# layers stop at the layer below: full-height skirts would share one
+		# plane at an exposed tile end (beside a ramp mouth) and z-fight.
 		_grounded_outline(city,cell,_rect_polygon(Rect2(0,0,1,1)),Color(.77,.63,.47),elevation-.016)
-		_grounded_path(city,cell,mask,width+.075,Color(.74,.72,.65),elevation-.008)
-		_grounded_path(city,cell,mask,width,Color(.34,.38,.40),elevation)
+		_grounded_path(city,cell,mask,width+.075,Color(.74,.72,.65),elevation-.008,elevation-.016)
+		_grounded_path(city,cell,mask,width,Color(.34,.38,.40),elevation,elevation-.008)
 	# A highway tile is one two-lane, one-way carriageway. White separates
 	# those same-direction lanes; two-way local roads use yellow centers.
 	var stripe := HIGHWAY_LANE_DIVIDER if family == NetworkShapes.Family.HIGHWAY else Color(0.86, 0.72, 0.36)
@@ -691,14 +718,16 @@ func _draw_network(city: City, cell: Vector2i, family: int, mask: int, elevation
 				_rect(city, cell, dash, stripe, elevation + 0.006)
 
 
-func _grounded_path(city: City, cell: Vector2i, mask: int, width: float, color: Color, elevation: float) -> void:
+func _grounded_path(city: City, cell: Vector2i, mask: int, width: float, color: Color, elevation: float, floor_elevation: float = NAN) -> void:
 	if mask not in [3,6,9,12]:
-		_grounded_outline(city,cell,_rail_berm_outline(mask,(1-width)*.5,(1+width)*.5),color,elevation)
+		_grounded_outline(city,cell,_rail_berm_outline(mask,(1-width)*.5,(1+width)*.5),color,elevation,floor_elevation)
 		return
-	_grounded_outline(city,cell,diagonal_strip(mask,width),color,elevation)
+	_grounded_outline(city,cell,diagonal_strip(mask,width),color,elevation,floor_elevation)
 
 
-func _grounded_outline(city: City, cell: Vector2i, outline: Array[Vector2], color: Color, elevation: float) -> void:
+## Vertical skirts from `elevation` down to the terrain, or down to the layer at
+## `floor_elevation` (with a hairline overlap) when one is given.
+func _grounded_outline(city: City, cell: Vector2i, outline: Array[Vector2], color: Color, elevation: float, floor_elevation: float = NAN) -> void:
 	var facet := _facet(city, cell)
 	var corners: PackedVector3Array = facet[0]
 	var diagonal: bool = facet[1]
@@ -724,8 +753,14 @@ func _grounded_outline(city: City, cell: Vector2i, outline: Array[Vector2], colo
 		for j: int in range(stops.size()-1):
 			var p := a.lerp(b,stops[j]);var q := a.lerp(b,stops[j+1])
 			if p.distance_squared_to(q)<.0000000001: continue
-			var low_p := CityGeometry3D.point_over_facet(corners,diagonal,cell,p)-Vector3.UP*.002
-			var low_q := CityGeometry3D.point_over_facet(corners,diagonal,cell,q)-Vector3.UP*.002
+			var low_p: Vector3
+			var low_q: Vector3
+			if is_nan(floor_elevation):
+				low_p = CityGeometry3D.point_over_facet(corners,diagonal,cell,p)-Vector3.UP*.002
+				low_q = CityGeometry3D.point_over_facet(corners,diagonal,cell,q)-Vector3.UP*.002
+			else:
+				low_p = _point(city,cell,p,floor_elevation-.001)
+				low_q = _point(city,cell,q,floor_elevation-.001)
 			_world_quad(cell,_point(city,cell,p,elevation),_point(city,cell,q,elevation),low_p,low_q,color,PhysicalRole.OBSTACLE)
 
 
@@ -1117,6 +1152,8 @@ func _highway_block(city: City, anchor: Vector2i, code: int) -> void:
 			for vertical: bool in [false, true]:
 				var rect := Rect2(across - 0.46, 0, 0.92, 2) if vertical else Rect2(0, across - 0.46, 2, 0.92)
 				_block_polygon(city, anchor, _rect_polygon(rect), Color(0.34, 0.38, 0.40), HIGHWAY_ELEVATION, PhysicalRole.FLOOR)
+		# One soffit for the whole crossing: per-carriageway slabs would overlap.
+		_block_polygon(city, anchor, _rect_polygon(Rect2(0.0025, 0.0025, 1.995, 1.995)), DECK_SOFFIT, HIGHWAY_ELEVATION - 0.008 - DECK_DEPTH)
 		return
 	for radius: float in [.5,1.5]:
 		for surface: int in 3:
@@ -1128,6 +1165,197 @@ func _highway_block(city: City, anchor: Vector2i, code: int) -> void:
 					_block_polygon(city,anchor,diagonal_strip(mask,width,i/8.0,(i+1)/8.0,radius,2),color,elevation)
 			else:
 				_block_polygon(city,anchor,diagonal_strip(mask,width,0,1,radius,2),color,elevation,PhysicalRole.SHOULDER if surface==0 else PhysicalRole.FLOOR)
+	var top := HIGHWAY_ELEVATION - 0.008
+	for radius: float in [.5, 1.5]:
+		_block_polygon(city, anchor, diagonal_strip(mask, .995, 0, 1, radius, 2), DECK_SOFFIT, top - DECK_DEPTH)
+	# The turn's outside edge gets a fascia and barrier; the inside edge of the
+	# inner carriageway closes to the pivot corner, where the adjoining straight
+	# carriageways' own barriers meet. A median divides the two carriageways.
+	var pivot: Vector2 = PIVOTS[mask] * 2
+	var first: Vector2 = BEND_START[mask]
+	var last: Vector2 = BEND_END[mask]
+	var toward_pivot := -(first + last).normalized()
+	var inward := Vector3(toward_pivot.x, 0, toward_pivot.y)
+	var outer := 1.9975
+	var fascia := _block_line(city, anchor, pivot + first * outer, pivot + last * outer, 16, top)
+	for i: int in 16:
+		_deck_side(fascia[0][i], fascia[1][i], fascia[1][i + 1])
+	var guard := _block_line(city, anchor, pivot + first * (outer - BARRIER_INSET), pivot + last * (outer - BARRIER_INSET), 16, top)
+	_barrier(guard[0], guard[1], _repeat(inward, 17), false, false, false)
+	var median := _block_line(city, anchor, pivot + first, pivot + last, 16, top)
+	_barrier(median[0], median[1], _repeat(inward, 17), true, false, false)
+
+
+## Samples a 2x2-block-local segment: each sample's owning cell and its point on
+## that cell's highway surface at `elevation`.
+func _block_line(city: City, anchor: Vector2i, from: Vector2, to: Vector2, count: int, elevation: float) -> Array:
+	var cells: Array[Vector2i] = []
+	var points: Array[Vector3] = []
+	for i: int in count + 1:
+		var p := from.lerp(to, i / float(count))
+		var local := Vector2i(clampi(floori(p.x), 0, 1), clampi(floori(p.y), 0, 1))
+		cells.append(anchor + local)
+		points.append(_point(city, anchor + local, p - Vector2(local), elevation))
+	return [cells, points]
+
+
+static func _repeat(value: Vector3, count: int) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	out.resize(count)
+	out.fill(value)
+	return out
+
+
+## One deck fascia quad hanging DECK_DEPTH below the shoulder edge `a`-`b`.
+func _deck_side(cell: Vector2i, a: Vector3, b: Vector3) -> void:
+	_emit_side(cell, a + Vector3.DOWN * DECK_DEPTH, b + Vector3.DOWN * DECK_DEPTH, a, b, DECK_FASCIA)
+
+
+## A continuous concrete barrier along deck-surface `bases` with horizontal unit
+## `inward` normals (toward the travel lanes); caps close piece ends. The shaped
+## faces are visible only. Collision is a vertical two-sided wall on each traffic
+## face (both faces of a median), BARRIER_GUARD_HEIGHT tall, closed at caps.
+func _barrier(cells: Array[Vector2i], bases: Array[Vector3], inward: Array[Vector3], median: bool, cap_start: bool, cap_end: bool) -> void:
+	var profile: Array = MEDIAN_BARRIER if median else EDGE_BARRIER
+	var rings: Array[PackedVector3Array] = []
+	for i: int in bases.size():
+		var ring := PackedVector3Array()
+		for p: Vector2 in profile:
+			ring.append(bases[i] + inward[i] * p.x + Vector3.UP * p.y)
+		rings.append(ring)
+	for i: int in bases.size() - 1:
+		for k: int in profile.size() - 1:
+			_emit_triangle(cells[i], rings[i][k], rings[i][k + 1], rings[i + 1][k], BARRIER, PhysicalRole.DETAIL, false)
+			_emit_triangle(cells[i], rings[i][k + 1], rings[i + 1][k + 1], rings[i + 1][k], BARRIER, PhysicalRole.DETAIL, false)
+	var faces: Array[float] = [BARRIER_WIDTH]
+	if median: faces.assign([-MEDIAN_WIDTH * 0.5, MEDIAN_WIDTH * 0.5])
+	var low := Vector3.UP * -0.004
+	var high := Vector3.UP * BARRIER_GUARD_HEIGHT
+	for i: int in bases.size() - 1:
+		for across: float in faces:
+			var a := bases[i] + inward[i] * across
+			var b := bases[i + 1] + inward[i + 1] * across
+			_record_physical_points(cells[i], a + low, b + low, a + high, PhysicalRole.OBSTACLE)
+			_record_physical_points(cells[i], b + low, b + high, a + high, PhysicalRole.OBSTACLE)
+	for end: int in 2:
+		if not (cap_start if end == 0 else cap_end): continue
+		var ring: PackedVector3Array = rings[0] if end == 0 else rings[-1]
+		var cell: Vector2i = cells[0] if end == 0 else cells[-1]
+		for k: int in range(1, ring.size() - 1):
+			_emit_triangle(cell, ring[0], ring[k], ring[k + 1], BARRIER, PhysicalRole.DETAIL, false)
+		var base: Vector3 = bases[0] if end == 0 else bases[-1]
+		var normal: Vector3 = inward[0] if end == 0 else inward[-1]
+		var a := base + normal * faces[0] if median else base
+		var b := base + normal * faces[-1]
+		_record_physical_points(cell, a + low, b + low, a + high, PhysicalRole.OBSTACLE)
+		_record_physical_points(cell, b + low, b + high, a + high, PhysicalRole.OBSTACLE)
+
+
+## Soffit, fascias and barriers of one ordinary (non-bridge) highway cell.
+## Paired parallel carriageways share one median; open sides get an edge
+## barrier with a gap at each joining ramp mouth; dead ends are closed.
+func _highway_deck(city: City, cell: Vector2i, code: int) -> void:
+	_physical_group = NetworkShapes.Family.HIGHWAY
+	_physical_depth = 0.095
+	var mask := network_mask(code, NetworkShapes.Family.HIGHWAY)
+	var top := HIGHWAY_ELEVATION - 0.008
+	if mask != 5 and mask != 10:
+		# Lone bends and junction pieces keep only their soffit.
+		_draw_path(city, cell, mask, .995, DECK_SOFFIT, top - DECK_DEPTH)
+		return
+	var ns := mask == 5
+	_rect(city, cell, Rect2(.0025, 0, .995, 1) if ns else Rect2(0, .0025, 1, .995), DECK_SOFFIT, top - DECK_DEPTH)
+	var samples := 8 if _approach_profiles.has(cell) or HighwayHeight.curved(_highway_stencil(city, cell)) else 1
+	var across_axis := Vector3(1, 0, 0) if ns else Vector3(0, 0, 1)
+	var along_axis := Vector3(0, 0, 1) if ns else Vector3(1, 0, 0)
+	for side: int in [-1, 1]:
+		var neighbor := cell + (Vector2i(side, 0) if ns else Vector2i(0, side))
+		var edge := 0.0025 if side < 0 else 0.9975
+		if _parallel_carriageway(city, neighbor, mask):
+			if side > 0:
+				_barrier_run(city, cell, ns, 1.0, 0.0, 1.0, samples, -across_axis, true, false, false)
+			continue
+		var line: Array = _deck_line(city, cell, ns, edge, 0.0, 1.0, samples, top)
+		for i: int in samples:
+			_deck_side(cell, line[i], line[i + 1])
+		var pieces: Array[Vector2] = [Vector2(0, 1)]
+		var mouth := _ramp_mouth(city, cell, neighbor, ns)
+		if mouth.y > mouth.x:
+			pieces = [Vector2(0, mouth.x), Vector2(mouth.y, 1)]
+			_ramp_joint(city, cell, ns, side, mouth)
+		for piece: Vector2 in pieces:
+			if piece.y - piece.x < 0.02: continue
+			_barrier_run(city, cell, ns, edge - side * BARRIER_INSET, piece.x, piece.y, samples, across_axis * -side, false, piece.x > 0, piece.y < 1)
+	for end: int in [-1, 1]:
+		var next := cell + (Vector2i(0, end) if ns else Vector2i(end, 0))
+		if not city.in_bounds(next.x, next.y) or NetworkShapes.is_highway(city.building.atv(next)): continue
+		var at := 0.0 if end < 0 else 1.0
+		var a := _point(city, cell, Vector2(.0025, at) if ns else Vector2(at, .0025), top)
+		var b := _point(city, cell, Vector2(.9975, at) if ns else Vector2(at, .9975), top)
+		_deck_side(cell, a, b)
+		var cross_from := Vector2(.0025, at - end * BARRIER_INSET) if ns else Vector2(at - end * BARRIER_INSET, .0025)
+		var cross_to := Vector2(.9975, at - end * BARRIER_INSET) if ns else Vector2(at - end * BARRIER_INSET, .9975)
+		var cells: Array[Vector2i] = [cell, cell]
+		var bases: Array[Vector3] = [_point(city, cell, cross_from, top), _point(city, cell, cross_to, top)]
+		_barrier(cells, bases, _repeat(along_axis * -end, 2), false, true, true)
+
+
+## Joins a ramp's high end to the carriageway: the highway pavement reaches the
+## tile edge across the ramp's pavement, and its shoulder reaches the edge
+## beside it. The ramp ends exactly on the edge at pavement height; without this
+## a 13 cm shoulder dip and a slit 0.0025 tile wide crossed the mouth, both
+## visibly and in the collision floor.
+func _ramp_joint(city: City, cell: Vector2i, ns: bool, side: int, mouth: Vector2) -> void:
+	var margin := (ROAD_WIDTH + 0.075 - ROAD_WIDTH) * 0.5
+	var lanes := Vector2(mouth.x + margin, mouth.y - margin)
+	var pavement_from := 0.96 if side > 0 else 0.0
+	var shoulder_from := 0.9975 if side > 0 else 0.0
+	var spans: Array = [[Vector2(lanes.x, lanes.y - lanes.x), pavement_from, 0.04, HIGHWAY_ELEVATION, Color(0.34, 0.38, 0.40), PhysicalRole.FLOOR],
+		[Vector2(mouth.x, margin), shoulder_from, 0.0025, HIGHWAY_ELEVATION - 0.008, Color(0.74, 0.72, 0.65), PhysicalRole.SHOULDER],
+		[Vector2(lanes.y, margin), shoulder_from, 0.0025, HIGHWAY_ELEVATION - 0.008, Color(0.74, 0.72, 0.65), PhysicalRole.SHOULDER]]
+	for span: Array in spans:
+		var along: Vector2 = span[0]
+		var rect := Rect2(span[1], along.x, span[2], along.y) if ns else Rect2(along.x, span[1], along.y, span[2])
+		_rect(city, cell, rect, span[4], span[3], span[5])
+
+
+## Whether `neighbor` carries the other carriageway of a straight highway pair.
+func _parallel_carriageway(city: City, neighbor: Vector2i, mask: int) -> bool:
+	if not city.in_bounds(neighbor.x, neighbor.y) or _deck_profiles.has(neighbor): return false
+	var code := city.building.atv(neighbor)
+	return NetworkShapes.is_highway(code) and network_mask(code, NetworkShapes.Family.HIGHWAY) == mask
+
+
+## Shoulder-edge points of a straight cell at `across`, from `start` to `end`.
+func _deck_line(city: City, cell: Vector2i, ns: bool, across: float, start: float, end: float, samples: int, elevation: float) -> Array[Vector3]:
+	var points: Array[Vector3] = []
+	for i: int in samples + 1:
+		var along := lerpf(start, end, i / float(samples))
+		points.append(_point(city, cell, Vector2(across, along) if ns else Vector2(along, across), elevation))
+	return points
+
+
+func _barrier_run(city: City, cell: Vector2i, ns: bool, across: float, start: float, end: float, samples: int, inward: Vector3, median: bool, cap_start: bool, cap_end: bool) -> void:
+	var cells: Array[Vector2i] = []
+	cells.resize(samples + 1)
+	cells.fill(cell)
+	_barrier(cells, _deck_line(city, cell, ns, across, start, end, samples, HIGHWAY_ELEVATION - 0.008), _repeat(inward, samples + 1), median, cap_start, cap_end)
+
+
+## The along-edge span (x..y) of an onramp mouth that joins `cell` from
+## `neighbor`, or an empty span when no ramp climbs onto this side.
+func _ramp_mouth(city: City, cell: Vector2i, neighbor: Vector2i, ns: bool) -> Vector2:
+	if not city.in_bounds(neighbor.x, neighbor.y) or not NetworkShapes.is_onramp(city.building.atv(neighbor)): return Vector2.ZERO
+	var ends := NetworkShapes.onramp_endpoints(city.building.atv(neighbor), bool(city.flags.atv(neighbor) & RotationMapper.AXIS_FLAG), 0)
+	if neighbor + Vector2i(ends[1]) != cell: return Vector2.ZERO
+	var road := Vector2(ends[0])
+	var pivot := Vector2(neighbor - cell) + Vector2(0.5, 0.5) + (road + Vector2(ends[1])) * 0.5
+	var half := (ROAD_WIDTH + 0.075) * 0.5
+	var a := pivot - road * (0.5 - half)
+	var b := pivot - road * (0.5 + half)
+	var along_a := a.y if ns else a.x
+	var along_b := b.y if ns else b.x
+	return Vector2(clampf(minf(along_a, along_b), 0, 1), clampf(maxf(along_a, along_b), 0, 1))
 
 
 ## Straight diagonal with the same edge intercepts as the saved bend tile.
@@ -1216,7 +1444,8 @@ func _ramp(city: City, cell: Vector2i, code: int) -> void:
 	for surface: int in 3:
 		var color: Color = [Color(0.74, 0.72, 0.65), Color(0.34, 0.38, 0.40), Color(0.86, 0.72, 0.36)][surface]
 		var lift: float = [-0.008, 0.0, 0.006][surface]
-		var role := PhysicalRole.SHOULDER if surface==0 else PhysicalRole.FLOOR if surface==1 else PhysicalRole.DETAIL
+		# The dense grid is visible only; _ramp_floor records collision.
+		var role := PhysicalRole.DETAIL
 		# Preserve the full adjoining road width through both mouths and turn.
 		var width := 0.022 if surface == 2 else ROAD_WIDTH + (0.075 if surface == 0 else 0.0)
 		# Emit only the exposed shoulder strips: no dense overlapping layer
@@ -1246,6 +1475,92 @@ func _ramp(city: City, cell: Vector2i, code: int) -> void:
 					Vector3(cell.x+lo_offsets[i+1].x, lo_heights[i+1]+lift, cell.y+lo_offsets[i+1].y),
 					Vector3(cell.x+hi_offsets[i+1].x, hi_heights[i+1]+lift, cell.y+hi_offsets[i+1].y),
 					color, role)
+	_ramp_floor(city, cell, road, high, pivot, radials, stencil, columns)
+	_ramp_structure(city, cell, road, high, pivot, radials, stencil, columns)
+
+
+## Collision floor of a ramp on every RAMP_FLOOR_STRIDE-th visible step and
+## RAMP_FLOOR_BANDS pavement bands, sampling the same surface columns. Driving
+## over the visible 128x24 grid made each car tick test hundreds of sliver
+## triangles (5-15 ms per tick on a ramp versus 0.2 ms on a road).
+const RAMP_FLOOR_STRIDE := 4
+const RAMP_FLOOR_BANDS := 6
+func _ramp_floor(city: City, cell: Vector2i, road: Vector2, high: Vector2, pivot: Vector2, radials: PackedVector2Array, stencil: PackedFloat64Array, columns: Dictionary) -> void:
+	var shoulder := (ROAD_WIDTH + 0.075) * 0.5
+	var edges: Array[float] = [-shoulder]
+	for band: int in RAMP_FLOOR_BANDS + 1:
+		edges.append(-ROAD_WIDTH * 0.5 + ROAD_WIDTH * band / RAMP_FLOOR_BANDS)
+	edges.append(shoulder)
+	var cols: Array = []
+	for across: float in edges:
+		cols.append(_ramp_column(columns, city, cell, road, high, pivot, radials, stencil, across))
+	for i: int in range(0, 128, RAMP_FLOOR_STRIDE):
+		var j := i + RAMP_FLOOR_STRIDE
+		for k: int in edges.size() - 1:
+			var shoulder_strip := k == 0 or k == edges.size() - 2
+			var lift := -0.008 if shoulder_strip else 0.0
+			var lo_offsets: PackedVector2Array = cols[k][0]
+			var lo_heights: PackedFloat64Array = cols[k][1]
+			var hi_offsets: PackedVector2Array = cols[k + 1][0]
+			var hi_heights: PackedFloat64Array = cols[k + 1][1]
+			var a := Vector3(cell.x+lo_offsets[i].x, lo_heights[i]+lift, cell.y+lo_offsets[i].y)
+			var b := Vector3(cell.x+hi_offsets[i].x, hi_heights[i]+lift, cell.y+hi_offsets[i].y)
+			var c := Vector3(cell.x+lo_offsets[j].x, lo_heights[j]+lift, cell.y+lo_offsets[j].y)
+			var d := Vector3(cell.x+hi_offsets[j].x, hi_heights[j]+lift, cell.y+hi_offsets[j].y)
+			var role := PhysicalRole.SHOULDER if shoulder_strip else PhysicalRole.FLOOR
+			_record_downward(cell, a, b, c, role)
+			_record_downward(cell, b, d, c, role)
+
+
+## A physical record with the downward winding _emit_triangle gives a
+## reversed (_world_quad) face, without a visible triangle.
+func _record_downward(cell: Vector2i, a: Vector3, b: Vector3, c: Vector3, role: int) -> void:
+	var normal := (b - a).cross(c - a)
+	if normal.length_squared() < 0.000000000001: return
+	if normal.y > 0: _record_physical_points(cell, c, b, a, role)
+	else: _record_physical_points(cell, a, b, c, role)
+
+
+## The ramp slab below its shoulders, a barrier along each edge and one pier
+## under the raised half. The road mouth stays open: the adjoining road's own
+## end skirt closes it, and a second face there would share its plane.
+func _ramp_structure(city: City, cell: Vector2i, road: Vector2, high: Vector2, pivot: Vector2, radials: PackedVector2Array, stencil: PackedFloat64Array, columns: Dictionary) -> void:
+	var half := (ROAD_WIDTH + 0.075) * 0.5
+	var at := func(column: Array, i: int, lift: float) -> Vector3:
+		var offsets: PackedVector2Array = column[0]
+		var heights: PackedFloat64Array = column[1]
+		return Vector3(cell.x + offsets[i].x, heights[i] + lift, cell.y + offsets[i].y)
+	const BANDS := 6
+	var edges: Array = []
+	for band: int in BANDS + 1:
+		edges.append(_ramp_column(columns, city, cell, road, high, pivot, radials, stencil, -half + 2.0 * half * band / BANDS))
+	var soffit := -0.008 - DECK_DEPTH
+	for i: int in range(0, 128, 2):
+		for band: int in BANDS:
+			_world_quad(cell, at.call(edges[band], i, soffit), at.call(edges[band + 1], i, soffit),
+				at.call(edges[band], i + 2, soffit), at.call(edges[band + 1], i + 2, soffit), DECK_SOFFIT)
+		for edge: Array in [edges[0], edges[BANDS]]:
+			_deck_side(cell, at.call(edge, i, -0.008), at.call(edge, i + 2, -0.008))
+	for side: float in [-1.0, 1.0]:
+		var face := side * (half - BARRIER_INSET)
+		var footing := _ramp_column(columns, city, cell, road, high, pivot, radials, stencil, side * (half - BARRIER_INSET - BARRIER_WIDTH * 0.5))
+		var heights: PackedFloat64Array = footing[1]
+		var cells: Array[Vector2i] = []
+		var bases: Array[Vector3] = []
+		var inward: Array[Vector3] = []
+		for i: int in range(0, 129, 4):
+			var p := pivot + radials[i] * (0.5 + face)
+			cells.append(cell)
+			bases.append(Vector3(cell.x + p.x, heights[i] - 0.008, cell.y + p.y))
+			inward.append(Vector3(radials[i].x, 0, radials[i].y) * -side)
+		_barrier(cells, bases, inward, false, true, true)
+	var center := _ramp_column(columns, city, cell, road, high, pivot, radials, stencil, 0.0)
+	var step := 92
+	var top: Vector3 = at.call(center, step, -0.05)
+	var offset := pivot + radials[step] * 0.5
+	var ground := CityGeometry3D.point_on_ground(city, cell, offset)
+	if top.y - ground.y > 0.12:
+		_box(ground + Vector3(0, (top.y - ground.y) / 2, 0), Vector3(0.10, top.y - ground.y, 0.10), Color(0.57, 0.54, 0.49))
 
 
 ## All 129 step samples of one lateral ramp offset: local surface offsets and
