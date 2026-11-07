@@ -319,3 +319,85 @@ func test_patron_clocks_follow_explore_pause_and_cached_hall_presence() -> void:
 	_remove_resort()
 	for frame: int in 4: await physics_frame
 	check(not is_instance_valid(crowd),"removal releases the crowd along with its hall")
+
+## The slapstick weapons work on a casino floor: a visitor pops into pieces
+## that land on the hall floor, are lit like the hall, and hop back together
+## where the visitor stood about fifteen seconds later. Leaving the hall
+## puts anyone still in pieces back at once. The city is never edited.
+func test_slapstick_weapons_pop_casino_visitors_who_hop_back_together() -> void:
+	if not await _start(): return
+	var before := SaveFormat.encode_city(city)
+	check(await _go_inside(),"walker is on the casino floor")
+	var service: ExploreResortService = session.resort_service
+	var world := service.world_for({"anchor":ANCHOR,"code":251,"key":&"arcology_comstock"})
+	world.set_attendance(16)
+	await physics_frame
+	var crowd := service.patrons_inside()
+	var mayhem: ExploreMayhem = session.mayhem
+	check(crowd != null,"the occupied hall offers its visitors")
+	check(mayhem.indoor == crowd,"Explore hands the floor's visitors to the weapons")
+	if crowd == null: return
+	var targets: Array = crowd.call("pedestrian_targets",session.pedestrian.global_position,20.0)
+	check_gt(targets.size(),0,"visitors are within reach of the floor")
+	if targets.is_empty(): return
+	var target: Dictionary = targets[0]
+	var id := int(target.id)
+	var standing: Vector3 = (target.pose as Transform3D).origin
+	var walker := session.pedestrian as ExplorePedestrian
+	walker.place(Transform3D(Basis.IDENTITY,standing+Vector3(.06,0,0)))
+	var yaw := atan2(.06,0.0)
+	mayhem.set_weapon(ExploreWeapons.Kind.CHICKEN)
+	check(mayhem.attack(yaw),"the chicken swings indoors")
+	var tick := 1.0/30.0
+	var run := func(seconds: float) -> void:
+		for step: int in ceili(seconds/tick): mayhem.step(tick,true)
+	run.call(.5)
+	check(bool(crowd.call("is_knocked",id)),"the visitor pops apart")
+	var visual: Node3D = null
+	for child: Node in crowd.get_children():
+		if child.name == "Visitor_%02d" % id: visual = child
+	check(visual != null and not visual.visible,"and is not drawn whole")
+	var pieces: Array = []
+	for entry: Dictionary in mayhem._knocked:
+		if int(entry.id) == id and entry.source == crowd: pieces = entry.pieces
+	check_eq(pieces.size(),6,"the visitor is in six pieces")
+	for piece: Dictionary in pieces:
+		check_eq((piece.node as MeshInstance3D).layers,ResortInteriorWorld3D.LAYER,"pieces are lit like the hall")
+	check(not (crowd.call("pedestrian_targets",standing,.2) as Array).any(func(t: Dictionary) -> bool: return int(t.id) == id),"a visitor in pieces is no longer a target")
+	run.call(5.0)
+	var lying := 0
+	for piece: Dictionary in pieces:
+		var at: Vector3 = piece.position
+		if piece.resting and absf(at.y-standing.y) < .03: lying += 1
+	check_ge(lying,4,"most pieces come to rest on the hall floor")
+	run.call(8.0)
+	check(bool(crowd.call("is_knocked",id)),"still in pieces after thirteen seconds")
+	run.call(6.0)
+	check(not bool(crowd.call("is_knocked",id)),"back together about fifteen seconds after the hit")
+	check_eq(mayhem.knocked_count(),0,"no loose pieces remain")
+	check(visual != null and visual.visible,"and drawn whole again")
+	check((crowd.call("knocked_pose",id) as Transform3D).origin.is_equal_approx(standing),"exactly where the visitor stood")
+	# A pie thrown on the floor below ground flies on its arc, rather than
+	# being dropped as if it had fallen out of the world.
+	mayhem.set_weapon(ExploreWeapons.Kind.PIE)
+	check(mayhem.attack(yaw+PI),"the pie is thrown indoors")
+	var strike := float(ExploreWeapons.SPECS[ExploreWeapons.Kind.PIE].strike)
+	run.call(strike+tick*3.0)
+	check_eq(int(mayhem.debug_state().pies)+mayhem.knocked_count(),1,"the pie is in flight or has hit someone")
+	run.call(3.0)
+	check_eq(int(mayhem.debug_state().pies),0,"and comes down on the floor or a visitor")
+	run.call(20.0)
+	check_eq(mayhem.knocked_count(),0,"everyone is whole before the next test")
+	# Pop someone again, then walk out: they are back on the floor at once.
+	mayhem.set_weapon(ExploreWeapons.Kind.MALLET)
+	walker.place(Transform3D(Basis.IDENTITY,standing+Vector3(.06,0,0)))
+	check(mayhem.attack(yaw),"the mallet swings indoors")
+	run.call(1.0)
+	check_gt(mayhem.knocked_count(),0,"the mallet pops visitors too")
+	check(service.leave(),"the door leads back out")
+	run.call(tick)
+	check_eq(mayhem.knocked_count(),0,"leaving the hall reassembles its visitors")
+	check(not bool(crowd.call("is_knocked",id)),"the visitor is whole again")
+	await physics_frame
+	check(mayhem.indoor == null,"outdoors the weapons reach only the street")
+	check_eq(SaveFormat.encode_city(city),before,"slapstick indoors never edits the city")

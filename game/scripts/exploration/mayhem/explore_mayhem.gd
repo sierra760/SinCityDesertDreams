@@ -5,11 +5,12 @@
 ## Cartoon slapstick for the Explore walker. The player carries one of three
 ## toy weapons (ExploreWeapons). A struck ambient pedestrian pops apart into
 ## six pieces (ExploreLimbKit) that bounce, lie about and twitch, then after
-## about a minute hop back together with a boing and walk on from the same
-## spot. Nobody is hurt and nothing is saved: a knocked pedestrian is only
-## held out of the crowd while its pieces are loose (CityTraffic3D
-## knock_pedestrian / restore_pedestrian), and leaving Explore puts everyone
-## back at once. City simulation, traffic routes and the RNG are untouched;
+## about fifteen seconds hop back together with a boing and walk on from the
+## same spot. The same goes for visitors on the casino floor the walker is
+## in (`indoor`). Nobody is hurt and nothing is saved: a knocked pedestrian
+## is only held out of its crowd while its pieces are loose (knock_pedestrian
+## / restore_pedestrian on CityTraffic3D or the hall's patron crowd), and
+## leaving Explore puts everyone back at once. City simulation, traffic routes and the RNG are untouched;
 ## this node keeps its own random stream for the pieces.
 ##
 ## Every clock here advances only through step(), which the Explore session
@@ -18,8 +19,8 @@ class_name ExploreMayhem
 extends Node3D
 
 ## Seconds a pedestrian stays in pieces, plus up to SPREAD more ("or so").
-const REASSEMBLE_AFTER := 60.0
-const REASSEMBLE_SPREAD := 10.0
+const REASSEMBLE_AFTER := 15.0
+const REASSEMBLE_SPREAD := 2.0
 ## How long the pieces take to fly home, then the springy settle.
 const ASSEMBLE_SECONDS := 1.1
 const BOING_SECONDS := .35
@@ -32,6 +33,9 @@ const BODY_MIDDLE := .055
 const BODY_HEIGHT := .11
 ## Pieces fade from view this far away (tiles), like other close detail.
 const PIECE_RANGE := 4.0
+## A pie or piece this far (tiles) below where it started has found no
+## surface; it stops there. Relative, because casino halls lie below ground.
+const FALL_LIMIT := 1.0
 ## A vehicle pops people it runs into at this speed or faster (tiles per
 ## second, about 9 km/h); slower, they just block it like any other body.
 const VEHICLE_HIT_SPEED := .15
@@ -41,6 +45,10 @@ const VEHICLE_LOOKAHEAD := 1.6
 const VEHICLE_MARGIN := .006
 
 var traffic: CityTraffic3D
+## The patron crowd of the casino floor the walker is on, or null outdoors.
+## It answers the same calls as `traffic` (pedestrian_targets,
+## knock_pedestrian, is_knocked, knocked_pose, restore_pedestrian).
+var indoor: Node3D
 var walker: ExplorePedestrian
 var weapon: int = ExploreWeapons.Kind.NONE
 var _holder: Node3D
@@ -174,6 +182,7 @@ func clear() -> void:
 	_swing = -1.0
 	_cooldown = 0.0
 	_vehicle = null
+	indoor = null
 
 func knocked_count() -> int:
 	return _knocked.size()
@@ -308,12 +317,12 @@ func _strike(spec: Dictionary) -> void:
 		var pie := ExploreWeapons.make_pie()
 		add_child(pie)
 		pie.global_position = start
-		_pies.append({"node":pie,"position":start,"velocity":forward*ExploreWeapons.PIE_SPEED+Vector3.UP*ExploreWeapons.PIE_LIFT,"age":0.0,"spin":_rng.randf_range(-6.0,6.0)})
+		_pies.append({"node":pie,"position":start,"velocity":forward*ExploreWeapons.PIE_SPEED+Vector3.UP*ExploreWeapons.PIE_LIFT,"age":0.0,"spin":_rng.randf_range(-6.0,6.0),"lowest":start.y-FALL_LIMIT})
 		return
 	var center := feet+forward*(.05 if weapon == ExploreWeapons.Kind.MALLET else 0.0)
 	var reach := float(spec.reach)
 	var hits := 0
-	for target: Dictionary in traffic.pedestrian_targets(center,reach+.03) if is_instance_valid(traffic) else []:
+	for target: Dictionary in _targets(center,reach+.03):
 		if hits >= int(spec.targets): break
 		var pose: Transform3D = target.pose
 		var offset := pose.origin-center
@@ -351,7 +360,7 @@ func _advance_pies(dt: float) -> void:
 			_play(&"splat",-6.0,_rng.randf_range(.85,1.0))
 			landed = true
 		pie.position = to
-		if landed or pie.age > ExploreWeapons.PIE_LIFETIME or to.y < -1.0:
+		if landed or pie.age > ExploreWeapons.PIE_LIFETIME or to.y < float(pie.lowest):
 			if is_instance_valid(pie.node): pie.node.free()
 			_pies.remove_at(index)
 			continue
@@ -361,9 +370,8 @@ func _advance_pies(dt: float) -> void:
 
 ## The first pedestrian whose body the segment passes within PIE_RADIUS of.
 func _pie_target(from: Vector3, to: Vector3) -> Dictionary:
-	if not is_instance_valid(traffic): return {}
 	var middle := (from+to)*.5
-	for target: Dictionary in traffic.pedestrian_targets(middle,from.distance_to(to)+ExploreWeapons.PIE_RADIUS+.02):
+	for target: Dictionary in _targets(middle,from.distance_to(to)+ExploreWeapons.PIE_RADIUS+.02):
 		var feet: Vector3 = (target.pose as Transform3D).origin
 		var axis_from := Vector2(from.x-feet.x,from.z-feet.z)
 		var axis_to := Vector2(to.x-feet.x,to.z-feet.z)
@@ -376,9 +384,21 @@ func _pie_target(from: Vector3, to: Vector3) -> Dictionary:
 
 # ── Pedestrians in pieces ─────────────────────────────────────────────────
 
+## Street pedestrians and, on a casino floor, its visitors near `center`.
+## Each target records the crowd it came from as "source".
+func _targets(center: Vector3, radius: float) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for source: Node in [traffic,indoor]:
+		if not is_instance_valid(source): continue
+		for target: Dictionary in source.call("pedestrian_targets",center,radius):
+			target.source = source
+			found.append(target)
+	return found
+
 func _knock(target: Dictionary, push: Vector3, spec: Dictionary) -> bool:
 	var id := int(target.id)
-	if not traffic.knock_pedestrian(id): return false
+	var source: Node = target.get("source",traffic)
+	if not is_instance_valid(source) or not bool(source.call("knock_pedestrian",id)): return false
 	if _knocked.size() >= MAX_KNOCKED:
 		_finish(_knocked[0])
 		_knocked.remove_at(0)
@@ -389,6 +409,8 @@ func _knock(target: Dictionary, push: Vector3, spec: Dictionary) -> bool:
 		var node := MeshInstance3D.new()
 		node.mesh = entry.mesh
 		node.visibility_range_end = PIECE_RANGE
+		# Pieces of a casino visitor are lit like the hall they lie in.
+		if source != traffic: node.layers = ResortInteriorWorld3D.LAYER
 		add_child(node)
 		var rest: Transform3D = entry.rest
 		var xf := pose*rest
@@ -400,11 +422,11 @@ func _knock(target: Dictionary, push: Vector3, spec: Dictionary) -> bool:
 		var half: Vector3 = entry.half
 		pieces.append({"node":node,"rest":rest,"half":half,"position":xf.origin,"rotation":xf.basis.get_rotation_quaternion(),
 			"velocity":velocity,"spin":Vector3(_rng.randf_range(-1,1),_rng.randf_range(-1,1),_rng.randf_range(-1,1)).normalized()*_rng.randf_range(7.0,16.0),
-			"resting":false,"twitch":_rng.randf_range(2.5,7.0)})
+			"resting":false,"twitch":_rng.randf_range(2.5,7.0),"lowest":xf.origin.y-FALL_LIMIT})
 	if pieces.is_empty():
-		traffic.restore_pedestrian(id)
+		source.call("restore_pedestrian",id)
 		return false
-	_knocked.append({"id":id,"pose":pose,"pieces":pieces,"age":0.0,"reassemble_at":REASSEMBLE_AFTER+_rng.randf_range(0.0,REASSEMBLE_SPREAD),
+	_knocked.append({"id":id,"source":source,"pose":pose,"pieces":pieces,"age":0.0,"reassemble_at":REASSEMBLE_AFTER+_rng.randf_range(0.0,REASSEMBLE_SPREAD),
 		"assembling":false,"assemble_time":0.0})
 	_hits += 1
 	_play(&"pop",-2.0,_rng.randf_range(.9,1.2))
@@ -413,10 +435,17 @@ func _knock(target: Dictionary, push: Vector3, spec: Dictionary) -> bool:
 func _advance_knocked(dt: float) -> void:
 	for index: int in range(_knocked.size()-1,-1,-1):
 		var entry: Dictionary = _knocked[index]
-		# A rebuilt crowd (a new city, edited roads) may already have dropped
-		# or released this pedestrian; its pieces are only presentation.
-		if not traffic.is_knocked(int(entry.id)):
+		# A rebuilt crowd (a new city, edited roads, a closed hall) may already
+		# have dropped or released this pedestrian; its pieces are only
+		# presentation.
+		var source: Node = entry.source
+		if not is_instance_valid(source) or not bool(source.call("is_knocked",int(entry.id))):
 			_free_pieces(entry)
+			_knocked.remove_at(index)
+			continue
+		# A casino visitor is put back at once when the walker leaves its hall.
+		if source != traffic and not (source as Node3D).is_visible_in_tree():
+			_finish(entry)
 			_knocked.remove_at(index)
 			continue
 		entry.age += dt
@@ -455,7 +484,7 @@ func _advance_piece(piece: Dictionary, dt: float) -> void:
 			piece.velocity = Vector3.ZERO
 			piece.spin = Vector3.ZERO
 			piece.resting = true
-	elif to.y < -1.0:
+	elif to.y < float(piece.lowest):
 		to = from
 		piece.velocity = Vector3.ZERO
 		piece.resting = true
@@ -468,7 +497,8 @@ func _advance_piece(piece: Dictionary, dt: float) -> void:
 	(piece.node as Node3D).global_transform = Transform3D(Basis(rotation),to)
 
 func _target_pose(entry: Dictionary) -> Transform3D:
-	var current := traffic.knocked_pose(int(entry.id))
+	var source: Node = entry.source
+	var current: Transform3D = source.call("knocked_pose",int(entry.id)) if is_instance_valid(source) else Transform3D(Basis.IDENTITY,Vector3.INF)
 	return current if current.is_finite() else entry.pose
 
 func _begin_assembly(entry: Dictionary) -> void:
@@ -506,7 +536,8 @@ func _advance_assembly(entry: Dictionary, dt: float) -> bool:
 
 func _finish(entry: Dictionary) -> void:
 	_free_pieces(entry)
-	if is_instance_valid(traffic): traffic.restore_pedestrian(int(entry.id))
+	var source: Node = entry.source
+	if is_instance_valid(source): source.call("restore_pedestrian",int(entry.id))
 
 func _free_pieces(entry: Dictionary) -> void:
 	for piece: Dictionary in entry.pieces:

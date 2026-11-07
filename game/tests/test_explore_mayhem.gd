@@ -5,7 +5,7 @@
 ## Explore's slapstick weapons: the walker switches between a rubber chicken,
 ## a custard pie, a foam mallet and empty hands; a struck ambient pedestrian
 ## pops into six pieces that land on the street, then hop back together
-## after about a minute and rejoin the crowd exactly where it stopped. Mod
+## about fifteen seconds later and rejoin the crowd exactly where it stopped. Mod
 ## actors are never struck, and leaving Explore puts everyone back at once.
 extends "res://tests/exploration/vehicle_selection_case.gd"
 
@@ -124,10 +124,10 @@ func test_pieces_land_then_reassemble_where_the_pedestrian_stood() -> void:
 		var at: Vector3 = piece.position
 		if piece.resting and absf(at.y-before.origin.y) < .03: lying += 1
 	check_ge(lying,4,"most pieces come to rest on the pavement")
-	_run(50.0)
-	check(_knocked(record),"still in pieces before a minute has passed")
-	_run(23.0)
-	check(not _knocked(record),"back together after about a minute")
+	_run(8.0)
+	check(_knocked(record),"still in pieces after thirteen seconds")
+	_run(6.0)
+	check(not _knocked(record),"back together about fifteen seconds after the hit")
 	check_eq(mayhem.knocked_count(),0,"no loose pieces remain")
 	check_eq(record.cell,cell,"rejoins the crowd on the same cell")
 	check_eq(float(record.t),t,"at the same spot")

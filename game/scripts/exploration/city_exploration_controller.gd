@@ -648,6 +648,8 @@ func _physics_process(delta: float) -> void:
 	_handle_mayhem_input(frame)
 	if is_instance_valid(transit_service): transit_service.step(delta,pedestrian)
 	if is_instance_valid(resort_service): resort_service.step(delta,pedestrian)
+	# On a casino floor the weapons reach its visitors as well as the street.
+	if is_instance_valid(mayhem): mayhem.indoor = resort_service.patrons_inside() if is_instance_valid(resort_service) else null
 	# Before traffic bodies are placed: anyone a moving vehicle is about to hit
 	# pops apart and loses their body, so the vehicle drives through.
 	if is_instance_valid(mayhem): mayhem.vehicle_hits(occupied,delta)

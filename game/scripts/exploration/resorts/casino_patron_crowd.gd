@@ -66,7 +66,7 @@ func set_count(count: int) -> void:
 		visual.name = "Visitor_%02d"%i
 		visual.configure(posmod(i+_seed_value,16))
 		add_child(visual)
-		var person := {"visual":visual,"variant":posmod(i+_seed_value,16),"position":goal.position,
+		var person := {"id":i,"visual":visual,"variant":posmod(i+_seed_value,16),"position":goal.position,
 			"yaw":goal.yaw,"mode":"playing","game":goal.game,"seated":goal.seated,"target":choice,
 			"remaining":4.0+_people.size()*1.8,"clock":0.0,"path":PackedVector2Array(),"blocked":0.0,"visits":0}
 		_people.append(person)
@@ -237,6 +237,9 @@ func step(delta: float, player_feet: Vector3) -> void:
 	var dt := minf(delta,.1)
 	_player = Vector2(player_feet.x,player_feet.z)
 	for person: Dictionary in _people:
+		# A visitor popped by an Explore slapstick weapon stands still, unseen,
+		# until the pieces hop back together (see knock_pedestrian).
+		if person.get("knocked",false): continue
 		person.clock += dt
 		var speed := 0.0
 		var feet: Vector3 = person.position
@@ -252,7 +255,7 @@ func step(delta: float, player_feet: Vector3) -> void:
 				var player_gap := next.distance_to(_player)
 				var blocked := player_gap<PERSONAL_SPACE and not _player_connector(point,path[0])
 				for other: Dictionary in _people:
-					if other == person: continue
+					if other == person or other.get("knocked",false): continue
 					var at: Vector3 = other.position
 					var gap := next.distance_to(Vector2(at.x,at.z))
 					if gap<.034 and gap<point.distance_to(Vector2(at.x,at.z)): blocked = true
@@ -286,3 +289,54 @@ func _place(person: Dictionary, delta: float, speed: float) -> void:
 	visual.position = person.position
 	visual.rotation.y = person.yaw
 	visual.advance(delta,speed,person.game,person.mode == "playing",person.seated)
+
+# ── Slapstick targets ─────────────────────────────────────────────────────
+# The same calls ExploreMayhem makes on CityTraffic3D's street crowd, so the
+# weapons work on a casino floor too. Poses are in world space. Only the
+# occupied (visible) hall offers targets; nothing here touches money, the
+# city or this crowd's random stream.
+
+## Visitors on this floor whose feet are within `radius` (horizontally) of
+## world point `center`: [{"id", "variant", "pose"}].
+func pedestrian_targets(center: Vector3, radius: float) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	if not is_visible_in_tree() or not center.is_finite() or not is_finite(radius): return found
+	for person: Dictionary in _people:
+		if person.get("knocked",false): continue
+		var pose := _world_pose(person)
+		if Vector2(pose.origin.x-center.x,pose.origin.z-center.z).length() <= radius:
+			found.append({"id":int(person.id),"variant":int(person.variant),"pose":pose})
+	return found
+
+## Hide a visitor and hold it in place while its pieces are loose.
+func knock_pedestrian(id: int) -> bool:
+	var person := _person(id)
+	if person.is_empty() or person.get("knocked",false): return false
+	person.knocked = true
+	(person.visual as Node3D).visible = false
+	return true
+
+## False once the visitor has left (attendance fell) or was never knocked.
+func is_knocked(id: int) -> bool:
+	return bool(_person(id).get("knocked",false))
+
+## Where a knocked visitor stands, or a non-finite transform once it is gone.
+func knocked_pose(id: int) -> Transform3D:
+	var person := _person(id)
+	return _world_pose(person) if not person.is_empty() else Transform3D(Basis.IDENTITY,Vector3.INF)
+
+## Back on the floor exactly where it stood, carrying on with its visit.
+func restore_pedestrian(id: int) -> void:
+	var person := _person(id)
+	if person.is_empty() or not person.get("knocked",false): return
+	person.erase("knocked")
+	person.blocked = 0.0
+	(person.visual as Node3D).visible = true
+
+func _person(id: int) -> Dictionary:
+	for person: Dictionary in _people:
+		if int(person.id) == id: return person
+	return {}
+
+func _world_pose(person: Dictionary) -> Transform3D:
+	return global_transform*Transform3D(Basis(Vector3.UP,float(person.yaw)),person.position)

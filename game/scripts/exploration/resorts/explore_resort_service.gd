@@ -75,6 +75,11 @@ func is_inside() -> bool:
 func is_transitioning() -> bool:
 	return _transitioning
 
+## The occupied hall's patron crowd (the slapstick weapons' indoor
+## targets), or null outside and while a door fades.
+func patrons_inside() -> Node3D:
+	return _inside.patrons if is_inside() and not _transitioning and is_instance_valid(_inside.patrons) else null
+
 func resort_key() -> StringName:
 	return _inside.key if is_inside() else &""
 
