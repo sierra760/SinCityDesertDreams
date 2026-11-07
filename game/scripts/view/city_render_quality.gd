@@ -16,17 +16,21 @@ static func apply(view: Node, quality: String) -> void:
 	var mobile := RenderingServer.get_current_rendering_method() == "mobile"
 	view.viewport.msaa_3d = Viewport.MSAA_2X if balanced or performance else Viewport.MSAA_4X
 	view.viewport.mesh_lod_threshold = 4.0 if performance else 2.0 if balanced else 1.0
+	# Night mode scales the backend's lighting; 1.0 by day.
+	var night: Node = view.get("night")
+	var sun_scale: float = night.sun_scale() if night != null else 1.0
+	var ambient_scale: float = night.ambient_scale() if night != null else 1.0
 	for child: Node in view.world.get_children():
 		if child is DirectionalLight3D:
 			child.shadow_enabled = not performance
 			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if balanced and not mobile else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 			child.directional_shadow_max_distance = 320.0 if balanced else 400.0
-			child.light_energy = 0.7 if mobile else 0.325
+			child.light_energy = (0.7 if mobile else 0.325) * sun_scale
 		elif child is WorldEnvironment:
-			child.environment.ambient_light_energy = 0.4 if mobile else 0.195
+			child.environment.ambient_light_energy = (0.4 if mobile else 0.195) * ambient_scale
 	var explore_camera: Camera3D = view.exploration_camera()
 	if is_instance_valid(explore_camera) and explore_camera.environment != null:
-		explore_camera.environment.ambient_light_energy = 0.4 if mobile else 0.195
+		explore_camera.environment.ambient_light_energy = (0.4 if mobile else 0.195) * ambient_scale
 	apply_shadow_focus(view)
 
 

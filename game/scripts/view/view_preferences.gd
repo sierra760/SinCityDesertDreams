@@ -20,6 +20,7 @@ const DEFAULTS := {
 	"icloud_saves": true,
 	"water_animation": true,
 	"tile_grid": true,
+	"night_mode": false,
 	"labels": true,
 	"button_labels": true,
 	"vehicles": true,
@@ -69,7 +70,7 @@ static func sanitize(settings: Dictionary) -> Dictionary:
 	var resolution: Variant = settings.get("render_scale", 100)
 	if typeof(resolution) == TYPE_INT and resolution in [50, 75, 100]:
 		clean["render_scale"] = resolution
-	for flag: String in ["icloud_saves", "water_animation", "tile_grid", "labels", "button_labels", "vehicles", "minimap", "fullscreen", "maximized", "explore_invert_y", "pause_in_background", "offer_ramps", "music_enabled", "effects_enabled"]:
+	for flag: String in ["icloud_saves", "water_animation", "tile_grid", "night_mode", "labels", "button_labels", "vehicles", "minimap", "fullscreen", "maximized", "explore_invert_y", "pause_in_background", "offer_ramps", "music_enabled", "effects_enabled"]:
 		var value: Variant = settings.get(flag, clean[flag])
 		if typeof(value) == TYPE_BOOL:
 			clean[flag] = value

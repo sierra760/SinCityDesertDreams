@@ -48,6 +48,9 @@ var ramp_highlight: CityRampHighlight3D
 var feedback: CityFeedback3D
 var livestock: CityLivestock3D
 var traffic: CityTraffic3D
+## Night mode lighting and street lamps; presentation only.
+var night: CityNightMode
+var street_lamps: CityStreetLamps3D
 var active := false
 var center := Vector3(64, 0, 64)
 ## How quickly a followed disaster pulls the camera along (per second).
@@ -208,6 +211,13 @@ func _ready() -> void:
 	world.add_child(traffic)
 	traffic.bind_city(city)
 	geometry_rebuilt.connect(func(_revision: int) -> void: traffic.invalidate())
+	street_lamps = CityStreetLamps3D.new()
+	street_lamps.name = "StreetLamps"
+	world.add_child(street_lamps)
+	night = CityNightMode.new()
+	night.name = "NightMode"
+	night.bind(self)
+	add_child(night)
 	_labels = Control.new()
 	_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_labels)
@@ -1063,6 +1073,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if active:
 		water_style.advance(delta)
+		if street_lamps != null and traffic != null: street_lamps.sync(traffic.graph)
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 		_panning = false
 	if _blocked() or (display_layout != null and display_layout.blocks_city_keyboard()) or Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META) or Input.is_key_pressed(KEY_ALT):
@@ -1321,6 +1332,8 @@ func _apply_analytics_visibility() -> void:
 		livestock.visible = surface_visible
 	if traffic != null:
 		traffic.visible = surface_visible
+	if street_lamps != null:
+		street_lamps.visible = surface_visible
 	if feedback != null:
 		feedback.visible = surface_visible
 	if overlay != null:
@@ -1336,6 +1349,16 @@ func set_water_animation(on: bool) -> void:
 
 
 ## A shared surface tint leaves terrain meshes, queries and collision intact.
+## Night mode: moonlight, lit windows and neon, street lamps. `instant`
+## skips the dusk/dawn fade (loading a city, restoring preferences).
+func set_night_mode(on: bool, instant: bool = false) -> void:
+	if night != null: night.set_enabled(on,instant)
+
+
+func is_night_mode() -> bool:
+	return night != null and night.enabled
+
+
 func set_tile_grid_visible(on: bool) -> void:
 	tile_grid_visible = on
 	water_style.material.set_shader_parameter("tile_grid_enabled", on)

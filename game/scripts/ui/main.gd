@@ -897,6 +897,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		prefs.set_option(&"fullscreen", not display_layout.fullscreen)
 		get_viewport().set_input_as_handled()
 		return
+	if controls.matches(key,&"night_mode"):
+		prefs.set_option(&"night_mode", not city_view_3d.is_night_mode())
+		get_viewport().set_input_as_handled()
+		return
 	if stage != Stage.PLAY:
 		return
 	if controls.matches(key,&"pause"): sim.set_speed(_last_running_speed if sim.speed == GameClock.Speed.PAUSED else GameClock.Speed.PAUSED)
@@ -1005,7 +1009,7 @@ func _on_menu_action(action: StringName, value: Variant) -> void:
 			presentation.set_view_mode(CityPresentationController.ViewMode.UNDERGROUND if bool(value) else CityPresentationController.ViewMode.SURFACE)
 		&"overlay":
 			presentation.set_overlay(StringName(String(value)))
-		&"labels", &"button_labels", &"vehicles", &"minimap", &"disasters_enabled", &"auto_budget":
+		&"labels", &"button_labels", &"vehicles", &"minimap", &"disasters_enabled", &"auto_budget", &"night_mode":
 			prefs.set_option(action, bool(value))
 		&"window": window_manager.open(String(value))
 		&"disaster": request_disaster(StringName(String(value)))

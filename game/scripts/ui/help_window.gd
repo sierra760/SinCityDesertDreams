@@ -62,6 +62,7 @@ const ROWS: Array = [
 	["Reports", "Review your budget, graphs, population, industries, ordinances, newspaper, maps and neighbors."],
 	["Reports → Advisors", "Hear what the city needs most right now, urgent problems first, with the evidence behind each recommendation and what to try."],
 	["View", "Choose zoom and overlays; show or hide traffic, labels and the minimap."],
+	["View → Show → Night Mode", "See the city after dark under a full moon: lit windows, glowing neon, street lamps and headlights. Works in the city view and Explore; it changes only how the city looks. Shortcut: N, unless you rebind it in Settings → Controls."],
 	["View → Vegetation Zones", "See your city's ground by elevation and set where desert palms give way to piñon-juniper woodland and then pines. Drag a boundary, switch zones on or off, or choose Automatic to follow the terrain."],
 	["Help → Secret Codes", "Try your luck in a founded city. DOUBLEDOWN bets a tenth of the virtual treasury; HIGHROLLER brings city funds and permits; MARKER adds simulated city debt; CHAPEL is just for fun."],
 	["iPhone layout", "Tools opens the tool drawer; choosing a tool closes it. Inspect selects tile inspection; beside the portrait camera use Menu → Inspect. Menu contains the city, view and report commands. Details expands the status; Alerts opens current warnings.", "phone"],

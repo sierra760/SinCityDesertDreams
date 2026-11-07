@@ -20,11 +20,12 @@ const DEFAULTS := {
 	"attack":[KEY_X], "next_weapon":[KEY_Z],
 	"pause":[KEY_P], "faster":[KEY_EQUAL,KEY_KP_ADD],
 	"slower":[KEY_MINUS,KEY_KP_SUBTRACT], "fullscreen":[KEY_F11],
+	"night_mode":[KEY_N],
 }
 const GROUPS := {
 	"Build": ["pan_forward","pan_back","pan_left","pan_right","rotate","zoom_1","zoom_2","zoom_3","zoom_4","zoom_5","query","bulldoze","underground"],
 	"Explore": ["move_forward","move_back","move_left","move_right","sprint","jump","brake","ascend","descend","interact","attack","next_weapon","explore_map"],
-	"General": ["pause","faster","slower","fullscreen"],
+	"General": ["pause","faster","slower","fullscreen","night_mode"],
 }
 const LABELS := {
 	"pan_forward":"Pan forward", "pan_back":"Pan back", "pan_left":"Pan left", "pan_right":"Pan right",
@@ -36,6 +37,7 @@ const LABELS := {
 	"explore_map":"Explore map", "descend":"Descend (flight)", "interact":"Interact / enter / exit",
 	"attack":"Swing weapon (walking)", "next_weapon":"Switch weapon (walking)", "pause":"Pause / resume city",
 	"faster":"Faster city speed", "slower":"Slower city speed", "fullscreen":"Fullscreen",
+	"night_mode":"Night mode",
 }
 var _bindings: Dictionary = DEFAULTS.duplicate(true)
 
@@ -62,7 +64,7 @@ static func sanitize(value: Variant) -> Dictionary:
 	# Existing profiles may already use a newer action's default key. Pick a
 	# free shortcut instead of replacing the player's valid older profile with
 	# all-default controls.
-	for added: String in ["explore_map","attack","next_weapon"]:
+	for added: String in ["explore_map","attack","next_weapon","night_mode"]:
 		if value.has(added): continue
 		var preferred: Array = [int(DEFAULTS[added][0])]+[KEY_V,KEY_G,KEY_H,KEY_J,KEY_K,KEY_L,KEY_C,KEY_X,KEY_Z,KEY_F10,KEY_F9,KEY_F8]
 		for code: int in preferred+range(KEY_A,KEY_Z+1)+range(KEY_F1,KEY_F35+1):

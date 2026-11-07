@@ -186,6 +186,8 @@ func _load_compiled(code: int, shadows: bool) -> PackedScene:
 
 func _store_compiled(code: int, shadows: bool, compiled: PackedScene) -> void:
 	if not compiled_cache_enabled or Buildings.is_agricultural(code): return
+	# Night mode lights shared materials in place; never persist that state.
+	if CityNightMode.materials_modified(): return
 	var path := compiled_cache_path(code, shadows)
 	var cache_dir := compiled_cache_dir()
 	if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(cache_dir)) != OK: return

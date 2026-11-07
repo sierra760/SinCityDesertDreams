@@ -222,6 +222,7 @@ func _build() -> void:
 	_check(visibility, "Signs and Labels", &"labels")
 	_check(visibility, "Traffic and Pedestrians", &"vehicles")
 	_check(visibility, "Minimap", &"minimap")
+	_check(visibility, "Night Mode [N]", &"night_mode")
 
 	var windows := _menu("Reports")
 	for w in WINDOW_NAMES:
@@ -282,6 +283,9 @@ func _refresh_key_hints() -> void:
 			&"underground":
 				caption = "Underground"
 				key = bindings.caption(&"underground")
+			&"night_mode":
+				caption = "Night Mode"
+				key = bindings.caption(&"night_mode")
 			&"speed":
 				if int(entry.value) == GameClock.Speed.PAUSED:
 					caption = String(GameClock.SPEED_NAMES[GameClock.Speed.PAUSED])

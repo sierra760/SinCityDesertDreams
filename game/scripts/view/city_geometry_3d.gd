@@ -1142,6 +1142,8 @@ static func quad(faces: PackedVector3Array, cells: Array[Vector2i], colors: Pack
 ## Clockwise faces and ordinary lighting preserve facets and cast shadows.
 static func surface_material(grain_strength: float = 0.0, surface_kind: int = SurfaceKind.DETAIL) -> ShaderMaterial:
 	if _surface_shader == null:
+		# Night globals must exist before a shader that reads them compiles.
+		preload("res://scripts/view/city_night_globals.gd").ensure()
 		_surface_shader = Shader.new()
 		_surface_shader.code = """shader_type spatial;
 render_mode cull_disabled, diffuse_lambert, specular_disabled;
@@ -1154,6 +1156,7 @@ uniform int surface_kind = 2;
 #include \"res://shaders/city_water_3d.gdshaderinc\"
 #include \"res://shaders/city_tile_grid_3d.gdshaderinc\"
 #include \"res://shaders/city_paving_finish.gdshaderinc\"
+#include \"res://shaders/city_night_lights.gdshaderinc\"
 varying vec3 map_position;
 varying vec3 map_normal;
 // Mirrored sampling joins identical texels at each turnaround, so generated
@@ -1238,6 +1241,7 @@ void fragment() {
 			base += vec3(waves.z);
 			vec3 reflected = normalize((INV_VIEW_MATRIX*vec4(reflect(-VIEW,NORMAL),0.0)).xyz);
 			vec3 sky = mix(vec3(0.72,0.83,0.78),vec3(0.34,0.57,0.67),smoothstep(0.0,0.8,reflected.y));
+			sky = mix(sky,NIGHT_SKY_REFLECTION,scdd_night);
 			base = mix(base,sky,0.05+fresnel*0.30);
 			float edge = 0.055+sin(dot(p,vec2(4.1,3.6))-water_time*1.2)*0.013;
 			// The bounded bank search can jump at its outer cutoff. Its
@@ -1259,6 +1263,10 @@ void fragment() {
 	// space; leave Compatibility's existing palette unchanged.
 	ALBEDO = OUTPUT_IS_SRGB ? base : mix(pow((base + vec3(0.055)) / 1.055, vec3(2.4)),
 		base / 12.92, lessThanEqual(base, vec3(0.04045)));
+	// Night mode only: street lamps light the ground beneath them.
+	if (scdd_night > 0.0) {
+		EMISSION += ALBEDO * night_lamp_pools(map_position) * scdd_night;
+	}
 }
 """
 	var mat := ShaderMaterial.new()

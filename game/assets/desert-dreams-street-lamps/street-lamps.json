@@ -1,0 +1,41 @@
+{
+  "street_lamp": {
+    "height": 0.564899,
+    "lens": [
+      [
+        0.0,
+        0.54375,
+        -0.1375
+      ]
+    ],
+    "lens_radius": [
+      0.013975,
+      0.03225
+    ],
+    "lens_triangles": 12,
+    "reach": 0.17406,
+    "triangles": 350
+  },
+  "street_lamp_double": {
+    "height": 0.56493,
+    "lens": [
+      [
+        0.0,
+        0.54375,
+        -0.1375
+      ],
+      [
+        0.0,
+        0.54375,
+        0.1375
+      ]
+    ],
+    "lens_radius": [
+      0.013975,
+      0.03225
+    ],
+    "lens_triangles": 24,
+    "reach": 0.17406,
+    "triangles": 528
+  }
+}

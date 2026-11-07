@@ -67,6 +67,9 @@ func set_option(key: StringName, value: Variant) -> void:
 		&"tile_grid":
 			view.set_tile_grid_visible(bool(value))
 			set_value("tile_grid",bool(value))
+		&"night_mode":
+			view.set_night_mode(bool(value))
+			set_value("night_mode",bool(value))
 		&"icloud_saves":
 			var settings := _host.preferences.duplicate()
 			settings["icloud_saves"] = value
@@ -169,6 +172,7 @@ func apply() -> void:
 	_host.toolbar.controls = _host.controls
 	view.set_water_animation(bool(preferences.get("water_animation",true)))
 	view.set_tile_grid_visible(bool(preferences.get("tile_grid",true)))
+	view.set_night_mode(bool(preferences.get("night_mode",false)),true)
 	view.set_render_options(String(preferences.get("render_quality", "high")), int(preferences.get("render_scale", 100)))
 	view.camera_size = float(preferences.get("size_3d", 72.0))
 	view.quarter_turn = int(preferences.get("rotation_3d", 0))
@@ -182,6 +186,7 @@ func apply() -> void:
 	menu_bar.set_checked(&"button_labels", _host.toolbar.button_labels_visible)
 	menu_bar.set_checked(&"vehicles", bool(preferences.get("vehicles", true)))
 	menu_bar.set_checked(&"minimap", bool(preferences.get("minimap", true)))
+	menu_bar.set_checked(&"night_mode", view.is_night_mode())
 	menu_bar.set_checked(&"overlay", true, _host.presentation.get_overlay())
 
 
