@@ -80,4 +80,4 @@ static func layout(key: StringName) -> Dictionary:
 		"door":Vector3(0,0,half+5)/METRES,"floor_front":(half-.7)/METRES,"patron_count":6 if small else 8,
 		"tables":tables,"obstacles":obstacles,"decor":[],"chandeliers":[{"prop":CHANDELIERS[key],"pose":Transform3D(Basis.IDENTITY,Vector3(0,ceiling,0)/METRES)}],
 		"lights":lights,"signs":signs,"standards":standards,"art":art,
-		"slot_badge":{"position":Vector3(0,1.715,.204),"size":Vector2(.12,.12)}}
+		"slot_badge":{"position":Vector3(0,1.645,.204),"size":Vector2(.12,.12)}}

@@ -6,7 +6,8 @@
 // primitives need no unwrapping and patterns run continuously across parts.
 // finish: 0 hard floor, 1 carpet, 2 wall, 3 ceiling, 4 stone, 5 wood,
 // 6 metal, 7 glass, 8 felt, 9 lamp, 10 sign plate, 11 screen, 12 rubber,
-// 13 cove light, 14 foliage.
+// 13 cove light, 14 foliage, 15 lit cabinet panel (slot and video poker
+// marquees, header and belly glass, buttons), 16 video poker display.
 // variant selects the resort: 0 Comstock Grand, 1 Silver Junction,
 // 2 Boulder Crown, 3 Desert Orbit. No bitmap texture is sampled.
 shader_type spatial;
@@ -50,6 +51,12 @@ void fragment() {
 	ROUGHNESS = .7;
 	SPECULAR = .4;
 	EMISSION = vec3(0.0);
+	// The Explore environment's ambient is sized for the sunlit city. In a
+	// closed hall it would be the only flat light, washing every surface out
+	// evenly, so halls take less of it and less still toward the ceiling,
+	// leaving the hall's own lamps to model the room. Direct lamps are unaffected.
+	AO = mix(.55,.32,smoothstep(2.5,11.0,hall.y));
+	AO_LIGHT_AFFECT = 0.0;
 	float glow = .16;
 	if (finish==0) {
 		// Hard floors: terrazzo chips everywhere, then each resort's pattern.
@@ -218,6 +225,64 @@ void fragment() {
 		ROUGHNESS = .5;
 		EMISSION = base*1.8;
 		glow = 0.0;
+	} else if (finish==15) {
+		// Lit cabinet glass in the resort's lamp colour, kept below white so
+		// the panels read as coloured glass rather than blank blocks. Faces
+		// that look up above head height are the cabinet lids: dark trim.
+		float y = hall.y;
+		ROUGHNESS = .3;
+		SPECULAR = .5;
+		glow = 0.0;
+		if (horizontal && y > 1.3) {
+			base = mix(accent_color,vec3(.05),.55)*(1.0+fine*.06);
+			METALLIC = .6;
+			ROUGHNESS = .35;
+		} else if (horizontal) {
+			// Button caps, alternating lamp and accent colours.
+			vec3 cap = mix(base_color,accent_color,step(.5,hash(floor(hall.xz*8.0))));
+			base = cap*.4;
+			EMISSION = cap*.85;
+		} else if (y > 1.79) {
+			// Topper marquee: accent glass with a row of chasing bulbs.
+			vec2 bulb = vec2((fract(uv.x/.06)-.5)*.06,y-1.86);
+			float lit = 1.0-smoothstep(.011,.018,length(bulb));
+			vec3 glass = mix(accent_color,base_color,.25);
+			base = glass*.35;
+			EMISSION = glass*.75+base_color*lit*1.4;
+		} else if (y > 1.62) {
+			// Slot header: the cabinet's wood front carried on up to the
+			// marquee (detail_color is the wood), grain continuous with it,
+			// so the emblem sits on one surface.
+			float wood = grain(vec2(uv.x*18.0+sin(uv.y*2.0)*.4,uv.y*1.3));
+			base = detail_color*mix(.72,1.18,wood);
+			ROUGHNESS = .32;
+			SPECULAR = .55;
+			glow = .14;
+		} else if (y > 1.5) {
+			// Video poker top strip: warm glass, brightest along the middle.
+			float centre = 1.0-smoothstep(0.0,.05,abs(y-1.56));
+			vec3 glass = mix(base_color*.82,base_color,centre)*(1.0+fine*.04);
+			base = glass*.3;
+			EMISSION = glass*.8;
+		} else if (y < .8) {
+			// Belly glass: lamp colour fading to accent at the foot, fine ribs.
+			float t = smoothstep(.35,.75,y);
+			vec3 glass = mix(mix(accent_color,base_color,.35),base_color,t)*(.92+.08*line(uv.x,.05,.012));
+			base = glass*.3;
+			EMISSION = glass*.7;
+		} else {
+			// Screen bezels.
+			base = base_color*.3;
+			EMISSION = base_color*.6;
+		}
+	} else if (finish==16) {
+		// Video poker display: a dark felt field with fine scanlines, so the
+		// card faces in front of it stand out.
+		base *= .9+.1*sin(hall.y*260.0);
+		ROUGHNESS = .2;
+		SPECULAR = .6;
+		EMISSION = base*1.1;
+		glow = 0.0;
 	} else if (finish==14) {
 		// Palm fronds: veined leaf blades.
 		float vein = line(uv.x,.12,.012);
@@ -230,5 +295,6 @@ void fragment() {
 		glow = .08;
 	}
 	ALBEDO = base;
-	EMISSION += base*glow;
+	// A little self-light keeps far corners legible; more flattens the hall.
+	EMISSION += base*glow*.4;
 }

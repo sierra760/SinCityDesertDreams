@@ -16,13 +16,26 @@ const LAYER := 1 << 20
 const FINISHES := {"resort_floor": 0, "resort_carpet": 1, "resort_wall": 2, "resort_ceiling": 3,
 	"resort_stone": 4, "resort_wood": 5, "resort_metal": 6, "resort_glass": 7, "resort_felt": 8,
 	"resort_lamp": 9, "resort_sign": 10, "resort_screen": 11, "resort_rubber": 12, "resort_cove": 13,
-	"resort_foliage": 14}
+	"resort_foliage": 14, "resort_panel": 15, "resort_poker_screen": 16}
 const VARIANTS := {&"arcology_comstock": 0, &"arcology_junction": 1, &"arcology_boulder": 2, &"arcology_orbit": 3, &"arcology_fix": 0, &"arcology_alibi": 1, &"arcology_velvet": 0, &"arcology_afterglow": 3, &"arcology_last": 1, &"arcology_dust": 3, &"arcology_boddy": 0, &"arcology_woolier": 1, &"arcology_stockgrowers": 1, &"arcology_fremont": 0}
 const METRES := 16.0
 const SHADER := preload("res://scripts/exploration/resorts/resort_finish.gdshader")
 ## Authored props that are visual only, never blocking.
 const OPEN_PROPS := ["bar_stool","slot_stool","standard_sign","chandelier_gaslamp","chandelier_lantern",
 	"chandelier_turbine","chandelier_starburst"]
+## Machine finishes drawn differently from the same authored material on
+## other props: lamp glass becomes lit cabinet panels (coloured marquee,
+## header, belly and buttons) rather than bare lamp glow, and the poker
+## screen is a dark felt-coloured display so its card faces stand out.
+const CABINET_FINISHES := {"slot_cabinet": {"resort_lamp": "resort_panel"},
+	"video_poker_terminal": {"resort_lamp": "resort_panel", "resort_screen": "resort_poker_screen"}}
+## The authored poker card faces sit about 1 cm inside the 24-degree slanted
+## screen; this lifts them onto its face along the screen normal (metres).
+const POKER_CARD_LIFT := Vector3(0,.0057,.0128)
+## Slot cabinets in a bank closer than this (metres, centre to centre) are
+## drawn without their pull handle: it reaches past the cabinet's side, so it
+## would sit inside the neighbour with its knob poking through the front.
+const HANDLE_CLEARANCE := .91
 ## Plate face of the standard_sign prop (metres, prop space) and its size.
 const STANDARD_FACE := Vector3(0,1.42,.035)
 const STANDARD_ROOM := Vector2(.78,.42)
@@ -40,8 +53,60 @@ static func parts(name: String) -> Dictionary:
 	var result := {"surfaces": [], "collision": PackedVector3Array(), "triangles": 0}
 	for child: Node in root.get_children(): _walk(child,Transform3D.IDENTITY,result)
 	root.free()
+	var remap: Dictionary = CABINET_FINISHES.get(name,{})
+	for row: Dictionary in result.surfaces:
+		row.material = remap.get(row.material,row.material)
+		if name == "video_poker_terminal" and row.material == "resort_stone":
+			row.transform = Transform3D(Basis.IDENTITY,POKER_CARD_LIFT)*Transform3D(row.transform)
+	if name == "slot_cabinet":
+		# The header is wood up to the marquee; the old header's dark sign
+		# diamond and bars would only show as slivers above the wood.
+		_strip(result,func(row: Dictionary, at: Vector3) -> bool: return row.material == "resort_sign" and at.y > 1.55)
 	_parts_cache[name] = result
 	return result
+
+## The slot cabinet without its pull handle, for tight banks.
+static func banked_slot_cabinet() -> Dictionary:
+	if _parts_cache.has("slot_cabinet#banked"): return _parts_cache["slot_cabinet#banked"]
+	var source := parts("slot_cabinet")
+	if source.is_empty(): return source
+	var result := {"surfaces": source.surfaces.duplicate(), "collision": source.collision, "triangles": int(source.triangles)}
+	# Handle pivot, rod and knob stand beyond the side panels (x > 0.399).
+	_strip(result,func(row: Dictionary, at: Vector3) -> bool: return row.material in ["resort_metal","resort_rubber"] and at.x > .41)
+	_parts_cache["slot_cabinet#banked"] = result
+	return result
+
+## Remove from `piece` the triangles for which `drop(row, centroid)` holds
+## (centroid in prop space), replacing only the surfaces that change.
+static func _strip(piece: Dictionary, drop: Callable) -> void:
+	var kept_rows: Array = []
+	for row: Dictionary in piece.surfaces:
+		var arrays: Array = (row.mesh as Mesh).surface_get_arrays(int(row.surface))
+		if arrays[Mesh.ARRAY_INDEX] == null:
+			kept_rows.append(row)
+			continue
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var at: Transform3D = row.transform
+		var kept := PackedInt32Array()
+		for index: int in range(0,indices.size(),3):
+			var a := indices[index]
+			var b := indices[index+1]
+			var c := indices[index+2]
+			if drop.call(row,(at*vertices[a]+at*vertices[b]+at*vertices[c])/3.0): continue
+			kept.append(a)
+			kept.append(b)
+			kept.append(c)
+		if kept.size() == indices.size():
+			kept_rows.append(row)
+			continue
+		piece.triangles = int(piece.triangles)-(indices.size()-kept.size())/3
+		if kept.is_empty(): continue
+		arrays[Mesh.ARRAY_INDEX] = kept
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+		kept_rows.append({"mesh": mesh, "surface": 0, "transform": row.transform, "material": row.material})
+	piece.surfaces = kept_rows
 
 static func _walk(node: Node, parent: Transform3D, result: Dictionary) -> void:
 	var at := parent
@@ -80,7 +145,7 @@ static func finish_colors(key: StringName) -> Dictionary:
 	var ink: Color = palette.get("ink",Color(.1,.1,.1))
 	var paper: Color = palette.get("paper",Color(.95,.9,.8))
 	var variant: int = VARIANTS.get(key,0)
-	var floor_base: Color = [stone,paper,glass.darkened(.18),paper][variant]
+	var floor_base: Color = [stone,paper.darkened(.14),glass.darkened(.18),paper.darkened(.14)][variant]
 	var ceiling_base: Color = [paper.lerp(metal,.28),glass.lightened(.12),paper.darkened(.04),ink.lightened(.06)][variant]
 	var screen: Color = [lamp,lamp,glass.lightened(.35),glass.lightened(.25)][variant]
 	return {"resort_floor": [floor_base,metal,paper], "resort_carpet": [carpet,accent if variant!=1 else metal,paper],
@@ -89,7 +154,8 @@ static func finish_colors(key: StringName) -> Dictionary:
 		"resort_glass": [glass,metal,paper], "resort_felt": [felt,paper,paper], "resort_lamp": [lamp,lamp,lamp],
 		"resort_sign": [ink,metal,paper], "resort_screen": [screen,metal,paper],
 		"resort_rubber": [Color(.05,.05,.05),ink,ink], "lettering": [lamp,lamp,lamp],
-		"resort_cove": [paper.lerp(Color(.78,.93,.96),.55),glass,paper], "resort_foliage": [Color(.20,.38,.17),Color(.32,.5,.22),paper]}
+		"resort_cove": [paper.lerp(Color(.78,.93,.96),.55),glass,paper], "resort_foliage": [Color(.20,.38,.17),Color(.32,.5,.22),paper],
+		"resort_panel": [lamp,accent,wood], "resort_poker_screen": [felt.darkened(.3),metal,paper]}
 
 ## One ShaderMaterial per finish for the hall at `origin` (world tile units).
 static func materials(key: StringName, origin: Vector3) -> Dictionary:
@@ -142,6 +208,7 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 	if placeholder: hall = _placeholder_hall(plan)
 	triangles += _place(hall,Transform3D.IDENTITY,batches,collision,true)
 	var slots: Array[Transform3D] = []
+	var banked: Array[Transform3D] = []
 	var stools: Array[Transform3D] = []
 	for table: Dictionary in plan.tables:
 		var pose := _metres(table.pose)
@@ -153,7 +220,9 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 			var offset := (float(index)-(count-1)*.5)*(float(table.half.x)*2.0*METRES/float(count))
 			var at := pose*Transform3D(Basis.IDENTITY,Vector3(offset,0,0))
 			if table.game == &"slots" and not placeholder:
-				slots.append(at)
+				var spacing := float(table.half.x)*2.0*METRES/float(count)
+				if count > 1 and spacing < HANDLE_CLEARANCE: banked.append(at)
+				else: slots.append(at)
 				stools.append(at*Transform3D(Basis.IDENTITY,Vector3(0,0,.95)))
 				_add_collision(piece.collision,at,collision)
 			else:
@@ -196,8 +265,10 @@ static func populate(world: Node3D, key: StringName, code: int, plan: Dictionary
 	_present(batch)
 	hall_space.add_child(batch)
 	draws += _multimesh(hall_space,"SlotCabinets",parts("slot_cabinet"),slots,finish_materials)
+	draws += _multimesh(hall_space,"BankedSlotCabinets",banked_slot_cabinet(),banked,finish_materials)
 	draws += _multimesh(hall_space,"SlotStools",parts("slot_stool"),stools,finish_materials)
-	var cabinet_triangles := int(parts("slot_cabinet").get("triangles",0))*slots.size()+int(parts("slot_stool").get("triangles",0))*stools.size()
+	var cabinet_triangles := int(parts("slot_cabinet").get("triangles",0))*slots.size()+int(banked_slot_cabinet().get("triangles",0))*banked.size()+int(parts("slot_stool").get("triangles",0))*stools.size()
+	slots.append_array(banked)
 	triangles += cabinet_triangles
 	var art_surfaces := _artwork(hall_space,key,slots,plan)
 	draws += art_surfaces
@@ -233,7 +304,7 @@ static func _artwork(parent: Node3D, key: StringName, slots: Array[Transform3D],
 			var asset := "mural-history" if index == 0 else "mural-industry"
 			_art_quad(batches,key,asset,Transform3D(Basis(Vector3.UP,PI),Vector3(-15 if index == 0 else 15,6.6,21.18)),Vector2(4.0,4.0))
 		_art_quad(batches,key,"mural-heritage",Transform3D(Basis(Vector3.UP,PI*.5),Vector3(-21.01,6.5,-12)),Vector2(4.45,4.45))
-	var badge: Dictionary = plan.get("slot_badge",{"position":Vector3(0,1.715,.204),"size":Vector2(.12,.12)})
+	var badge: Dictionary = plan.get("slot_badge",{"position":Vector3(0,1.645,.204),"size":Vector2(.12,.12)})
 	for at: Transform3D in slots:
 		_art_quad(batches,key,"cabinet-reels",at*Transform3D(Basis.IDENTITY,Vector3(0,1.29,.204)),Vector2(.56,.327))
 		_art_quad(batches,key,"symbol-B",at*Transform3D(Basis.IDENTITY,badge.position),badge.size)
@@ -372,9 +443,14 @@ static func _light(world: Node3D, plan: Dictionary) -> int:
 		lamp.light_cull_mask = LAYER
 		lamp.shadow_enabled = false
 		lamp.light_color = warm
-		lamp.light_energy = float(row.energy)*.55
+		# Halls are scaled to tiles, so lamp distances are fractions of a unit
+		# and falloff (1/d^attenuation) brightens rather than dims. A gentle
+		# exponent keeps surfaces beside a lamp from bleaching while the
+		# energy keeps the floor pools; low specular avoids glare on tin and stone.
+		lamp.light_energy = float(row.energy)*.35
 		lamp.omni_range = float(row.range)
-		lamp.omni_attenuation = .8
+		lamp.omni_attenuation = .6
+		lamp.light_specular = .4
 		lamp.position = row.position
 		world.add_child(lamp)
 		count += 1

@@ -251,7 +251,7 @@ static func layout(key: StringName) -> Dictionary:
 		"dais": {"center": Vector2(DAIS.at.x,DAIS.at.z)/METRES_PER_TILE, "half": Vector2(DAIS.half)/METRES_PER_TILE,
 			"height": DAIS_HEIGHT}}
 	if ResortThemes.building(key)>=256:
-		plan["slot_badge"] = {"position":Vector3(0,1.715,.204),"size":Vector2(.12,.12)}
+		plan["slot_badge"] = {"position":Vector3(0,1.645,.204),"size":Vector2(.12,.12)}
 	_cache[key] = plan
 	return plan
 

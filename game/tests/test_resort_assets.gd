@@ -155,6 +155,56 @@ func test_props_carry_their_finish_materials_on_layer_21() -> void:
 			check(material is ShaderMaterial or material.resource_name == "resort_lettering","surface %d uses the finish or lettering material" % surface)
 	world.free()
 
+## Bare lamp glow clips to white, so the machines' lit glass uses the cabinet
+## panel finish, slot headers are plain wood, banks leave out the pull handle
+## that would sit inside the neighbour, and poker cards face out of the screen.
+func test_machines_draw_lit_panels_wood_headers_and_visible_poker_cards() -> void:
+	for name: String in ResortPropDresser.CABINET_FINISHES:
+		var materials := {}
+		for row: Dictionary in ResortPropDresser.parts(name).surfaces: materials[row.material] = true
+		check(not materials.has("resort_lamp"),name+" has no bare lamp-glow surface")
+		check(materials.has("resort_panel"),name+" draws its lit glass as cabinet panels")
+		for material: String in materials:
+			check(ResortPropDresser.FINISHES.has(material),name+": drawn finish "+material+" exists")
+	var normal := Vector3(0,sin(deg_to_rad(24.0)),cos(deg_to_rad(24.0)))
+	var depth := {}
+	for row: Dictionary in ResortPropDresser.parts("video_poker_terminal").surfaces:
+		if row.material not in ["resort_poker_screen","resort_stone"]: continue
+		var low := INF
+		var high := -INF
+		var at: Transform3D = row.transform
+		for vertex: Vector3 in (row.mesh as Mesh).surface_get_arrays(int(row.surface))[Mesh.ARRAY_VERTEX]:
+			var point := at*vertex
+			if point.y < .95 or point.y > 1.55: continue
+			var along := (point-Vector3(0,1.25,0)).dot(normal)
+			low = minf(low,along)
+			high = maxf(high,along)
+		depth[row.material] = Vector2(low,high)
+	for row: Dictionary in ResortPropDresser.parts("slot_cabinet").surfaces:
+		if row.material != "resort_sign": continue
+		var at: Transform3D = row.transform
+		for vertex: Vector3 in (row.mesh as Mesh).get_faces():
+			if (at*vertex).y > 1.55:
+				check(false,"no dark sign pieces left on the wood slot header")
+				break
+	var reach := 0.0
+	for row: Dictionary in ResortPropDresser.banked_slot_cabinet().surfaces:
+		var at: Transform3D = row.transform
+		for vertex: Vector3 in (row.mesh as Mesh).get_faces(): reach = maxf(reach,absf((at*vertex).x))
+	check(reach < ResortPropDresser.HANDLE_CLEARANCE*.5,"banked cabinets stay within half the bank spacing, no handle")
+	for case: Array in [[&"arcology_comstock",251,"BankedSlotCabinets"],[&"com_corner_store",126,"SlotCabinets"]]:
+		var world := ResortInteriorWorld3D.new()
+		root.add_child(world)
+		world.build(case[0],case[1],Vector2i.ZERO)
+		var other := "SlotCabinets" if case[2] == "BankedSlotCabinets" else "BankedSlotCabinets"
+		check(world.find_child(case[2],true,false) != null,"%s draws %s" % [case[0],case[2]])
+		check(world.find_child(other,true,false) == null,"%s draws no %s" % [case[0],other])
+		world.free()
+	check(depth.has("resort_poker_screen") and depth.has("resort_stone"),"poker screen and card faces found")
+	if depth.size() == 2:
+		check_gt(depth.resort_stone.x,depth.resort_poker_screen.y,"card faces stand in front of the screen face")
+		check(depth.resort_stone.x-depth.resort_poker_screen.y < .005,"card faces stay on the screen, not floating off it")
+
 func test_every_sign_character_is_in_its_font() -> void:
 	for key: StringName in ResortInteriorLayouts.keys():
 		var font: Font = load(ResortInteriorLayouts.font_path(key))

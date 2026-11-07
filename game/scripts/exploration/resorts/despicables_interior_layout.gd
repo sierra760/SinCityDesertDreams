@@ -57,7 +57,7 @@ static func layout() -> Dictionary:
 		"entrance":{"mat":Transform3D(Basis.IDENTITY,Vector3(0,0,4.15)/METRES), "facing":0.0},
 		"door":Vector3(0,0,5)/METRES, "tables":tables, "obstacles":obstacles,
 		"decor":decor, "chandeliers":[], "lights":[
-			{"position":Vector3(-3,2.8,0)/METRES,"range":8.0/METRES,"energy":1.6,"role":"store"},
-			{"position":Vector3(3,2.8,0)/METRES,"range":8.0/METRES,"energy":1.2,"role":"games"}],
+			{"position":Vector3(-3,2.4,0)/METRES,"range":8.0/METRES,"energy":1.1,"role":"store"},
+			{"position":Vector3(3,2.4,0)/METRES,"range":8.0/METRES,"energy":.85,"role":"games"}],
 		"signs":signs, "standards":[], "art":art,
-		"slot_badge":{"position":Vector3(0,1.715,.204),"size":Vector2(.12,.12)}}
+		"slot_badge":{"position":Vector3(0,1.645,.204),"size":Vector2(.12,.12)}}

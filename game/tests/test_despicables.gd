@@ -68,9 +68,12 @@ func test_paintings_clear_the_ceiling_and_badges_clear_the_cabinet_body() -> voi
 	var badge: Dictionary = plan.get("slot_badge",{})
 	check(not badge.is_empty(),"small cabinet has an explicit unobstructed badge placement")
 	if badge.is_empty(): return
-	check_ge(badge.position.y-badge.size.y*.5,1.58,"badge fits the header plate lower edge")
+	# The wood header runs from the reel frame's top bar (1.51 m) to the trim
+	# under the marquee (1.78 m); the badge is centred in it.
+	check_ge(badge.position.y-badge.size.y*.5,1.51,"badge clears the reel frame")
 	check_gt(badge.position.z,.20,"badge sits in front of cabinet body and trim")
-	check(badge.position.y+badge.size.y*.5<=1.78,"badge fits the lit header plate")
+	check(badge.position.y+badge.size.y*.5<=1.78,"badge clears the marquee trim")
+	check(absf(badge.position.y-(1.51+1.78)*.5) <= .005,"badge centred in the wood header")
 
 func test_store_door_uses_its_own_one_tile_lot() -> void:
 	var city := flat_city()
