@@ -343,3 +343,100 @@ func test_new_packs_idle_safely_without_roads() -> void:
 		check(service.api.interactions._owned.get(id,{}).is_empty(),id+" offers no game without roads")
 		check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
 		service.leave("test")
+
+## Starts a sprint, boards the cruiser and runs past GO; returns Dan's record.
+func _race_with_dan(service: ExploreModService) -> Dictionary:
+	check(service.activate_interaction())
+	service.step(.1,false)
+	service.api.interactions.choose("sprint")
+	_run(service,30)
+	check(_board(service,"neon_rally","rally_car"),"player boards the Desert Cruiser")
+	_run(service,36)
+	var dans := _owned(service,"neon_rally","dan")
+	return dans[0].record if not dans.is_empty() else {}
+
+## A route cell a few steps ahead of Dan that holds no marshal.
+func _ahead_of(service: ExploreModService, record: Dictionary) -> Vector2i:
+	var marshals := {}
+	for marshal: Dictionary in _owned(service,"neon_rally","marshal"): marshals[marshal.record.cell] = true
+	var route: Array = record.get("mod_route",[])
+	for step in range(int(record.get("mod_route_index",0))+2,route.size()):
+		if not marshals.has(route[step]): return route[step]
+	return CityTrafficGraph.INVALID
+
+func test_rally_dan_stuck_behind_a_parked_car_drops_out() -> void:
+	if not _setup(_loop_city()) or not await _enter(START): return
+	session.set_physics_process(false)
+	# Only the body this test parks may block Dan: the session's own parked
+	# car and helicopter move off the road first.
+	for key in ["car","helicopter"]:
+		var actor: CharacterBody3D = session.get(key)
+		if actor != null: actor.global_position = Vector3(23.5+(1.5 if key == "car" else -1.5),GROUND+.1,21.5)
+	session._sync_traffic_collision()
+	var service := _service(["neon_rally"])
+	var dan := _race_with_dan(service)
+	check(not dan.is_empty(),"Dusty Dan races")
+	if dan.is_empty(): return
+	_run(service,40)
+	# The racing player drives well clear of Dan (stopping behind the player
+	# is fair and never counts as stuck).
+	var marshal_cells := {}
+	for marshal: Dictionary in _owned(service,"neon_rally","marshal"): marshal_cells[marshal.record.cell] = true
+	var dan_at := Vector2(dan.cell)
+	for cell: Vector2i in [Vector2i(17,24),Vector2i(24,30),Vector2i(30,24),Vector2i(24,17)]:
+		if not marshal_cells.has(cell) and Vector2(cell).distance_to(dan_at) > 6:
+			_drive_to(cell)
+			break
+	var blocked := _ahead_of(service,dan)
+	check(blocked != CityTrafficGraph.INVALID,"Dan has road ahead to block")
+	if blocked == CityTrafficGraph.INVALID: return
+	# The session's parked car sits on Dan's route. The ring has no junction to
+	# turn at, so the engine cannot reroute him: the last resort puts him out.
+	var parked: CharacterBody3D = session.get("car")
+	parked.global_position = view.traffic.graph.point(blocked,&"road")+Vector3.UP*.002
+	session._sync_traffic_collision()
+	var stuck := false
+	for i in 400:
+		service.step(.1,false)
+		if String(_objective(service,"neon_rally","rally").get("text","")).contains("stuck behind a parked car"):
+			stuck = true
+			break
+	check(stuck,"a Dan held behind the parked car drops out instead of waiting forever")
+	check(String(_objective(service,"neon_rally","rally").get("text","")).contains("1st"),"with Dan out, the player leads")
+	for marshal: Dictionary in _owned(service,"neon_rally","marshal"):
+		_drive_to(marshal.record.cell)
+		_run(service,3)
+	check_eq(_dialogue(service).get("key",""),"result")
+	check(String(_dialogue(service).get("text","")).contains("stuck behind a parked car"),String(_dialogue(service).get("text","")))
+	check_eq(int(_state(service,"neon_rally").get("lost_to_dan",0)),0)
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	service.leave("test")
+
+func test_rally_dan_waiting_behind_the_player_stays_in() -> void:
+	if not _setup(_loop_city()) or not await _enter(START): return
+	session.set_physics_process(false)
+	var service := _service(["neon_rally"])
+	var dan := _race_with_dan(service)
+	if dan.is_empty():
+		check(false,"Dusty Dan races")
+		return
+	_run(service,20)
+	var blocked := _ahead_of(service,dan)
+	if blocked == CityTrafficGraph.INVALID:
+		check(false,"Dan has road ahead to block")
+		return
+	# The racing player stops right in front of Dan for thirty seconds.
+	_drive_to(blocked)
+	session._sync_traffic_collision()
+	var stuck := false
+	for i in 300:
+		service.step(.1,false)
+		session._sync_traffic_collision()
+		if String(_objective(service,"neon_rally","rally").get("text","")).contains("stuck behind"): stuck = true
+	check(not stuck,"stopping behind the racing player is fair: Dan stays in the race")
+	for marshal: Dictionary in _owned(service,"neon_rally","marshal"):
+		_drive_to(marshal.record.cell)
+		_run(service,3)
+	check_eq(_dialogue(service).get("key",""),"result")
+	check(not String(_dialogue(service).get("text","")).contains("stuck behind"),String(_dialogue(service).get("text","")))
+	service.leave("test")

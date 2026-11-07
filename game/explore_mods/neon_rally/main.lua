@@ -201,6 +201,22 @@ local function place(api)
   return guide.distance(race.dan_at, target.at) < guide.distance(player, target.at) and "2nd" or "1st"
 end
 
+-- Scripted traffic reroutes around the player's parked car or helicopter, but
+-- with no other way round (or a body dropped right in front of him) Dan stops
+-- short and would wait forever. As a last resort, 25 seconds without moving
+-- while the player is not right beside him (stopping behind the racing player
+-- is fair) puts him out.
+local function watch_dan()
+  if phase ~= "racing" or not race or not race.dan or race.dan_out or race.dan_done or not race.dan_at then return end
+  local beside = player and guide.distance(player, race.dan_at) < 3
+  if beside or not race.dan_still or guide.distance(race.dan_at, race.dan_still) > 0.3 then
+    race.dan_still, race.dan_still_since = guide.point(race.dan_at), now
+  elseif now - race.dan_still_since > 25 then
+    race.dan_out, race.dan_stuck = true, true
+    show_flash("Dusty Dan is stuck behind a parked car. He's out of the race!", 3)
+  end
+end
+
 local function send_dan(api)
   local target = course.checkpoints[race.dan_cp + 1]
   if not target then return end
@@ -233,6 +249,8 @@ local function finish_race(api)
   elseif race.dan and not race.dan_out then
     stats.beat_dan = stats.beat_dan + 1
     lines[#lines + 1] = "You beat Dusty Dan! He's muttering something about his tires."
+  elseif race.dan and race.dan_stuck then
+    lines[#lines + 1] = "Dusty Dan is still stuck behind a parked car, leaning on his horn. It still counts."
   elseif race.dan then
     lines[#lines + 1] = "Dusty Dan got lost somewhere back there. It still counts."
   end
@@ -385,7 +403,7 @@ finished = function(api, action, code, data)
     else api.actor.remove(data.id) end
     return
   elseif action == "dan_drive" then
-    if not race or not race.dan then return end
+    if not race or not race.dan or race.dan_out then return end
     if code == "ok" then
       race.dan_cp = race.dan_cp + 1
       if race.dan_cp >= #course.checkpoints then
@@ -401,7 +419,10 @@ finished = function(api, action, code, data)
     end
     return
   elseif action == "dan_look" then
-    if race and code == "ok" and data.position then race.dan_at = data.position end
+    if race and code == "ok" and data.position then
+      race.dan_at = data.position
+      watch_dan()
+    end
     return
   end
   offer(api)

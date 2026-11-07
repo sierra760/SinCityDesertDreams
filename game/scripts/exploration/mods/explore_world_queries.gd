@@ -101,6 +101,11 @@ func request(owner: String, kind: String, args: Dictionary) -> Dictionary:
 	# chained stops); without options.from it starts at the copied player.
 	var start := point(args.get("options",{}).get("from",player)) if kind == "world.find_landmark" else point(args.get("from",player))
 	job["skip"] = int(args.get("options",{}).get("skip",0))
+	# Host-only reroutes pass cells to leave out (an Explore actor parked there).
+	var avoid := {}
+	for cell: Variant in args.get("_avoid",[]):
+		if cell is Vector2i: avoid[cell] = true
+	job["avoid"] = avoid
 	if kind == "world.route" or kind == "world.find_landmark":
 		if start.is_finite():
 			var cell := Vector2i(floori(start.x),floori(start.z))
@@ -160,6 +165,7 @@ func step() -> Array[Dictionary]:
 				job.head += 1
 				job.visited += 1
 				nodes_visited_in_one_step += 1
+				if index > 0 and job.avoid.has(cell): continue
 				if not supported(cell,StringName(job.actor_kind),node.domain): continue
 				var destination := point(job.args.get("destination",{}))
 				var found := destination.is_finite() and cell == Vector2i(floori(destination.x),floori(destination.z)) and absf(destination.y-route_point(cell,StringName(job.actor_kind),node.domain).y) < .15

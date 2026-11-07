@@ -71,6 +71,14 @@ invalid_argument, quota_exceeded, stale_id, wrong_owner, player_controlled and
 stale_geometry. Failure is ordinary data; leave a useful objective and idle when
 no connected route exists. Do not retry every frame.
 
+Scripted ground actors stop short of the player's walker and of Explore's own
+vehicles, parked ones included. While navigating, an actor whose route runs
+through one of those bodies in its own lane, up to three cells beyond its next
+cell, replans around it (a host route query that leaves those cells out, at most
+every three seconds) and keeps driving meanwhile. With no other way round, or a
+body already in its current or next cell, it waits behind it and continues when
+the body moves; navigation neither fails nor completes early.
+
 Positions are copied `{x,y,z,coordinate_space="tile",geometry_revision=n}` points.
 One tile is sixteen source-model metres. Engine support, collision and connected
 road/rail/water/air routes are authoritative. Query lists contain at most 64
@@ -187,7 +195,10 @@ the player is driving; rolling early costs two seconds. Dusty Dan races the same
 course in a scripted pickup through ordinary traffic rules; the objective shows
 the next checkpoint, distance, direction, race clock and place. Par comes from
 the course's route length; 100% of par earns gold, 80% silver, 62% bronze.
-Medals, best run and the record against Dan are saved per city.
+Medals, best run and the record against Dan are saved per city. If Dan sits
+still for 25 seconds while the player is not within three tiles of him (with no
+way round a parked car or helicopter), he drops out, stuck behind a parked car;
+waiting behind the racing player never counts.
 
 Find the Crooner (`crooner_hunt`) is on-foot hide-and-seek. Lou Lamarr's
 headliner hides on a nearby sidewalk; the objective reports how warm the search

@@ -177,6 +177,10 @@ func _nearby_pedestrian(owner: String, anchor: Vector2i, position: Vector3, vari
 
 func accept_query(result: Dictionary) -> bool:
 	for actor: Dictionary in _actors.values():
+		if actor.get("reroute_query",-1) == result.query_id:
+			actor.erase("reroute_query")
+			_accept_reroute(actor,result)
+			return true
 		if actor.get("query_id",-1) != result.query_id: continue
 		actor.erase("query_id")
 		var record: Dictionary = actor.record
@@ -198,6 +202,37 @@ func accept_query(result: Dictionary) -> bool:
 		return true
 	return false
 
+## A reroute around a parked Explore actor (flagged by CityTraffic3D) starts at
+## the record's committed next cell. The actor keeps driving its old route while
+## the query runs; a result that no longer starts where the actor is heading is
+## dropped and the traffic owner may flag it again.
+func _request_reroute(actor: Dictionary) -> void:
+	var record: Dictionary = actor.record
+	var avoid: Array = record.get("mod_reroute_due",[])
+	record.erase("mod_reroute_due")
+	if not actor.has("navigation_command") or actor.has("query_id") or actor.has("reroute_query") or record.get("mod_hold",true): return
+	var destination := ExploreWorldQueries.point(actor.navigation_command.args.get("destination"))
+	if not destination.is_finite(): return
+	var next_domain := traffic.graph.continuation_domain(record.cell,record.next,record.domain)
+	var start := queries.route_point(record.next,record.kind,next_domain)
+	var result := queries.request(String(actor.owner),"world.route",{"from":ExploreWorldQueries.copied_point(start,traffic.graph.revision),"destination":ExploreWorldQueries.copied_point(destination,traffic.graph.revision),"_kind":String(record.kind),"_domain":String(next_domain),"_previous":ExploreWorldQueries.copied_point(queries.route_point(record.cell,record.kind,record.domain),traffic.graph.revision),"_lane":1 if traffic.graph.is_ramp(record.cell) and next_domain == &"highway" else record.lane,"_avoid":avoid})
+	if result.code != "pending": return
+	actor["reroute_query"] = result.query_id
+	actor["reroute_from"] = [record.cell,record.next]
+	record["mod_reroute_pending"] = true
+
+func _accept_reroute(actor: Dictionary, result: Dictionary) -> void:
+	var record: Dictionary = actor.record
+	record.erase("mod_reroute_pending")
+	var cells: Array = result.get("_cells",[])
+	if result.code != "ok" or cells.is_empty() or not actor.has("navigation_command") or record.get("mod_hold",true): return
+	# The actor may have moved on along the shared start of both routes.
+	var index := cells.find(record.next)
+	if index < 0 or (index > 0 and cells[index-1] != record.cell): return
+	record["mod_route"] = cells
+	record["mod_destination"] = cells.back()
+	record["mod_route_index"] = index
+
 func _cancel(actor: Dictionary) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	for key in ["navigation_command","waiting_command","gesture_command"]:
@@ -208,6 +243,9 @@ func _cancel(actor: Dictionary) -> Array[Dictionary]:
 	actor.record.erase("visual_gesture_time")
 	actor.erase("wait")
 	actor.erase("query_id")
+	actor.erase("reroute_query")
+	actor.record.erase("mod_reroute_due")
+	actor.record.erase("mod_reroute_pending")
 	return events
 
 func _hold_after_takeover(record: Dictionary) -> void:
@@ -250,6 +288,7 @@ func step(delta: float) -> Array[Dictionary]:
 				traffic.owned_remove(record.id)
 				_actors.erase(id)
 				continue
+		if record.has("mod_reroute_due"): _request_reroute(actor)
 		if actor.has("gesture_command"):
 			record["visual_gesture_time"] = minf(1.5,float(record.get("visual_gesture_time",0.0))+maxf(0.0,delta))
 			if record.visual_gesture_time>=1.5:

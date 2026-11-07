@@ -383,6 +383,7 @@ func _step_clock(delta: float, explore_clock: bool) -> void:
 		if explore_clock and (a.get("mod_hold",true) or a.get("mod_failed",false)):
 			a.stopped = true
 			continue
+		if explore_clock and a.domain == &"road": _plan_around_obstacles(a,delta)
 		if a.domain == &"rail" and _reserved_rail.has(a.next):
 			a.stopped = true
 			continue
@@ -1079,6 +1080,54 @@ func collision_candidates(center: Vector3, radius: float, limit: int) -> Array[D
 		found.sort_custom(func(x: Dictionary, y: Dictionary) -> bool: return float(x.distance) < float(y.distance))
 		found.resize(limit)
 	return found
+
+## A scripted actor whose route runs through an Explore actor parked in its
+## lane replans around it rather than waiting behind it. Route cells beyond the
+## next one (which the actor is already committed to) are probed in the
+## actor's own lane; ExploreActorRegistry turns the flag into a route query that
+## leaves those cells out. With no other way round, the old route stands and the
+## actor stops short as before. Retried at most every REROUTE_RETRY seconds.
+const REROUTE_LOOKAHEAD := 3
+const REROUTE_RETRY := 3.0
+func _plan_around_obstacles(a: Dictionary, delta: float) -> void:
+	a["mod_reroute_cooldown"] = maxf(0.0,float(a.get("mod_reroute_cooldown",0.0))-delta)
+	if _explore_obstacles.is_empty() or a.has("mod_reroute_due") or a.get("mod_reroute_pending",false) or float(a.mod_reroute_cooldown) > 0: return
+	var route: Array = a.get("mod_route",[])
+	var first := int(a.get("mod_route_index",0))+1
+	# The destination cell is never avoided: there is nowhere else to arrive.
+	var last := mini(first+REROUTE_LOOKAHEAD,route.size()-1)
+	if first >= last: return
+	var center := Vector2(a.cell)+Vector2(.5,.5)
+	var near := false
+	for obstacle: Dictionary in _explore_obstacles:
+		var at: Vector3 = obstacle.transform.origin
+		if absf(at.x-center.x) <= REROUTE_LOOKAHEAD+2 and absf(at.z-center.y) <= REROUTE_LOOKAHEAD+2:
+			near = true
+			break
+	if not near: return
+	var bounds := body_bounds(a.kind)
+	var half := bounds.size*.5+Vector3.ONE*YIELD_GAP
+	var offset := Transform3D(Basis.IDENTITY,bounds.get_center())
+	var blocked: Array[Vector2i] = []
+	for k in range(first,last):
+		if not graph.has_cell(route[k],a.domain): break
+		var probe := a.duplicate()
+		probe.cell = route[k]
+		probe.previous = route[k-1]
+		probe.next = route[k+1]
+		var hit := false
+		for t in [.2,.5,.8]:
+			probe.t = t
+			var pose := actor_pose(probe)*offset
+			for obstacle: Dictionary in _explore_obstacles:
+				if boxes_overlap(pose,half,obstacle.transform,obstacle.half):
+					hit = true
+					break
+			if hit: break
+		if hit: blocked.append(route[k])
+	if blocked.is_empty(): return
+	a["mod_reroute_due"] = blocked
+	a["mod_reroute_cooldown"] = REROUTE_RETRY
 
 func set_explore_obstacles(obstacles: Array[Dictionary]) -> void:
 	_explore_obstacles = obstacles
