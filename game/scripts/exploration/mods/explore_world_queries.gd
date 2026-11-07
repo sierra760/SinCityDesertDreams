@@ -228,13 +228,21 @@ func _landmark_matches(job: Dictionary, cell: Vector2i) -> bool:
 		var start := Vector2(origin.x+.5,origin.y+.5)
 		if here.distance_to(Vector2(away.x,away.z)) < start.distance_to(Vector2(away.x,away.z))+reach*.5: return false
 	if road: return true
-	if landmark in ["park","station"]:
+	var codes: Array = BESIDE_LANDMARKS.get(landmark,[])
+	if not codes.is_empty():
 		for offset in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
 			var neighbor: Vector2i = cell+offset
-			if graph.city.in_bounds(neighbor.x,neighbor.y):
-				var code: int = graph.city.building.at(neighbor.x,neighbor.y)
-				if (landmark == "station" and code in [Buildings.SUBWAY_STATION,Buildings.RAIL_STATION]) or (landmark == "park" and code in [Buildings.SMALL_PARK,Buildings.LARGE_PARK]): return true
+			if graph.city.in_bounds(neighbor.x,neighbor.y) and graph.city.building.at(neighbor.x,neighbor.y) in codes: return true
 	return false
+
+## A road cell beside any footprint tile of these buildings matches the kind.
+const BESIDE_LANDMARKS := {
+	"park":[Buildings.SMALL_PARK,Buildings.LARGE_PARK],
+	"station":[Buildings.SUBWAY_STATION,Buildings.RAIL_STATION],
+	"hospital":[Buildings.HOSPITAL],
+	"police_station":[Buildings.POLICE_STATION],
+	"fire_station":[Buildings.FIRE_STATION],
+}
 
 static func _node_key(node: Dictionary) -> String:
 	return "%s:%s:%s:%s" % [node.cell,node.previous,node.domain,node.lane]

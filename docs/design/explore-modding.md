@@ -1,6 +1,6 @@
 # Explore source packs — API 1
 
-Open **Settings → Explore Mods**, or **Explore menu → Explore Mods**. The five
+Open **Settings → Explore Mods**, or **Explore menu → Explore Mods**. The seven
 built-in packs are disabled initially. Import a source folder or a `.scddmod`
 ZIP archive by entering its path; `.zip` archives are also supported. Each pack
 must contain manifest.json at its root. Imports stay disabled. Select
@@ -82,7 +82,8 @@ No custom-model or marketplace API exists in API 1.
 
 `world.find_landmark(kind, options)` searches the connected route graph breadth
 first. Kinds are road_destination/road/sidewalk (a road cell at least three tiles
-away), park and station (a road cell beside one). Optional fields: `kind` selects
+away), and park, station, hospital, police_station and fire_station (a road cell
+beside any tile of one). Optional fields: `kind` selects
 the actor domain (default pedestrian); `from` starts at a supported point instead
 of the copied player; `min_distance` (0–40 tiles, straight-line from the start)
 asks for a farther stop; `away_from` (a point) requires the stop to be at least
@@ -196,7 +197,47 @@ him (interaction on foot) adds ten seconds and he hides again a little farther
 away; after the first find he may spot you and walk off to a new spot. Best
 show and totals are saved per city.
 
-The five built-ins can coexist at one entry; walkers may wait safely behind the
+Desert Air Patrol (`air_patrol`) flies helicopter calls. Captain Dee Vance
+offers a patrol shift (three radio calls) or a single call of one kind; every
+call is flown in the session helicopter (walk to it, or Explore menu → Choose a
+vehicle → Helicopter). A medevac sends you to a patient about 25–40 tiles out;
+four in ten are search and rescue, with a search-area pin near the hiker and
+the hiker's own pin hidden beyond four tiles. Land within three tiles of them,
+or hover under 1.2 tiles up right over them for three seconds to lower the ladder,
+then fly them to the road beside the nearest reachable hospital
+(`world.find_landmark("hospital")`), or back to the Air Patrol post when the
+city has none. The patient's condition eases down while you fly. A pursuit
+puts a suspect car on the street; once you fly within seven tiles he runs along
+two or three chained escape legs, and you must keep him within five tiles
+(80 m) below eight tiles of height. Fifteen seconds out of range (beyond nine
+tiles, or out of the helicopter) and he escapes; reaching the end of his route,
+a dead end or stalling for twenty seconds gets him boxed in, scored by
+the share of the chase he spent in your spotlight. A KDSD traffic report chains
+up to three jams; hover over each (within three tiles, 0.75–7 tiles up, slow)
+for four seconds, and the radio reads out the real number of vehicles nearby
+from `world.nearby`, all within an air-time clock. A charter picks up a
+passenger beside a park, station or street and lands them two chained hops
+away; some are in a hurry (timed) and some are nervous flyers (penalised for
+flat-out speed). Patrol points, pilot ranks (Student Pilot to Ace of the
+Mojave), rescues, arrests, reports, charters and shift records are saved per
+city; a call in progress is not.
+
+Silver State Express (`silver_express`) runs long-haul courier jobs in a
+borrowed pickup. Hank offers four jobs. A Cross-Town Rush picks up from a sender
+about 30–38 tiles from the counter, then crosses town two more chained hops
+(about 30–36 tiles each, moving away from the counter) to the recipient, with a
+clock from loading set by the drop leg's route length. A Milk Run places three
+recipients around the counter at once, each one pushed away from the last, and
+times the whole route; deliver them in any order. An Ice Run melts the load
+from pickup to drop, twice as fast while parked, and pays for what is left. A
+Wedding Cake is timed and fragile (hard braking costs tip). Every stop is found
+hop by hop because one landmark search reaches at most 40 tiles; small road
+networks fall back to nearer stops, and a hop that doubles back is replaced by
+the farthest stop reached. In the included cities a three-hop chain usually ends
+60–90 tiles (1–1.5 km) from where it began. Tips, jobs, parcels, on-time jobs
+and the approximate road hauled are saved per city.
+
+The seven built-ins can coexist at one entry; walkers may wait safely behind the
 other packs' actors until normal handoffs clear the street. A stationary blocker
 or absent route is never bypassed or silently removed by another pack. Packs
 with no usable route explain that in a failed objective and offer nothing.
@@ -224,9 +265,10 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -p no:cacheprovider tools/tests/test
 ```
 
 The mod suites exercise restricted Lua, pack validation, scheduling, ownership,
-navigation, environment restoration, management, persistence and the five
+navigation, environment restoration, management, persistence and the seven
 examples; `test_explore_mod_minigames.gd` plays a full Dispatch shift, a rally
-and a Crooner search on a road loop. `test_explore_mod_boundary.gd` checks simulation and RNG isolation;
+and a Crooner search on a road loop, and `test_explore_mod_missions.gd` flies
+every Air Patrol call and runs every Silver State Express job. `test_explore_mod_boundary.gd` checks simulation and RNG isolation;
 `test_explore_mod_save_paths.gd` checks manual, autosave, background and shared
 copies. Existing Explore, traffic and save suites cover integration regressions.
 Headless tests complement actual walking, driving, dialogue and visual-effect
@@ -287,4 +329,7 @@ handles. Resource diagnostics include the marker count.
 Desert Dispatch marks Marisol, the Delivery Van and the current recipient. Neon
 Rally marks Fran, the cruiser and only the next checkpoint. Find the Crooner
 marks Lou and reveals the headliner only within two tiles (32 metres), preserving
-the hot/cold search even when the player opens the full map.
+the hot/cold search even when the player opens the full map. Air Patrol marks
+the captain, the current call (patient, suspect, passenger or jam) and its
+destination; a lost hiker's own pin appears only within four tiles. Silver State
+Express marks Hank, the pickup and every open stop of the current job.
