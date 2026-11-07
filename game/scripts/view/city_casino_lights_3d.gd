@@ -2,15 +2,26 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 
-## Casinos after dark: neon over each casino's own walls, its colour washed
-## onto the ground around it and searchlights sweeping the sky. Presentation
-## only, and present only while night mode is on.
+## Casinos after dark: neon along each casino's own rooflines and corners,
+## chasing bulbs on its entrance canopy, its colour washed onto the ground
+## around it and searchlights sweeping the sky. Presentation only, and present
+## only while night mode is on.
 class_name CityCasinoLights3D
 extends Node3D
 
 const Signatures := preload("res://scripts/view/casino_night_signatures.gd")
 const Globals := preload("res://scripts/view/city_night_globals.gd")
-const NEON := preload("res://shaders/casino_neon_overlay.gdshader")
+const NEON := preload("res://shaders/casino_neon_tube.gdshader")
+const Edges := preload("res://scripts/view/casino_neon_edges.gd")
+## Neon tube and marquee bulb half-thickness, in tile units.
+const TUBE := .0055
+const BULB := .0075
+## Rooflines lower than this above the lot base (planters, plinths, steps)
+## carry no neon; up to MARQUEE_TOP near the entrance they carry bulbs.
+const NEON_FLOOR := .1
+const MARQUEE_TOP := .42
+## Nothing is lit across the doorway below this height above the base.
+const DOOR_TOP := .29
 const BEAM := preload("res://shaders/casino_searchlight.gdshader")
 const PANES := preload("res://shaders/casino_window_panes.gdshader")
 const FEATURE := preload("res://shaders/casino_feature_glow.gdshader")
@@ -23,16 +34,16 @@ const LOBBY_HEIGHT := .2
 const LIT_SHARE := .5
 ## Lit panes sit this far in front of the glass, in tile units.
 const PANE_LIFT := .0012
-## Half the width of the entrance kept clear of the marquee, by lot size.
+## Half the width of the entrance kept clear of neon, by lot size.
 const DOOR_HALF_WIDTH := {1: .12, 2: .16, 3: .22, 4: .28}
 ## Beams rise from the roof and lean this far from vertical while sweeping.
 const BEAM_LENGTH := 9.0
 const BEAM_TILT := deg_to_rad(16.0)
 const BEAM_SWEEP := .35
 
-## Lot records: {"node", "code", "bounds", "material"}.
+## Lot records: {"node", "code", "bounds", "signature", "door", "neon",
+## "panes", "features"}.
 var lots: Array[Dictionary] = []
-var _overlaid: Array[GeometryInstance3D] = []
 var _beams: Array[Dictionary] = []
 var _view: Node
 var _image: Image
@@ -53,23 +64,11 @@ func rebuild() -> void:
 		if bounds.size == Vector3.ZERO: continue
 		var code := int(node.get_meta("code"))
 		var signature: Dictionary = Signatures.of(code)
-		var material := ShaderMaterial.new()
-		material.shader = NEON
-		material.set_shader_parameter("neon_a",signature.a)
-		material.set_shader_parameter("neon_b",signature.b)
-		material.set_shader_parameter("base_y",bounds.position.y)
-		material.set_shader_parameter("top_y",bounds.end.y)
-		material.set_shader_parameter("style",int(signature.style))
 		var cell: Vector2i = node.get_meta("cell",Vector2i.ZERO)
-		material.set_shader_parameter("phase",float((cell.x*7+cell.y*13)%17))
 		var door := _door(code,cell)
-		if not door.is_empty():
-			material.set_shader_parameter("door_center",door.center)
-			material.set_shader_parameter("door_front",door.front)
-			material.set_shader_parameter("door_half_width",door.half_width)
-		var record := {"node":node,"code":code,"bounds":bounds,"material":material,"signature":signature,"door":door}
+		var record := {"node":node,"code":code,"bounds":bounds,"signature":signature,"door":door,"cell":cell}
 		lots.append(record)
-		_overlay(record)
+		_add_neon(record)
 		_add_panes(record)
 		_add_features(record)
 		_add_beams(record)
@@ -77,14 +76,12 @@ func rebuild() -> void:
 	set_process(not _beams.is_empty())
 
 func clear() -> void:
-	for instance: GeometryInstance3D in _overlaid:
-		if is_instance_valid(instance): instance.material_overlay = null
-	_overlaid.clear()
 	for beam: Dictionary in _beams:
 		if is_instance_valid(beam.pivot): beam.pivot.free()
 	_beams.clear()
 	for record: Dictionary in lots:
 		if is_instance_valid(record.get("panes")): record.panes.free()
+		if is_instance_valid(record.get("neon")): record.neon.free()
 		for feature: Variant in record.get("features",[]):
 			if is_instance_valid(feature): feature.free()
 	lots.clear()
@@ -315,33 +312,99 @@ static func _bounds(lot: Node) -> AABB:
 		first = false
 	return bounds
 
-## Neon is drawn over the lot's visible meshes. A batched mesh is drawn by
-## its batch, so the overlay goes on that batch instead.
-func _overlay(record: Dictionary) -> void:
-	var batches := _batches_by_mesh()
-	for child: Node in record.node.find_children("*","MeshInstance3D",true,false):
-		var mesh := child as MeshInstance3D
-		if mesh.mesh == null: continue
-		var target: GeometryInstance3D = mesh
-		if not mesh.is_visible_in_tree() and batches.has(mesh.mesh.get_instance_id()):
-			target = batches[mesh.mesh.get_instance_id()]
-		elif not mesh.is_visible_in_tree():
-			continue
-		target.material_overlay = record.material
-		_overlaid.append(target)
+## Neon along the casino's own rooflines (and, for the fins and grid
+## styles, its tall outer corners); chasing bulbs on low canopy and porch
+## edges by the entrance. Nothing crosses the doorway below its top.
+func _add_neon(record: Dictionary) -> void:
+	record["neon"] = null
+	if record.node.get_child_count() == 0: return
+	var model := record.node.get_child(0) as Node3D
+	if model == null: return
+	var edges := Edges.of(record.code,model)
+	var to_world := model.global_transform
+	var base: float = record.bounds.position.y
+	var signature: Dictionary = record.signature
+	var style := int(signature.style)
+	var crown_colour := Color(signature.a).srgb_to_linear()
+	var corner_colour := Color(signature.b).srgb_to_linear()
+	var bulb_colour := Color(signature.b).lerp(Color(1.0,.92,.75),.55).srgb_to_linear()
+	var door: Dictionary = record.door
+	var door_point := Vector2(door.center) if not door.is_empty() else Vector2(record.bounds.get_center().x,record.bounds.get_center().z)
+	var front := Vector2(door.front) if not door.is_empty() else Vector2(0,1)
+	var half_width: float = door.get("half_width",.2)
+	var near_entrance := maxf(1.2,maxf(record.bounds.size.x,record.bounds.size.z)*.42)
+	var faces := PackedVector3Array()
+	var colours := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var runs: Array = []
+	for edge: Array in edges.crown: runs.append([edge,"crown"])
+	for edge: Array in edges.get("soffit",[]): runs.append([edge,"soffit"])
+	if style in [Signatures.Style.FINS,Signatures.Style.GRID]:
+		for edge: Array in edges.corner: runs.append([edge,"corner"])
+	for run: Array in runs:
+		var edge: Array = run[0]
+		var a: Vector3 = to_world*Vector3(edge[0])
+		var b: Vector3 = to_world*Vector3(edge[1])
+		var outward: Vector3 = (to_world.basis*Vector3(edge[2])).normalized()
+		var mid := (a+b)*.5
+		var lift := mid.y-base
+		var low := minf(a.y,b.y)-base
+		if run[1] != "corner" and lift < NEON_FLOOR: continue
+		var flat := Vector2(mid.x,mid.z)-door_point
+		var in_doorway := absf(flat.dot(Vector2(front.y,-front.x))) < half_width+.05 and absf(flat.dot(front)) < .8
+		if in_doorway and low < DOOR_TOP: continue
+		# Bulbs only on low edges that face the street by the entrance.
+		var facing := Vector2(outward.x,outward.z).dot(front)
+		var marquee := lift <= MARQUEE_TOP and flat.length() < near_entrance and facing > .5
+		# A canopy's underside edge carries the marquee and nothing else.
+		if run[1] == "soffit" and not marquee: continue
+		var bulbs: bool = run[1] != "corner" and marquee
+		var colour := bulb_colour if bulbs else (crown_colour if run[1] == "crown" else corner_colour)
+		var size := BULB if bulbs else TUBE
+		var offset := outward*size+(Vector3.UP*size if run[1] == "crown" else (Vector3.DOWN*size if run[1] == "soffit" else Vector3.ZERO))
+		_tube(a+offset,b+offset,size,colour,1.0 if bulbs else 0.0,faces,colours,uvs)
+	if faces.is_empty(): return
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = faces
+	arrays[Mesh.ARRAY_COLOR] = colours
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	var material := ShaderMaterial.new()
+	material.shader = NEON
+	material.set_shader_parameter("style",style)
+	var cell: Vector2i = record.cell
+	material.set_shader_parameter("phase",float((cell.x*7+cell.y*13)%17))
+	mesh.surface_set_material(0,material)
+	var instance := MeshInstance3D.new()
+	instance.name = "CasinoNeon"
+	instance.mesh = mesh
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(instance)
+	record["neon"] = instance
 
-func _batches_by_mesh() -> Dictionary:
-	var out := {}
-	if _view == null or not ("mesh_batches" in _view) or _view.mesh_batches == null: return out
-	for child: Node in _view.mesh_batches.find_children("*","MultiMeshInstance3D",true,false):
-		var batch := child as MultiMeshInstance3D
-		if batch.multimesh != null and batch.multimesh.mesh != null: out[batch.multimesh.mesh.get_instance_id()] = batch
-	return out
+## A square tube from `a` to `b`; UV.x runs along it in tile units.
+static func _tube(a: Vector3, b: Vector3, size: float, colour: Color, bulbs: float,
+		faces: PackedVector3Array, colours: PackedColorArray, uvs: PackedVector2Array) -> void:
+	var axis := b-a
+	if axis.length_squared() < 1e-10: return
+	var direction := axis.normalized()
+	var u := direction.cross(Vector3.UP if absf(direction.y) < .9 else Vector3.RIGHT).normalized()*size
+	var v := direction.cross(u).normalized()*size
+	var start := a.dot(direction)
+	var end := b.dot(direction)
+	var ring: Array[Vector3] = [u+v,u-v,-u-v,-u+v]
+	for i: int in 4:
+		var p := ring[i]
+		var q := ring[(i+1)%4]
+		faces.append_array(PackedVector3Array([a+p,b+p,b+q,a+p,b+q,a+q]))
+		uvs.append_array(PackedVector2Array([Vector2(start,bulbs),Vector2(end,bulbs),Vector2(end,bulbs),Vector2(start,bulbs),Vector2(end,bulbs),Vector2(start,bulbs)]))
+		for k: int in 6: colours.append(colour)
 
 func _add_beams(record: Dictionary) -> void:
 	var count := int(record.signature.get("beams",0))
 	if count <= 0: return
-	var bounds: AABB = record.bounds
 	var mesh := CylinderMesh.new()
 	# The narrow end is the lamp; the beam widens into the sky.
 	mesh.top_radius = .03
@@ -355,11 +418,11 @@ func _add_beams(record: Dictionary) -> void:
 	material.shader = BEAM
 	material.set_shader_parameter("beam_color",Color(record.signature.b).lerp(Color.WHITE,.55))
 	material.set_shader_parameter("beam_length",BEAM_LENGTH)
+	var anchors := _beam_anchors(record,count)
 	for i: int in count:
 		var pivot := Node3D.new()
 		pivot.name = "Searchlight"
-		var offset := Vector3((float(i)-(count-1)*.5)*minf(bounds.size.x,1.2)*.5,0,0)
-		pivot.position = Vector3(bounds.get_center().x,bounds.end.y,bounds.get_center().z)+offset
+		pivot.position = anchors[i]
 		var beam := MeshInstance3D.new()
 		beam.mesh = mesh
 		beam.material_override = material
@@ -371,6 +434,67 @@ func _add_beams(record: Dictionary) -> void:
 		add_child(pivot)
 		_beams.append({"pivot":pivot,"phase":float(i)*TAU/count+float(record.code)})
 	_sweep(0.0)
+
+## Where each searchlight stands: on the highest flat roofs of the model
+## itself, one per tower when equally tall towers are enough, otherwise
+## spread to the ends of the highest roof; with no flat roof, on the top of
+## the model's bounds.
+func _beam_anchors(record: Dictionary, count: int) -> Array[Vector3]:
+	var anchors: Array[Vector3] = []
+	var model: Node3D = record.node.get_child(0) as Node3D if record.node.get_child_count() > 0 else null
+	var roofs: Array = []
+	if model != null:
+		var to_world := model.global_transform
+		for points: PackedVector3Array in Edges.of(record.code,model).get("roof",[]):
+			var world := PackedVector3Array()
+			for point: Vector3 in points: world.append(to_world*point)
+			roofs.append(world)
+	if roofs.is_empty():
+		var bounds: AABB = record.bounds
+		for i: int in count: anchors.append(Vector3(bounds.get_center().x,bounds.end.y,bounds.get_center().z))
+		return anchors
+	if count > 1 and roofs.size() >= count:
+		# The highest roof first, then each time the roof farthest from those
+		# already chosen.
+		var middles: Array[Vector3] = []
+		for roof: PackedVector3Array in roofs: middles.append(_spread(roof,1)[0])
+		anchors.append(middles[0])
+		while anchors.size() < count:
+			var best := -1
+			var best_gap := -1.0
+			for i: int in middles.size():
+				var gap := INF
+				for chosen: Vector3 in anchors: gap = minf(gap,Vector2(middles[i].x-chosen.x,middles[i].z-chosen.z).length())
+				if gap > best_gap:
+					best_gap = gap
+					best = i
+			anchors.append(middles[best])
+		return anchors
+	return _spread(roofs[0],count)
+
+## `count` points on a roof: its middle for one, else evenly from end to end
+## of its longer side, keeping to the middle across it.
+static func _spread(roof: PackedVector3Array, count: int) -> Array[Vector3]:
+	var lo := roof[0]
+	var hi := roof[0]
+	for point: Vector3 in roof:
+		lo = lo.min(point)
+		hi = hi.max(point)
+	var along := 0 if hi.x-lo.x >= hi.z-lo.z else 2
+	var across := 2-along
+	var middle := (lo[across]+hi[across])*.5
+	var points: Array[Vector3] = []
+	for i: int in count:
+		var target := lerpf(lo[along],hi[along],.5 if count == 1 else float(i)/(count-1))
+		var best := roof[0]
+		var best_score := INF
+		for point: Vector3 in roof:
+			var score := absf(point[along]-target)+.5*absf(point[across]-middle)
+			if score < best_score:
+				best_score = score
+				best = point
+		points.append(best)
+	return points
 
 func _process(delta: float) -> void:
 	_time += delta

@@ -1,0 +1,536 @@
+# SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See LICENSE and LICENSING.md in the repository root.
+
+## Where a casino's neon can run: its rooflines and tall outer corners, found
+## from the model's own walls and roofs. Glass, signs, lamps, doors, metal
+## trim, foliage and paving are never used, so neon follows the architecture
+## instead of crossing windows, lettering or entrances. Results are in model
+## space (metres) and cached per building code.
+extends RefCounted
+
+## Materials that are not wall or roof: neon never runs on their edges.
+const EXCLUDED := ["glass", "resort_glass", "glass_light", "glass_dark", "glass_dead", "sign", "resort_sign",
+	"resort_lamp", "warm_light", "lamp", "foliage", "resort_foliage", "leaflight", "flag", "clock_face",
+	"carpet", "resort_carpet", "shadow", "line", "asphalt", "floor", "paving", "resort_felt", "resort_rubber",
+	"copper", "frame", "metal", "resort_metal", "steel", "silver", "sand", "farm"]
+## Edges sharper than this between their two faces are architectural edges.
+const FEATURE_COS := 0.64
+## A roofline has nothing standing above the ground just inside it.
+const PROBE_INSET := 0.3
+const PROBE_CELL := 0.25
+const PROBE_CLEARANCE := 0.15
+## ...and nothing taller stands just beyond it (metres outward).
+const FACING_REACH := [0.4, 1.0, 2.0]
+const FACING_CLEARANCE := 0.08
+## A roofline drops at least this far (metres) just beyond it.
+const PARAPET_DROP := 0.8
+## Corners shorter than this (metres), or than this share of the height (up
+## to CORNER_CAP), are window reveals, porch posts and pilasters, not the
+## building's own corners.
+const CORNER_MIN := 4.0
+const CORNER_SHARE := 0.6
+const CORNER_CAP := 12.0
+## Rooflines shorter than this (metres) after joining are trim, not roofs.
+const CROWN_MIN := 1.0
+## Neon keeps this far (metres) from signs and lettering.
+const SIGN_CLEARANCE := 0.35
+## Marquee bulbs under a canopy hang below its lettering, so they may come a
+## little closer to it.
+const SOFFIT_CLEARANCE := 0.25
+## Connected lettering pieces have at least this many triangles; plain boxes
+## (12) in a sign's colour are shutters and boards, not lettering.
+const LETTER_TRIANGLES := 20
+## A run cut by lettering into more pieces than this, or keeping less than
+## this share of its length, is dropped rather than drawn dashed.
+const MAX_PIECES := 3
+const KEEP_SHARE := 0.5
+## Parallel edges closer than this (metres) are one piece of stepped trim.
+const STEP := 0.3
+## Back-to-back ridges closer than this (metres) top a fin or bracket.
+const FIN_WIDTH := 0.8
+## Searchlights stand on a flat (normal this upright) open roof of at least
+## this area (square metres), this many probe cells back from its edge.
+const ROOF_FLAT := 0.95
+const ROOF_AREA := 4.0
+const ROOF_INSET := 2
+## Roofs within this height (metres) of the highest count as equally high.
+const ROOF_TIE := 2.0
+
+static var _cache: Dictionary = {}
+
+static func excluded(material_name: String) -> bool:
+	var base := material_name.get_slice(" • ", 0).strip_edges()
+	# Unnamed surfaces are sign cabinets and lettering, never walls.
+	if base.is_empty(): return true
+	var dot := base.rfind(".")
+	if dot > 0 and base.substr(dot + 1).is_valid_int(): base = base.substr(0, dot)
+	for prefix: String in EXCLUDED:
+		if base == prefix or base.begins_with(prefix + "_"): return true
+	return false
+
+static func clear_cache() -> void:
+	_cache.clear()
+
+## {"crown": [[a, b, outward]], "corner": [[a, b, outward]], "height": metres}
+## for the model under `model` (the lot's authored model node).
+static func of(code: int, model: Node3D) -> Dictionary:
+	if _cache.has(code): return _cache[code]
+	var result := _extract(model)
+	_cache[code] = result
+	return result
+
+static func _extract(model: Node3D) -> Dictionary:
+	var to_model := model.global_transform.affine_inverse()
+	var positions := PackedVector3Array()
+	var normals := PackedVector3Array()
+	# Every visible surface, whatever its material: what stands on a roof.
+	var solid := PackedVector3Array()
+	var signs := {}
+	for child: Node in model.find_children("*", "MeshInstance3D", true, false):
+		var source := child as MeshInstance3D
+		if source.mesh == null: continue
+		# Shadow-only copies of the whole building are not its surfaces.
+		if source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY or source.has_meta("runtime_shadow_proxy"): continue
+		var local := to_model * source.global_transform
+		var normal_basis := local.basis.inverse().transposed()
+		for surface: int in source.mesh.get_surface_count():
+			var material := source.get_active_material(surface)
+			if material == null: continue
+			_add_solid(solid, source.mesh.surface_get_arrays(surface), local)
+			if is_sign(material.resource_name):
+				_add_sign(signs, source.mesh.surface_get_arrays(surface), local)
+				continue
+			if excluded(material.resource_name): continue
+			var arrays := source.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var authored: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			if indices.is_empty():
+				indices.resize(vertices.size())
+				for i: int in vertices.size(): indices[i] = i
+			for t: int in range(0, indices.size() - 2, 3):
+				var a := local * vertices[indices[t]]
+				var b := local * vertices[indices[t + 1]]
+				var c := local * vertices[indices[t + 2]]
+				var n := (c - a).cross(b - a)
+				if n.length_squared() < 1e-10: continue
+				if not authored.is_empty():
+					var sum := normal_basis * (authored[indices[t]] + authored[indices[t + 1]] + authored[indices[t + 2]])
+					if sum.length_squared() > 1e-10: n = sum
+				positions.append_array(PackedVector3Array([a, b, c]))
+				normals.append(n.normalized())
+	if positions.is_empty(): return {"crown": [], "corner": [], "soffit": [], "roof": [], "height": 0.0, "base": 0.0}
+	var bounds := AABB(positions[0], Vector3.ZERO)
+	for p: Vector3 in positions: bounds = bounds.expand(p)
+	var grid := _height_grid(positions, bounds)
+	var floor_grid := _height_grid(positions, bounds, true)
+	# Weld corners to the centimetre, then pair faces across each edge.
+	var ids := {}
+	var welded := PackedInt32Array()
+	welded.resize(positions.size())
+	for i: int in positions.size():
+		var key := Vector3i((positions[i] * 100.0).round())
+		if not ids.has(key): ids[key] = ids.size()
+		welded[i] = ids[key]
+	var edges := {}
+	for f: int in normals.size():
+		for k: int in 3:
+			var i := f * 3 + k
+			var j := f * 3 + (k + 1) % 3
+			var key := Vector2i(mini(welded[i], welded[j]), maxi(welded[i], welded[j]))
+			if key.x == key.y: continue
+			if not edges.has(key): edges[key] = []
+			edges[key].append([f, i, j])
+	var crown: Array = []
+	var soffits: Array = []
+	var verticals: Array = []
+	for key: Vector2i in edges:
+		var faces: Array = edges[key]
+		if faces.size() != 2: continue
+		var f1: int = faces[0][0]
+		var f2: int = faces[1][0]
+		var n1 := normals[f1]
+		var n2 := normals[f2]
+		if n1.dot(n2) > FEATURE_COS: continue
+		var a := positions[faces[0][1]]
+		var b := positions[faces[0][2]]
+		var mid := (a + b) * .5
+		# Convex: each face lies behind the other's outward side.
+		var c2 := (positions[f2 * 3] + positions[f2 * 3 + 1] + positions[f2 * 3 + 2]) / 3.0
+		if (c2 - mid).dot(n1) > -1e-4: continue
+		var direction := b - a
+		var length := direction.length()
+		if length < 0.05: continue
+		var slope := absf(direction.y) / length
+		if slope < 0.1:
+			var up := n1 if n1.y > n2.y else n2
+			var down := n2 if n1.y > n2.y else n1
+			if up.y >= 0.7 and absf(down.y) <= 0.35:
+				# Roofline: nothing stands on the roof just inside the edge.
+				var outward := Vector3(down.x, 0, down.z).normalized()
+				var probe := mid - outward * PROBE_INSET
+				if _grid_height(grid, bounds, probe) > mid.y + PROBE_CLEARANCE: continue
+				# ...and faces open air, not a taller wall just beyond it (the
+				# back lip of a cornice or porch fascia).
+				var walled := false
+				for reach: float in FACING_REACH:
+					if _grid_height(grid, bounds, mid + outward * reach) > mid.y + FACING_CLEARANCE: walled = true
+				# A parapet's inner lip only drops to its own roof: not a roofline.
+				if walled or _grid_height(grid, bounds, mid + outward * 1.0) > mid.y - PARAPET_DROP: continue
+				crown.append([a, b, outward])
+			elif down.y <= -0.7 and absf(up.y) <= 0.35:
+				# Canopy front: open air beneath, unlike a window head.
+				var outward := Vector3(up.x, 0, up.z).normalized()
+				var probe := mid - outward * PROBE_INSET
+				if _grid_height(floor_grid, bounds, probe) < mid.y - PROBE_CLEARANCE: continue
+				soffits.append([a, b, outward])
+		elif slope > 0.9:
+			if absf(n1.y) > 0.35 or absf(n2.y) > 0.35: continue
+			var outward := Vector3(n1.x + n2.x, 0, n1.z + n2.z)
+			if outward.length_squared() < 1e-6: continue
+			verticals.append([a if a.y < b.y else b, b if a.y < b.y else a, outward.normalized()])
+	var crowns := _clear_of(signs, _single(_no_fins(_crowns(crown)), true), CROWN_MIN, SIGN_CLEARANCE)
+	crowns = _clear_of(signs, crowns, CROWN_MIN, SIGN_CLEARANCE, true)
+	return {"crown": crowns, "corner": _clear_of(signs, _corners(verticals, bounds.size.y), CORNER_MIN, SIGN_CLEARANCE),
+		"soffit": _clear_of(signs, _single(_crowns(soffits), false), CROWN_MIN, SOFFIT_CLEARANCE),
+		"roof": _roof(positions, normals, solid, bounds),
+		"height": bounds.size.y, "base": bounds.position.y}
+
+## A roofline with lettering just behind and above it (a porch roof under a
+## fascia sign) would draw across the sign as seen from the street.
+static func _sign_behind(signs: Dictionary, point: Vector3, outward: Vector3) -> bool:
+	for inward: float in [0.5, 1.5, 2.5]:
+		for rise: float in [0.4, 0.9, 1.4]:
+			if _near_sign(signs, point - outward * inward + Vector3.UP * rise, SIGN_CLEARANCE): return true
+	return false
+
+## The top of a fin, bracket or beam gives two back-to-back ridge lines a
+## short step apart: neither is a roofline.
+static func _no_fins(runs: Array) -> Array:
+	var kept: Array = []
+	for run: Array in runs:
+		var a: Vector3 = run[0]
+		var b: Vector3 = run[1]
+		var outward: Vector3 = run[2]
+		var along := Vector3(-outward.z, 0, outward.x)
+		var fin := false
+		for other: Array in runs:
+			var o: Vector3 = other[2]
+			if o.dot(outward) > -0.95: continue
+			var c: Vector3 = other[0]
+			var d: Vector3 = other[1]
+			var gap := (a - c).dot(outward)
+			if absf(c.y - a.y) > STEP or gap <= 0.0 or gap > FIN_WIDTH: continue
+			var lo := maxf(minf(a.dot(along), b.dot(along)), minf(c.dot(along), d.dot(along)))
+			var hi := minf(maxf(a.dot(along), b.dot(along)), maxf(c.dot(along), d.dot(along)))
+			if hi - lo >= 0.5 * minf(a.distance_to(b), c.distance_to(d)):
+				fin = true
+				break
+		if not fin: kept.append(run)
+	return kept
+
+## Stepped trim (a roof slab over its fascia board) gives two parallel edges a
+## hand's width apart; keep only the outermost one, the top one for rooflines
+## and the bottom one for canopy fronts.
+static func _single(runs: Array, upper: bool) -> Array:
+	var sorted := runs.duplicate()
+	sorted.sort_custom(func(x: Array, y: Array) -> bool:
+		return (float(x[0].y) > float(y[0].y)) if upper else (float(x[0].y) < float(y[0].y)))
+	var kept: Array = []
+	for run: Array in sorted:
+		var a: Vector3 = run[0]
+		var b: Vector3 = run[1]
+		var outward: Vector3 = run[2]
+		var along := Vector3(-outward.z, 0, outward.x)
+		var doubled := false
+		for other: Array in kept:
+			var o: Vector3 = other[2]
+			if o.dot(outward) < 0.95: continue
+			var c: Vector3 = other[0]
+			var d: Vector3 = other[1]
+			if absf(c.y - a.y) > STEP or absf((c - a).dot(outward)) > STEP: continue
+			var lo := maxf(minf(a.dot(along), b.dot(along)), minf(c.dot(along), d.dot(along)))
+			var hi := minf(maxf(a.dot(along), b.dot(along)), maxf(c.dot(along), d.dot(along)))
+			if hi - lo >= 0.5 * minf(a.distance_to(b), c.distance_to(d)):
+				doubled = true
+				break
+		if not doubled: kept.append(run)
+	return kept
+
+## Sign faces, lettering and their cabinets (unnamed surfaces), and lit
+## letters and lamps, which neon must not cross either.
+static func is_sign(material_name: String) -> bool:
+	var base := material_name.get_slice(" • ", 0).strip_edges()
+	var dot := base.rfind(".")
+	if dot > 0 and base.substr(dot + 1).is_valid_int(): base = base.substr(0, dot)
+	return base.is_empty() or base == "sign" or base.begins_with("sign_") or base == "resort_sign" \
+		or base in ["resort_lamp", "warm_light", "lamp"] or base.begins_with("lamp_")
+
+static func _add_sign(signs: Dictionary, arrays: Array, local: Transform3D) -> void:
+	# Only lettering and emblems count: they are built of many small faces,
+	# unlike the plain boxes (shutters, cabinets, boards) that share a sign's
+	# material.
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	if indices.is_empty():
+		indices.resize(vertices.size())
+		for i: int in vertices.size(): indices[i] = i
+	var ids := {}
+	var parent: Array[int] = []
+	var welded := PackedInt32Array()
+	welded.resize(vertices.size())
+	for i: int in vertices.size():
+		var key := Vector3i((vertices[i] * 1000.0).round())
+		if not ids.has(key):
+			ids[key] = parent.size()
+			parent.append(parent.size())
+		welded[i] = ids[key]
+	for t: int in range(0, indices.size() - 2, 3):
+		var a := _root(parent, welded[indices[t]])
+		for k: int in [1, 2]:
+			var b := _root(parent, welded[indices[t + k]])
+			if a != b: parent[b] = a
+	var triangles := {}
+	for t: int in range(0, indices.size() - 2, 3):
+		var r := _root(parent, welded[indices[t]])
+		triangles[r] = int(triangles.get(r, 0)) + 1
+	for i: int in vertices.size():
+		if int(triangles.get(_root(parent, welded[i]), 0)) < LETTER_TRIANGLES: continue
+		var p := local * vertices[i]
+		var key := Vector3i((p / SIGN_CLEARANCE).floor())
+		# Packed arrays are values: append to the bucket, then store it back.
+		var bucket: PackedVector3Array = signs.get(key, PackedVector3Array())
+		bucket.append(p)
+		signs[key] = bucket
+
+static func _root(parent: Array[int], i: int) -> int:
+	while parent[i] != i:
+		parent[i] = parent[parent[i]]
+		i = parent[i]
+	return i
+
+static func _near_sign(signs: Dictionary, point: Vector3, clearance: float) -> bool:
+	var cell := Vector3i((point / SIGN_CLEARANCE).floor())
+	for dz: int in range(-1, 2):
+		for dy: int in range(-1, 2):
+			for dx: int in range(-1, 2):
+				var bucket: Variant = signs.get(cell + Vector3i(dx, dy, dz))
+				if bucket == null: continue
+				for p: Vector3 in bucket:
+					if p.distance_to(point) <= clearance: return true
+	return false
+
+## Cut each run where it passes a sign (or, with `behind`, where lettering
+## stands just behind and above it); keep pieces at least `minimum` long.
+static func _clear_of(signs: Dictionary, runs: Array, minimum: float, clearance: float, behind: bool = false) -> Array:
+	if signs.is_empty(): return runs
+	var out: Array = []
+	for run: Array in runs:
+		var a: Vector3 = run[0]
+		var b: Vector3 = run[1]
+		var length := a.distance_to(b)
+		var steps := maxi(1, ceili(length / 0.2))
+		var start := -1
+		var pieces: Array = []
+		for i: int in range(steps + 1):
+			var t := float(i) / steps
+			var p := a.lerp(b, t)
+			var clear := not (_sign_behind(signs, p, run[2]) if behind else _near_sign(signs, p, clearance))
+			if clear and start < 0: start = i
+			if (not clear or i == steps) and start >= 0:
+				var stop := i if clear else i - 1
+				var piece_a := a.lerp(b, float(start) / steps)
+				var piece_b := a.lerp(b, float(stop) / steps)
+				if piece_a.distance_to(piece_b) >= minimum: pieces.append([piece_a, piece_b, run[2]])
+				start = -1
+		# A run left dashed by many cuts, or mostly gone, reads as broken: drop it.
+		var kept := 0.0
+		for piece: Array in pieces: kept += Vector3(piece[0]).distance_to(piece[1])
+		if pieces.size() <= MAX_PIECES and kept >= KEEP_SHARE * length: out.append_array(pieces)
+	return out
+
+## Join collinear roofline pieces facing the same way into runs, and drop
+## short runs: lettering, dentils and fin tops are not rooflines.
+static func _crowns(edges: Array) -> Array:
+	var lines := {}
+	for edge: Array in edges:
+		var a: Vector3 = edge[0]
+		var b: Vector3 = edge[1]
+		var outward: Vector3 = edge[2]
+		var along := Vector3(-outward.z, 0, outward.x)
+		var key := [roundi(outward.x * 8.0), roundi(outward.z * 8.0), roundi(a.y * 20.0), roundi(a.dot(outward) * 20.0)]
+		var s0 := a.dot(along)
+		var s1 := b.dot(along)
+		if not lines.has(key): lines[key] = {"outward": outward, "along": along, "spans": []}
+		lines[key].spans.append([minf(s0, s1), maxf(s0, s1), a.y, a - along * a.dot(along)])
+	var out: Array = []
+	for key: Array in lines:
+		var line: Dictionary = lines[key]
+		var spans: Array = line.spans
+		spans.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
+		var start: float = spans[0][0]
+		var end: float = spans[0][1]
+		var origin: Vector3 = spans[0][3]
+		var along: Vector3 = line.along
+		for i: int in range(1, spans.size() + 1):
+			if i < spans.size() and float(spans[i][0]) <= end + 0.05:
+				end = maxf(end, spans[i][1])
+				continue
+			if end - start >= CROWN_MIN: out.append([origin + along * start, origin + along * end, line.outward])
+			if i < spans.size():
+				start = spans[i][0]
+				end = spans[i][1]
+	return out
+
+## Join stacked vertical edges at the same corner into one run; keep only
+## runs as tall as a building's own corner.
+static func _corners(verticals: Array, height: float) -> Array:
+	var runs := {}
+	for edge: Array in verticals:
+		var low: Vector3 = edge[0]
+		var key := Vector2i(roundi(low.x * 20.0), roundi(low.z * 20.0))
+		if not runs.has(key): runs[key] = []
+		runs[key].append(edge)
+	var minimum := maxf(CORNER_MIN, minf(height * CORNER_SHARE, CORNER_CAP))
+	var out: Array = []
+	for key: Vector2i in runs:
+		var edges: Array = runs[key]
+		edges.sort_custom(func(x: Array, y: Array) -> bool: return x[0].y < y[0].y)
+		var start: Vector3 = edges[0][0]
+		var end: Vector3 = edges[0][1]
+		var outward: Vector3 = edges[0][2]
+		for i: int in range(1, edges.size() + 1):
+			var joined := i < edges.size() and float(edges[i][0].y) <= end.y + 0.05
+			if joined:
+				if edges[i][1].y > end.y: end = edges[i][1]
+				continue
+			if end.y - start.y >= minimum: out.append([start, end, outward])
+			if i < edges.size():
+				start = edges[i][0]
+				end = edges[i][1]
+				outward = edges[i][2]
+	return out
+
+## Highest wall or roof over each small ground cell.
+## With `lowest`, the lowest wall or roof over each cell instead.
+## Where searchlights can stand: the highest open, flat roofs big enough to
+## carry them (several when towers are equally tall), each as model-space
+## points set back from its edges.
+static func _add_solid(solid: PackedVector3Array, arrays: Array, local: Transform3D) -> void:
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	if arrays[Mesh.ARRAY_INDEX] == null:
+		for vertex: Vector3 in vertices: solid.append(local * vertex)
+		return
+	for index: int in (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array): solid.append(local * vertices[index])
+
+static func _roof(positions: PackedVector3Array, normals: PackedVector3Array, solid: PackedVector3Array, bounds: AABB) -> Array:
+	var width := maxi(1, ceili(bounds.size.x / PROBE_CELL))
+	var depth := maxi(1, ceili(bounds.size.z / PROBE_CELL))
+	# The true top surface over each cell centre, and the flat roofs in it.
+	var top := PackedFloat32Array()
+	top.resize(width * depth)
+	top.fill(-INF)
+	var flat := PackedFloat32Array()
+	flat.resize(width * depth)
+	flat.fill(-INF)
+	for f: int in solid.size() / 3:
+		_rasterize(solid[f * 3], solid[f * 3 + 1], solid[f * 3 + 2], bounds, width, depth, top)
+	for f: int in normals.size():
+		if normals[f].y >= ROOF_FLAT: _rasterize(positions[f * 3], positions[f * 3 + 1], positions[f * 3 + 2], bounds, width, depth, flat)
+	var roof := PackedByteArray()
+	roof.resize(width * depth)
+	for i: int in roof.size():
+		roof[i] = 1 if flat[i] > -INF and flat[i] >= top[i] - .05 else 0
+	# Connected pieces of roof at one height, highest big enough first.
+	var seen := PackedByteArray()
+	seen.resize(width * depth)
+	var regions: Array = []
+	for start: int in roof.size():
+		if roof[start] == 0 or seen[start] == 1: continue
+		var cells := PackedInt32Array([start])
+		seen[start] = 1
+		var k := 0
+		while k < cells.size():
+			var i := cells[k]
+			k += 1
+			for step: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var x := i % width + step.x
+				var z := i / width + step.y
+				if x < 0 or z < 0 or x >= width or z >= depth: continue
+				var j := z * width + x
+				if roof[j] == 1 and seen[j] == 0 and absf(flat[j] - flat[i]) < .1:
+					seen[j] = 1
+					cells.append(j)
+		if cells.size() * PROBE_CELL * PROBE_CELL >= ROOF_AREA: regions.append([flat[start], cells])
+	var roofs: Array = []
+	if regions.is_empty(): return roofs
+	regions.sort_custom(func(x: Array, y: Array) -> bool: return float(x[0]) > float(y[0]))
+	# The highest roof, and any others as high (twin towers each get one).
+	for region: Array in regions:
+		if float(region[0]) < float(regions[0][0]) - ROOF_TIE: break
+		var cells: PackedInt32Array = region[1]
+		var member := {}
+		for i: int in cells: member[i] = true
+		# Keep the lamps back from the roof's edge where the roof allows it.
+		var inner := PackedVector3Array()
+		var all := PackedVector3Array()
+		for i: int in cells:
+			var x := i % width
+			var z := i / width
+			var point := Vector3(bounds.position.x + (x + .5) * PROBE_CELL, flat[i], bounds.position.z + (z + .5) * PROBE_CELL)
+			all.append(point)
+			var interior := true
+			for dz: int in range(-ROOF_INSET, ROOF_INSET + 1):
+				for dx: int in range(-ROOF_INSET, ROOF_INSET + 1):
+					if not member.has((z + dz) * width + x + dx) or x + dx < 0 or x + dx >= width: interior = false
+			if interior: inner.append(point)
+		roofs.append(inner if not inner.is_empty() else all)
+	return roofs
+
+## Raise each grid cell whose centre the triangle covers to its height there.
+static func _rasterize(a: Vector3, b: Vector3, c: Vector3, bounds: AABB, width: int, depth: int, grid: PackedFloat32Array) -> void:
+	var area := (b.x - a.x) * (c.z - a.z) - (c.x - a.x) * (b.z - a.z)
+	if absf(area) < 1e-8: return
+	var x0 := maxi(0, floori((minf(a.x, minf(b.x, c.x)) - bounds.position.x) / PROBE_CELL - .5))
+	var x1 := mini(width - 1, ceili((maxf(a.x, maxf(b.x, c.x)) - bounds.position.x) / PROBE_CELL - .5))
+	var z0 := maxi(0, floori((minf(a.z, minf(b.z, c.z)) - bounds.position.z) / PROBE_CELL - .5))
+	var z1 := mini(depth - 1, ceili((maxf(a.z, maxf(b.z, c.z)) - bounds.position.z) / PROBE_CELL - .5))
+	for z: int in range(z0, z1 + 1):
+		for x: int in range(x0, x1 + 1):
+			var px := bounds.position.x + (x + .5) * PROBE_CELL
+			var pz := bounds.position.z + (z + .5) * PROBE_CELL
+			var u := ((b.x - px) * (c.z - pz) - (c.x - px) * (b.z - pz)) / area
+			var v := ((c.x - px) * (a.z - pz) - (a.x - px) * (c.z - pz)) / area
+			var w := 1.0 - u - v
+			if u < -1e-4 or v < -1e-4 or w < -1e-4: continue
+			var y := a.y * u + b.y * v + c.y * w
+			var i := z * width + x
+			if y > grid[i]: grid[i] = y
+
+static func _height_grid(positions: PackedVector3Array, bounds: AABB, lowest: bool = false) -> Dictionary:
+	var width := maxi(1, ceili(bounds.size.x / PROBE_CELL) + 1)
+	var depth := maxi(1, ceili(bounds.size.z / PROBE_CELL) + 1)
+	var heights := PackedFloat32Array()
+	heights.resize(width * depth)
+	heights.fill(INF if lowest else -INF)
+	for t: int in range(0, positions.size(), 3):
+		var a := positions[t]
+		var b := positions[t + 1]
+		var c := positions[t + 2]
+		var top := minf(a.y, minf(b.y, c.y)) if lowest else maxf(a.y, maxf(b.y, c.y))
+		var x0 := floori((minf(a.x, minf(b.x, c.x)) - bounds.position.x) / PROBE_CELL)
+		var x1 := floori((maxf(a.x, maxf(b.x, c.x)) - bounds.position.x) / PROBE_CELL)
+		var z0 := floori((minf(a.z, minf(b.z, c.z)) - bounds.position.z) / PROBE_CELL)
+		var z1 := floori((maxf(a.z, maxf(b.z, c.z)) - bounds.position.z) / PROBE_CELL)
+		for z: int in range(maxi(z0, 0), mini(z1, depth - 1) + 1):
+			for x: int in range(maxi(x0, 0), mini(x1, width - 1) + 1):
+				var i := z * width + x
+				if (top < heights[i]) if lowest else (top > heights[i]): heights[i] = top
+	return {"width": width, "depth": depth, "heights": heights}
+
+static func _grid_height(grid: Dictionary, bounds: AABB, point: Vector3) -> float:
+	var x := floori((point.x - bounds.position.x) / PROBE_CELL)
+	var z := floori((point.z - bounds.position.z) / PROBE_CELL)
+	if x < 0 or z < 0 or x >= int(grid.width) or z >= int(grid.depth): return -INF
+	return (grid.heights as PackedFloat32Array)[z * int(grid.width) + x]

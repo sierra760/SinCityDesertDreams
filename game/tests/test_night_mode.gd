@@ -232,6 +232,75 @@ func test_main_menu_key_and_preference() -> void:
 	DirAccess.remove_absolute(path)
 	check(not CityNightMode.materials_modified(),"leaving the game restores every material")
 
+## A flat, indexed grid of quads (two triangles each) in the XY plane.
+func _sheet(origin: Vector3, size: Vector2, columns: int, rows: int) -> Array:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	var vertices := PackedVector3Array()
+	var indices := PackedInt32Array()
+	for y: int in rows + 1:
+		for x: int in columns + 1:
+			vertices.append(origin + Vector3(size.x * x / columns, size.y * y / rows, 0))
+	for y: int in rows:
+		for x: int in columns:
+			var i := y * (columns + 1) + x
+			indices.append_array(PackedInt32Array([i, i + 1, i + columns + 2, i, i + columns + 2, i + columns + 1]))
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_INDEX] = indices
+	return arrays
+
+func test_casino_neon_keeps_clear_of_lettering() -> void:
+	var Edges := preload("res://scripts/view/casino_neon_edges.gd")
+	var signs := {}
+	# Lettering: one piece of many small faces, 1 m wide, under a roofline at 3 m.
+	Edges._add_sign(signs, _sheet(Vector3(-0.5, 2.2, 0), Vector2(1, .6), 6, 3), Transform3D.IDENTITY)
+	# A shutter in the sign's colour: a plain six-face board.
+	Edges._add_sign(signs, _sheet(Vector3(4, 2.2, 0), Vector2(.4, .6), 1, 3), Transform3D.IDENTITY)
+	check(Edges._near_sign(signs, Vector3(0, 2.8, 0), Edges.SIGN_CLEARANCE), "lettering is remembered")
+	check(not Edges._near_sign(signs, Vector3(4.2, 2.8, 0), Edges.SIGN_CLEARANCE), "a plain board is not lettering")
+	var roofline := [Vector3(-6, 3.0, 0), Vector3(6, 3.0, 0), Vector3(0, 0, 1)]
+	var pieces := Edges._clear_of(signs, [roofline], Edges.CROWN_MIN, Edges.SIGN_CLEARANCE)
+	check_eq(pieces.size(), 2, "the roofline stops either side of the lettering")
+	for piece: Array in pieces:
+		for t: float in [0.0, 0.5, 1.0]:
+			check(not Edges._near_sign(signs, Vector3(piece[0]).lerp(piece[1], t), Edges.SIGN_CLEARANCE - .01), "no neon touches the lettering")
+	# A roofline sitting on a long row of letters would be left dashed: dropped.
+	var row := {}
+	for i: int in 6: Edges._add_sign(row, _sheet(Vector3(-5.5 + i * 2.0, 2.6, 0), Vector2(1, .5), 6, 3), Transform3D.IDENTITY)
+	check(Edges._clear_of(row, [roofline], Edges.CROWN_MIN, Edges.SIGN_CLEARANCE).is_empty(), "a dashed run is dropped")
+	# A roof slab over its fascia board is one roofline, not two.
+	var stepped := Edges._single([[Vector3(-5, 3.0, 0), Vector3(5, 3.0, 0), Vector3(0, 0, 1)],
+		[Vector3(-5, 2.85, -.1), Vector3(5, 2.85, -.1), Vector3(0, 0, 1)]], true)
+	check_eq(stepped.size(), 1, "stepped trim draws once")
+	check_eq(float(Vector3(stepped[0][0]).y), 3.0, "the top edge is kept")
+	# The two ridges on top of a bracket are not rooflines.
+	var fins := Edges._no_fins([[Vector3(0, 3, -1), Vector3(0, 3, 1), Vector3(1, 0, 0)],
+		[Vector3(-.3, 3, -1), Vector3(-.3, 3, 1), Vector3(-1, 0, 0)],
+		[Vector3(-5, 3, 2), Vector3(5, 3, 2), Vector3(0, 0, 1)]])
+	check_eq(fins.size(), 1, "only the real roofline is left")
+
+## The highest visible surface of a building under a world point.
+func _surface_below(lot: Node3D, point: Vector3) -> float:
+	var best := -INF
+	for child: Node in lot.find_children("*","MeshInstance3D",true,false):
+		var mesh := child as MeshInstance3D
+		if mesh.mesh == null or mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY: continue
+		for surface: int in mesh.mesh.get_surface_count():
+			var arrays := mesh.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(vertices.size()))
+			for t: int in range(0,indices.size()-2,3):
+				var a: Vector3 = mesh.global_transform*vertices[indices[t]]
+				var b: Vector3 = mesh.global_transform*vertices[indices[t+1]]
+				var c: Vector3 = mesh.global_transform*vertices[indices[t+2]]
+				var area := (b.x-a.x)*(c.z-a.z)-(c.x-a.x)*(b.z-a.z)
+				if absf(area) < 1e-12: continue
+				var u := ((b.x-point.x)*(c.z-point.z)-(c.x-point.x)*(b.z-point.z))/area
+				var v := ((c.x-point.x)*(a.z-point.z)-(a.x-point.x)*(c.z-point.z))/area
+				if u < -1e-5 or v < -1e-5 or u+v > 1.0+1e-5: continue
+				best = maxf(best,a.y*u+b.y*v+c.y*(1.0-u-v))
+	return best
+
 func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
 	var city := flat_city(50000000)
 	city.founded_year = 2010
@@ -254,14 +323,36 @@ func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
 	var record: Dictionary = casinos.lots[0]
 	var signature: Dictionary = preload("res://scripts/view/casino_night_signatures.gd").of(Buildings.ARCOLOGY_ORBIT)
 	check_eq(record.code,Buildings.ARCOLOGY_ORBIT)
-	var overlaid := 0
+	var neon: MeshInstance3D = record.get("neon")
+	check(is_instance_valid(neon),"neon runs along the casino's own edges")
 	for mesh: Node in record.node.find_children("*","MeshInstance3D",true,false):
-		if (mesh as MeshInstance3D).material_overlay == record.material: overlaid += 1
-	for batch: Node in view.mesh_batches.find_children("*","MultiMeshInstance3D",true,false):
-		if (batch as MultiMeshInstance3D).material_overlay == record.material: overlaid += 1
-	check_gt(overlaid,0,"neon is drawn over the casino's own meshes")
-	check_eq(record.material.get_shader_parameter("neon_a"),signature.a,"its own neon colours")
+		check((mesh as MeshInstance3D).material_overlay == null,"nothing is painted over the building's surfaces")
+	var door: Dictionary = record.door
+	if is_instance_valid(neon) and not door.is_empty():
+		var arrays := neon.mesh.surface_get_arrays(0)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		check_gt(points.size(),0)
+		# The rocket has no flat rooflines up high: its neon is corner fins
+		# (grid style) and the entrance marquee.
+		# Vertex colours come back from the mesh at 8 bits per channel.
+		var close := func(x: Color, y: Color) -> bool:
+			return absf(x.r - y.r) < .01 and absf(x.g - y.g) < .01 and absf(x.b - y.b) < .01
+		var own := false
+		for colour: Color in colours:
+			if close.call(colour, Color(signature.a).srgb_to_linear()) or close.call(colour, Color(signature.b).srgb_to_linear()): own = true
+		check(own,"neon takes the casino's own colours")
+		var base: float = record.bounds.position.y
+		var side := Vector2(door.front.y,-door.front.x)
+		for point: Vector3 in points:
+			check_gt(point.y-base,CityCasinoLights3D.NEON_FLOOR-.02,"no neon on planters, plinths or steps")
+			var flat := Vector2(point.x,point.z)-Vector2(door.center)
+			if absf(flat.dot(side)) < float(door.half_width) and absf(flat.dot(Vector2(door.front))) < .6:
+				check_gt(point.y-base,CityCasinoLights3D.DOOR_TOP-.02,"nothing crosses the doorway")
 	check_eq(casinos._beams.size(),int(signature.beams),"its searchlights")
+	for beam: Dictionary in casinos._beams:
+		var lamp: Vector3 = (beam.pivot as Node3D).position
+		check_lt(absf(_surface_below(record.node,lamp)-lamp.y),.01,"each searchlight stands on the building's own top surface")
 	var features: Array = record.get("features",[])
 	check_eq(features.size(),preload("res://scripts/view/casino_night_signatures.gd").features(Buildings.ARCOLOGY_ORBIT).size(),"its signature feature is lit")
 	for feature: Variant in features:
@@ -284,17 +375,12 @@ func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
 			if face.y-record.bounds.position.y < CityCasinoLights3D.LOBBY_HEIGHT: lobby += 1
 			else: upper += 1
 		check_gt(upper,0,"upper-floor panes are lit")
-	var door: Dictionary = record.door
 	check(not door.is_empty(),"the entrance is known")
-	if not door.is_empty():
-		check_eq(record.material.get_shader_parameter("door_center"),door.center,"the marquee leaves the entrance clear")
-		check_gt(float(record.material.get_shader_parameter("door_half_width")),0.0)
 	view.set_night_mode(false,true)
 	check(casinos.lots.is_empty() and casinos._beams.is_empty(),"day removes the casino lights")
 	check(not is_instance_valid(panes),"lit panes are removed by day")
 	for feature: Variant in features: check(not is_instance_valid(feature),"signature lights are removed by day")
-	for mesh: Node in record.node.find_children("*","MeshInstance3D",true,false):
-		check((mesh as MeshInstance3D).material_overlay == null,"no neon by day")
+	check(not is_instance_valid(neon),"no neon by day")
 	check(not CityNightMode.materials_modified(),"materials restored")
 	check_eq(SaveFormat.encode_city(city),encoded,"casino lights never change the city")
 	view.free()
