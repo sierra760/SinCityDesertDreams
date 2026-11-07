@@ -13,6 +13,8 @@ const GUIDANCE_HEIGHT := .25
 var network: ExploreTransitNetwork
 var world: ExploreTransitWorld3D
 var train: ExploreTransitTrain
+## Presentation-only passengers on the prepared platforms and in the carriage.
+var riders: ExploreTransitRiders
 var view: CityView3D
 var traversal: CityTraversalWorld3D
 var walker: ExplorePedestrian
@@ -57,6 +59,11 @@ func bind(value: CityView3D, physical: CityTraversalWorld3D, pedestrian: Explore
 	world = ExploreTransitWorld3D.new()
 	add_child(world)
 	world.bind(view,traversal,network)
+	riders = ExploreTransitRiders.new()
+	riders.name = "TransitRiders"
+	add_child(riders)
+	# A presentation seed; city and game random streams are never consumed.
+	riders.setup(hash(view.city.name if view.city != null else "")^0x5eed)
 	_observe(walker.global_position)
 	_initial_preparation = false
 
@@ -94,6 +101,11 @@ func step(delta: float, pedestrian: ExplorePedestrian = null) -> void:
 		_revalidate()
 		return
 	if is_instance_valid(world): world.step(dt,walker)
+	_advance_service(dt)
+	# Riders follow the carriage pose this step settled, never the last one.
+	_step_riders(dt)
+
+func _advance_service(dt: float) -> void:
 	if not walker.visible or state == "driving": return
 	if state == "idle":
 		_observe(walker.global_position)
@@ -116,7 +128,8 @@ func step(delta: float, pedestrian: ExplorePedestrian = null) -> void:
 			_observe(walker.global_position)
 			return
 	var current_station := network.station_for_route(route_data,int(route_data.stops[stop_index].station))
-	var obstructed := train.doorway_occupied(walker.global_position)
+	# Riders on their way through the doors hold them open, as the player does.
+	var obstructed := train.doorway_occupied(walker.global_position) or (is_instance_valid(riders) and riders.doorway_busy())
 	match state:
 		"opening":
 			_door_fraction = minf(1,_door_fraction+dt)
@@ -167,6 +180,14 @@ func step(delta: float, pedestrian: ExplorePedestrian = null) -> void:
 	current_station = network.station_for_route(route_data,int(route_data.stops[stop_index].station))
 	train.set_doors(_door_fraction,current_station.normal)
 	train.doors = state if state in ["opening","boarding","closing"] else "closed"
+
+func _step_riders(dt: float) -> void:
+	if not is_instance_valid(riders): return
+	riders.sync_stations(world.active_stations if is_instance_valid(world) else ([] as Array[Dictionary]))
+	var stop: Dictionary = {}
+	if is_instance_valid(train) and not route_data.is_empty() and state in ["opening","boarding","closing"]:
+		stop = network.station_for_route(route_data,int(route_data.stops[stop_index].station))
+	riders.step(dt,walker,train if state!="driving" else null,state,stop,view.exploration_camera() if is_instance_valid(view) else null)
 
 func _nearest_station(position: Vector3) -> int:
 	var best := -1
@@ -428,9 +449,11 @@ func interact_elevator() -> bool:
 
 func _retire(restore_physics: bool = true) -> void:
 	_unavailable_anchor = Vector2i(-1,-1)
+	if is_instance_valid(riders): riders.clear_train()
 	if is_instance_valid(train): train.free()
 	train = null
 	if is_instance_valid(world): world.clear(restore_physics)
+	if is_instance_valid(riders): riders.sync_stations([] as Array[Dictionary])
 	route_data = {}
 	state = "idle"
 	speed = 0
@@ -449,6 +472,8 @@ func clear(restore_physics: bool = true) -> void:
 	_unavailable_anchor = Vector2i(-1,-1)
 	if is_instance_valid(world): world.free()
 	world = null
+	if is_instance_valid(riders): riders.free()
+	riders = null
 	walker = null
 
 func _exit_tree() -> void:
