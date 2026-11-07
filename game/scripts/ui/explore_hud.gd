@@ -63,6 +63,8 @@ var _hint_until_msec := 0
 var _mode := 0
 var _vehicle_kind := &""
 var _resume_button: Button
+## The paused phone panel's Map entry; see `ExploreNavigation.hide_compact`.
+var _panel_map_button: Button
 var _destination_header: Label
 ## Full-screen black used for door transitions.
 var _fade: ColorRect
@@ -312,7 +314,14 @@ func _build() -> void:
 		var button := UIFactory.make_button(row[0])
 		button.pressed.connect(func() -> void: emit_signal(row[1]))
 		column.add_child(button)
-		if row[0] == "Resume": _resume_button = button
+		if row[0] == "Resume":
+			_resume_button = button
+			_panel_map_button = UIFactory.make_button("Map")
+			_panel_map_button.name = "ExplorePanelMap"
+			_panel_map_button.pressed.connect(func() -> void:
+				if is_instance_valid(navigation): navigation.toggle_requested.emit())
+			_panel_map_button.hide()
+			column.add_child(_panel_map_button)
 	_phone_details = UIFactory.make_label("",UITheme.FONT_SMALL)
 	_phone_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_phone_details.hide()
@@ -468,7 +477,13 @@ func _reflow() -> void:
 	var margin := 8.0
 	var phone := _touch_enabled and is_instance_valid(_layout) and DisplayLayout.is_phone(_layout.metrics)
 	touch_controls.set_phone_layout(phone)
-	if is_instance_valid(navigation): navigation.phone_layout = phone
+	if is_instance_valid(navigation):
+		navigation.phone_layout = phone
+		var hide_compact := phone and _suspended
+		if navigation.hide_compact != hide_compact:
+			navigation.hide_compact = hide_compact
+			navigation._refresh_visibility()
+	if is_instance_valid(_panel_map_button): _panel_map_button.visible = phone and _suspended
 	_critical_scroll.visible = not phone
 	_phone_summary.visible = phone
 	_phone_details.visible = phone and _suspended

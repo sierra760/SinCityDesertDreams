@@ -14,6 +14,9 @@ var _usable := Rect2(0,0,1280,800)
 var _status_rect := Rect2()
 var _touch := false
 var phone_layout := false
+## A paused phone moves Map into the Explore panel, so the floating button
+## would only cover the panel's heading.
+var hide_compact := false
 var _compact: PanelContainer
 var _expanded: PanelContainer
 var _shade: ColorRect
@@ -24,6 +27,10 @@ var _caption: Label
 var _legend: Label
 var _small_map: ExploreNavigationMap
 var _large_map: ExploreNavigationMap
+## Map beside its controls on wide short screens, above them otherwise.
+var _body: BoxContainer
+var _side: VBoxContainer
+var _actions: GridContainer
 var _markers: Array[Dictionary] = []
 
 func _ready() -> void:
@@ -65,16 +72,29 @@ func _ready() -> void:
 	_close_button = UIFactory.make_button("Close")
 	_close_button.pressed.connect(func() -> void: toggle_requested.emit())
 	header.add_child(_close_button)
+	_body = BoxContainer.new()
+	_body.name = "ExpandedMapBody"
+	_body.vertical = true
+	_body.add_theme_constant_override("separation",6)
+	full.add_child(_body)
 	_caption = UIFactory.make_label("Explore paused · Drag to pan",UITheme.FONT_SMALL)
 	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	full.add_child(_caption)
+	_body.add_child(_caption)
 	_large_map = ExploreNavigationMap.new()
 	_large_map.browsing = true
 	_large_map.span = 128
-	full.add_child(_large_map)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation",6)
-	full.add_child(actions)
+	_body.add_child(_large_map)
+	_side = VBoxContainer.new()
+	_side.name = "ExpandedMapControls"
+	_side.add_theme_constant_override("separation",6)
+	_side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.add_child(_side)
+	var actions := GridContainer.new()
+	actions.columns = 4
+	actions.add_theme_constant_override("h_separation",6)
+	actions.add_theme_constant_override("v_separation",6)
+	_actions = actions
+	_side.add_child(actions)
 	for item: Array in [["−",func() -> void: _large_map.set_span(_large_map.span*1.25)], ["+",func() -> void: _large_map.set_span(_large_map.span*.8)], ["Find me",recenter], ["Whole city",whole_city]]:
 		var button := UIFactory.make_button(item[0])
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -82,7 +102,7 @@ func _ready() -> void:
 		actions.add_child(button)
 	_legend = UIFactory.make_label("Arrow: you · Diamond: objective\nCircle: person · Box: vehicle · Ring: checkpoint",UITheme.FONT_SMALL)
 	_legend.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	full.add_child(_legend)
+	_side.add_child(_legend)
 	set_expanded(false)
 	set_session_active(false)
 
@@ -111,7 +131,7 @@ func set_expanded(on: bool) -> void:
 
 func _refresh_visibility() -> void:
 	if _compact == null: return
-	_compact.visible = _active and not expanded
+	_compact.visible = _active and not expanded and not hide_compact
 	_expanded.visible = _active and expanded
 	_shade.visible = _active and expanded
 	_world.visible = _active and not expanded
@@ -147,24 +167,44 @@ func apply_layout(usable: Rect2, status_rect: Rect2, touch: bool) -> void:
 	else:
 		_open_button.custom_minimum_size = Vector2(0,44)
 	var width := minf(720,maxf(1,usable.size.x-16))
-	_caption.visible = usable.size.y >= 300
-	_legend.visible = usable.size.y >= 360
+	var inner := maxf(1,width-UITheme.MARGIN*2)
+	# A wide short screen (a landscape phone) keeps a large square map with
+	# its zoom, Find me, Whole city and key in a column beside it.
+	var beside := usable.size.x >= usable.size.y*1.4 and usable.size.y < 560
+	_body.vertical = not beside
+	_actions.columns = 2 if beside else 4
+	var side_width := clampf(inner*.42,200,300) if beside else inner
+	# Beside the map the captions cost no map height, only column height.
+	_caption.visible = usable.size.y >= (260 if beside else 300)
+	_legend.visible = usable.size.y >= (330 if beside else 360)
+	if beside and _caption.get_parent() != _side:
+		_caption.reparent(_side,false)
+		_side.move_child(_caption,0)
+	elif not beside and _caption.get_parent() != _body:
+		_caption.reparent(_body,false)
+		_body.move_child(_caption,0)
 	for label: Label in [_caption,_legend]:
-		label.size.x = maxf(1,width-UITheme.MARGIN*2)
+		label.size.x = side_width
 		# Refresh deferred 4.7 text shaping before reserving the map's height.
 		label.get_minimum_size()
-	(_expanded.get_child(0) as Control).size.x = maxf(1,width-UITheme.MARGIN*2)
-	var header_height := 124.0
-	if _caption.visible: header_height += _caption.get_combined_minimum_size().y+6
-	if _legend.visible: header_height += _legend.get_combined_minimum_size().y+6
-	var map_side := maxf(32,minf(width-UITheme.MARGIN*2,usable.size.y-16-header_height))
+	(_expanded.get_child(0) as Control).size.x = inner
+	var map_side: float
+	if beside:
+		# Title row, panel margins and the outer gap.
+		map_side = maxf(32,minf(inner-side_width-6,usable.size.y-16-UITheme.MARGIN*2-50))
+		width = minf(width,map_side+side_width+6+UITheme.MARGIN*2)
+	else:
+		var header_height := 124.0
+		if _caption.visible: header_height += _caption.get_combined_minimum_size().y+6
+		if _legend.visible: header_height += _legend.get_combined_minimum_size().y+6
+		map_side = maxf(32,minf(inner,usable.size.y-16-header_height))
 	_large_map.custom_minimum_size = Vector2(map_side,map_side)
 	_large_map.size = Vector2(map_side,map_side)
 	_large_map.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# Never stretched to the control column's height: the map stays square.
+	_large_map.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_expanded.size = Vector2(width,0)
 	_expanded.position = usable.position+Vector2((usable.size.x-width)*.5,8)
-	_caption.visible = usable.size.y >= 300
-	_legend.visible = usable.size.y >= 360
 	if is_instance_valid(controller):
 		var key := controller.controls.caption(&"explore_map",0)
 		_open_button.text = "Map" if touch else "Map (%s)" % key

@@ -38,8 +38,6 @@ var _joystick_viewport: SubViewport
 var _joystick_display: TextureRect
 var _move_contact := -1
 var _move_actions: Array[StringName] = []
-## Mode actions with no room in the current layout; see _refresh.
-var _hidden: Array[StringName] = []
 
 func _enter_tree() -> void:
 	# A detached HUD can be reused. Restore its private namespace before its
@@ -325,13 +323,11 @@ func _mode_actions() -> Array[StringName]:
 	if _mode==ExploreActorProfile.Mode.DRIVE: return [&"brake",&"interact"]
 	if _mode==ExploreActorProfile.Mode.FLY: return [&"ascend",&"descend",&"interact"]
 	# Attack sits right above Interact, under the thumb; Weapon switches.
-	var walking: Array[StringName] = [&"attack",&"sprint",&"jump",&"weapon",&"interact"]
-	return walking.filter(func(action: StringName) -> bool: return action not in _hidden)
+	return [&"attack",&"sprint",&"jump",&"weapon",&"interact"]
 
 func _refresh() -> void:
 	visible=_enabled and _active
 	_rects.clear()
-	_hidden.clear()
 	var short := _usable.size.y < 360.0
 	_pad_size = 108.0 if short or _phone else PAD_SIZE
 	_pad_radius = 40.0 if short or _phone else PAD_RADIUS
@@ -361,22 +357,23 @@ func _refresh() -> void:
 		if actions.has(&"attack"):
 			actions.erase(&"attack")
 			actions.insert(actions.size()-1,&"attack")
-		# A small short screen (a phone with Details open) fits four buttons
-		# beside the pad; switching weapons waits until there is room again.
-		if _usable.size.x < 440.0 and actions.size() > 4:
-			actions.erase(&"weapon")
-			_rects.erase(&"weapon")
-			_hidden.append(&"weapon")
+		# A small short screen keeps every action: two columns beside the pad,
+		# filled from the bottom right so Interact and Attack stay under the
+		# thumb and any odd button sits at the top.
 		for index in actions.size():
 			var at := Vector2(_usable.end.x-8.0-float(actions.size()-index)*92.0,_usable.end.y-60.0)
 			if _usable.size.x < 440.0:
 				var rows := ceili(float(actions.size())/2.0)
-				var column := (index%2 if index<2 else 1) if actions.size()<=3 else index%2
-				at = Vector2(_usable.end.x-184.0+float(column)*92.0,_usable.end.y-16.0-float(rows)*52.0+8.0+float(index/2)*52.0)
+				var from_end := actions.size()-1-index
+				var column := 1-from_end%2
+				var row := rows-1-from_end/2
+				at = Vector2(_usable.end.x-184.0+float(column)*92.0,_usable.end.y-60.0-float(rows-1-row)*52.0)
 			_rects[actions[index]] = Rect2(at,Vector2(84,44))
 	for action: StringName in _buttons:
 		var button: Button = _buttons[action]
-		button.visible=action==&"menu" or (action in actions and not _suspended)
+		# Paused phones show Resume in the Explore panel; a disabled Menu copy
+		# would only cover the panel's heading.
+		button.visible=(action==&"menu" and not (_phone and _suspended)) or (action in actions and not _suspended)
 		button.disabled=_suspended
 		if _rects.has(action):
 			button.position=_rects[action].position

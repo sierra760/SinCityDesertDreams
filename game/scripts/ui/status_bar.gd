@@ -60,6 +60,12 @@ var details_label: Label
 var _summary_extras := ""
 var _phone_height_limit := 240.0
 var _bottom_edge_fill := Vector3.ZERO
+## Seconds a new status message stays on the compact phone footer before it
+## folds into Details, returning the line to the city.
+const PHONE_MESSAGE_SECONDS := 6.0
+var _message_timer: Timer
+## Whether the compact phone footer is currently showing the latest message.
+var _phone_message_shown := false
 
 ## Paint the bar through the home-indicator inset without extending its
 ## interactive rectangle or changing the content's natural height.
@@ -116,6 +122,7 @@ func set_phone_layout(on: bool) -> void:
 
 func set_details_open(on: bool) -> void:
 	_details_open = on and _phone
+	if not _phone: _phone_message_shown = false
 	_phone_face.visible = _phone
 	_phone_row.visible = _phone
 	_metrics_row.visible = not _phone or _details_open
@@ -124,6 +131,7 @@ func set_details_open(on: bool) -> void:
 	# the whole status message.
 	alert_label.max_lines_visible = -1 if _details_open else 2
 	message_label.max_lines_visible = (-1 if _details_open else 1) if _phone else 2
+	_sync_message_visibility()
 	_sync_details_label()
 	if _details_scroll != null:
 		_details_scroll.visible = _details_open
@@ -283,6 +291,11 @@ func _build() -> void:
 	message_label.max_lines_visible = 2
 	message_label.visible = false
 	_column.add_child(message_label)
+	_message_timer = Timer.new()
+	_message_timer.name = "PhoneMessageTimer"
+	_message_timer.one_shot = true
+	_message_timer.timeout.connect(_on_message_timeout)
+	add_child(_message_timer)
 
 func _cell(row: Container, text: String, min_width: int, color := UITheme.TEXT_PRIMARY) -> Label:
 	var l := UIFactory.make_label(text, UITheme.FONT_BODY, color)
@@ -484,7 +497,24 @@ func set_alerts(alerts: PackedStringArray) -> void:
 func set_message(text: String) -> void:
 	message_label.text = text
 	message_label.tooltip_text = text
-	message_label.visible = not text.is_empty()
+	if _phone and not text.is_empty():
+		_phone_message_shown = true
+		if _message_timer != null and _message_timer.is_inside_tree(): _message_timer.start(PHONE_MESSAGE_SECONDS)
+	_sync_message_visibility()
+
+## Desktop and expanded Details always show the message. The compact phone
+## footer shows a new one for a few seconds; Details keeps it afterwards.
+func _sync_message_visibility() -> void:
+	var has_text := not message_label.text.is_empty()
+	message_label.visible = has_text and (not _phone or _details_open or _phone_message_shown)
+
+func _on_message_timeout() -> void:
+	_phone_message_shown = false
+	_sync_message_visibility()
+
+## True when the compact phone footer currently shows the status message.
+func is_message_line_shown() -> bool:
+	return message_label.visible
 
 
 ## The editing stage: the land is being shaped, so there is no clock and no

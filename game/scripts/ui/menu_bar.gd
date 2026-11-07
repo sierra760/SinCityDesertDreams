@@ -20,6 +20,10 @@ const PHONE_INSPECT_ID := 1000000
 # conservative 220pt center guard for wide notches and Dynamic Island alike.
 const CAMERA_GUARD_POINTS := 220.0
 const CAMERA_VERTICAL_PADDING_POINTS := 8.0
+## Gap between floating phone buttons and the safe side edges. Phones draw
+## no shell strip: the city shows behind and between the buttons. The row
+## keeps the 44-unit band so windows below it lose no height.
+const PHONE_FLOAT_MARGIN := 6.0
 
 const WINDOW_NAMES: Array[String] = ["budget", "tourism", "graphs", "population", "industries",
 	"ordinances", "advisors", "newspaper", "city_maps", "neighbors"]
@@ -48,6 +52,8 @@ var _camera_wings := false
 var _tools_open := false
 var _inspect_available := false
 var _bindings: ControlBindings
+var _surface: Panel
+var _border: Panel
 ## Key captions and Cmd/Ctrl accelerators are shown unless this is a touch
 ## device without a hardware keyboard, where they name keys nobody can press.
 var show_key_hints := true
@@ -63,6 +69,7 @@ func set_phone_layout(on: bool) -> void:
 		_phone_row.name = "PhoneActions"
 		_phone_row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		_phone_row.add_theme_constant_override("separation",8)
+		_phone_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		phone_tools_button = UIFactory.make_button("Tools")
 		phone_tools_button.pressed.connect(func() -> void: tools_requested.emit())
 		_phone_row.add_child(phone_tools_button)
@@ -70,10 +77,13 @@ func set_phone_layout(on: bool) -> void:
 		phone_inspect_button.pressed.connect(func() -> void: inspect_requested.emit())
 		_phone_row.add_child(phone_inspect_button)
 		var space := Control.new()
+		space.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_phone_row.add_child(space)
 		_phone_menu = MenuButton.new()
 		_phone_menu.text = "Menu"
+		# MenuButton is flat by default; floating over the city it needs a face.
+		_phone_menu.flat = false
 		_phone_menu.custom_minimum_size = Vector2(80,44)
 		_phone_menu.theme = UITheme.control_theme()
 		_phone_menu.get_popup().about_to_popup.connect(func() -> void: popup_opened.emit())
@@ -93,7 +103,36 @@ func set_phone_layout(on: bool) -> void:
 			set_menu_title(get_menu_count()-1,title)
 	_phone = on
 	_phone_row.visible = on
+	# Phones float their buttons over the city. The bar itself draws nothing
+	# and lets touches between the buttons reach the map.
+	_surface.visible = not on
+	_border.visible = not on
+	mouse_filter = Control.MOUSE_FILTER_IGNORE if on else Control.MOUSE_FILTER_STOP
 	update_minimum_size()
+
+## Whether a touch at `point` (global) belongs to the menu. On phones only
+## the floating buttons own touches; the space between them is city.
+func owns_point(point: Vector2) -> bool:
+	if not is_visible_in_tree(): return false
+	if not _phone: return get_global_rect().has_point(point)
+	for control: Control in phone_controls():
+		if control.is_visible_in_tree() and control.get_global_rect().has_point(point): return true
+	return false
+
+## The floating phone controls, in reading order.
+func phone_controls() -> Array[Control]:
+	if _phone_row == null: return []
+	return [phone_tools_button,phone_inspect_button,_phone_menu]
+
+## A MenuButton draws as flat text. Over the city it needs the same raised
+## face as the other floating buttons.
+func _style_phone_menu() -> void:
+	for state: String in ["normal","hover","pressed","disabled","focus","hover_pressed"]:
+		if phone_tools_button.has_theme_stylebox(state):
+			_phone_menu.add_theme_stylebox_override(state,phone_tools_button.get_theme_stylebox(state))
+	for color: String in ["font_color","font_hover_color","font_pressed_color","font_disabled_color","font_focus_color"]:
+		if phone_tools_button.has_theme_color(color):
+			_phone_menu.add_theme_color_override(color,phone_tools_button.get_theme_color(color))
 
 func set_phone_build_available(on: bool, tools_open: bool = false, inspect_on: bool = true) -> void:
 	if _phone_row == null: return
@@ -101,6 +140,10 @@ func set_phone_build_available(on: bool, tools_open: bool = false, inspect_on: b
 	_inspect_available = on and inspect_on
 	phone_tools_button.disabled = not on
 	phone_inspect_button.disabled = not _inspect_available
+	# Outside the city view (Explore) the build buttons have nothing to do;
+	# hide them instead of floating two disabled buttons over the street.
+	phone_tools_button.visible = on
+	phone_inspect_button.visible = on and not _camera_wings
 	phone_tools_button.text = "Close tools" if tools_open and not _camera_wings else "Tools"
 	phone_tools_button.tooltip_text = "Close tools" if tools_open else "Open tools"
 	_sync_phone_inspect()
@@ -127,18 +170,19 @@ func apply_display_layout(metrics: Dictionary) -> Rect2:
 	var wing_width := (full.size.x-CAMERA_GUARD_POINTS/multiplier)*.5-corner
 	_camera_wings = edge_phone and full.size.y>full.size.x and safe.position.y*multiplier>=44.0 and wing_width>=60.0
 	var bar := Rect2(safe.position,Vector2(safe.size.x,BAR_HEIGHT))
+	var float_margin := PHONE_FLOAT_MARGIN if _phone and not _camera_wings else 0.0
 	if edge_phone:
 		bar.position = full.position
 		bar.size.x = full.size.x
 		bar.size.y = maxf(safe.position.y,BAR_HEIGHT+2.0*CAMERA_VERTICAL_PADDING_POINTS/multiplier) if _camera_wings else safe.position.y+BAR_HEIGHT
 	if _phone_row != null:
-		phone_inspect_button.visible = not _camera_wings
+		_style_phone_menu()
 		phone_tools_button.add_theme_font_size_override("font_size",UITheme.FONT_SMALL if _camera_wings else UITheme.FONT_BODY)
 		_phone_menu.add_theme_font_size_override("font_size",UITheme.FONT_SMALL if _camera_wings else UITheme.FONT_BODY)
 		phone_tools_button.custom_minimum_size.x = 60 if _camera_wings else 44
 		_phone_menu.custom_minimum_size.x = 60 if _camera_wings else 80
-		_phone_row.offset_left = corner if _camera_wings else safe.position.x-bar.position.x
-		_phone_row.offset_right = -corner if _camera_wings else safe.end.x-bar.end.x
+		_phone_row.offset_left = corner if _camera_wings else safe.position.x-bar.position.x+float_margin
+		_phone_row.offset_right = -corner if _camera_wings else safe.end.x-bar.end.x-float_margin
 		_phone_row.offset_top = (bar.size.y-BAR_HEIGHT)*.5 if _camera_wings else safe.position.y-bar.position.y
 		_phone_row.offset_bottom = _phone_row.offset_top+BAR_HEIGHT-bar.size.y
 		set_phone_build_available(not phone_tools_button.disabled,_tools_open,_inspect_available)
@@ -154,6 +198,7 @@ func _init() -> void:
 	add_theme_font_size_override("font_size", UITheme.FONT_BODY)
 	_build()
 	var background := Panel.new()
+	_surface = background
 	background.name = "MenuSurface"
 	background.show_behind_parent = true
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -163,6 +208,7 @@ func _init() -> void:
 	# MenuBar and phone buttons fill the 44-unit input region. Keep the
 	# shell's bottom rule visible over their faces without shrinking targets.
 	var border := Panel.new()
+	_border = border
 	border.name = "MenuBorder"
 	border.z_index = 1
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE

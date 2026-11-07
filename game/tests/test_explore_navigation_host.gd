@@ -156,6 +156,12 @@ func test_touch_navigation_keeps_menu_and_vehicle_actions_accessible() -> void:
 			actions.append(&"menu")
 			for action: StringName in actions:
 				check(not navigation._compact.get_global_rect().intersects(touch.control_rect(action)),"Map cannot cover %s at %s" % [action,drawable])
+			# A paused phone offers Map in the Explore panel instead of a
+			# floating card over the panel's heading.
+			if navigation.hide_compact:
+				check(host.exploration.is_suspended() and navigation.phone_layout,"only a paused phone moves Map into the panel")
+				check(host.explore_hud._panel_map_button.is_visible_in_tree(),"paused phone panel offers Map")
+				continue
 			var center := navigation._open_button.get_global_rect().get_center()
 			check(host.touch_ui_owned(center),"Map card owns touch, never camera look")
 			check(host.explore_hud._usable_rect().encloses(navigation._compact.get_global_rect()),"touch map fits above footer")

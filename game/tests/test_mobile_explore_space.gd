@@ -53,8 +53,10 @@ func test_phone_explore_reclaims_chrome_and_preserves_pause_build_routes() -> vo
 		host.sim._emit_scalars()
 		host.exploration.suspend()
 		await Fixture.settle(self,8)
-		check(host.menu_bar.visible and host.status_bar.visible,"paused phone restores city menus and alerts")
-		_check_current_counts()
+		# Paused phone Explore restores the floating city Menu (save, speed,
+		# reports); the footer waits for Build so the pause panel keeps its height.
+		check(host.menu_bar.visible and host.menu_bar.get("_phone_menu").is_visible_in_tree(),"paused phone restores the city menu")
+		check(not host.status_bar.visible,"paused phone keeps the footer's height for the Explore panel")
 		check(hud._scroll.get_global_rect().grow(.1).encloses(hud._resume_button.get_global_rect()),"Resume appears without scrolling")
 		host.exploration.resume()
 		await Fixture.settle(self,8)

@@ -115,8 +115,12 @@ func _measure() -> void:
 	var bounds := _host.display_layout.logical_rect()
 	var full: Rect2 = metrics.get("full_logical_rect",bounds)
 	var immersive := phone_layout and _host.is_exploring() and not _host.exploration.is_suspended()
+	# A paused phone Explore keeps the floating city Menu (save, speed,
+	# reports) but not the footer: the pause panel, map and Explore settings
+	# need that height far more on a landscape phone. Build restores it.
+	var phone_explore := phone_layout and _host.is_exploring()
 	menu_bar.visible = not immersive
-	status_bar.visible = _host.in_game and not immersive
+	status_bar.visible = _host.in_game and not phone_explore
 	var menu_rect := menu_bar.apply_display_layout(metrics)
 	menu_bar.offset_left = menu_rect.position.x
 	menu_bar.offset_right = menu_rect.end.x-full.size.x
@@ -124,7 +128,7 @@ func _measure() -> void:
 	menu_bar.offset_bottom = menu_rect.end.y
 	var menu_inset := maxf(0.0,menu_rect.end.y-bounds.position.y)
 	var top_inset := 0.0 if immersive else menu_inset
-	var bottom_inset := 0.0 if immersive else status_bar.size.y
+	var bottom_inset := 0.0 if not status_bar.visible else status_bar.size.y
 	status_bar.offset_left = bounds.position.x
 	status_bar.offset_right = bounds.end.x - full.size.x
 	status_bar.apply_phone_height_limit(maxf(109.0,bounds.size.y-menu_inset-200.0))
