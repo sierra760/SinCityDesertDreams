@@ -35,7 +35,7 @@ const WINDOW_WARMTH := Color(1.0,.80,.52)
 ## World-space window cells: about two metres wide and one storey tall.
 const WINDOW_SCALE := Vector3(1.0/(8.0*.125),1.0/(8.0*.21),1.0/(8.0*.125))
 ## Casinos glow harder than ordinary buildings.
-const CASINO_BOOST := {Role.WINDOW: .85, Role.WINDOW_DIM: 1.4, Role.NEON: 1.2, Role.SIGN: 1.3}
+const CASINO_BOOST := {Role.NEON: 1.2, Role.SIGN: 1.3}
 ## Resort halls (render layer 21) keep their own interior lighting.
 const INTERIOR_LAYER := 1 << 20
 
@@ -65,7 +65,6 @@ var casinos: CityCasinoLights3D
 var _casinos_dirty := false
 
 static var _window_texture: ImageTexture
-static var _casino_window_texture: ImageTexture
 static var _star_texture: ImageTexture
 ## Materials currently carrying night emission, across all views. The model
 ## cache must not persist them in this state.
@@ -293,6 +292,13 @@ func _consider(material: Material, code: int = -1) -> void:
 	if base == null: return
 	var casino := Signatures.has(code)
 	var existing: Dictionary = _prepared.get(base.get_instance_id(),{})
+	# Casino glass is lit pane by pane by CityCasinoLights3D, not by material.
+	if casino and role_for(base.resource_name) in [Role.WINDOW, Role.WINDOW_DIM]:
+		if not existing.is_empty():
+			for key: String in existing.saved: base.set(key,existing.saved[key])
+			_prepared.erase(base.get_instance_id())
+			_modified_count -= 1
+		return
 	if not existing.is_empty():
 		# A batch can reach a casino material before its lot does.
 		if casino and int(existing.code) != code:
@@ -327,7 +333,7 @@ static func _setup(material: BaseMaterial3D, role: int, saved: Dictionary, code:
 			# Glass has no other texture, so world triplanar only places these.
 			if material.albedo_texture == null and material.normal_texture == null:
 				material.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-				material.emission_texture = casino_window_texture() if not signature.is_empty() else window_texture()
+				material.emission_texture = window_texture()
 				material.uv1_triplanar = true
 				material.uv1_world_triplanar = true
 				material.uv1_scale = WINDOW_SCALE
@@ -352,9 +358,6 @@ static func _setup(material: BaseMaterial3D, role: int, saved: Dictionary, code:
 		_:
 			material.emission_enabled = true
 			material.emission = material.albedo_color
-	# A casino's glass takes its own colour.
-	if not signature.is_empty() and role in [Role.WINDOW, Role.WINDOW_DIM]:
-		material.emission = signature.glass
 
 func _apply_material(record: Dictionary) -> void:
 	var material: BaseMaterial3D = record.material
@@ -400,25 +403,6 @@ static func window_texture() -> ImageTexture:
 	image.generate_mipmaps()
 	_window_texture = ImageTexture.create_from_image(image)
 	return _window_texture
-
-## Casino glass: about half the panes lit in the casino's colour, with soft
-## brightness variation and fine mullions, so light is used sparingly.
-static func casino_window_texture() -> ImageTexture:
-	if _casino_window_texture != null: return _casino_window_texture
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7741
-	var image := Image.create(64,64,false,Image.FORMAT_RGBA8)
-	for cy: int in 8:
-		for cx: int in 8:
-			var bright := rng.randf_range(.72,1.0) if rng.randf() < .52 else .06
-			for py: int in 8:
-				for px: int in 8:
-					var frame := px == 0 or py == 7
-					var value := bright*(.45 if frame else 1.0)
-					image.set_pixel(cx*8+px,cy*8+py,Color(value,value,value))
-	image.generate_mipmaps()
-	_casino_window_texture = ImageTexture.create_from_image(image)
-	return _casino_window_texture
 
 ## Equirectangular star field for the night sky's cover texture. Only the
 ## brighter stars: full moonlight washes out the faint ones.

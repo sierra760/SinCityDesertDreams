@@ -12,6 +12,16 @@ const Signatures := preload("res://scripts/view/casino_night_signatures.gd")
 const Globals := preload("res://scripts/view/city_night_globals.gd")
 const NEON := preload("res://shaders/casino_neon_overlay.gdshader")
 const BEAM := preload("res://shaders/casino_searchlight.gdshader")
+const PANES := preload("res://shaders/casino_window_panes.gdshader")
+const Access := preload("res://scripts/exploration/resorts/resort_entrance_access.gd")
+## Glass below this height above the lot base is the lobby and entrance.
+const LOBBY_HEIGHT := .2
+## About this share of upper-floor panes is lit, chosen per pane.
+const LIT_SHARE := .5
+## Lit panes sit this far in front of the glass, in tile units.
+const PANE_LIFT := .0012
+## Half the width of the entrance kept clear of the marquee, by lot size.
+const DOOR_HALF_WIDTH := {1: .12, 2: .16, 3: .22, 4: .28}
 ## Beams rise from the roof and lean this far from vertical while sweeping.
 const BEAM_LENGTH := 9.0
 const BEAM_TILT := deg_to_rad(16.0)
@@ -49,9 +59,15 @@ func rebuild() -> void:
 		material.set_shader_parameter("style",int(signature.style))
 		var cell: Vector2i = node.get_meta("cell",Vector2i.ZERO)
 		material.set_shader_parameter("phase",float((cell.x*7+cell.y*13)%17))
-		var record := {"node":node,"code":code,"bounds":bounds,"material":material,"signature":signature}
+		var door := _door(code,cell)
+		if not door.is_empty():
+			material.set_shader_parameter("door_center",door.center)
+			material.set_shader_parameter("door_front",door.front)
+			material.set_shader_parameter("door_half_width",door.half_width)
+		var record := {"node":node,"code":code,"bounds":bounds,"material":material,"signature":signature,"door":door}
 		lots.append(record)
 		_overlay(record)
+		_add_panes(record)
 		_add_beams(record)
 	_paint_wash()
 	set_process(not _beams.is_empty())
@@ -63,12 +79,137 @@ func clear() -> void:
 	for beam: Dictionary in _beams:
 		if is_instance_valid(beam.pivot): beam.pivot.free()
 	_beams.clear()
+	for record: Dictionary in lots:
+		if is_instance_valid(record.get("panes")): record.panes.free()
 	lots.clear()
 	if _texture != null: Globals.set_wash(null)
 	set_process(false)
 
 func _exit_tree() -> void:
 	clear()
+
+## The main entrance of a casino lot: where Explore's front door is.
+func _door(code: int, anchor: Vector2i) -> Dictionary:
+	var city: City = _view.city if "city" in _view else null
+	if city == null: return {}
+	var threshold: Transform3D = Access.threshold(city,anchor,code)
+	var front := threshold.basis*Vector3.BACK
+	var size := Buildings.size(code)
+	return {"center":Vector2(threshold.origin.x,threshold.origin.z),"front":Vector2(front.x,front.z).normalized(),
+		"half_width":float(DOOR_HALF_WIDTH.get(mini(size.x,size.y),.2))}
+
+## Lit window panes, built from the casino's own glass: each authored pane is
+## lit whole or not at all. Upper-floor panes glow in the casino's colour
+## about half the time; lobby glass glows warm; skylights, canopy tops and
+## large glass shapes stay unlit.
+func _add_panes(record: Dictionary) -> void:
+	var base: float = record.bounds.position.y
+	var colour: Color = record.signature.glass
+	var lobby := Color(1.0,.84,.6)
+	var faces := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colours := PackedColorArray()
+	for child: Node in record.node.find_children("*","MeshInstance3D",true,false):
+		var source := child as MeshInstance3D
+		if source.mesh == null: continue
+		for surface: int in source.mesh.get_surface_count():
+			var material := source.get_active_material(surface)
+			if material == null or not CityNightMode.role_for(material.resource_name) in [CityNightMode.Role.WINDOW,CityNightMode.Role.WINDOW_DIM]: continue
+			for pane: Dictionary in _panes(source,surface):
+				var size: Vector3 = pane.size
+				# Window panes stand upright: thin one way, taller than thick.
+				if pane.triangles.size() > 16 or size.y < .006 or minf(size.x,size.z) > size.y*.6: continue
+				var lift: float = pane.center.y-base
+				var light := lobby*.75
+				if lift >= LOBBY_HEIGHT:
+					var roll := _hash01(pane.center)
+					if roll > LIT_SHARE: continue
+					light = colour*lerpf(.7,1.0,_hash01(pane.center+Vector3(.37,0,.71)))
+				var linear := light.srgb_to_linear()
+				for triangle: Array in pane.triangles:
+					var normal: Vector3 = triangle[3]
+					if absf(normal.y) > .3: continue
+					for i: int in 3:
+						faces.append(triangle[i]+normal*PANE_LIFT)
+						normals.append(normal)
+						colours.append(linear)
+	if faces.is_empty(): return
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = faces
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colours
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	var material := ShaderMaterial.new()
+	material.shader = PANES
+	mesh.surface_set_material(0,material)
+	var instance := MeshInstance3D.new()
+	instance.name = "LitPanes"
+	instance.mesh = mesh
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(instance)
+	record["panes"] = instance
+
+## The glass of one surface split into panes (connected pieces), in world
+## space: {"triangles": [[a, b, c, normal]], "center", "size"}.
+static func _panes(source: MeshInstance3D, surface: int) -> Array[Dictionary]:
+	var arrays := source.mesh.surface_get_arrays(surface)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	if indices.is_empty():
+		indices.resize(vertices.size())
+		for i: int in vertices.size(): indices[i] = i
+	var authored: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+	var to_world := source.global_transform
+	var normal_basis := to_world.basis.inverse().transposed()
+	var world := PackedVector3Array()
+	world.resize(vertices.size())
+	for i: int in vertices.size(): world[i] = to_world*vertices[i]
+	# Join vertices that share a position, then triangles that share a vertex.
+	var key_of := {}
+	var parent: Array[int] = []
+	var welded := PackedInt32Array()
+	welded.resize(world.size())
+	for i: int in world.size():
+		var key := Vector3i((world[i]*2000.0).round())
+		if not key_of.has(key):
+			key_of[key] = parent.size()
+			parent.append(parent.size())
+		welded[i] = key_of[key]
+	for t: int in range(0,indices.size()-2,3):
+		var a := _root(parent,welded[indices[t]])
+		for k: int in [1,2]:
+			var b := _root(parent,welded[indices[t+k]])
+			if a != b: parent[b] = a
+	var groups := {}
+	for t: int in range(0,indices.size()-2,3):
+		var root := _root(parent,welded[indices[t]])
+		var a := world[indices[t]]
+		var b := world[indices[t+1]]
+		var c := world[indices[t+2]]
+		if (c-a).cross(b-a).length_squared() < 1e-14: continue
+		var normal := (c-a).cross(b-a)
+		if not authored.is_empty():
+			normal = normal_basis*(authored[indices[t]]+authored[indices[t+1]]+authored[indices[t+2]])
+		if not groups.has(root): groups[root] = {"triangles":[],"box":AABB(a,Vector3.ZERO)}
+		var group: Dictionary = groups[root]
+		group.triangles.append([a,b,c,normal.normalized()])
+		group.box = group.box.expand(a).expand(b).expand(c)
+	var out: Array[Dictionary] = []
+	for group: Dictionary in groups.values():
+		out.append({"triangles":group.triangles,"center":group.box.get_center(),"size":group.box.size})
+	return out
+
+static func _root(parent: Array[int], x: int) -> int:
+	while parent[x] != x:
+		parent[x] = parent[parent[x]]
+		x = parent[x]
+	return x
+
+## A stable 0..1 value for a position; never touches the game's random streams.
+static func _hash01(point: Vector3) -> float:
+	return float(posmod(hash(Vector3i((point*512.0).round())),65536))/65535.0
 
 static func _bounds(lot: Node) -> AABB:
 	var bounds := AABB()

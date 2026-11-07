@@ -259,14 +259,28 @@ func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
 	check_eq(casinos._beams.size(),int(signature.beams),"its searchlights")
 	var center := Vector2i(floori(record.bounds.get_center().x),floori(record.bounds.get_center().z))
 	check_gt(casinos._image.get_pixelv(center).a,0.5,"its colour washes the ground")
-	var glass := 0
 	for prepared: Dictionary in view.night._prepared.values():
-		if int(prepared.code) == Buildings.ARCOLOGY_ORBIT and prepared.role == CityNightMode.Role.WINDOW:
-			glass += 1
-			check_eq(prepared.material.emission,signature.glass,"casino glass takes its own colour")
-	check_gt(glass,0,"the casino has glass")
+		check(not (int(prepared.code) == Buildings.ARCOLOGY_ORBIT and prepared.role in [CityNightMode.Role.WINDOW,CityNightMode.Role.WINDOW_DIM]),
+			"casino glass is lit by pane, not by a world pattern on its material")
+	var panes: MeshInstance3D = record.get("panes")
+	check(is_instance_valid(panes),"lit panes are built from the casino's own glass")
+	if is_instance_valid(panes):
+		var faces: PackedVector3Array = panes.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		check_gt(faces.size(),0)
+		var lobby := 0
+		var upper := 0
+		for face: Vector3 in faces:
+			if face.y-record.bounds.position.y < CityCasinoLights3D.LOBBY_HEIGHT: lobby += 1
+			else: upper += 1
+		check_gt(upper,0,"upper-floor panes are lit")
+	var door: Dictionary = record.door
+	check(not door.is_empty(),"the entrance is known")
+	if not door.is_empty():
+		check_eq(record.material.get_shader_parameter("door_center"),door.center,"the marquee leaves the entrance clear")
+		check_gt(float(record.material.get_shader_parameter("door_half_width")),0.0)
 	view.set_night_mode(false,true)
 	check(casinos.lots.is_empty() and casinos._beams.is_empty(),"day removes the casino lights")
+	check(not is_instance_valid(panes),"lit panes are removed by day")
 	for mesh: Node in record.node.find_children("*","MeshInstance3D",true,false):
 		check((mesh as MeshInstance3D).material_overlay == null,"no neon by day")
 	check(not CityNightMode.materials_modified(),"materials restored")

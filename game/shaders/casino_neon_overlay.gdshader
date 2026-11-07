@@ -16,6 +16,10 @@ uniform float top_y = 1.0;
 // 0 bands, 1 fins, 2 grid, 3 rising chase, 4 pulse (CasinoNightSignatures.Style).
 uniform int style = 0;
 uniform float phase = 0.0;
+// The main entrance: centre on the ground plane, outward direction, half width.
+uniform vec2 door_center = vec2(-1000.0);
+uniform vec2 door_front = vec2(0.0,1.0);
+uniform float door_half_width = 0.0;
 
 varying vec3 wp;
 varying vec3 wn;
@@ -45,9 +49,14 @@ void fragment() {
 	c += neon_a*wall*exp(-max(height,0.0)*7.0)*0.22;
 	// Upper roofs glow like a crown, strongest on the highest parts.
 	c += neon_b*roof*smoothstep(0.45,1.0,h)*0.15;
-	// Marquee: chasing bulbs just above the entrances.
+	// Marquee: chasing bulbs low around the building, leaving the entrance
+	// clear: no bulbs on the front wall across the doors.
+	vec2 from_door = wp.xz-door_center;
+	vec2 door_side = vec2(door_front.y,-door_front.x);
+	float at_door = step(abs(dot(from_door,door_side)),door_half_width)
+		*step(0.5,dot(wn.xz,door_front))*step(abs(dot(from_door,door_front)),0.6);
 	float bulbs = step(0.5,fract(s*30.0-t*2.4));
-	c += mix(neon_b,vec3(1.0,0.95,0.8),0.45)*wall*tube(height-0.08,0.010)*(0.25+0.95*bulbs);
+	c += mix(neon_b,vec3(1.0,0.95,0.8),0.45)*wall*tube(height-0.08,0.010)*(0.25+0.95*bulbs)*(1.0-at_door);
 	float above = smoothstep(0.10,0.14,height);
 	// Neon is an accent: a few lines, not every storey or bay.
 	float crown = tube(height-span*0.96,0.012);

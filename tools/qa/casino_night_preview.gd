@@ -82,6 +82,15 @@ func _run() -> void:
 		"street-raised-strip": [Vector3(BOULEVARD + 6.0, g + 2.2, 78.0), Vector3(BOULEVARD, g + .6, 50)],
 		"street-skyline": [Vector3(BOULEVARD + 14.0, g + .5, 96.0), Vector3(BOULEVARD, g + 1.6, 50)],
 	}
+	# Face a few casino entrances from the street to check the marquee gap.
+	if view.night.casinos != null:
+		var lots: Array = view.night.casinos.lots
+		for index: int in [0, 3, 6, 11]:
+			if index >= lots.size() or (lots[index].door as Dictionary).is_empty(): continue
+			var door: Dictionary = lots[index].door
+			var center := Vector3(door.center.x, g, door.center.y)
+			var front := Vector3(door.front.x, 0, door.front.y)
+			poses["door-%02d" % index] = [center + front * 1.1 + Vector3(0, .16, 0), center + Vector3(0, .1, 0)]
 	for name: String in poses:
 		camera.position = poses[name][0]
 		camera.look_at(poses[name][1])
