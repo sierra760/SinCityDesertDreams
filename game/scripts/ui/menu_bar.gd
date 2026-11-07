@@ -254,6 +254,7 @@ func _build() -> void:
 	_item(view, "Rotate [R]", &"rotate")
 	_item(view, "Center on Map", &"recenter")
 	_check(view, "Underground [U]", &"underground")
+	_check(view, "Night Mode [N]", &"night_mode")
 	_item(view,"Street Names…",&"street_names")
 	set_enabled(&"street_names",false)
 	_item(view,"Vegetation Zones…",&"vegetation")
@@ -268,7 +269,6 @@ func _build() -> void:
 	_check(visibility, "Signs and Labels", &"labels")
 	_check(visibility, "Traffic and Pedestrians", &"vehicles")
 	_check(visibility, "Minimap", &"minimap")
-	_check(visibility, "Night Mode [N]", &"night_mode")
 
 	var windows := _menu("Reports")
 	for w in WINDOW_NAMES:

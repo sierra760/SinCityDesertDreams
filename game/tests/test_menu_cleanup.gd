@@ -7,7 +7,8 @@ extends "res://tests/test_case.gd"
 func test_navigation_groups_retain_actions_and_popup_suspension() -> void:
 	var menu := GameMenuBar.new()
 	check_eq(menu.menu_titles(),["City","Speed","View","Reports","Disasters","Help"] as Array[String])
-	check(menu._menus["View"].item_count<=12,"primary view menu stays short")
+	# Night Mode sits beside Underground at the user's direction (13 items).
+	check(menu._menus["View"].item_count<=13,"primary view menu stays short")
 	check(menu._entries[menu._key(&"options",null)].menu == menu._menus["City"])
 	check(not menu.has_action(&"auto_budget"),"Budget owns auto budget")
 	var events: Array = []

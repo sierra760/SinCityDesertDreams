@@ -213,6 +213,11 @@ func test_main_menu_key_and_preference() -> void:
 	root.add_child(host)
 	var view := host.city_view_3d
 	check(view.is_night_mode(),"Main restores a saved night")
+	var view_menu: PopupMenu = host.menu_bar._menus["View"]
+	var top_level := false
+	for item: int in view_menu.item_count:
+		if view_menu.get_item_text(item).begins_with("Night Mode"): top_level = true
+	check(top_level,"Night Mode is in the View menu itself, not a submenu")
 	check_eq(view.night.amount,1.0,"restored without a fade")
 	host.prefs.set_option(&"night_mode",false)
 	check(not view.is_night_mode(),"the menu action turns night off")
@@ -257,6 +262,12 @@ func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
 	check_gt(overlaid,0,"neon is drawn over the casino's own meshes")
 	check_eq(record.material.get_shader_parameter("neon_a"),signature.a,"its own neon colours")
 	check_eq(casinos._beams.size(),int(signature.beams),"its searchlights")
+	var features: Array = record.get("features",[])
+	check_eq(features.size(),preload("res://scripts/view/casino_night_signatures.gd").features(Buildings.ARCOLOGY_ORBIT).size(),"its signature feature is lit")
+	for feature: Variant in features:
+		var lit: PackedVector3Array = (feature as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		check_gt(lit.size(),0,"the feature has its own glowing geometry")
+		for point: Vector3 in lit: check_gt(point.y,record.bounds.position.y+(record.bounds.size.y*.6),"the rocket's crown, high on the building")
 	var center := Vector2i(floori(record.bounds.get_center().x),floori(record.bounds.get_center().z))
 	check_gt(casinos._image.get_pixelv(center).a,0.5,"its colour washes the ground")
 	for prepared: Dictionary in view.night._prepared.values():
@@ -281,6 +292,7 @@ func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
 	view.set_night_mode(false,true)
 	check(casinos.lots.is_empty() and casinos._beams.is_empty(),"day removes the casino lights")
 	check(not is_instance_valid(panes),"lit panes are removed by day")
+	for feature: Variant in features: check(not is_instance_valid(feature),"signature lights are removed by day")
 	for mesh: Node in record.node.find_children("*","MeshInstance3D",true,false):
 		check((mesh as MeshInstance3D).material_overlay == null,"no neon by day")
 	check(not CityNightMode.materials_modified(),"materials restored")

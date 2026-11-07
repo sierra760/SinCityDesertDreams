@@ -91,6 +91,21 @@ func _run() -> void:
 			var center := Vector3(door.center.x, g, door.center.y)
 			var front := Vector3(door.front.x, 0, door.front.y)
 			poses["door-%02d" % index] = [center + front * 1.1 + Vector3(0, .16, 0), center + Vector3(0, .1, 0)]
+	# Each signature feature, seen from the street side of its casino.
+	if view.night.casinos != null:
+		for record: Dictionary in view.night.casinos.lots:
+			var front := Vector3(0, 0, 1)
+			if not (record.door as Dictionary).is_empty(): front = Vector3(record.door.front.x, 0, record.door.front.y)
+			var index := 0
+			for feature: Variant in record.get("features", []):
+				var material: ShaderMaterial = (feature as MeshInstance3D).mesh.surface_get_material(0)
+				var center: Vector3 = material.get_shader_parameter("center")
+				var axis: Vector3 = material.get_shader_parameter("axis")
+				var size: float = material.get_shader_parameter("radius")
+				var toward := axis if absf(axis.y) < .5 else front
+				if toward.dot(front) < 0: toward = -toward
+				poses["feature-%d-%d" % [record.code, index]] = [center + toward * (size * 2.6 + .5) + Vector3(0, .12, 0), center]
+				index += 1
 	for name: String in poses:
 		camera.position = poses[name][0]
 		camera.look_at(poses[name][1])

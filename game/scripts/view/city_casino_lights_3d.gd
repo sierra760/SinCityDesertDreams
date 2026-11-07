@@ -13,6 +13,9 @@ const Globals := preload("res://scripts/view/city_night_globals.gd")
 const NEON := preload("res://shaders/casino_neon_overlay.gdshader")
 const BEAM := preload("res://shaders/casino_searchlight.gdshader")
 const PANES := preload("res://shaders/casino_window_panes.gdshader")
+const FEATURE := preload("res://shaders/casino_feature_glow.gdshader")
+## Signature features glow harder than the neon around them.
+const FEATURE_STRENGTH := 1.5
 const Access := preload("res://scripts/exploration/resorts/resort_entrance_access.gd")
 ## Glass below this height above the lot base is the lobby and entrance.
 const LOBBY_HEIGHT := .2
@@ -68,6 +71,7 @@ func rebuild() -> void:
 		lots.append(record)
 		_overlay(record)
 		_add_panes(record)
+		_add_features(record)
 		_add_beams(record)
 	_paint_wash()
 	set_process(not _beams.is_empty())
@@ -81,6 +85,8 @@ func clear() -> void:
 	_beams.clear()
 	for record: Dictionary in lots:
 		if is_instance_valid(record.get("panes")): record.panes.free()
+		for feature: Variant in record.get("features",[]):
+			if is_instance_valid(feature): feature.free()
 	lots.clear()
 	if _texture != null: Globals.set_wash(null)
 	set_process(false)
@@ -150,6 +156,93 @@ func _add_panes(record: Dictionary) -> void:
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(instance)
 	record["panes"] = instance
+
+## Each signature feature (the Afterglow's sun, the Boulder Crown's turbine
+## wheel...) is its own authored geometry, picked by material inside a box in
+## model space and redrawn just in front of itself with its own glow.
+func _add_features(record: Dictionary) -> void:
+	record["features"] = []
+	var specs: Array = Signatures.features(record.code)
+	if specs.is_empty() or record.node.get_child_count() == 0: return
+	var model := record.node.get_child(0) as Node3D
+	if model == null: return
+	var to_model := model.global_transform.affine_inverse()
+	var sources: Array[MeshInstance3D] = []
+	for child: Node in model.find_children("*","MeshInstance3D",true,false):
+		if (child as MeshInstance3D).mesh != null: sources.append(child)
+	for spec: Dictionary in specs:
+		var box := AABB()
+		var boxed: Array = spec.box
+		if not boxed.is_empty(): box = AABB(Vector3(boxed[0],boxed[1],boxed[2]),Vector3(boxed[3]-boxed[0],boxed[4]-boxed[1],boxed[5]-boxed[2]))
+		var faces := PackedVector3Array()
+		var colours := PackedColorArray()
+		for source: MeshInstance3D in sources:
+			for surface: int in source.mesh.get_surface_count():
+				var material := source.get_active_material(surface) as BaseMaterial3D
+				if material == null or not base_name(material.resource_name) in spec.materials: continue
+				var tint: Color = spec.colour if spec.colour != null else material.albedo_color
+				var linear := tint.srgb_to_linear()
+				_feature_triangles(source,surface,to_model,box,boxed.is_empty(),linear,faces,colours)
+		if faces.is_empty(): continue
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = faces
+		arrays[Mesh.ARRAY_COLOR] = colours
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+		var material := ShaderMaterial.new()
+		material.shader = FEATURE
+		var to_world := model.global_transform
+		var center_model := Vector3(spec.center[0],spec.center[1],spec.center[2])
+		var axis_model := Vector3(spec.axis[0],spec.axis[1],spec.axis[2])
+		material.set_shader_parameter("center",to_world*center_model)
+		material.set_shader_parameter("axis",(to_world.basis*axis_model).normalized())
+		var extent := box.size.length()*.5 if not boxed.is_empty() else 8.0
+		material.set_shader_parameter("radius",(to_world.basis*Vector3(extent,0,0)).length())
+		material.set_shader_parameter("effect",int(spec.effect))
+		material.set_shader_parameter("strength",FEATURE_STRENGTH*float(spec.get("strength",1.0)))
+		material.set_shader_parameter("phase",float(record.code % 7))
+		mesh.surface_set_material(0,material)
+		var instance := MeshInstance3D.new()
+		instance.name = "SignatureFeature"
+		instance.mesh = mesh
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(instance)
+		record.features.append(instance)
+
+## Triangles of one surface whose centre (in model space) lies in `box`,
+## lifted just off the surface along their face normal, in world space.
+static func _feature_triangles(source: MeshInstance3D, surface: int, to_model: Transform3D, box: AABB, everywhere: bool,
+		colour: Color, faces: PackedVector3Array, colours: PackedColorArray) -> void:
+	var arrays := source.mesh.surface_get_arrays(surface)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	if indices.is_empty():
+		indices.resize(vertices.size())
+		for i: int in vertices.size(): indices[i] = i
+	var authored: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+	var to_world := source.global_transform
+	var normal_basis := to_world.basis.inverse().transposed()
+	for t: int in range(0,indices.size()-2,3):
+		var a := to_world*vertices[indices[t]]
+		var b := to_world*vertices[indices[t+1]]
+		var c := to_world*vertices[indices[t+2]]
+		if not everywhere and not box.has_point(to_model*((a+b+c)/3.0)): continue
+		var normal := (c-a).cross(b-a)
+		if normal.length_squared() < 1e-14: continue
+		if not authored.is_empty():
+			normal = normal_basis*(authored[indices[t]]+authored[indices[t+1]]+authored[indices[t+2]])
+			if normal.length_squared() < 1e-14: continue
+		var lift := normal.normalized()*PANE_LIFT
+		faces.append_array(PackedVector3Array([a+lift,b+lift,c+lift]))
+		colours.append_array(PackedColorArray([colour,colour,colour]))
+
+## A material's authored name without Blender suffixes or texture notes.
+static func base_name(material_name: String) -> String:
+	var base := material_name.get_slice(" • ",0).strip_edges()
+	var dot := base.rfind(".")
+	if dot > 0 and base.substr(dot+1).is_valid_int(): base = base.substr(0,dot)
+	return base
 
 ## The glass of one surface split into panes (connected pieces), in world
 ## space: {"triangles": [[a, b, c, normal]], "center", "size"}.
