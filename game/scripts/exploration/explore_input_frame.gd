@@ -13,6 +13,9 @@ var sprint := false
 var jump := false
 var brake := false
 var interact := false
+## Edges: swing the held weapon, and switch to the next weapon.
+var attack := false
+var next_weapon := false
 
 static func idle() -> ExploreInputFrame:
 	return ExploreInputFrame.new()
@@ -25,6 +28,8 @@ static func combined(keyboard: ExploreInputFrame, touch: ExploreInputFrame) -> E
 	frame.jump=keyboard.jump or touch.jump
 	frame.brake=keyboard.brake or touch.brake
 	frame.interact=keyboard.interact or touch.interact
+	frame.attack=keyboard.attack or touch.attack
+	frame.next_weapon=keyboard.next_weapon or touch.next_weapon
 	return frame
 
 static func from_keys(keys: Dictionary, edges: Dictionary, bindings: ControlBindings = null) -> ExploreInputFrame:
@@ -37,4 +42,6 @@ static func from_keys(keys: Dictionary, edges: Dictionary, bindings: ControlBind
 	frame.jump = input.held(edges,&"jump")
 	frame.brake = input.held(keys,&"brake")
 	frame.interact = input.held(edges,&"interact")
+	frame.attack = input.held(edges,&"attack")
+	frame.next_weapon = input.held(edges,&"next_weapon")
 	return frame

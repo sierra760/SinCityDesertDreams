@@ -17,12 +17,13 @@ const DEFAULTS := {
 	"move_forward":[KEY_W,KEY_UP], "move_back":[KEY_S,KEY_DOWN], "move_left":[KEY_A,KEY_LEFT], "move_right":[KEY_D,KEY_RIGHT],
 	"sprint":[KEY_SHIFT], "jump":[KEY_SPACE], "brake":[KEY_SPACE],
 	"explore_map":[KEY_M], "ascend":[KEY_Q], "descend":[KEY_E], "interact":[KEY_F],
+	"attack":[KEY_X], "next_weapon":[KEY_Z],
 	"pause":[KEY_P], "faster":[KEY_EQUAL,KEY_KP_ADD],
 	"slower":[KEY_MINUS,KEY_KP_SUBTRACT], "fullscreen":[KEY_F11],
 }
 const GROUPS := {
 	"Build": ["pan_forward","pan_back","pan_left","pan_right","rotate","zoom_1","zoom_2","zoom_3","zoom_4","zoom_5","query","bulldoze","underground"],
-	"Explore": ["move_forward","move_back","move_left","move_right","sprint","jump","brake","ascend","descend","interact","explore_map"],
+	"Explore": ["move_forward","move_back","move_left","move_right","sprint","jump","brake","ascend","descend","interact","attack","next_weapon","explore_map"],
 	"General": ["pause","faster","slower","fullscreen"],
 }
 const LABELS := {
@@ -32,7 +33,8 @@ const LABELS := {
 	"underground":"Underground view", "move_forward":"Forward / accelerate", "move_back":"Back / reverse",
 	"move_left":"Left / steer left", "move_right":"Right / steer right", "sprint":"Sprint (walking)",
 	"jump":"Jump (walking)", "brake":"Brake (vehicles)", "ascend":"Climb (flight)",
-	"explore_map":"Explore map", "descend":"Descend (flight)", "interact":"Interact / enter / exit", "pause":"Pause / resume city",
+	"explore_map":"Explore map", "descend":"Descend (flight)", "interact":"Interact / enter / exit",
+	"attack":"Swing weapon (walking)", "next_weapon":"Switch weapon (walking)", "pause":"Pause / resume city",
 	"faster":"Faster city speed", "slower":"Slower city speed", "fullscreen":"Fullscreen",
 }
 var _bindings: Dictionary = DEFAULTS.duplicate(true)
@@ -57,12 +59,15 @@ static func sanitize(value: Variant) -> Dictionary:
 		candidate[action] = codes.duplicate()
 	var validator := ControlBindings.new()
 	validator._bindings = candidate
-	# Existing profiles may already use M. Pick a free map shortcut instead of
-	# replacing the player's valid older profile with all-default controls.
-	if not value.has("explore_map"):
-		for code: int in [KEY_M,KEY_V,KEY_G,KEY_H,KEY_J,KEY_K,KEY_L,KEY_F10,KEY_F9,KEY_F8]+range(KEY_A,KEY_Z+1)+range(KEY_F1,KEY_F35+1):
-			if validator.conflict("explore_map",0,code).is_empty():
-				candidate.explore_map = [code]
+	# Existing profiles may already use a newer action's default key. Pick a
+	# free shortcut instead of replacing the player's valid older profile with
+	# all-default controls.
+	for added: String in ["explore_map","attack","next_weapon"]:
+		if value.has(added): continue
+		var preferred: Array = [int(DEFAULTS[added][0])]+[KEY_V,KEY_G,KEY_H,KEY_J,KEY_K,KEY_L,KEY_C,KEY_X,KEY_Z,KEY_F10,KEY_F9,KEY_F8]
+		for code: int in preferred+range(KEY_A,KEY_Z+1)+range(KEY_F1,KEY_F35+1):
+			if validator.conflict(added,0,code).is_empty():
+				candidate[added] = [code]
 				break
 	for action: String in candidate:
 		for slot: int in candidate[action].size():
@@ -98,7 +103,7 @@ static func valid_key(code: int) -> bool:
 static func _scopes(action: String) -> Array:
 	if action in GROUPS.General: return ["build","walk","drive","fly"]
 	if action in GROUPS.Build: return ["build"]
-	if action in ["sprint","jump"]: return ["walk"]
+	if action in ["sprint","jump","attack","next_weapon"]: return ["walk"]
 	if action == "brake": return ["drive"]
 	if action in ["ascend","descend"]: return ["fly"]
 	return ["walk","drive","fly"]

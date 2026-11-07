@@ -56,6 +56,13 @@ var _traffic_claim: Dictionary = {}
 var _ambient_prompt_at := 0
 var _ambient_nearby: Dictionary = {}
 var _ambient_claimed := false
+## Slapstick weapons and pedestrians in pieces; see ExploreMayhem.
+var mayhem: ExploreMayhem
+## The host's sound player, if any; the slapstick effects play through it.
+var audio: GameAudio
+## A mouse click or wheel turn since the last tick (captured mouse only).
+var _mouse_attack := false
+var _mouse_weapon := false
 var _marina_dock: Dictionary = {}
 var _claimed_vehicle: CharacterBody3D
 var occupied: CharacterBody3D
@@ -179,6 +186,10 @@ func enter(city: City, origin: Vector3) -> bool:
 	camera_rig.update_follow(0)
 	view.set_exploration_camera(camera_rig.camera)
 	view.traffic.set_detail_enabled(true)
+	mayhem = ExploreMayhem.new()
+	view.world.add_child(mayhem)
+	mayhem.bind(view.traffic,pedestrian as ExplorePedestrian)
+	mayhem.audio = audio
 	if view.feedback != null: view.feedback.set_exploring(true)
 	_active = true
 	_suspended = false
@@ -492,6 +503,13 @@ func dispose() -> void:
 
 func _clear_actors() -> void:
 	if is_instance_valid(view) and is_instance_valid(view.traffic): view.traffic.set_detail_enabled(false)
+	# Everyone in pieces is whole again before the crowd is handed back.
+	if is_instance_valid(mayhem):
+		mayhem.clear()
+		mayhem.free()
+	mayhem = null
+	_mouse_attack = false
+	_mouse_weapon = false
 	if mod_service != null:
 		mod_service.leave("leave")
 		_release_traffic_claim()
@@ -556,6 +574,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and handle_event(event):
 		get_viewport().set_input_as_handled()
 
+## With the mouse captured for looking, a left click swings the held weapon
+## and the wheel switches weapons. Read before the GUI, which has no pointer
+## position to act on while captured.
+func _input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or not _active or _suspended or _touch_enabled: return
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED: return
+	var button := event as InputEventMouseButton
+	if not button.pressed: return
+	if button.button_index == MOUSE_BUTTON_LEFT: _mouse_attack = true
+	elif button.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]: _mouse_weapon = true
+	else: return
+	get_viewport().set_input_as_handled()
+
 func _physical_keys() -> Dictionary:
 	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META) or Input.is_key_pressed(KEY_ALT): return {}
 	var keys := _held.duplicate()
@@ -596,15 +627,21 @@ func _physics_process(delta: float) -> void:
 		var look: Vector2= hud.touch_controls.take_look_delta()
 		if look!=Vector2.ZERO: camera_rig.orbit(look,hud.sensitivity,hud.invert_y)
 	_edges.clear()
+	frame.attack = frame.attack or _mouse_attack
+	frame.next_weapon = frame.next_weapon or _mouse_weapon
+	_mouse_attack = false
+	_mouse_weapon = false
 	if frame.interact:
 		var previous_mode := mode
 		request_interaction()
 		if _touch_enabled and mode!=previous_mode: frame=ExploreInputFrame.idle()
 	if not _active: return
+	_handle_mayhem_input(frame)
 	if is_instance_valid(transit_service): transit_service.step(delta,pedestrian)
 	if is_instance_valid(resort_service): resort_service.step(delta,pedestrian)
 	# The walker holds still while a resort door fades.
 	if not (is_instance_valid(resort_service) and resort_service.is_transitioning()): occupied.step(frame,camera_rig.yaw,delta)
+	if is_instance_valid(mayhem): mayhem.step(delta,occupied == pedestrian)
 	if occupied == helicopter:
 		if helicopter.landed(): _helicopter_in_flight = false
 		elif frame.vertical > 0: _helicopter_in_flight = true
@@ -615,6 +652,21 @@ func _physics_process(delta: float) -> void:
 	_update_camera_space(transit_status)
 	camera_rig.update_follow(delta)
 	_publish_status(transit_status)
+
+## Weapons are for walking: switching names the new one; a swing needs one
+## in hand, and asks for one the first time the hands are empty.
+func _handle_mayhem_input(frame: ExploreInputFrame) -> void:
+	if not is_instance_valid(mayhem) or occupied != pedestrian: return
+	if frame.next_weapon:
+		var weapon_name := mayhem.cycle_weapon()
+		if mayhem.weapon == ExploreWeapons.Kind.NONE: _message = "Weapon put away."
+		elif _touch_enabled: _message = "%s: tap Attack to swing, Weapon to switch." % weapon_name
+		else: _message = "%s: %s or click to swing, %s or the wheel to switch." % [weapon_name,_key_name(&"attack"),_key_name(&"next_weapon")]
+	if frame.attack and not mayhem.attack(camera_rig.yaw) and mayhem.weapon == ExploreWeapons.Kind.NONE:
+		_message = "Empty hands. Tap Weapon to pick one." if _touch_enabled else "Empty hands. Press %s or turn the wheel to pick a weapon." % _key_name(&"next_weapon")
+
+func _key_name(action: StringName) -> String:
+	return controls.caption(action,0)
 
 func _reconcile_revision() -> bool:
 	if not _revision_pending: return true

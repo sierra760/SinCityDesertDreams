@@ -38,6 +38,8 @@ var _joystick_viewport: SubViewport
 var _joystick_display: TextureRect
 var _move_contact := -1
 var _move_actions: Array[StringName] = []
+## Mode actions with no room in the current layout; see _refresh.
+var _hidden: Array[StringName] = []
 
 func _enter_tree() -> void:
 	# A detached HUD can be reused. Restore its private namespace before its
@@ -52,7 +54,7 @@ func _notification(what: int) -> void:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_joystick()
-	for action: StringName in [&"menu",&"sprint",&"jump",&"brake",&"interact",&"ascend",&"descend"]:
+	for action: StringName in [&"menu",&"sprint",&"jump",&"brake",&"interact",&"ascend",&"descend",&"attack",&"weapon"]:
 		var button := UIFactory.make_button(_caption(action))
 		button.name = "Touch"+str(action).capitalize()
 		button.focus_mode = Control.FOCUS_NONE
@@ -167,7 +169,7 @@ func handle_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 		if _enabled and _active and not _suspended and not _quarantined and not ui_blocked:
 			role=_role_at(contact.position)
 		_contacts[contact.index]={"role":role,"position":contact.position,"engaged":true}
-		if role in [&"jump",&"interact"]: _edges[role]=true
+		if role in [&"jump",&"interact",&"attack",&"weapon"]: _edges[role]=true
 		if role==&"move":
 			_move_contact=contact.index
 			_route_joystick(contact)
@@ -199,6 +201,8 @@ func sample_frame() -> ExploreInputFrame:
 	frame.vertical=float(int(_held(&"ascend"))-int(_held(&"descend")))
 	frame.jump=bool(_edges.get(&"jump",false))
 	frame.interact=bool(_edges.get(&"interact",false))
+	frame.attack=bool(_edges.get(&"attack",false))
+	frame.next_weapon=bool(_edges.get(&"weapon",false))
 	_edges.clear()
 	return frame
 
@@ -320,11 +324,14 @@ func _exit_tree() -> void:
 func _mode_actions() -> Array[StringName]:
 	if _mode==ExploreActorProfile.Mode.DRIVE: return [&"brake",&"interact"]
 	if _mode==ExploreActorProfile.Mode.FLY: return [&"ascend",&"descend",&"interact"]
-	return [&"sprint",&"jump",&"interact"]
+	# Attack sits right above Interact, under the thumb; Weapon switches.
+	var walking: Array[StringName] = [&"attack",&"sprint",&"jump",&"weapon",&"interact"]
+	return walking.filter(func(action: StringName) -> bool: return action not in _hidden)
 
 func _refresh() -> void:
 	visible=_enabled and _active
 	_rects.clear()
+	_hidden.clear()
 	var short := _usable.size.y < 360.0
 	_pad_size = 108.0 if short or _phone else PAD_SIZE
 	_pad_radius = 40.0 if short or _phone else PAD_RADIUS
@@ -350,11 +357,21 @@ func _refresh() -> void:
 	for index: int in actions.size()-1:
 		_rects[actions[index]]=Rect2(right-Vector2(0,(52 if _phone else 56)*(index+1)),Vector2(84,44) if _phone else Vector2(100,48))
 	if short:
+		# A row reads toward the thumb: Attack stays beside Interact.
+		if actions.has(&"attack"):
+			actions.erase(&"attack")
+			actions.insert(actions.size()-1,&"attack")
+		# A small short screen (a phone with Details open) fits four buttons
+		# beside the pad; switching weapons waits until there is room again.
+		if _usable.size.x < 440.0 and actions.size() > 4:
+			actions.erase(&"weapon")
+			_rects.erase(&"weapon")
+			_hidden.append(&"weapon")
 		for index in actions.size():
 			var at := Vector2(_usable.end.x-8.0-float(actions.size()-index)*92.0,_usable.end.y-60.0)
 			if _usable.size.x < 440.0:
 				var rows := ceili(float(actions.size())/2.0)
-				var column := index%2 if index<2 else 1
+				var column := (index%2 if index<2 else 1) if actions.size()<=3 else index%2
 				at = Vector2(_usable.end.x-184.0+float(column)*92.0,_usable.end.y-16.0-float(rows)*52.0+8.0+float(index/2)*52.0)
 			_rects[actions[index]] = Rect2(at,Vector2(84,44))
 	for action: StringName in _buttons:
@@ -381,4 +398,4 @@ func _refresh() -> void:
 	queue_redraw()
 
 func _caption(action: StringName) -> String:
-	return {&"menu":"Menu",&"sprint":"Sprint",&"jump":"Jump",&"brake":"Brake",&"interact":"Interact",&"ascend":"Climb",&"descend":"Descend"}.get(action,str(action))
+	return {&"menu":"Menu",&"sprint":"Sprint",&"jump":"Jump",&"brake":"Brake",&"interact":"Interact",&"ascend":"Climb",&"descend":"Descend",&"attack":"Attack",&"weapon":"Weapon"}.get(action,str(action))

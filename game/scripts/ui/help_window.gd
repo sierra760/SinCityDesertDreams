@@ -37,6 +37,8 @@ const ROWS: Array = [
 	["Explore touch", "Use the pad on the left to move and drag on the right to look. Menu pauses movement; Resume starts it again.", "touch"],
 	["Explore map", "The corner map follows you and points north. Open Map ({explore_map}) for a larger map; drag to pan, zoom with the buttons, wheel or pinch, and use Find me to return to your position. Explore pauses while browsing. Markers identify people, vehicles and objectives.", "desktop"],
 	["Explore map", "Tap Map for a larger map. Drag to pan, pinch or use the zoom buttons, and tap Find me to return to your position. Close returns to Explore. Markers identify people, vehicles and objectives.", "touch"],
+	["Slapstick weapons", "On foot, {next_weapon} or the mouse wheel switches between a Rubber Chicken, a Custard Pie, a Foam Mallet and empty hands; {attack} or a click swings toward where you look. Anyone you hit pops apart, then hops back together after about a minute.", "desktop"],
+	["Slapstick weapons", "On foot, tap Weapon to switch between a Rubber Chicken, a Custard Pie, a Foam Mallet and empty hands, and Attack to swing toward where you look. Anyone you hit pops apart, then hops back together after about a minute.", "touch"],
 	["Ride transit", "Walk through open train doors to board or leave. Use the station lift to reach subway platforms. Pick a destination in the Explore menu before boarding."],
 	["Recover or return", "Recover always returns you to the nearest outdoor road. Return to Build restores your aerial view. Your Explore position is not saved; loading returns to Build."],
 	["#Tourism"],
@@ -221,7 +223,7 @@ static func fill_keys(text: String, bindings: ControlBindings, touch: bool = fal
 	var brake := bindings.caption(&"brake", 0)
 	out = out.replace("{jump_brake}", "%s jumps or brakes" % jump if jump == brake else "%s jumps, %s brakes" % [jump, brake])
 	out = out.replace("{interact_touch}", "Interact" if touch else bindings.caption(&"interact", 0))
-	for action: String in ["pause", "rotate", "bulldoze", "query", "sprint", "jump", "brake", "interact", "ascend", "descend", "explore_map"]:
+	for action: String in ["pause", "rotate", "bulldoze", "query", "sprint", "jump", "brake", "interact", "ascend", "descend", "explore_map", "attack", "next_weapon"]:
 		out = out.replace("{%s}" % action, bindings.caption(StringName(action), 0))
 	return out
 

@@ -242,6 +242,28 @@ func play(cue: StringName, volume_db := 0.0, pitch := 1.0, min_gap := 0.05) -> v
 	voice.play()
 
 
+## Play a one-shot `sound` made at runtime (Explore's synthesized slapstick
+## effects) on the Effects bus, under the same `cue` gap and on/off rules
+## as play().
+func play_stream(cue: StringName, sound: AudioStream, volume_db := 0.0, pitch := 1.0, min_gap := 0.05) -> void:
+	var now := Time.get_ticks_msec()
+	if now - int(_last_cue_ms.get(cue, -100000)) < int(min_gap * 1000.0):
+		return
+	_last_cue_ms[cue] = now
+	if record_cues:
+		played.append(cue)
+	if not effects_enabled or _silent or sound == null or _voices.is_empty():
+		return
+	var voice := _voices[_next_voice]
+	_next_voice = (_next_voice + 1) % _voices.size()
+	voice.stop()
+	voice.stream = sound
+	voice.bus = BUS_EFFECTS
+	voice.volume_db = volume_db
+	voice.pitch_scale = pitch
+	voice.play()
+
+
 ## Start (or keep) a loop at a target level; it fades toward that level.
 func hold_loop(cue: StringName, volume_db := -6.0, pitch := 1.0) -> void:
 	var player: AudioStreamPlayer = _loops.get(cue)

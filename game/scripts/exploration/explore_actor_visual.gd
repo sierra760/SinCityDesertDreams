@@ -46,6 +46,15 @@ func set_gait_phase(phase: float) -> void:
 	if _player != null and _clip in ["walk","run"]:
 		_player.seek(_gait_phase*_player.current_animation_length,true)
 
+## The crowd gait shader's inputs: x is the cycle phase (0..1), y how much of
+## a full walk stride is shown (0 standing or airborne, 1 walking or faster).
+func gait_sample() -> Vector2:
+	return Vector2(_gait_phase,0.0 if _airborne else clampf(absf(_speed)/WALK_SPEED,0.0,1.0))
+
+## The single crowd mesh, or null for a rigged model.
+func crowd_mesh() -> MeshInstance3D:
+	return _crowd
+
 func play_gesture(name: StringName) -> bool:
 	if name != &"wave" or _airborne or absf(_speed)>.0001: return false
 	if _player == null or not _player.has_animation(name): return false

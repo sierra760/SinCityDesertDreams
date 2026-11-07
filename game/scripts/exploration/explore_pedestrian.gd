@@ -78,6 +78,15 @@ func place(pose: Transform3D) -> void:
 	if is_instance_valid(_visual): _visual.rotation.y = 0.0
 	stop_input()
 
+## The visible model, which turns toward the walk. Props held in the hand are
+## its children; a character change replaces it.
+func visual_node() -> Node3D:
+	return _visual if is_instance_valid(_visual) else null
+
+## Turn the model (not the body) to face a world heading, as for a swing.
+func face_world_yaw(yaw: float) -> void:
+	if is_instance_valid(_visual) and is_finite(yaw): _visual.rotation.y = yaw-global_rotation.y
+
 func set_camera_occluded(hidden: bool) -> void:
 	# Only the visible model is hidden; the controller still sees an active
 	# pedestrian and keeps physical walking, doors and moving support running.

@@ -27,6 +27,9 @@ static func make_visual(character: String) -> ExploreActorVisual:
 	var choice := sanitize(character)
 	if choice == "woman": return WOMAN.instantiate()
 	if choice == "man": return MAN.instantiate()
-	var visual := ExploreActorVisual.new()
-	visual.configure_crowd_variant(IDS.find(choice)-2)
+	# The same rigged, animated model the street crowd shows up close, so the
+	# arms can carry and swing things. A variant without that detail model
+	# falls back to its single crowd mesh.
+	var visual := TrafficActorVisual.new()
+	visual.configure_nearby(&"pedestrian",IDS.find(choice)-2)
 	return visual

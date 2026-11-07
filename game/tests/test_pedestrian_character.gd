@@ -111,7 +111,7 @@ func test_live_swap_preserves_actor_pose_collision_support_and_occlusion() -> vo
 	actor.set_character("bad")
 	check_eq(actor.get("character"),"woman")
 
-func test_every_existing_crowd_character_uses_its_model_and_session_owned_gait() -> void:
+func test_every_existing_crowd_character_uses_its_rigged_model_and_session_owned_motion() -> void:
 	var actor := ExplorePedestrian.new()
 	root.add_child(actor)
 	owned.append(actor)
@@ -119,28 +119,42 @@ func test_every_existing_crowd_character_uses_its_model_and_session_owned_gait()
 		var character := "pedestrian_%02d" % variant
 		actor.set_character(character)
 		check_eq(actor.get("character"),character,"every existing character can be selected")
-		var crowd := actor._visual.find_child("CrowdPedestrian",true,false) as MeshInstance3D
-		check(crowd != null,"crowd choice uses its authored geometry")
-		if crowd == null: continue
-		check_eq(crowd.mesh,CityTrafficCatalog.mesh_for(&"pedestrian",variant),"exact selected near-detail crowd model")
-		var material := crowd.get_surface_override_material(0) as ShaderMaterial
-		var shared := crowd.mesh.surface_get_material(0) as ShaderMaterial
-		check(material != null and material != shared,"gait is local to this player")
-		check_eq(material.get_shader_parameter("tint"),shared.get_shader_parameter("tint"),"authored colors survive selection")
-		actor._visual.set_motion(.09,0,false)
-		var before: float = material.get_shader_parameter("phase")
+		var visual := actor._visual
+		var model := visual.find_child("DetailedModel",false,false)
+		check(model != null and model.scene_file_path.ends_with("pedestrian_%02d_detail.glb" % variant),"%s uses its own rigged street-crowd model" % character)
+		check(visual.find_child("CrowdPedestrian",true,false) == null,"not the single crowd mesh")
+		check_eq(visual.find_children("*","Skeleton3D",true,false).size(),1,"one skeleton")
+		var player := visual._player
+		check(player != null,"the model has its authored animation player")
+		if player == null: continue
+		check_eq(player.callback_mode_process,AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL,"only Explore ticks animate it")
+		for sample: Array in [[0.0,false,"idle"],[.09,false,"walk"],[.20,false,"run"],[.20,true,"jump"]]:
+			visual.set_motion(sample[0],0,sample[1])
+			check_eq(player.current_animation,sample[2],"%s clip" % sample[2])
+		visual.set_motion(.09,0,false)
+		var before := player.current_animation_position
 		await process_frame
-		check_eq(material.get_shader_parameter("phase"),before,"gait freezes while session is paused")
-		actor._visual.advance_visual(.1)
-		var advanced: float = material.get_shader_parameter("phase")
-		check(advanced!=before and material.get_shader_parameter("movement")>0,"session ticks animate walking")
-		actor._visual.set_motion(0,0,false)
-		check_eq(material.get_shader_parameter("movement"),0.0,"idle has no walking deformation")
-		var bounds: AABB = crowd.transform*crowd.mesh.get_aabb()
+		check_eq(player.current_animation_position,before,"motion freezes while the session is paused")
+		visual.advance_visual(.1)
+		var advanced := player.current_animation_position
+		check(advanced != before,"session ticks animate walking")
+		for value: Variant in [INF,NAN,-INF]: visual.advance_visual(value)
+		check_eq(player.current_animation_position,advanced,"invalid frame deltas cannot corrupt motion")
+		visual.set_motion(0,0,false)
+		var bounds := AABB()
+		var first := true
+		for mesh: MeshInstance3D in visual.find_children("*","MeshInstance3D",true,false):
+			check(mesh.skin != null,"model is skin-bound")
+			var chain := Transform3D.IDENTITY
+			var node: Node = mesh
+			while node != visual:
+				chain = (node as Node3D).transform*chain
+				node = node.get_parent()
+			var box := chain*mesh.mesh.get_aabb()
+			bounds = box if first else bounds.merge(box)
+			first = false
 		check(bounds.position.y>=-.000001 and bounds.end.y<=.115001,"feet and height fit the existing actor")
 		check(bounds.position.x>=-.018001 and bounds.end.x<=.018001,"accessories fit the existing actor width")
-		for value: Variant in [INF,NAN,-INF]: actor._visual.advance_visual(value)
-		check(material.get_shader_parameter("phase")==advanced,"invalid frame deltas cannot corrupt gait")
 
 func test_both_characters_have_session_driven_skinned_motion() -> void:
 	var actor := ExplorePedestrian.new()

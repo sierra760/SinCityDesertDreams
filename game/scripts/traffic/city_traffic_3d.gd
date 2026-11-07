@@ -1261,3 +1261,55 @@ func _detail_may_be_near(actor: Dictionary, camera_position: Vector3) -> bool:
 func _visual_state(actor: Dictionary) -> Dictionary:
 	var pose := actor_pose(actor)
 	return {"id":String(actor.get("mod_handle","ambient:"+str(actor.id))),"kind":String(actor.kind),"variant":int(actor.variant),"position":pose.origin,"yaw":pose.basis.get_euler().y,"speed":0.0 if actor.stopped else float(actor.speed),"steering":0.0,"airborne":actor.domain==&"air","phase":float(actor.get("mod_phase",_elapsed*float(actor.speed)*16.0+float(actor.id)*.173)),"visual_time":float(_detail_clocks.get(actor.id,{}).get("time",0.0)),"distance":float(_detail_clocks.get(actor.id,{}).get("distance",0.0)),"gesture":String(actor.get("visual_gesture","")),"gesture_time":float(actor.get("visual_gesture_time",0.0))}
+
+## Ambient pedestrians within `radius` (horizontally) of `center` that
+## Explore's slapstick weapons may strike: unclaimed and not scripted by a
+## mod, at their displayed pose. Entries are {"id","variant","pose"}.
+func pedestrian_targets(center: Vector3, radius: float) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	if not center.is_finite() or not is_finite(radius): return found
+	var reach := radius*radius
+	for a: Dictionary in actors:
+		if a.type != &"pedestrian" or _claims.has(a.id) or a.has("mod_owner"): continue
+		var cell: Vector2i = a.cell
+		if absf(cell.x+.5-center.x) > radius+1.0 or absf(cell.y+.5-center.z) > radius+1.0: continue
+		var pose := actor_pose(a)
+		if Vector2(pose.origin.x-center.x,pose.origin.z-center.z).length_squared() <= reach:
+			found.append({"id":a.id,"variant":int(a.variant),"pose":pose})
+	return found
+
+## Hold an ambient pedestrian out of the crowd while Explore shows it in
+## pieces: it stops where it stands and has no visual or physical body until
+## restore_pedestrian. False when no such free pedestrian exists.
+func knock_pedestrian(id: int) -> bool:
+	if _claims.has(id): return false
+	for a: Dictionary in actors:
+		if a.id != id or a.type != &"pedestrian" or a.has("mod_owner"): continue
+		_claims[id] = true
+		return true
+	return false
+
+func is_knocked(id: int) -> bool:
+	if not _claims.has(id): return false
+	for a: Dictionary in actors:
+		if a.id == id: return a.type == &"pedestrian"
+	return false
+
+## Where a knocked pedestrian stands, or a non-finite transform when it is gone.
+func knocked_pose(id: int) -> Transform3D:
+	for a: Dictionary in actors:
+		if a.id == id and a.type == &"pedestrian": return actor_pose(a)
+	return Transform3D(Basis.IDENTITY,Vector3.INF)
+
+## Return a knocked pedestrian to the crowd exactly where it stopped.
+## A vehicle claim with the same id is never released here.
+func restore_pedestrian(id: int) -> void:
+	if not _claims.has(id): return
+	for a: Dictionary in actors:
+		if a.id != id: continue
+		if a.type != &"pedestrian": return
+		_claims.erase(id)
+		a.erase("_render_previous")
+		a.erase("_cadence_pose")
+		a.erase("_render_pose")
+		return

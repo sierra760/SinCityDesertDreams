@@ -237,6 +237,7 @@ func _ready() -> void:
 	add_child(audio)
 	audio.apply_preferences(preferences)
 	audio.bind(self)
+	exploration.audio = audio
 	menu_bar.popup_opened.connect(exploration.suspend)
 	get_window().focus_exited.connect(exploration.suspend)
 	get_window().focus_exited.connect(restore_temporary_bulldoze)
