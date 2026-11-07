@@ -34,6 +34,16 @@ local function pick(api, list)
   return list[math.floor(api.utility.random() * #list) + 1]
 end
 
+-- A new call or job never repeats the previous story of its kind: a repeat
+-- draw takes the next entry instead.
+local last_case = {}
+local function pick_fresh(api, list, slot)
+  local index = math.floor(api.utility.random() * #list) + 1
+  if #list > 1 and list[index] == last_case[slot] then index = index % #list + 1 end
+  last_case[slot] = list[index]
+  return list[index]
+end
+
 local function points(count)
   return count .. (count == 1 and " point" or " points")
 end
@@ -228,16 +238,16 @@ local function begin(api, kind)
   local from = shift.anchor
   if kind == "medevac" then
     call.sar = api.utility.random() < 0.4
-    call.case = call.sar and pick(api, CALLS.hikers) or pick(api, CALLS.medevac)
+    call.case = call.sar and pick_fresh(api, CALLS.hikers, "hikers") or pick_fresh(api, CALLS.medevac, "medevac")
     call.condition = 100
     search(api, "site", {from = from, hops = call.sar and 2 or 1, reach = 24 + math.floor(api.utility.random() * 14), vary = 4})
   elseif kind == "pursuit" then
-    call.case = pick(api, CALLS.suspects)
+    call.case = pick_fresh(api, CALLS.suspects, "suspects")
     search(api, "site", {from = from, hops = 1, reach = 18 + math.floor(api.utility.random() * 10), vary = 4, kind = call.case.kind})
   elseif kind == "traffic" then
     search(api, "spots", {from = from, hops = 3, reach = 18 + math.floor(api.utility.random() * 8), vary = 3})
   else
-    call.case = pick(api, CALLS.charters)
+    call.case = pick_fresh(api, CALLS.charters, "charters")
     local landmarks = {"park", "station", "road_destination"}
     call.landmark = pick(api, landmarks)
     search(api, "site", {from = from, hops = 1, reach = 20 + math.floor(api.utility.random() * 10), vary = 3, landmark = call.landmark})
@@ -414,8 +424,20 @@ local function traffic_done(api)
   complete(api, earned, "Rita Ruiz, KDSD Traffic Desk", text)
 end
 
+local function cars(count)
+  if count == 0 then return "no cars" end
+  if count == 1 then return "one car" end
+  return count .. " cars"
+end
+
+-- A traffic line reads a .. cars(count) .. b, or its own none text for an empty road.
+local function traffic_line(line, count)
+  local text = (count == 0 and line.none) or (line.a .. cars(count) .. line.b)
+  return "\"" .. string.upper(string.sub(text, 1, 1)) .. string.sub(text, 2) .. "\""
+end
+
 local function spot_reported(api, count)
-  local line = pick(api, CALLS.traffic_lines)(count)
+  local line = traffic_line(pick(api, CALLS.traffic_lines), count)
   call.index = call.index + 1
   call.hold = 0
   if call.index > #call.spots then

@@ -34,6 +34,16 @@ local function pick(api, list)
   return list[math.floor(api.utility.random() * #list) + 1]
 end
 
+-- A new call or job never repeats the previous story of its kind: a repeat
+-- draw takes the next entry instead.
+local last_case = {}
+local function pick_fresh(api, list, slot)
+  local index = math.floor(api.utility.random() * #list) + 1
+  if #list > 1 and list[index] == last_case[slot] then index = index % #list + 1 end
+  last_case[slot] = list[index]
+  return list[index]
+end
+
 local function tips(count)
   return count .. (count == 1 and " tip" or " tips")
 end
@@ -176,16 +186,19 @@ local function new_job(api, kind)
   next_refresh = 0
   flash = nil
   if kind == "milk" then
-    local open = {}
-    for i = 1, #JOBS.milk do open[i] = JOBS.milk[i] end
+    -- Three different drops by index; the sandbox bounds table helpers, so the
+    -- long list is never copied or passed to table.remove.
+    local taken = {}
     for i = 1, 3 do
-      local slot = math.floor(api.utility.random() * #open) + 1
-      local parcel = table.remove(open, slot)
+      local slot = math.floor(api.utility.random() * #JOBS.milk) + 1
+      while taken[slot] do slot = slot % #JOBS.milk + 1 end
+      taken[slot] = true
+      local parcel = JOBS.milk[slot]
       job.stops[i] = {role = "drop", label = parcel.item .. " for " .. parcel.to, who = parcel.to,
         variant = parcel.variant, thanks = parcel.thanks, item = parcel.item}
     end
   else
-    local case = pick(api, JOBS[kind])
+    local case = pick_fresh(api, JOBS[kind], kind)
     job.case = case
     local item = kind == "ice" and "200 kilos of ice" or (kind == "cake" and ("the wedding cake for " .. case.couple) or case.item)
     job.item = item
