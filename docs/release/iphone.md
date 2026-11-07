@@ -56,6 +56,7 @@ controls feel, rotation, Files, background recovery and performance in
 representative cities.
 
 Privacy opens from the title screen or Help menu and works offline. On iOS,
-unavailable desktop Lua Mods controls are hidden. Compatible configured search
+Explore Mods lists only the mission packs bundled in the app; adding,
+importing and reloading packs are hidden and refused. Compatible configured search
 providers can show terrain-location suggestions after typing pauses; public
 Nominatim remains unavailable on iOS. No provider key is stored in the app.

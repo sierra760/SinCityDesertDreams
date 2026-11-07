@@ -13,6 +13,7 @@ var _serial := 0
 func runtime_label() -> String:
 	if not ExploreLuaBridge.supported_platform(): return "Runtime unavailable on this platform. Source packs can still be imported and configured."
 	if not ExploreLuaBridge.available(): return "Runtime unavailable: native library is missing. Source configuration is available."
+	if ExploreLuaBridge.bundled_only(): return "Built-in packs • up to 8 enabled packs • changes start on Resume"
 	return "Lua runtime available • up to 8 enabled packs • changes start on Resume"
 
 func set_preferences(ids: Array) -> void:
@@ -36,7 +37,8 @@ func scan(directory: String) -> Array[Dictionary]:
 	# The version catalogue only points inside our installation root. It never
 	# supplies script contents or enabling preferences.
 	var catalog_path := install_directory.path_join("catalog.json")
-	if FileAccess.file_exists(catalog_path) and FileAccess.get_file_as_bytes(catalog_path).size() <= 65536:
+	# Bundled-only platforms never read installed or reloaded versions.
+	if not ExploreLuaBridge.bundled_only() and FileAccess.file_exists(catalog_path) and FileAccess.get_file_as_bytes(catalog_path).size() <= 65536:
 		var catalog: Variant = JSON.parse_string(FileAccess.get_file_as_string(catalog_path))
 		if catalog is Array:
 			for entry: Variant in catalog.slice(0,128):
@@ -111,6 +113,7 @@ func _validate_source(snapshot: Dictionary) -> Dictionary:
 	return {"ok":result.ok,"code":String(result.get("fault","")),"diagnostic":ExploreLuaBridge.diagnostic_text(result.get("diagnostic",""))}
 
 func import_pack(path: String) -> Dictionary:
+	if ExploreLuaBridge.bundled_only(): return _bad("","bundled_only")
 	if _entries.size() >= 128: return _bad("","installed_limit")
 	DirAccess.make_dir_recursive_absolute(install_directory)
 	var destination := _destination()
@@ -146,6 +149,7 @@ func import_pack(path: String) -> Dictionary:
 	return {"ok":true,"code":"imported_disabled","path":destination}
 
 func reload(id: String, suspended: bool) -> Dictionary:
+	if ExploreLuaBridge.bundled_only(): return _bad(id,"bundled_only")
 	if not suspended: return _bad(id,"pause_required")
 	var old := _find(id)
 	if old.is_empty(): return _bad(id,"missing_or_duplicate")

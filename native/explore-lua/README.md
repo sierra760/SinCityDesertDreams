@@ -1,6 +1,7 @@
 # Bounded Explore Lua bridge
 
-The desktop-only `SCDDExploreLua` GDExtension embeds the official Lua 5.4.9
+The `SCDDExploreLua` GDExtension (macOS, Windows x64, and an iOS arm64
+framework for the bundled built-in packs only) embeds the official Lua 5.4.9
 library. `source-lock.json` pins its archive and every vendored library file.
 `lua.c` and `luac.c` (the executables), upstream build files and documentation
 are not vendored. Unused OS/IO/package/debug/coroutine/UTF-8 libraries are not
@@ -24,6 +25,18 @@ shared binding checkout and its existing archives read-only. No geometry files c
 scons -C "$SCDD_GODOT_CPP" platform=macos target=template_release arch=universal macos_deployment_target=12.0 build_profile="$PWD/native/explore-lua/build_profile.json" -j4
 scons -C "$SCDD_GODOT_CPP" platform=windows target=template_release arch=x86_64 use_mingw=yes build_profile="$PWD/native/explore-lua/build_profile.json" -j4
 python3 native/explore-lua/build.py --godot-cpp "$SCDD_GODOT_CPP" --platform macos --platform windows
+```
+
+iOS: build the binding archive for the device and then the framework. It is
+an unsigned arm64 `SCDDExploreLua.framework` (iOS 16.0), embedded by the
+addon's export plugin like the geometry kernel. On iOS `ExploreLuaBridge`
+runs only packs bundled in `res://explore_mods`; import and reload refuse
+with `bundled_only` (downloaded code would fall under App Store Review
+Guideline 2.5.2, bundled interpreted scripts do not).
+
+```sh
+scons -C "$SCDD_GODOT_CPP" platform=ios target=template_release arch=arm64 ios_min_version=16.0 build_profile="$PWD/native/explore-lua/build_profile.json" -j4
+python3 native/explore-lua/build.py --godot-cpp "$SCDD_GODOT_CPP" --platform ios
 ```
 
 `--platform` is repeatable. macOS uses Xcode clang and produces an unsigned

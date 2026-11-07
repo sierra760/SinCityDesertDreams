@@ -4,13 +4,28 @@ extends RefCounted
 const CONFIG := "res://addons/scdd_explore_lua/scdd_explore_lua.cfg"
 const NATIVE_CLASS := &"SCDDExploreLua"
 var _native: RefCounted
+## Tests stand in for another platform's mod policy; empty uses the OS.
+static var platform_override := ""
+static func platform_name() -> String:
+	return platform_override if not platform_override.is_empty() else OS.get_name()
 static func supported_platform() -> bool:
-	return supported_environment(OS.get_name(),OS.has_feature("x86_64"))
+	return supported_environment(platform_name(),OS.has_feature("x86_64"))
 static func supported_environment(os_name: String, windows_x64: bool) -> bool:
-	return os_name == "macOS" or (os_name == "Windows" and windows_x64)
+	return os_name in ["macOS","iOS"] or (os_name == "Windows" and windows_x64)
+## iOS runs only the packs bundled inside the app. Packs cannot be added or
+## reloaded there: the App Store does not allow downloaded code that changes
+## an app's features, while interpreted scripts shipped in the bundle are fine.
+static func bundled_only(os_name: String = "") -> bool:
+	return (platform_name() if os_name.is_empty() else os_name) == "iOS"
 static func available() -> bool:
 	if not supported_platform(): return false
 	if ClassDB.class_exists(NATIVE_CLASS): return true
+	if OS.get_name() == "iOS":
+		# The export plugin embeds the framework in the app bundle, outside
+		# res://. Its config resolves the "ios" library entry, as for geometry.
+		if not FileAccess.file_exists(CONFIG): return false
+		var ios_status := GDExtensionManager.load_extension(CONFIG)
+		return ios_status in [GDExtensionManager.LOAD_STATUS_OK, GDExtensionManager.LOAD_STATUS_ALREADY_LOADED] and ClassDB.class_exists(NATIVE_CLASS)
 	var library := "res://addons/scdd_explore_lua/bin/libSCDDExploreLua.dylib" if OS.get_name() == "macOS" else "res://addons/scdd_explore_lua/bin/SCDDExploreLua.windows.x86_64.dll"
 	# Do not ask the engine to load an absent native library (and emit errors).
 	var library_name := library.get_file()

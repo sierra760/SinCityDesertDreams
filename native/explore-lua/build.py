@@ -4,10 +4,10 @@
 No native source modifications, Lua dynamic loaders, interpreters or compiler tools.
 The existing pinned binding checkout is read-only unless --scons is requested.
 """
-import argparse, hashlib, json, pathlib, shutil, subprocess
+import argparse, hashlib, json, pathlib, plistlib, shutil, subprocess
 p=argparse.ArgumentParser()
 p.add_argument('--godot-cpp',type=pathlib.Path,required=True)
-p.add_argument('--platform',action='append',choices=['macos','windows'])
+p.add_argument('--platform',action='append',choices=['macos','ios','windows'])
 p.add_argument('--scons')
 p.add_argument('--api-check',action='store_true',help='Enable upstream Lua C API assertions for conformance testing')
 p.add_argument('--build-dir',type=pathlib.Path,help='Intermediate objects and command record; default native/explore-lua/build')
@@ -31,12 +31,12 @@ sources=[root/'lua_vm.cpp',root/'register_types.cpp',*sorted((root/'vendor/lua')
 sources=[s for s in sources if s.name not in ['linit.c','liolib.c','loslib.c','loadlib.c','ldblib.c','lcorolib.c','lutf8lib.c']]
 commands=[]
 for platform in a.platform or ['macos','windows']:
- arch='universal' if platform=='macos' else 'x86_64'
+ arch={'macos':'universal','ios':'arm64'}.get(platform,'x86_64')
  lib=cpp/'bin'/f'libgodot-cpp.{platform}.template_release.{arch}.a'
  if not lib.exists():
   if not a.scons: raise SystemExit(f'Missing {lib}; pass --scons to build bindings')
   cmd=[a.scons,'-C',str(cpp),f'platform={platform}','target=template_release',f'arch={arch}',f'build_profile={root / "build_profile.json"}','-j4']
-  cmd+=['macos_deployment_target=12.0'] if platform=='macos' else ['use_mingw=yes']
+  cmd+={'macos':['macos_deployment_target=12.0'],'ios':['ios_min_version=16.0']}.get(platform,['use_mingw=yes'])
   subprocess.run(cmd,check=True)
  if platform=='macos':
   sdk=subprocess.check_output(['xcrun','--sdk','macosx','--show-sdk-path'],text=True).strip()
@@ -44,6 +44,15 @@ for platform in a.platform or ['macos','windows']:
   flags=['-arch','arm64','-arch','x86_64','-isysroot',sdk,'-mmacosx-version-min=12.0']
   target=out/'libSCDDExploreLua.dylib'
   link=['-dynamiclib','-Wl,-install_name,@rpath/libSCDDExploreLua.dylib']
+ elif platform=='ios':
+  # An arm64 device framework, embedded by the export plugin like the
+  # geometry kernel. Bundled built-in packs only; see ExploreLuaBridge.
+  sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
+  compiler=['xcrun','--sdk','iphoneos','clang++']
+  flags=['-arch','arm64','-isysroot',sdk,'-miphoneos-version-min=16.0']
+  target=out/'SCDDExploreLua.framework/SCDDExploreLua'
+  target.parent.mkdir(parents=True,exist_ok=True)
+  link=['-dynamiclib','-Wl,-install_name,@rpath/SCDDExploreLua.framework/SCDDExploreLua']
  else:
   compiler=[shutil.which('x86_64-w64-mingw32-g++') or 'x86_64-w64-mingw32-g++'];flags=[]
   target=out/'SCDDExploreLua.windows.x86_64.dll'
@@ -55,5 +64,10 @@ for platform in a.platform or ['macos','windows']:
   subprocess.run(cmd,check=True);commands.append(cmd);objects.append(obj)
  cmd=[*compiler,*flags,*link,*map(str,objects),str(lib),'-o',str(target)]
  subprocess.run(cmd,check=True);commands.append(cmd)
+ if platform=='ios':
+  with (target.parent/'Info.plist').open('wb') as f:
+   plistlib.dump({'CFBundleExecutable':'SCDDExploreLua','CFBundleIdentifier':'com.sierraburkhart.sincitydesertdreams.explorelua',
+    'CFBundleName':'SCDDExploreLua','CFBundlePackageType':'FMWK','CFBundleShortVersionString':'1.0','CFBundleVersion':'1',
+    'MinimumOSVersion':'16.0','CFBundleSupportedPlatforms':['iPhoneOS']},f)
  print(f'Built unsigned {target.name}: sha256={hashlib.sha256(target.read_bytes()).hexdigest()}')
 (build/'commands.json').write_text(json.dumps(commands,indent=2)+'\n')

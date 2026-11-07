@@ -7,9 +7,13 @@ var host: GameHost
 func before_each() -> void:
 	host = Fixture.make_host(self,"app-review-readiness")
 func after_each() -> void:
+	ExploreLuaBridge.platform_override = ""
 	host.free()
 	await process_frame
-func test_ios_has_no_unavailable_mods_routes() -> void:
+func test_ios_offers_only_bundled_packs() -> void:
+	# iOS runs the built-in packs shipped in the app, never added or reloaded
+	# code (App Store Review Guideline 2.5.2 permits bundled interpreted code).
+	ExploreLuaBridge.platform_override = "iOS"
 	root.size=Vector2i(390,844)
 	host.display_layout.refresh_with_mobile_metrics(root.size,1.0,Rect2i(0,59,390,751),0,"iOS")
 	await Fixture.settle(self,8)
@@ -19,10 +23,31 @@ func test_ios_has_no_unavailable_mods_routes() -> void:
 	await Fixture.settle(self,6)
 	for owner: Node in [host.explore_hud,options]:
 		for button: Button in owner.find_children("*","Button",true,false):
-			if button.text=="Explore Mods": check(not button.visible,"unsupported Mods is hidden on iOS")
+			if button.text=="Explore Mods": check(button.visible,"built-in Explore Mods are offered on iOS")
 	options.close()
+	var registry := host.mod_registry
+	check(not registry.entries().is_empty(),"bundled packs are listed")
+	for entry: Dictionary in registry.entries():
+		check(String(entry.path).begins_with("res://explore_mods/"),"only bundled packs on iOS: "+String(entry.path))
+	check(registry.runtime_label().begins_with("Built-in packs"),"runtime note names built-in packs")
+	var before := registry.entries().size()
+	check_eq(registry.import_pack("res://explore_mods/desert_stroll").code,"bundled_only","iOS cannot add packs")
+	check_eq(registry.entries().size(),before,"refused import adds nothing")
+	var first: Dictionary = registry.entries()[0]
+	check_eq(registry.reload(String(first.manifest.id),true).code,"bundled_only","iOS cannot reload edited sources")
 	host.open_explore_mods()
-	check(not host.window_manager.is_open("explore_mods"),"host cannot open the unsupported source-import panel")
+	check(host.window_manager.is_open("explore_mods"),"built-in Mods window opens on iOS")
+	var panel := host.window_manager.open("explore_mods") as ExploreModsPanel
+	panel._expanded = String(first.manifest.id)
+	panel.refresh()
+	await Fixture.settle(self,4)
+	check(not panel.find_child("AddPack",true,false).visible,"no Add pack controls on iOS")
+	check(not panel._adding_hint.visible,"no drop-a-pack hint on iOS")
+	var reload := panel.find_child("Reload_"+String(first.manifest.id),true,false) as Button
+	check(reload != null and not reload.visible,"no Reload on iOS")
+	panel.close()
+	ExploreLuaBridge.platform_override = ""
+
 func test_touch_guide_names_current_betting_and_virtual_funds() -> void:
 	var rows := ""
 	for row: Array in HelpWindow.ROWS:
@@ -111,7 +136,8 @@ func test_mods_supported_desktop_predicate() -> void:
 	check(ExploreLuaBridge.supported_environment("macOS",false),"macOS native Lua remains available")
 	check(ExploreLuaBridge.supported_environment("Windows",true),"Windows x64 Lua remains available")
 	check(not ExploreLuaBridge.supported_environment("Windows",false),"Windows arm has no unavailable import UI")
-	check(not ExploreLuaBridge.supported_environment("iOS",false),"iOS has no native Lua")
+	check(ExploreLuaBridge.supported_environment("iOS",false),"iOS runs the built-in packs")
+	check(ExploreLuaBridge.bundled_only("iOS") and not ExploreLuaBridge.bundled_only("macOS"),"only iOS is limited to bundled packs")
 	host.display_layout.refresh_with_mobile_metrics(Vector2i(1280,800),1.0,Rect2i(0,0,1280,800),0,"macOS")
 	var panel := host.window_manager.open("explore_mods")
 	check(panel is ExploreModsPanel,"supported desktop retains Mods window")

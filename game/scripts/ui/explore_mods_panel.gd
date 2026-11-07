@@ -22,6 +22,8 @@ var rows: VBoxContainer
 var picker: FileDialog
 var _expanded := ""
 var _reset_pending := ""
+var _adding: HFlowContainer
+var _adding_hint: Label
 
 func _init() -> void:
 	name = "ExploreModsPanel"
@@ -42,6 +44,7 @@ func _init() -> void:
 	adding.add_theme_constant_override("h_separation",8)
 	adding.add_theme_constant_override("v_separation",6)
 	body.add_child(adding)
+	_adding = adding
 	var add_file := UIFactory.make_button("Add pack file…","Choose a .scddmod or .zip pack to add.")
 	add_file.name = "AddPackFile"
 	add_file.pressed.connect(_choose.bind(FileDialog.FILE_MODE_OPEN_FILE))
@@ -50,7 +53,7 @@ func _init() -> void:
 	add_folder.name = "AddPackFolder"
 	add_folder.pressed.connect(_choose.bind(FileDialog.FILE_MODE_OPEN_DIR))
 	adding.add_child(add_folder)
-	_label("You can also drop a pack onto this window. Added packs start off, and opening a saved city never turns packs on.",body,UITheme.FONT_SMALL,UITheme.TEXT_MUTED)
+	_adding_hint = _label("You can also drop a pack onto this window. Added packs start off, and opening a saved city never turns packs on.",body,UITheme.FONT_SMALL,UITheme.TEXT_MUTED)
 	rows = VBoxContainer.new()
 	rows.name = "Packs"
 	rows.add_theme_constant_override("separation",8)
@@ -105,7 +108,11 @@ func refresh() -> void:
 	var entries := registry.entries()
 	var enabled := entries.filter(func(entry: Dictionary) -> bool: return entry.enabled).size()
 	var at_limit := enabled >= PACK_LIMIT
-	if entries.is_empty(): summary.text = "No packs are installed yet. Add one below."
+	# iOS offers the built-in packs only; nothing can be added there.
+	var bundled := ExploreLuaBridge.bundled_only()
+	_adding.visible = not bundled
+	_adding_hint.visible = not bundled
+	if entries.is_empty(): summary.text = "No built-in packs are available." if bundled else "No packs are installed yet. Add one below."
 	elif at_limit: summary.text = "%d of %d packs on, the most allowed. Turn one off to use another. Changes start when you resume Explore." % [enabled,PACK_LIMIT]
 	else: summary.text = "%d of %d packs on. Tick a pack to turn it on; changes start when you resume Explore." % [enabled,PACK_LIMIT]
 	var runtime := registry.runtime_label()
@@ -217,6 +224,7 @@ func _details(column: VBoxContainer, id: String, title: String, entry: Dictionar
 	reload_button.name = "Reload_"+id
 	reload_button.pressed.connect(func() -> void: _result(registry.reload(id,service == null or service.controller.is_suspended()),title))
 	buttons.add_child(reload_button)
+	reload_button.visible = not ExploreLuaBridge.bundled_only()
 	var confirming := _reset_pending == id
 	var reset := UIFactory.make_button("Yes, reset progress" if confirming else "Reset progress…","Clear this pack's progress in the current city.")
 	reset.name = "Reset_"+id
@@ -267,6 +275,7 @@ func _import(path: String) -> void:
 
 func _on_files_dropped(files: PackedStringArray) -> void:
 	if not visible: return
+	if ExploreLuaBridge.bundled_only(): return
 	for path in files.slice(0,8): _import(path)
 
 func _result(result: Dictionary, title: String, turning_on := false) -> void:
@@ -284,6 +293,7 @@ func _result(result: Dictionary, title: String, turning_on := false) -> void:
 		"pause_required": _say("Pause Explore before reloading a pack.")
 		"duplicate_id": _say("That pack is already installed. Open its Details and choose Reload to pick up changes.")
 		"installed_limit": _say("There's no room for more packs. Remove some from the mods folder first.")
+		"bundled_only": _say("On iPhone and iPad, Explore uses its built-in packs only.")
 		_: _say("Couldn't do that: %s." % code.replace("_"," "))
 
 func _name_at(path: String) -> String:

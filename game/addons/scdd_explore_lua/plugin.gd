@@ -7,8 +7,17 @@ class Exporter extends EditorExportPlugin:
 		var base := "res://addons/scdd_explore_lua/"
 		add_file(base + "LUA-LICENSE.txt", FileAccess.get_file_as_bytes(base + "LUA-LICENSE.txt"), false)
 		var mac := "macos" in features
+		var ios := "ios" in features
 		var windows := "windows" in features and "x86_64" in features
-		if not mac and not windows: return
+		if not mac and not ios and not windows: return
+		if ios:
+			# iOS runs only the bundled packs; the framework is embedded like
+			# the geometry kernel's.
+			var framework := base + "bin/SCDDExploreLua.framework"
+			if not FileAccess.file_exists(framework + "/SCDDExploreLua"): return
+			add_file(base + "scdd_explore_lua.cfg", FileAccess.get_file_as_bytes(base + "scdd_explore_lua.cfg"), false)
+			add_ios_embedded_framework(framework)
+			return
 		var library := base + "bin/" + ("libSCDDExploreLua.dylib" if mac else "SCDDExploreLua.windows.x86_64.dll")
 		if not FileAccess.file_exists(library): return
 		add_file(base + "scdd_explore_lua.cfg", FileAccess.get_file_as_bytes(base + "scdd_explore_lua.cfg"), false)
