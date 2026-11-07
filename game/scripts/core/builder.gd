@@ -253,8 +253,6 @@ func _plan(tool: int, from: Vector2i, to: Vector2i, options: Dictionary = {}) ->
 			plan = _plan_dezone(Tools.cost(tool), from, to)
 		Tools.Kind.BULLDOZE:
 			plan = _plan_bulldoze(Tools.cost(tool), from, to, bool(options.get("underground", false)))
-		Tools.Kind.TREES:
-			plan = _plan_trees(Tools.cost(tool), _line_tiles(from, to))
 		Tools.Kind.FOREST:
 			plan = _plan_trees(Tools.cost(tool), _area_tiles(from, to))
 		Tools.Kind.PLANT_TREE:
@@ -349,13 +347,6 @@ static func _line(from: Vector2i, to: Vector2i, step: int = 1) -> Array[Dictiona
 	while p != to:
 		p += Vector2i(signi(to.x - p.x), signi(to.y - p.y)) * step
 		out.append({"pos": p, "axis": second_axis, "turn": false})
-	return out
-
-
-static func _line_tiles(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for step in _line(from, to):
-		out.append(step["pos"])
 	return out
 
 

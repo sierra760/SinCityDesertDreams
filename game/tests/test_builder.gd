@@ -593,7 +593,7 @@ func test_signs_limit() -> void:
 func test_trees_and_parks() -> void:
 	var b := _builder()
 	var c := b.city
-	var r := b.apply(Tools.Kind.TREES, Vector2i(10, 10), Vector2i(12, 10))
+	var r := b.apply(Tools.Kind.FOREST, Vector2i(10, 10), Vector2i(12, 10))
 	check(r["ok"])
 	check_eq(r["cost"], 9)
 	check_eq(c.building_at(10, 10), Buildings.TREES_1)
@@ -601,7 +601,7 @@ func test_trees_and_parks() -> void:
 	var f := b.apply(Tools.Kind.FOREST, Vector2i(11, 11))
 	check(f["ok"])
 	check_eq(c.building_at(11, 11), (Buildings.TREES_1 + 3))
-	check(not b.preview(Tools.Kind.TREES, Vector2i(10, 10))["ok"], "no tree over a tree")
+	check(not b.preview(Tools.Kind.FOREST, Vector2i(10, 10))["ok"], "no forest over a tree")
 	var park := b.apply(Tools.Kind.SMALL_PARK, Vector2i(11, 10))
 	check(park["ok"], park["reason"])
 	check_eq(c.building_at(11, 10), Buildings.SMALL_PARK)
@@ -842,7 +842,7 @@ func test_tools_table_is_complete() -> void:
 		if id > Buildings.NONE and Tools.is_building_tool(tool):
 			check_eq(Tools.footprint(tool), Buildings.size(id), "footprint of %s" % Tools.display_name(tool))
 			check_eq(Tools.cost(tool), Buildings.cost(id), "price of %s" % Tools.display_name(tool))
-	check_eq(Tools.all().size(), Tools.Kind.size())
+	check_eq(Tools.all().size(), Tools.Kind.size() - 1, "every tool but the retired Trees has a row")
 	check_eq(Tools.zone_kind(Tools.Kind.ZONE_IND_HIGH), Zones.IND_HIGH)
 	check_eq(Tools.mode(Tools.Kind.HIGHWAY), Tools.Mode.BLOCK_LINE)
 	check_eq(Tools.mode(Tools.Kind.RAISE_SEA), Tools.Mode.GLOBAL)

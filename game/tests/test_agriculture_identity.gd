@@ -300,7 +300,6 @@ const LEGACY_TOOLS := {
 	18: ["Dense Industrial", 10, -1, 6, Vector2i.ONE, &"zone_ind_high", 2, 4],
 	19: ["Airport", 250, -1, 8, Vector2i.ONE, &"airport", 2, 7],
 	20: ["Seaport", 150, -1, 9, Vector2i.ONE, &"seaport", 2, 7],
-	21: ["Trees", 3, 6, -1, Vector2i.ONE, &"trees", 1, 5],
 	22: ["Pocket Park", 10, 13, -1, Vector2i.ONE, &"small_park", 0, 5],
 	23: ["City Park", 150, 213, -1, Vector2i(3, 3), &"large_park", 0, 5],
 	24: ["Water Pump", 100, 220, -1, Vector2i.ONE, &"water_pump", 0, 3],
@@ -387,6 +386,8 @@ func test_ids_are_append_only() -> void:
 	check_eq(Buildings.Category.AGRICULTURAL, 22)
 	check_eq(Buildings.id_of(&"ag_vegetables"), 266)
 	check_eq(Buildings.COUNT, 289)
+	check_eq(Tools.Kind.TREES, 21, "the retired Trees tool keeps its ID")
+	check(not Tools.all().has(Tools.Kind.TREES), "retired Trees tool has no button")
 	check_eq(Tools.Kind.ZONE_AGR_LOW, 81)
 	check_eq(Tools.Kind.ZONE_AGR_HIGH, 82)
 

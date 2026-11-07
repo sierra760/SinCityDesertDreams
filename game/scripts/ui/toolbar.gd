@@ -41,7 +41,7 @@ const GROUP_ORDER: Array[int] = [
 const GROUP_NAMES := {
 	Tools.Group.INSPECT: "Inspect", Tools.Group.DEMOLISH: "Demolish",
 	Tools.Group.TRANSPORT: "Transport", Tools.Group.UTILITY: "Utilities",
-	Tools.Group.ZONE: "Zones", Tools.Group.NATURE: "Parks and Trees",
+	Tools.Group.ZONE: "Zones", Tools.Group.NATURE: "Parks",
 	Tools.Group.CIVIC: "Civic", Tools.Group.TRANSIT: "Transit",
 	Tools.Group.PLANT: "Power", Tools.Group.ARCOLOGY: "Gaming Resorts",
 	Tools.Group.REWARD: "Rewards", Tools.Group.EMERGENCY: "Emergency",
@@ -73,7 +73,6 @@ const CAPTIONS := {
 	Tools.Kind.ZONE_AGR_HIGH: "Dense\nfarms",
 	Tools.Kind.AIRPORT: "Airport",
 	Tools.Kind.SEAPORT: "Seaport",
-	Tools.Kind.TREES: "Trees",
 	Tools.Kind.SMALL_PARK: "Pocket\npark",
 	Tools.Kind.LARGE_PARK: "City park",
 	Tools.Kind.WATER_PUMP: "Water\npump",

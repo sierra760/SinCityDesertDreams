@@ -116,7 +116,6 @@ def build():
         + path('M15 45 V36 M15 40 L12 37 M15 42 L18 39 M30 45 V36 M30 40 L27 37 M30 42 L33 39 M42 45 V36 M42 40 L39 37 M42 42 L45 39', stroke=PAPER, width=2))
     icons['airport'] = path('M29 8 H35 L38 26 55 36 V42 L37 37 36 48 43 52 V56 L32 53 21 56 V52 L28 48 27 37 9 42 V36 L26 26Z', zones['AIRPORT'], INK, 3)
     icons['seaport'] = path('M9 35 H55 L47 47 H18Z', zones['SEAPORT']) + rect(23, 21, 21, 14, zones['AIRPORT']) + path('M32 10 V21 M17 27 V35') + waves(53)
-    icons['trees'] = tree()
     icons['small_park'] = group(tree(), 'translate(0 0) scale(.7)') + path('M28 39 H54 M28 45 H54 M31 45 V54 M50 45 V54', stroke=GOLD, width=4)
     icons['large_park'] = rect(8, 9, 48, 46, GREEN, 8) + path('M32 54 V39 Q19 33 32 24 V11', stroke=PAPER, width=6) + group(tree(), 'translate(3 8) scale(.45)') + group(tree(), 'translate(29 15) scale(.45)')
     icons['water_pump'] = path('M15 54 V29 H40 V40 H53 M15 22 H37 M27 12 V28 M17 12 H40', stroke=BLUE, width=6) + circle(27, 36, 6, PAPER) + path('M51 48 V54', stroke=BLUE, width=5)

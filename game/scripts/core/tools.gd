@@ -10,6 +10,8 @@
 class_name Tools
 extends RefCounted
 
+## IDs are append-only. TREES is retired: tree planting lives with the
+## terrain tools (Tree and Forest), so it has no row and no button.
 enum Kind {
 	QUERY, BULLDOZE, DEZONE, SIGN,
 	ROAD, HIGHWAY, ONRAMP, TUNNEL, RAIL, SUBWAY, SUBWAY_PORTAL, POWER_LINE, WATER_PIPE,
@@ -70,7 +72,6 @@ const _TABLE := {
 	Kind.ZONE_AGR_HIGH: ["High-density Agriculture", 5, NO_BUILDING, Zones.AGR_HIGH, Vector2i.ONE, &"zone_agr_high", Mode.RECT, Group.ZONE],
 	Kind.AIRPORT: ["Airport", 250, NO_BUILDING, Zones.AIRPORT, Vector2i.ONE, &"airport", Mode.RECT, Group.TRANSIT],
 	Kind.SEAPORT: ["Seaport", 150, NO_BUILDING, Zones.SEAPORT, Vector2i.ONE, &"seaport", Mode.RECT, Group.TRANSIT],
-	Kind.TREES: ["Trees", 3, Buildings.TREES_1, -1, Vector2i.ONE, &"trees", Mode.LINE, Group.NATURE],
 	Kind.SMALL_PARK: ["Pocket Park", 10, Buildings.SMALL_PARK, -1, Vector2i.ONE, &"small_park", Mode.POINT, Group.NATURE],
 	Kind.LARGE_PARK: ["City Park", 150, Buildings.LARGE_PARK, -1, Vector2i(3, 3), &"large_park", Mode.POINT, Group.NATURE],
 	Kind.WATER_PUMP: ["Water Pump", 100, Buildings.WATER_PUMP, -1, Vector2i.ONE, &"water_pump", Mode.POINT, Group.UTILITY],
@@ -251,7 +252,7 @@ static func is_building_tool(tool: int) -> bool:
 
 
 static func is_tree_tool(tool: int) -> bool:
-	return tool == Kind.TREES or tool == Kind.FOREST or tool == Kind.PLANT_TREE
+	return tool == Kind.FOREST or tool == Kind.PLANT_TREE
 
 
 static func is_terrain_tool(tool: int) -> bool:
