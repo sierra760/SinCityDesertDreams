@@ -24,6 +24,12 @@ var _meshes: Dictionary = {}
 var _batches: Dictionary = {}
 var _graph: CityTrafficGraph
 var _signature: Array = []
+## The current placements by cell, one table per kind of lamp, so an
+## incremental graph refresh replans only the cells it can have changed.
+var _road_lamps: Dictionary = {}
+var _median_lamps: Dictionary = {}
+## Whether the last rebuild replanned only an incremental refresh's cells.
+var last_sync_incremental := false
 var _image: Image
 var _texture: ImageTexture
 
@@ -64,13 +70,65 @@ static func _load_mesh(path: String) -> Mesh:
 ## Rebuild when the road graph has changed. Cheap when it has not.
 func sync(graph: CityTrafficGraph) -> void:
 	if graph == null or graph.city == null:
-		if not placements.is_empty(): _publish([])
+		if not placements.is_empty():
+			_road_lamps.clear()
+			_median_lamps.clear()
+			_signature = []
+			_publish([])
 		return
 	var signature: Array = [graph.get_instance_id(),graph.city.get_instance_id(),graph.revision]
 	if signature == _signature: return
+	var incremental: bool = _graph == graph and _signature.size() == 3 and signature[1] == _signature[1] \
+		and graph.revision == int(_signature[2])+1 and graph.last_change == CityTrafficGraph.CHANGE_INCREMENTAL
 	_signature = signature
 	_graph = graph
-	_publish(plan(graph))
+	last_sync_incremental = incremental
+	if incremental: _replan(graph)
+	else: _index(plan(graph))
+	_publish(_ordered())
+
+## Replan the cells an incremental graph refresh can have changed. A road lamp
+## reads its own cell's code, deck, points and route membership; membership
+## also changes one ring outside the graph's dirty cells, and a median lamp
+## reads the neighbouring carriageway, so two rings around them are replanned.
+func _replan(graph: CityTrafficGraph) -> void:
+	var city := graph.city
+	var region: Dictionary = {}
+	for cell: Vector2i in graph.last_dirty: region[cell] = true
+	for at: int in graph.last_changed_codes: region[Vector2i(at % City.WIDTH, at / City.WIDTH)] = true
+	for ring: int in 2:
+		var grown: Dictionary = region.duplicate()
+		for cell: Vector2i in region:
+			for step: Vector2i in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+				var near := cell+step
+				if city.in_bounds(near.x,near.y): grown[near] = true
+		region = grown
+	for cell: Vector2i in region:
+		_road_lamps.erase(cell)
+		_median_lamps.erase(cell)
+		if graph.degree(cell,&"road") > 0:
+			var placed := _road_lamp(graph,city,cell)
+			if not placed.is_empty(): _road_lamps[cell] = placed
+		if graph.degree(cell,&"highway") > 0:
+			var median := _median_lamp(graph,city,cell)
+			if not median.is_empty(): _median_lamps[cell] = median
+
+func _index(records: Array[Dictionary]) -> void:
+	_road_lamps.clear()
+	_median_lamps.clear()
+	for record: Dictionary in records:
+		if record.kind == "street_lamp": _road_lamps[record.cell] = record
+		else: _median_lamps[record.cell] = record
+
+## The indexed placements in plan()'s order: road lamps, then median lamps,
+## each by cell.
+func _ordered() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for table: Dictionary in [_road_lamps,_median_lamps]:
+		var keys: Array = table.keys()
+		keys.sort()
+		for cell: Vector2i in keys: out.append(table[cell])
+	return out
 
 ## Lamp records {kind, transform, cell} for the graph's city, in a stable order.
 func plan(graph: CityTrafficGraph) -> Array[Dictionary]:
