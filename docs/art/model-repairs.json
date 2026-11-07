@@ -9,8 +9,8 @@
       "original_sha256": "a234778860dfe5610097f5309d579b47a9484b179a2e72100662446073c17806",
       "original_bytes": 1678660,
       "original_triangles": 25618,
-      "repaired_sha256": "c8ce3a7938cdca10cc1f08340f1b2b1ac3436f9c9d4cb9e4aef59b1006dbf891",
-      "repaired_bytes": 1329208,
+      "repaired_sha256": "e8a3fe1fc162d9b8577b3465ee76ba543f239273216d9934019fcf1a5427fe27",
+      "repaired_bytes": 2619680,
       "drop": {
         "tier windows inside the ribbon glass": {
           "parts": 448,
@@ -36,7 +36,8 @@
         }
       },
       "removed_triangles": 5376,
-      "triangles": 20242
+      "triangles": 20363,
+      "logo_layer": "docs/art/casino-logo-signs.json"
     }
   }
 }

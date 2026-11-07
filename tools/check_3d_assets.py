@@ -45,13 +45,21 @@ def check() -> tuple[int, int]:
     total_bytes = 0
     for entry in entries:
         code = entry["code"]
-        expected_fields = FIELDS | ({"lettering"} if "lettering" in entry else set())
+        expected_fields = FIELDS | ({"lettering"} if "lettering" in entry else set()) | ({"logo_sign"} if "logo_sign" in entry else set())
         assert set(entry) == expected_fields, f"{code}: unexpected runtime metadata"
         if "lettering" in entry:
             lettering = entry["lettering"]
             assert isinstance(lettering, dict) and set(lettering) == {"family", "source", "output", "text"}, f"{code}: lettering provenance fields"
             assert all(isinstance(value, str) and value.strip() for value in lettering.values()), f"{code}: lettering provenance values"
-            assert lettering["output"] == "outlined static mesh; font file not embedded", f"{code}: lettering output policy"
+            expected_output = "illustrated static sign face; original artwork" if "logo_sign" in entry else "outlined static mesh; font file not embedded"
+            assert lettering["output"] == expected_output, f"{code}: lettering output policy"
+        if "logo_sign" in entry:
+            logo=entry["logo_sign"]
+            assert code in [251,252,253,254,*range(256,266)], f"{code}: logo coverage"
+            assert set(logo)=={"name","shape","center","width","height"}, f"{code}: logo fields"
+            assert all(isinstance(logo[k],str) and logo[k].strip() for k in ("name","shape")), f"{code}: logo identity"
+            assert len(logo["center"])==3 and all(math.isfinite(v) for v in logo["center"]), f"{code}: logo anchor"
+            assert logo["width"]>0 and logo["height"]>0, f"{code}: logo dimensions"
         name = f"{code}-blender.glb"
         assert entry["path"] == f"res://assets/desert-dreams-3d/{name}", f"{code}: asset path"
         assert entry["scale"] == 1 / 16 and entry["meters_per_tile"] == 16, f"{code}: scale"

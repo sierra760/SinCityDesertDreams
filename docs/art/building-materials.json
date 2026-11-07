@@ -1259,36 +1259,36 @@
       "name": "comstock-grand",
       "master_blend_sha256": "ee835e423b4d45c89a6c8fad13ed9dce370a1f150dd80b4a24f9d3a6c23f119b",
       "standalone_glb_sha256": "185d677efb09e7073c111c324a811be17774365ef6223f79543ead67191b9fcc",
-      "runtime_glb_sha256": "c8ce3a7938cdca10cc1f08340f1b2b1ac3436f9c9d4cb9e4aef59b1006dbf891",
-      "textured_materials": 3,
-      "runtime_bytes": 1329208
+      "runtime_glb_sha256": "e8a3fe1fc162d9b8577b3465ee76ba543f239273216d9934019fcf1a5427fe27",
+      "textured_materials": 4,
+      "runtime_bytes": 2619680
     },
     {
       "code": 252,
       "name": "silver-junction",
       "master_blend_sha256": "58c114d98c5dd2a1664d7371f5cc5b07c2f2cf06ae8fd789a2a5959bee8a5cca",
       "standalone_glb_sha256": "65c8703cff62319488247e62a860f3ee4c9fda77429594b815b040fc79ec3c5d",
-      "runtime_glb_sha256": "c30a89034cdeefba2b505efa1323b0c9882d26cd790bfc58f242b1bcef62a10d",
-      "textured_materials": 2,
-      "runtime_bytes": 783032
+      "runtime_glb_sha256": "e48889a06b59906f53aeb4b6d21d25676be7d2ff3263e4727b924379b0e22625",
+      "textured_materials": 3,
+      "runtime_bytes": 1685124
     },
     {
       "code": 253,
       "name": "boulder-crown",
       "master_blend_sha256": "f799c5510252d7e50b0920618f0faf4a620fed85e3cd23e02f178c43d086db61",
       "standalone_glb_sha256": "44e2a85071f7cafb20efb059e7ef17020b42c5ac47944b1087fa8f93a1262fdd",
-      "runtime_glb_sha256": "f747084c1a6ee2d20fe31950c451991fff1d5436aa7ea0a83d25269833f70302",
-      "textured_materials": 4,
-      "runtime_bytes": 628228
+      "runtime_glb_sha256": "9592b6c2487f1f55819c4fb624c4875facc690420cb39f92270c2769f7e21dbb",
+      "textured_materials": 5,
+      "runtime_bytes": 1898856
     },
     {
       "code": 254,
       "name": "desert-orbit",
       "master_blend_sha256": "1feb27502091222cafe174fe48ae444ad5503b32900106f2e6a460ef0a059d94",
       "standalone_glb_sha256": "96f967b1c14ef41c3b29aa5b5ad7874d010e6d5b44a4eb43e182ac1bb87e31b1",
-      "runtime_glb_sha256": "3abea9f3d4d133233c126f3ced51a2b7fa3a59c2c2f1b0079e9dbb8ecac7dd86",
-      "textured_materials": 2,
-      "runtime_bytes": 864308
+      "runtime_glb_sha256": "16767e80f0cbf738a8d01e089b5cda62222ffcb10d9e25bb57827a73b5634f34",
+      "textured_materials": 3,
+      "runtime_bytes": 2101676
     },
     {
       "code": 255,

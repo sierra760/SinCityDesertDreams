@@ -384,3 +384,39 @@ func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
 	check(not CityNightMode.materials_modified(),"materials restored")
 	check_eq(SaveFormat.encode_city(city),encoded,"casino lights never change the city")
 	view.free()
+
+func test_basque_flag_keeps_its_green_saltire_at_night() -> void:
+	var city := flat_city(50000000)
+	city.founded_year = 2010
+	check(Builder.new(city,CityStats.new()).apply(Tools.Kind.ARCOLOGY_WOOLIER,Vector2i(30,30),Vector2i(30,30)).ok)
+	var view := CityView3D.new()
+	root.add_child(view)
+	await process_frame
+	view.bind_city(city)
+	view.set_active(true)
+	view.refresh(true)
+	var flags := {}
+	var before := {}
+	for child: Node in view.buildings.find_children("*","MeshInstance3D",true,false):
+		var mesh := child as MeshInstance3D
+		if mesh.mesh == null: continue
+		for surface: int in mesh.mesh.get_surface_count():
+			var material := mesh.get_active_material(surface) as BaseMaterial3D
+			if material == null: continue
+			var name := CityCasinoLights3D.base_name(material.resource_name)
+			if name.begins_with("flag_"):
+				flags[name] = material
+				before[name] = CityNightMode._save(material)
+	check_eq(flags.size(),3,"actual flag has its red field, green saltire and white cross")
+	view.set_night_mode(true,true)
+	for name: String in flags:
+		var material: BaseMaterial3D = flags[name]
+		check(material.emission_enabled and material.emission_energy_multiplier > 0.0,"the cloth itself is gently lit: "+name)
+		check(material.emission.is_equal_approx(material.albedo_color),"authored flag colour is preserved: "+name)
+		check(material.emission_energy_multiplier < 1.0,"the white cross cannot bloom over the green diagonals")
+	for spec: Dictionary in preload("res://scripts/view/casino_night_signatures.gd").features(Buildings.ARCOLOGY_WOOLIER):
+		for name: String in spec.materials:
+			check(not name.begins_with("flag_"),"no additive red/white overlay obscures the green saltire")
+	view.set_night_mode(false,true)
+	for name: String in flags: check_eq(CityNightMode._save(flags[name]),before[name],"flag restores exactly by day")
+	view.free()

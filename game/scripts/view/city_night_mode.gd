@@ -16,7 +16,7 @@ const Signatures := preload("res://scripts/view/casino_night_signatures.gd")
 const FADE_SECONDS := 1.5
 
 ## Material roles, found by material name in the authored models.
-enum Role { NONE, WINDOW, WINDOW_DIM, NEON, SIGN, HEADLIGHT, TAILLIGHT, INDICATOR, STREET_LAMP }
+enum Role { NONE, WINDOW, WINDOW_DIM, NEON, SIGN, HEADLIGHT, TAILLIGHT, INDICATOR, STREET_LAMP, LOGO, FLAG }
 const ROLE_NAMES := {
 	"glass": Role.WINDOW, "glass_light": Role.WINDOW, "resort_glass": Role.WINDOW,
 	"glass_dark": Role.WINDOW_DIM,
@@ -27,10 +27,17 @@ const ROLE_NAMES := {
 	"traffic_light": Role.HEADLIGHT, "Ivory lamp": Role.HEADLIGHT,
 	"Red lamp": Role.TAILLIGHT, "Amber lamp": Role.INDICATOR,
 	"street_lamp_glow": Role.STREET_LAMP,
+	# Logo cabinets stay painted and dark; only their authored channel letters,
+	# glass and bulbs glow. Each material retains its own emission color.
+	"sign_logo_letters": Role.LOGO, "sign_logo_neon_a": Role.LOGO,
+	"sign_logo_neon_b": Role.LOGO, "sign_logo_bulbs": Role.LOGO,
+	# Preserve the Ikurrina's red field, green saltire and white cross on
+	# their own depth-tested cloth surfaces, with no additive copies.
+	"flag_red": Role.FLAG, "flag_green": Role.FLAG, "flag_white": Role.FLAG,
 }
 ## Emission energy at full night for each role (NEON scales its own energy).
 const ENERGY := {Role.WINDOW: 1.6, Role.WINDOW_DIM: .6, Role.NEON: 2.4, Role.SIGN: .85,
-	Role.HEADLIGHT: 2.6, Role.TAILLIGHT: 1.8, Role.INDICATOR: 1.1, Role.STREET_LAMP: 3.2}
+	Role.HEADLIGHT: 2.6, Role.TAILLIGHT: 1.8, Role.INDICATOR: 1.1, Role.STREET_LAMP: 3.2, Role.FLAG: .55}
 const WINDOW_WARMTH := Color(1.0,.80,.52)
 ## World-space window cells: about two metres wide and one storey tall.
 const WINDOW_SCALE := Vector3(1.0/(8.0*.125),1.0/(8.0*.21),1.0/(8.0*.125))
@@ -343,6 +350,8 @@ static func _setup(material: BaseMaterial3D, role: int, saved: Dictionary, code:
 			if not signature.is_empty() and material.emission == Color.BLACK: material.emission = signature.a
 			if not bool(saved.emission_enabled) or material.emission == Color.BLACK:
 				material.emission = material.albedo_color
+		Role.LOGO:
+			material.emission_enabled = true
 		Role.HEADLIGHT:
 			material.emission_enabled = true
 			material.emission = Color(1.0,.93,.78)
@@ -367,6 +376,14 @@ func _apply_material(record: Dictionary) -> void:
 	if role == Role.NEON:
 		var day: float = record.saved.emission_energy_multiplier if record.saved.emission_enabled else 0.0
 		material.emission_energy_multiplier = lerpf(day,maxf(day,1.0)*float(ENERGY[role])*boost,amount)
+	elif role == Role.LOGO:
+		var day: float = record.saved.emission_energy_multiplier if record.saved.emission_enabled else 0.0
+		# The importer may fold a sub-unit glTF emission strength into its
+		# color. Fade that dim day color toward full gain for a light map, or
+		# the glass's own color, instead of multiplying a permanently dim tint.
+		var target := Color.WHITE if material.emission_texture != null else material.albedo_color
+		material.emission = (record.saved.emission as Color).lerp(target,amount)
+		material.emission_energy_multiplier = lerpf(day,3.2 if material.emission_texture != null else 1.8,amount)
 	else:
 		material.emission_energy_multiplier = float(ENERGY[role])*boost*amount
 

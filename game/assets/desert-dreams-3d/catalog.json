@@ -2797,10 +2797,27 @@
         4,
         4
       ],
-      "triangles": 20242,
+      "triangles": 20363,
       "source_kind": "authored_blender",
-      "glb_sha256": "c8ce3a7938cdca10cc1f08340f1b2b1ac3436f9c9d4cb9e4aef59b1006dbf891",
-      "meters_per_tile": 16
+      "glb_sha256": "e8a3fe1fc162d9b8577b3465ee76ba543f239273216d9934019fcf1a5427fe27",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Comstock Grand",
+        "shape": "western",
+        "center": [
+          4,
+          6.4,
+          27.3
+        ],
+        "width": 9,
+        "height": 4.5
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Comstock Grand"
+      }
     },
     {
       "code": 252,
@@ -2817,10 +2834,27 @@
         4,
         4
       ],
-      "triangles": 12016,
+      "triangles": 11549,
       "source_kind": "authored_blender",
-      "glb_sha256": "c30a89034cdeefba2b505efa1323b0c9882d26cd790bfc58f242b1bcef62a10d",
-      "meters_per_tile": 16
+      "glb_sha256": "e48889a06b59906f53aeb4b6d21d25676be7d2ff3263e4727b924379b0e22625",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Silver Junction",
+        "shape": "rail",
+        "center": [
+          -5,
+          6.6,
+          26.6
+        ],
+        "width": 10,
+        "height": 5.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Silver Junction"
+      }
     },
     {
       "code": 253,
@@ -2837,10 +2871,27 @@
         4,
         4
       ],
-      "triangles": 10196,
+      "triangles": 10439,
       "source_kind": "authored_blender",
-      "glb_sha256": "f747084c1a6ee2d20fe31950c451991fff1d5436aa7ea0a83d25269833f70302",
-      "meters_per_tile": 16
+      "glb_sha256": "9592b6c2487f1f55819c4fb624c4875facc690420cb39f92270c2769f7e21dbb",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Boulder Crown",
+        "shape": "deco",
+        "center": [
+          0,
+          13.3,
+          17.7
+        ],
+        "width": 14,
+        "height": 7.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Boulder Crown"
+      }
     },
     {
       "code": 254,
@@ -2857,10 +2908,27 @@
         4,
         4
       ],
-      "triangles": 12768,
+      "triangles": 12221,
       "source_kind": "authored_blender",
-      "glb_sha256": "3abea9f3d4d133233c126f3ced51a2b7fa3a59c2c2f1b0079e9dbb8ecac7dd86",
-      "meters_per_tile": 16
+      "glb_sha256": "16767e80f0cbf738a8d01e089b5cda62222ffcb10d9e25bb57827a73b5634f34",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Desert Orbit",
+        "shape": "atomic",
+        "center": [
+          -14.6,
+          6.4,
+          25.6
+        ],
+        "width": 15,
+        "height": 7.5
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Desert Orbit"
+      }
     },
     {
       "code": 255,
@@ -2897,10 +2965,27 @@
         4,
         4
       ],
-      "triangles": 11508,
+      "triangles": 11862,
       "source_kind": "authored_blender",
-      "glb_sha256": "2ce1119e6b89d31053420eb817838a8da316c9bbe67243e3d5d1b1b6dab61f37",
-      "meters_per_tile": 16
+      "glb_sha256": "fba97a5fb89d4a5bb84042e48d170892cfe4ab2ff5366b4709926207cfd2e94e",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "The Fix",
+        "shape": "vault",
+        "center": [
+          -13,
+          7.8,
+          30.8
+        ],
+        "width": 12,
+        "height": 6.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "The Fix"
+      }
     },
     {
       "code": 257,
@@ -2917,10 +3002,27 @@
         4,
         4
       ],
-      "triangles": 20576,
+      "triangles": 20076,
       "source_kind": "authored_blender",
-      "glb_sha256": "8b08c3243726254ae860b07529d6ab2accb2dd86e690a739db0312846e50b908",
-      "meters_per_tile": 16
+      "glb_sha256": "235760fbd71bde2779ddf6e8fddf11e694e63718920e3a7fc703e4693dff2aaf",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Six-Week Alibi",
+        "shape": "alibi",
+        "center": [
+          -13,
+          7.8,
+          30.8
+        ],
+        "width": 14,
+        "height": 7.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Six-Week Alibi"
+      }
     },
     {
       "code": 258,
@@ -2937,10 +3039,27 @@
         4,
         4
       ],
-      "triangles": 19060,
+      "triangles": 17964,
       "source_kind": "authored_blender",
-      "glb_sha256": "fb7803ecda149195991b2bce58b71453cbfedf5cedb6ebc61845d35f61a07068",
-      "meters_per_tile": 16
+      "glb_sha256": "249bd0496fd1e63d63fd105683f61e7d52fb78373859b7f3a04ae0ff4d005502",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Velvet Wardrobe",
+        "shape": "fan",
+        "center": [
+          13,
+          8,
+          30.8
+        ],
+        "width": 15,
+        "height": 7.5
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Velvet Wardrobe"
+      }
     },
     {
       "code": 259,
@@ -2957,10 +3076,27 @@
         4,
         4
       ],
-      "triangles": 10336,
+      "triangles": 10126,
       "source_kind": "authored_blender",
-      "glb_sha256": "1937944edb35e9dc65da20516f228decaea4a7fc976351e0835a1bca588e27f3",
-      "meters_per_tile": 16
+      "glb_sha256": "25e96b07abd7a660b1cd11715c7cebbcc9f87f9a70d97c54f4ad20203e29ae98",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "The Afterglow",
+        "shape": "sun",
+        "center": [
+          -13,
+          8,
+          30.8
+        ],
+        "width": 17,
+        "height": 8.5
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "The Afterglow"
+      }
     },
     {
       "code": 260,
@@ -2977,10 +3113,27 @@
         4,
         4
       ],
-      "triangles": 14242,
+      "triangles": 13186,
       "source_kind": "authored_blender",
-      "glb_sha256": "1a0f4e592f1f033b529d2a840b3500850edcf3f5d61c5d3ffd290c9718f9bc27",
-      "meters_per_tile": 16
+      "glb_sha256": "90401bb01938a6dbb887508d0efdac2dd74e23bb6337d3614e91cbe1ad140e03",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Last Resort",
+        "shape": "last",
+        "center": [
+          -12,
+          7.5,
+          30.8
+        ],
+        "width": 14,
+        "height": 7.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Last Resort"
+      }
     },
     {
       "code": 261,
@@ -2997,10 +3150,27 @@
         4,
         4
       ],
-      "triangles": 38600,
+      "triangles": 36417,
       "source_kind": "authored_blender",
-      "glb_sha256": "916ebd92a18e78ecf794da06d14aba2c7a3fc5adec5fa40c2fa1a97d11447d60",
-      "meters_per_tile": 16
+      "glb_sha256": "8f3061f14818b49d65eec412997878b1355e6e45f3053ad34d88033f16185ff2",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Dust Republic",
+        "shape": "pennant",
+        "center": [
+          13,
+          8,
+          30.8
+        ],
+        "width": 14,
+        "height": 7.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Dust Republic"
+      }
     },
     {
       "code": 262,
@@ -3012,15 +3182,32 @@
         0
       ],
       "yaw": 0,
-      "height": 0.5256249904632568,
+      "height": 0.5552880764007568,
       "footprint": [
         2,
         2
       ],
-      "triangles": 10140,
+      "triangles": 8006,
       "source_kind": "authored_blender",
-      "glb_sha256": "661d6c6772be16ec48da23d0c78dce11ce9cc373afcd28773f0df8acbc2aced9",
-      "meters_per_tile": 16
+      "glb_sha256": "117fe33ef7dbb784b12036d4d528130dd6e7d45689fd422b6f0e0a4710722861",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Boddy's",
+        "shape": "tavern",
+        "center": [
+          0,
+          6.7,
+          12.55
+        ],
+        "width": 9,
+        "height": 4.5
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Boddy's"
+      }
     },
     {
       "code": 263,
@@ -3032,15 +3219,32 @@
         0
       ],
       "yaw": 0,
-      "height": 0.6662499904632568,
+      "height": 0.6662499308586121,
       "footprint": [
         2,
         2
       ],
-      "triangles": 11364,
+      "triangles": 7699,
       "source_kind": "authored_blender",
-      "glb_sha256": "9e2f0de449e7caf644bb6ebdc07481b739b066ba4e649aee4afe1c1187ec4cd0",
-      "meters_per_tile": 16
+      "glb_sha256": "9930e8c6e7031dd923856df94b9b61c07df0b39f2247cabc30abf5456e63366f",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Woolier Days",
+        "shape": "inn",
+        "center": [
+          0,
+          7.7,
+          13.1
+        ],
+        "width": 9.5,
+        "height": 4.75
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Woolier Days"
+      }
     },
     {
       "code": 264,
@@ -3052,15 +3256,32 @@
         0
       ],
       "yaw": 0,
-      "height": 0.8109375238418579,
+      "height": 0.8370271325111389,
       "footprint": [
         3,
         3
       ],
-      "triangles": 11808,
+      "triangles": 6980,
       "source_kind": "authored_blender",
-      "glb_sha256": "4d2bc2924e9c865f594caeb00785bf503afe96bec06d55ce137b33be7efdb56e",
-      "meters_per_tile": 16
+      "glb_sha256": "0e6d625074555a45feed0479b795799ec8c92a77f7652bc73634972d9bc2f7cb",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Stockgrowers",
+        "shape": "ranch",
+        "center": [
+          0,
+          10,
+          21.6
+        ],
+        "width": 14,
+        "height": 7.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Stockgrowers"
+      }
     },
     {
       "code": 265,
@@ -3072,15 +3293,32 @@
         0
       ],
       "yaw": 0,
-      "height": 1.106874942779541,
+      "height": 1.1221611499786377,
       "footprint": [
         3,
         3
       ],
-      "triangles": 13624,
+      "triangles": 5251,
       "source_kind": "authored_blender",
-      "glb_sha256": "80affec8cbb00b087bd2e1783126db9a38174c02f919314b2ad8a92ca2c41d3d",
-      "meters_per_tile": 16
+      "glb_sha256": "b9fdd6f64e9c54df7a131da77b3bca181196bb2ecb9eddd33ed52940952147c4",
+      "meters_per_tile": 16,
+      "logo_sign": {
+        "name": "Fremont Palace",
+        "shape": "palace",
+        "center": [
+          0,
+          15,
+          21.9
+        ],
+        "width": 12,
+        "height": 6.0
+      },
+      "lettering": {
+        "family": "original sign-painter lettering",
+        "source": "original generated artwork; assets/casino-signs/generation.json",
+        "output": "illustrated static sign face; original artwork",
+        "text": "Fremont Palace"
+      }
     },
     {
       "code": 266,

@@ -1,0 +1,387 @@
+{
+  "version": 1,
+  "signs": [
+    {
+      "code": 251,
+      "name": "Comstock Grand",
+      "slug": "comstock",
+      "shape": "western",
+      "lines": [
+        "COMSTOCK",
+        "GRAND"
+      ],
+      "center": [
+        4,
+        6.4,
+        27.3
+      ],
+      "width": 9,
+      "height": 4.5,
+      "face": "6e1828",
+      "ink": "fff0cb",
+      "metal": "bc8c42",
+      "a": "ffbc35",
+      "b": "ff3347",
+      "old_box": [
+        -25,
+        29,
+        23,
+        -5,
+        33,
+        24
+      ],
+      "old_triangles": 1000,
+      "mount": "posts",
+      "base": 3.6
+    },
+    {
+      "code": 252,
+      "name": "Silver Junction",
+      "slug": "junction",
+      "shape": "rail",
+      "lines": [
+        "SILVER",
+        "JUNCTION"
+      ],
+      "center": [
+        -5,
+        6.6,
+        26.6
+      ],
+      "width": 10,
+      "height": 5.0,
+      "face": "164e42",
+      "ink": "fff0d0",
+      "metal": "bdbfae",
+      "a": "4dff9c",
+      "b": "fff0c8",
+      "old_box": [
+        -15,
+        18.5,
+        24.2,
+        5,
+        21.5,
+        24.6
+      ],
+      "old_triangles": 1484,
+      "mount": "posts",
+      "base": 4
+    },
+    {
+      "code": 253,
+      "name": "Boulder Crown",
+      "slug": "boulder",
+      "shape": "deco",
+      "lines": [
+        "BOULDER",
+        "CROWN"
+      ],
+      "center": [
+        0,
+        13.3,
+        17.7
+      ],
+      "width": 14,
+      "height": 7.0,
+      "face": "164c7b",
+      "ink": "fff4da",
+      "metal": "b67b41",
+      "a": "4aaeff",
+      "b": "d7ffff",
+      "old_box": [
+        -6.2,
+        11.8,
+        17.2,
+        6.2,
+        14.3,
+        17.6
+      ],
+      "old_triangles": 956
+    },
+    {
+      "code": 254,
+      "name": "Desert Orbit",
+      "slug": "orbit",
+      "shape": "atomic",
+      "lines": [
+        "DESERT",
+        "ORBIT"
+      ],
+      "center": [
+        -14.6,
+        6.4,
+        25.6
+      ],
+      "width": 15,
+      "height": 7.5,
+      "face": "162c4d",
+      "ink": "fff1cf",
+      "metal": "c37e45",
+      "a": "ff43b0",
+      "b": "31edec",
+      "old_box": [
+        -21,
+        0,
+        25,
+        -8,
+        8,
+        26
+      ],
+      "old_triangles": 1408,
+      "mount": "posts",
+      "base": 0.6
+    },
+    {
+      "code": 256,
+      "name": "The Fix",
+      "slug": "fix",
+      "shape": "vault",
+      "lines": [
+        "THE",
+        "FIX"
+      ],
+      "center": [
+        -13,
+        7.8,
+        30.8
+      ],
+      "width": 12,
+      "height": 6.0,
+      "face": "123e32",
+      "ink": "ffe7a8",
+      "metal": "c69a4d",
+      "a": "ffd04c",
+      "b": "36eb83",
+      "old_mesh": "Original resort lettering",
+      "old_triangles": 208,
+      "mount": "posts",
+      "base": 0.3
+    },
+    {
+      "code": 257,
+      "name": "Six-Week Alibi",
+      "slug": "alibi",
+      "shape": "alibi",
+      "lines": [
+        "SIX-WEEK",
+        "ALIBI"
+      ],
+      "center": [
+        -13,
+        7.8,
+        30.8
+      ],
+      "width": 14,
+      "height": 7.0,
+      "face": "913f62",
+      "ink": "fff2d5",
+      "metal": "d6b065",
+      "a": "ff70b3",
+      "b": "e4ffec",
+      "old_mesh": "Original resort lettering",
+      "old_triangles": 1244,
+      "mount": "posts",
+      "base": 0.3
+    },
+    {
+      "code": 258,
+      "name": "Velvet Wardrobe",
+      "slug": "velvet",
+      "shape": "fan",
+      "lines": [
+        "VELVET",
+        "WARDROBE"
+      ],
+      "center": [
+        13,
+        8,
+        30.8
+      ],
+      "width": 15,
+      "height": 7.5,
+      "face": "4a1830",
+      "ink": "fff0c6",
+      "metal": "c18d47",
+      "a": "ff385e",
+      "b": "ffcf67",
+      "old_mesh": "Original resort lettering",
+      "old_triangles": 2100,
+      "mount": "posts",
+      "base": 0.3
+    },
+    {
+      "code": 259,
+      "name": "The Afterglow",
+      "slug": "afterglow",
+      "shape": "sun",
+      "lines": [
+        "THE",
+        "AFTERGLOW"
+      ],
+      "center": [
+        -13,
+        8,
+        30.8
+      ],
+      "width": 17,
+      "height": 8.5,
+      "face": "522243",
+      "ink": "fff2ce",
+      "metal": "cd8945",
+      "a": "ff8c29",
+      "b": "ff65ac",
+      "old_mesh": "Original resort lettering",
+      "old_triangles": 1500,
+      "mount": "posts",
+      "base": 0.3
+    },
+    {
+      "code": 260,
+      "name": "Last Resort",
+      "slug": "last",
+      "shape": "last",
+      "lines": [
+        "LAST",
+        "RESORT"
+      ],
+      "center": [
+        -12,
+        7.5,
+        30.8
+      ],
+      "width": 14,
+      "height": 7.0,
+      "face": "493326",
+      "ink": "f8e4b8",
+      "metal": "b5914d",
+      "a": "23e3c9",
+      "b": "ffb745",
+      "old_mesh": "Original resort lettering",
+      "old_triangles": 2268,
+      "mount": "posts",
+      "base": 0.3
+    },
+    {
+      "code": 261,
+      "name": "Dust Republic",
+      "slug": "dust",
+      "shape": "pennant",
+      "lines": [
+        "DUST",
+        "REPUBLIC"
+      ],
+      "center": [
+        13,
+        8,
+        30.8
+      ],
+      "width": 14,
+      "height": 7.0,
+      "face": "613b6f",
+      "ink": "f8deb2",
+      "metal": "b27a45",
+      "a": "ba66ff",
+      "b": "ffc64c",
+      "old_mesh": "Original resort lettering",
+      "old_triangles": 2836,
+      "mount": "posts",
+      "base": 0.3
+    },
+    {
+      "code": 262,
+      "name": "Boddy's",
+      "slug": "boddy",
+      "shape": "tavern",
+      "lines": [
+        "Boddy's"
+      ],
+      "center": [
+        0,
+        6.7,
+        12.55
+      ],
+      "width": 9,
+      "height": 4.5,
+      "face": "83364e",
+      "ink": "fff2df",
+      "metal": "b87c58",
+      "a": "ff86b6",
+      "b": "79f2bd",
+      "old_mesh": "Original outlined name",
+      "old_triangles": 3112
+    },
+    {
+      "code": 263,
+      "name": "Woolier Days",
+      "slug": "woolier",
+      "shape": "inn",
+      "lines": [
+        "WOOLIER",
+        "DAYS"
+      ],
+      "center": [
+        0,
+        7.7,
+        13.1
+      ],
+      "width": 9.5,
+      "height": 4.75,
+      "face": "f3dfb4",
+      "ink": "235735",
+      "metal": "71452a",
+      "a": "42d87c",
+      "b": "ff463d",
+      "old_mesh": "Original outlined name",
+      "old_triangles": 4344
+    },
+    {
+      "code": 264,
+      "name": "Stockgrowers",
+      "slug": "stockgrowers",
+      "shape": "ranch",
+      "lines": [
+        "STOCKGROWERS"
+      ],
+      "center": [
+        0,
+        10,
+        21.6
+      ],
+      "width": 14,
+      "height": 7.0,
+      "face": "732b24",
+      "ink": "fff0bf",
+      "metal": "a5a39a",
+      "a": "ffca4c",
+      "b": "ff4931",
+      "old_mesh": "Original outlined name",
+      "old_triangles": 5728
+    },
+    {
+      "code": 265,
+      "name": "Fremont Palace",
+      "slug": "fremont",
+      "shape": "palace",
+      "lines": [
+        "FREMONT",
+        "PALACE"
+      ],
+      "center": [
+        0,
+        15,
+        21.9
+      ],
+      "width": 12,
+      "height": 6.0,
+      "face": "8c1b2e",
+      "ink": "fff1c9",
+      "metal": "c89a41",
+      "a": "ff423a",
+      "b": "ffd461",
+      "old_mesh": "Original outlined name",
+      "old_triangles": 9208,
+      "mount": "posts",
+      "base": 11.4
+    }
+  ]
+}

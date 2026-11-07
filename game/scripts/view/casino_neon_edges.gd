@@ -99,7 +99,10 @@ static func _extract(model: Node3D) -> Dictionary:
 			if material == null: continue
 			_add_solid(solid, source.mesh.surface_get_arrays(surface), local)
 			if is_sign(material.resource_name):
-				_add_sign(signs, source.mesh.surface_get_arrays(surface), local)
+				if material.resource_name.get_slice(".",0) == "sign_logo_letters":
+					_add_logo_cabinet(signs,source.mesh.surface_get_arrays(surface),local)
+				else:
+					_add_sign(signs, source.mesh.surface_get_arrays(surface), local)
 				continue
 			if excluded(material.resource_name): continue
 			var arrays := source.mesh.surface_get_arrays(surface)
@@ -266,6 +269,25 @@ static func is_sign(material_name: String) -> bool:
 	if dot > 0 and base.substr(dot + 1).is_valid_int(): base = base.substr(0, dot)
 	return base.is_empty() or base == "sign" or base.begins_with("sign_") or base == "resort_sign" \
 		or base in ["resort_lamp", "warm_light", "lamp"] or base.begins_with("lamp_")
+
+## A textured logo face has only a few large triangles. Reserve its complete
+## cabinet, not just vertices at the rim, so architecture neon cannot run
+## through the illustrated letters or emblem in the middle.
+static func _add_logo_cabinet(signs: Dictionary,arrays: Array,local: Transform3D) -> void:
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	if vertices.is_empty():return
+	var bounds := AABB(local*vertices[0],Vector3.ZERO)
+	for vertex: Vector3 in vertices:bounds=bounds.expand(local*vertex)
+	var step := SIGN_CLEARANCE*.5
+	var counts := Vector3i(ceil(bounds.size.x/step),ceil(bounds.size.y/step),ceil(bounds.size.z/step))
+	for x: int in counts.x+1:
+		for y: int in counts.y+1:
+			for z: int in counts.z+1:
+				var p := bounds.position+Vector3(minf(x*step,bounds.size.x),minf(y*step,bounds.size.y),minf(z*step,bounds.size.z))
+				var key := Vector3i((p/SIGN_CLEARANCE).floor())
+				var bucket: PackedVector3Array = signs.get(key,PackedVector3Array())
+				bucket.append(p)
+				signs[key]=bucket
 
 static func _add_sign(signs: Dictionary, arrays: Array, local: Transform3D) -> void:
 	# Only lettering and emblems count: they are built of many small faces,

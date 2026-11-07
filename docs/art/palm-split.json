@@ -3336,8 +3336,8 @@
       "removed_triangles": 280,
       "original_sha256": "526ae5f28b233e954d5fa48ba35319c94bf9a8999e428a552b625aeaa3cd7f5f",
       "original_bytes": 1697880,
-      "split_sha256": "c8ce3a7938cdca10cc1f08340f1b2b1ac3436f9c9d4cb9e4aef59b1006dbf891",
-      "split_bytes": 1678660,
+      "split_sha256": "e8a3fe1fc162d9b8577b3465ee76ba543f239273216d9934019fcf1a5427fe27",
+      "split_bytes": 2619680,
       "original_triangles": 25898,
       "rows": [
         [
@@ -3368,7 +3368,8 @@
           0.265625,
           0.12890625
         ]
-      ]
+      ],
+      "logo_layer": "docs/art/casino-logo-signs.json"
     },
     "252": {
       "state": "split",
@@ -3376,8 +3377,8 @@
       "removed_triangles": 420,
       "original_sha256": "e9ded01ef1dfebbd0333e692d54a65733a71cf2097251a330bf9d66823f0a96b",
       "original_bytes": 811540,
-      "split_sha256": "c30a89034cdeefba2b505efa1323b0c9882d26cd790bfc58f242b1bcef62a10d",
-      "split_bytes": 783032,
+      "split_sha256": "e48889a06b59906f53aeb4b6d21d25676be7d2ff3263e4727b924379b0e22625",
+      "split_bytes": 1685124,
       "original_triangles": 12436,
       "rows": [
         [
@@ -3422,7 +3423,8 @@
           0.328125,
           0.12890625
         ]
-      ]
+      ],
+      "logo_layer": "docs/art/casino-logo-signs.json"
     },
     "253": {
       "state": "split",
@@ -3430,8 +3432,8 @@
       "removed_triangles": 140,
       "original_sha256": "ef6d1c1f43b9afb15ab772b605f37db99ce6e5bb8ea2b24ab3b8c7df802880ef",
       "original_bytes": 638164,
-      "split_sha256": "f747084c1a6ee2d20fe31950c451991fff1d5436aa7ea0a83d25269833f70302",
-      "split_bytes": 628228,
+      "split_sha256": "9592b6c2487f1f55819c4fb624c4875facc690420cb39f92270c2769f7e21dbb",
+      "split_bytes": 1898856,
       "original_triangles": 10336,
       "rows": [
         [
@@ -3448,7 +3450,8 @@
           0.28125,
           0.12890625
         ]
-      ]
+      ],
+      "logo_layer": "docs/art/casino-logo-signs.json"
     },
     "254": {
       "state": "split",
@@ -3456,8 +3459,8 @@
       "removed_triangles": 420,
       "original_sha256": "6b024c95358e7393d542ce8dcbe353e50a5a293930e26f608fde2d94009a4937",
       "original_bytes": 892728,
-      "split_sha256": "3abea9f3d4d133233c126f3ced51a2b7fa3a59c2c2f1b0079e9dbb8ecac7dd86",
-      "split_bytes": 864308,
+      "split_sha256": "16767e80f0cbf738a8d01e089b5cda62222ffcb10d9e25bb57827a73b5634f34",
+      "split_bytes": 2101676,
       "original_triangles": 13188,
       "rows": [
         [
@@ -3502,7 +3505,8 @@
           0.375,
           0.12890625
         ]
-      ]
+      ],
+      "logo_layer": "docs/art/casino-logo-signs.json"
     },
     "255": {
       "state": "split",

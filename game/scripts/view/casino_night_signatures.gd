@@ -81,9 +81,9 @@ const FEATURES := {
 		{"materials": ["resort_glass", "resort_metal"], "box": [-23.0, 0.0, 23.0, -13.0, 6.5, 29.0], "center": [-18.0, 3.0, 26.0], "axis": [0, 1, 0], "colour": Color("ffc94a"), "effect": Effect.PULSE}],
 	# Boddy's: the scalloped tavern awnings.
 	262: [{"materials": ["resort_carpet"], "box": [-10.6, 3.6, 12.0, 10.6, 4.25, 13.6], "center": [0.0, 3.9, 13.0], "axis": [0, 0, 1], "colour": null, "effect": Effect.STEADY}],
-	# Woolier Days: the floodlit ikurriña and the sheep sign.
-	263: [{"materials": ["flag_red", "flag_green", "flag_white"], "box": [], "center": [-12.6, 7.6, 14.35], "axis": [0, 0, 1], "colour": null, "effect": Effect.STEADY},
-		{"materials": ["resort_wood", "resort_ceiling", "resort_sign"], "box": [9.0, 5.2, 13.9, 12.0, 6.8, 14.8], "center": [10.5, 6.0, 14.3], "axis": [0, 0, 1], "colour": Color("fff3d6"), "effect": Effect.STEADY}],
+	# Woolier Days: the sheep sign. CityNightMode lights the Ikurrina's own
+	# cloth materials; additive layered copies obscure its green saltire.
+	263: [{"materials": ["resort_wood", "resort_ceiling", "resort_sign"], "box": [9.0, 5.2, 13.9, 12.0, 6.8, 14.8], "center": [10.5, 6.0, 14.3], "axis": [0, 0, 1], "colour": Color("fff3d6"), "effect": Effect.STEADY}],
 	# Stockgrowers: the water tank and the auction circles.
 	264: [{"materials": ["resort_metal", "wood", "roof"], "box": [-19.5, 8.0, -20.5, -14.5, 12.2, -15.5], "center": [-17.0, 10.0, -18.0], "axis": [0, 1, 0], "colour": Color("ffd25a"), "effect": Effect.CHASE},
 		{"materials": ["resort_metal"], "box": [-11.2, 4.4, 15.0, 11.2, 6.8, 15.4], "center": [0.0, 5.6, 15.2], "axis": [0, 0, 1], "colour": Color("ff5a2e"), "effect": Effect.PULSE}],
