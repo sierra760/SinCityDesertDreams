@@ -1259,9 +1259,9 @@
       "name": "comstock-grand",
       "master_blend_sha256": "ee835e423b4d45c89a6c8fad13ed9dce370a1f150dd80b4a24f9d3a6c23f119b",
       "standalone_glb_sha256": "185d677efb09e7073c111c324a811be17774365ef6223f79543ead67191b9fcc",
-      "runtime_glb_sha256": "a234778860dfe5610097f5309d579b47a9484b179a2e72100662446073c17806",
+      "runtime_glb_sha256": "c8ce3a7938cdca10cc1f08340f1b2b1ac3436f9c9d4cb9e4aef59b1006dbf891",
       "textured_materials": 3,
-      "runtime_bytes": 1678660
+      "runtime_bytes": 1329208
     },
     {
       "code": 252,

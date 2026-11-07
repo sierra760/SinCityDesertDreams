@@ -34,6 +34,16 @@ const LOBBY_HEIGHT := .2
 const LIT_SHARE := .5
 ## Lit panes sit this far in front of the glass, in tile units.
 const PANE_LIFT := .0012
+## Glass this many times longer than tall is a ribbon window, lit in bays this
+## wide (tiles; 2 m) with this share of each bay left dark as its mullion.
+const RIBBON_RATIO := 3.0
+const BAY := .125
+const BAY_FRAME := .12
+## Mullions: upright parts taller than this and thinner than this (tiles),
+## standing within this distance of their glass.
+const MULLION_HEIGHT := .08
+const MULLION_WIDTH := .02
+const MULLION_REACH := .02
 ## Half the width of the entrance kept clear of neon, by lot size.
 const DOOR_HALF_WIDTH := {1: .12, 2: .16, 3: .22, 4: .28}
 ## Beams rise from the roof and lean this far from vertical while sweeping.
@@ -112,6 +122,7 @@ func _add_panes(record: Dictionary) -> void:
 	var faces := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var colours := PackedColorArray()
+	var mullions: Array = []
 	for child: Node in record.node.find_children("*","MeshInstance3D",true,false):
 		var source := child as MeshInstance3D
 		if source.mesh == null: continue
@@ -124,6 +135,12 @@ func _add_panes(record: Dictionary) -> void:
 				if pane.triangles.size() > 16 or size.y < .006 or minf(size.x,size.z) > size.y*.6: continue
 				var lift: float = pane.center.y-base
 				var light := lobby*.75
+				# A long, low ribbon of glass is lit bay by bay between its own
+				# mullions, like a row of rooms.
+				if lift >= LOBBY_HEIGHT and maxf(size.x,size.z) > maxf(size.y*RIBBON_RATIO,BAY*2.0):
+					if mullions.is_empty(): mullions = _mullions(record.node)
+					_add_ribbon(pane,mullions,colour,faces,normals,colours)
+					continue
 				if lift >= LOBBY_HEIGHT:
 					var roll := _hash01(pane.center)
 					if roll > LIT_SHARE: continue
@@ -153,6 +170,75 @@ func _add_panes(record: Dictionary) -> void:
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(instance)
 	record["panes"] = instance
+
+## Thin upright parts (mullions, glazing bars) of a lot's model: centre and
+## height, in world space.
+static func _mullions(lot: Node3D) -> Array:
+	var out: Array = [Vector3.INF]
+	for child: Node in lot.find_children("*","MeshInstance3D",true,false):
+		var source := child as MeshInstance3D
+		if source.mesh == null or source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY: continue
+		for surface: int in source.mesh.get_surface_count():
+			var material := source.get_active_material(surface)
+			if material == null or CityNightMode.role_for(material.resource_name) in [CityNightMode.Role.WINDOW,CityNightMode.Role.WINDOW_DIM]: continue
+			for part: Dictionary in _panes(source,surface):
+				var size: Vector3 = part.size
+				if size.y > MULLION_HEIGHT and maxf(size.x,size.z) < MULLION_WIDTH: out.append([part.center,size.y])
+	return out
+
+## Lit bays on a ribbon window, divided at the mullions standing on its face
+## (or every BAY when it has none).
+func _add_ribbon(pane: Dictionary, mullions: Array, colour: Color,
+		faces: PackedVector3Array, normals: PackedVector3Array, colours: PackedColorArray) -> void:
+	var size: Vector3 = pane.size
+	var center: Vector3 = pane.center
+	for triangle: Array in pane.triangles:
+		var normal: Vector3 = triangle[3]
+		if absf(normal.y) > .3: continue
+		var along := Vector3.UP.cross(normal).normalized()
+		var half := (absf(along.x)*size.x+absf(along.z)*size.z)*.5
+		var reach := (absf(normal.x)*size.x+absf(normal.z)*size.z)*.5+MULLION_REACH
+		var bounds: Array[float] = [center.dot(along)-half,center.dot(along)+half]
+		for mullion: Variant in mullions:
+			if not mullion is Array: continue
+			var at: Vector3 = mullion[0]
+			if absf((at-center).dot(normal)) > reach or float(mullion[1]) < size.y*.8 or absf(at.y-center.y) > size.y*.5: continue
+			var s := at.dot(along)
+			if s > bounds[0]+BAY*.2 and s < bounds[1]-BAY*.2: bounds.append(s)
+		if bounds.size() == 2:
+			var step := bounds[0]+BAY
+			while step < bounds[1]-BAY*.2:
+				bounds.append(step)
+				step += BAY
+		bounds.sort()
+		var gap := BAY*BAY_FRAME*.5
+		for i: int in bounds.size()-1:
+			var low: float = bounds[i]+(gap if i > 0 else 0.0)
+			var high: float = bounds[i+1]-(gap if i < bounds.size()-2 else 0.0)
+			var key := center+along*((low+high)*.5-center.dot(along))
+			if high <= low or _hash01(key) > LIT_SHARE: continue
+			var tint: Color = (colour*lerpf(.7,1.0,_hash01(key+Vector3(.37,0,.71)))).srgb_to_linear()
+			var piece := _clip_slab([triangle[0],triangle[1],triangle[2]],along,low,high)
+			for k: int in range(1,piece.size()-1):
+				for corner: Vector3 in [piece[0],piece[k],piece[k+1]]:
+					faces.append(corner+normal*PANE_LIFT)
+					normals.append(normal)
+					colours.append(tint)
+
+## The part of a convex polygon between two planes across `axis`.
+static func _clip_slab(polygon: Array, axis: Vector3, low: float, high: float) -> Array:
+	for side: int in 2:
+		var out: Array = []
+		for i: int in polygon.size():
+			var a: Vector3 = polygon[i]
+			var b: Vector3 = polygon[(i+1)%polygon.size()]
+			var da := (a.dot(axis)-low) if side == 0 else (high-a.dot(axis))
+			var db := (b.dot(axis)-low) if side == 0 else (high-b.dot(axis))
+			if da >= 0.0: out.append(a)
+			if (da >= 0.0) != (db >= 0.0): out.append(a.lerp(b,da/(da-db)))
+		polygon = out
+		if polygon.size() < 3: return []
+	return polygon
 
 ## Each signature feature (the Afterglow's sun, the Boulder Crown's turbine
 ## wheel...) is its own authored geometry, picked by material inside a box in

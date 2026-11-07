@@ -1,0 +1,42 @@
+{
+  "title": "Declared geometry repairs to runtime building models",
+  "tool": "tools/repair_models.py",
+  "models": {
+    "251": {
+      "state": "repaired",
+      "name": "Comstock Grand",
+      "why": "Punched windows overlapped the ribbon glass on the middle tiers; the entrance canopy hid its copper rim and the HOTEL / CASINO lettering behind its own slab.",
+      "original_sha256": "a234778860dfe5610097f5309d579b47a9484b179a2e72100662446073c17806",
+      "original_bytes": 1678660,
+      "original_triangles": 25618,
+      "repaired_sha256": "c8ce3a7938cdca10cc1f08340f1b2b1ac3436f9c9d4cb9e4aef59b1006dbf891",
+      "repaired_bytes": 1329208,
+      "drop": {
+        "tier windows inside the ribbon glass": {
+          "parts": 448,
+          "triangles": 5376
+        }
+      },
+      "move": {
+        "canopy rim to the slab front": {
+          "parts": 1,
+          "offset": [
+            0.0,
+            0.0,
+            0.12
+          ]
+        },
+        "lettering onto the rim face": {
+          "parts": 12,
+          "offset": [
+            0.0,
+            0.0,
+            0.125
+          ]
+        }
+      },
+      "removed_triangles": 5376,
+      "triangles": 20242
+    }
+  }
+}
