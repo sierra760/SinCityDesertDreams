@@ -85,7 +85,13 @@ func test_budget_tabs_and_ordinance_categories_fit_all_profiles() -> void:
 				var scroll := UIFactory.report_scroll(budget._summary_values[0])
 				for amount: Label in budget._summary_values:
 					check(scroll.get_global_rect().grow(0.5).encloses(amount.get_global_rect()), "all three headline figures are visible immediately: " + str(size))
-			if size.x >= 1200: check(budget._root.size.y <= 520, "temporary table minima never inflate the preferred window")
+			if size.x >= 1200:
+				# Reports grow to show their whole page; any height beyond the
+				# preferred window must be the page's real content, never space
+				# left behind by temporary table minima.
+				var chrome: Dictionary = budget._root.get_meta("window_chrome")
+				var body_height := (chrome.body as Control).get_combined_minimum_size().y
+				check(budget._root.size.y <= 520 or (chrome.body_scroll as Control).size.y <= body_height + 1.0, "temporary table minima never inflate the window: %s body %s" % [budget._root.size, body_height])
 			var tabs := budget._pages.tabs
 			check_eq(tabs.tab_count, 4)
 			for i in 4:

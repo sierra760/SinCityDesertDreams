@@ -107,7 +107,10 @@ phone widths, each action label sits above its key buttons; resizing keeps an
 active key edit focused and visible.
 The 3D render texture remains at drawable resolution as the UI scale changes.
 
-Window bodies scroll, while titles and actions remain fixed. Dragged windows,
+Windows and dialogs grow past their preferred size to show their whole body
+when the display has room, and scroll only when it does not; titles and actions
+remain fixed. Dialogs centre on their content, while report windows keep their
+own place. Dragged windows,
 popup menus and captions fit the available logical area after resizing.
 New City's form and preview stack in compact mode. Tables may scroll horizontally.
 Display settings persist in `user://display.cfg`, separately from city saves;

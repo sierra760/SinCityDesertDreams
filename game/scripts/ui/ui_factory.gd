@@ -159,7 +159,7 @@ static func contain_modal_focus(modal: Control, preferred: Control = null) -> vo
 	guard.refresh(preferred)
 
 
-## Reports keep their ordinary size and clock behavior while keyboard
+## Reports keep their own place and clock behavior while keyboard
 ## navigation follows the front window rather than controls behind it.
 static func contain_window_focus(window: Control) -> void:
 	var guard := window.get_node_or_null("ModalFocusGuard") as ModalFocusGuard
@@ -291,6 +291,9 @@ class ResponsivePanel:
 	## dragged or placed by its owner keeps that place until it is shown again.
 	var _centred := false
 	var _centred_position := Vector2.ZERO
+	## The size the last fit settled on (after the panel's own minimum).
+	var _fitted_size := Vector2.ZERO
+	var _in_fit := false
 	func _ready() -> void:
 		get_viewport().size_changed.connect(_schedule_fit)
 		visibility_changed.connect(_visibility_changed)
@@ -305,9 +308,12 @@ class ResponsivePanel:
 	## preferred size while a dialog has grown to its content; refit if the
 	## panel then runs past the usable rect.
 	func _rect_changed() -> void:
-		if _fit_pending or not is_inside_tree() or not is_visible_in_tree() or not _is_modal_dialog(): return
+		if _fit_pending or _in_fit or not is_inside_tree() or not is_visible_in_tree(): return
 		var available := _usable_rect()
 		if not available.grow(-7.0).encloses(Rect2(position,size)): _schedule_fit()
+		# A layout pass that reset the panel to its preferred size would
+		# otherwise leave content-fitted windows scrolling until the next fit.
+		elif _fitted_size != Vector2.ZERO and not size.is_equal_approx(_fitted_size) and get_meta("window_chrome",{}).has("body_scroll"): _schedule_fit()
 	func _visibility_changed() -> void:
 		# Each showing of a dialog starts centred again.
 		if not is_visible_in_tree(): _centred = false
@@ -348,7 +354,8 @@ class ResponsivePanel:
 		var chrome: Dictionary = get_meta("window_chrome",{})
 		var chrome_height := 0.0
 		var content_height := 0.0
-		var fit_content := chrome.has("body_scroll") and chrome.has("body") and _is_modal_dialog()
+		var fit_content := chrome.has("body_scroll") and chrome.has("body")
+		var modal := fit_content and _is_modal_dialog()
 		if chrome.has("body_scroll"):
 			var column := (chrome.body_scroll as Control).get_parent() as VBoxContainer
 			chrome_height = get_theme_stylebox("panel").get_minimum_size().y
@@ -359,17 +366,28 @@ class ResponsivePanel:
 				if child != chrome.body_scroll: chrome_height += child.get_combined_minimum_size().y
 			chrome_height += float(column.get_theme_constant("separation")) * maxi(0, visible_children - 1)
 		if fit_content:
-			# A dialog shows its whole body, including fields below the text,
-			# and grows past its preferred height up to the usable rect. It
-			# scrolls only when the content really exceeds that space.
-			content_height = (chrome.body as Control).get_combined_minimum_size().y
+			# Every window and dialog shows its whole body, including fields
+			# below the text, and grows past its preferred size up to the
+			# usable rect. It scrolls only when the content really exceeds
+			# that space.
+			var scroll := chrome.body_scroll as ScrollContainer
+			var body_min := (chrome.body as Control).get_combined_minimum_size()
+			content_height = body_min.y
 			wanted.y = maxf(wanted.y,ceilf(chrome_height+content_height))
+			if scroll.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+				# A horizontally scrolling body hides its width from the panel's
+				# minimum; widen to show it, leaving room for a vertical bar
+				# when the height still cannot fit.
+				var chrome_width := get_theme_stylebox("panel").get_minimum_size().x + scroll.get_theme_stylebox("panel").get_minimum_size().x
+				var bar := scroll.get_v_scroll_bar().get_combined_minimum_size().x if chrome_height+content_height > available.grow(-8.0).size.y else 0.0
+				wanted.x = maxf(wanted.x,ceilf(chrome_width+body_min.x+bar))
 		var fitted := DisplayLayout.fit_window_rect(Rect2(position,wanted),available,44.0)
 		# A modal dialog sits in the middle of the usable rect rather than
 		# growing down from where its first, smaller size put it. One the
 		# player dragged (or its owner placed) since the last fit stays put.
+		# Report windows keep their own place and are only kept on screen.
 		var moved := _centred and not position.is_equal_approx(_centred_position)
-		if fit_content and not moved:
+		if modal and not moved:
 			var centre := available.get_center() - fitted.size*0.5
 			fitted = DisplayLayout.fit_window_rect(Rect2(centre.round(),fitted.size),available,44.0)
 		if chrome.has("body_scroll"):
@@ -382,19 +400,22 @@ class ResponsivePanel:
 					label.set_meta("report_original_wrap",label.autowrap_mode)
 				label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if narrow else label.get_meta("report_original_wrap")
 				_fit_row_label(label,chrome.body as Control,narrow,fitted.size.x)
+		_in_fit = true
 		position = fitted.position
 		size = fitted.size
-		if fit_content and not moved:
+		if modal and not moved:
 			# The panel's minimum may have kept it larger than the fitted rect.
 			if not size.is_equal_approx(fitted.size):
 				position = DisplayLayout.fit_window_rect(Rect2((available.get_center()-size*0.5).round(),size),available,44.0).position
 			_centred = true
 			_centred_position = position
+		_fitted_size = size
+		_in_fit = false
 		# A shrinking body minimum is applied after this frame's size clamp;
 		# lay the column out again against the final panel size.
 		queue_sort()
 	## Modal dialogs carry a ModalFocusGuard on an ancestor (see
-	## contain_modal_focus); ordinary report windows keep their preferred size.
+	## contain_modal_focus) and are centred; report windows keep their place.
 	func _is_modal_dialog() -> bool:
 		var ancestor := get_parent()
 		while ancestor != null:
