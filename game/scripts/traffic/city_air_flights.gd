@@ -89,6 +89,8 @@ const HELI_ACCEL := 4.0
 const HELI_TURN := 3.5
 const HELI_CLIMB := 1.6
 const HELI_MAX_TILT := 0.3
+const HELI_COURSE_BLEND := 0.5
+const HELI_PULL := 0.9
 
 const MODE_ROLL := &"roll"
 const MODE_AIR := &"air"
@@ -125,6 +127,10 @@ class Flight:
 	var carrot_from := Vector3.ZERO
 	var carrot_to := Vector3.ZERO
 	var carrot_t := 1.0
+	## Helicopters: running average of the daily moves, in tiles a day. The
+	## simulation steps toward a hover target on eight headings, alternating
+	## between neighbouring ones; the average is the line between them.
+	var course := Vector2.ZERO
 	var runway: Dictionary = {}
 	var established := false
 	var timer := 0.0
@@ -222,8 +228,12 @@ func _follow(city: City, flight: Flight, record: Dictionary) -> void:
 	flight.frame = int(record.frame)
 	flight.heading = int(record.heading)
 	if moved:
+		var arrived := point(city, tile, altitude)
+		if flight.kind == &"helicopter":
+			var daily := Vector2(arrived.x - flight.carrot_to.x, arrived.z - flight.carrot_to.z)
+			flight.course = daily if flight.course == Vector2.ZERO else flight.course.lerp(daily, HELI_COURSE_BLEND)
 		flight.carrot_from = _carrot(flight)
-		flight.carrot_to = point(city, tile, altitude)
+		flight.carrot_to = arrived
 		flight.carrot_t = 0.0
 	flight.source = tile
 	flight.altitude = altitude
@@ -526,8 +536,11 @@ func _helicopter(city: City, flight: Flight, h: float) -> bool:
 		height = _ground(city, flight.position)
 	else:
 		var target := _carrot(flight)
-		var carrot_velocity := _carrot_velocity(flight)
-		var want := (Vector2(carrot_velocity.x, carrot_velocity.z) + (Vector2(target.x, target.z) - here) * 1.6).limit_length(HELI_MAX)
+		# Fly the averaged course, drawn gently back toward the day's point
+		# so the helicopter keeps to the simulation without weaving along
+		# each eight-heading step. Once the point stops, it settles there.
+		var course := flight.course if flight.carrot_t < 1.0 else Vector2.ZERO
+		var want := (course + (Vector2(target.x, target.z) - here) * HELI_PULL).limit_length(HELI_MAX)
 		flight.velocity = flight.velocity.move_toward(want, HELI_ACCEL * h)
 		height = target.y
 	var accel := (flight.velocity - before) / h

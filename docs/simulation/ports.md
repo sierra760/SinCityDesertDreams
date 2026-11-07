@@ -165,7 +165,9 @@ Events:
     `vehicles()` also reports each vehicle's `phase`, read-only, so the 3D
     view can fly a landing. The view draws aircraft on continuous flight
     paths through these daily points (`CityAirFlights`); that never changes
-    the simulation.
+    the simulation. The helicopter's daily steps alternate between
+    neighbouring headings on the way to a hover target, so the view flies
+    the average of its recent moves rather than weaving along each step.
 
 ## Parameters
 

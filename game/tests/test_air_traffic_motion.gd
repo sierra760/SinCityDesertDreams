@@ -253,3 +253,39 @@ func test_saved_circling_plane_returns_and_touches_down() -> void:
 	check(landed, "saved circling plane completes its return and rendered landing")
 	check_eq(traffic._external.size(), 0, "completed flight leaves after rollout")
 	traffic.free()
+
+
+func test_ambient_helicopter_flies_a_steady_course() -> void:
+	# The simulation steps the helicopter toward each hover target on eight
+	# headings, alternating between neighbouring ones. The drawn helicopter
+	# flies the line between them instead of weaving along every step.
+	var parts := _airport()
+	var c: City = parts[0]
+	var ctx: SimContext = parts[1]
+	var ports: PortSystem = parts[2]
+	var air := CityAirFlights.new()
+	var dt := 1.0 / 48.0
+	var last := {}
+	var last_sign := {}
+	var reversals := 0
+	var lags: Array[float] = []
+	for _day_index: int in 200:
+		_day(ctx, ports)
+		var records: Array[Dictionary] = []
+		for v: Dictionary in ports.vehicles(): records.append(CityEntityRecords.normalize(v, &"car"))
+		for _f: int in 48:
+			air.update(c, records, dt)
+			for flight: CityAirFlights.Flight in air.flights:
+				if flight.kind != &"helicopter": continue
+				var sim := CityAirFlights.point(c, flight.source, flight.altitude)
+				lags.append(Vector2(sim.x - flight.position.x, sim.z - flight.position.z).length())
+				if last.has(flight.serial):
+					var rate := angle_difference(float(last[flight.serial]), flight.yaw) / dt
+					if absf(rate) > .5:
+						if last_sign.has(flight.serial) and last_sign[flight.serial] != signf(rate): reversals += 1
+						last_sign[flight.serial] = signf(rate)
+				last[flight.serial] = flight.yaw
+	check_gt(lags.size(), 1000, "a helicopter was watched")
+	_at_most(float(reversals), 50.0, "turns do not keep reversing along the eight-heading zigzag")
+	lags.sort()
+	_at_most(lags[lags.size() / 2], 1.6, "and the helicopter keeps close to its daily point")

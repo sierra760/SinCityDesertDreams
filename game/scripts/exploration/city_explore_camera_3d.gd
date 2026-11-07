@@ -135,7 +135,11 @@ func update_follow(delta: float) -> void:
 	_since_orbit += dt
 	var travel := _target.global_position.distance_to(_previous_target_position)
 	_previous_target_position = _target.global_position
-	if _mode != 0 and not interior_active and not cabin_active and _since_orbit > 1.0 and travel > .0001:
+	# Only road and water vehicles bring the view round behind them. The
+	# helicopter flies relative to the camera, as walking does, and its nose
+	# turns toward its travel; following that nose turned held sideways or
+	# backward input into endless circles.
+	if _mode == 1 and not interior_active and not cabin_active and _since_orbit > 1.0 and travel > .0001:
 		yaw = lerp_angle(yaw, _target.global_rotation.y, 1.0 - exp(-2.5 * dt))
 	if (interior_active and _mode!=2) or cabin_active:
 		# Stations use an eye view deliberately. A long outside follow arm

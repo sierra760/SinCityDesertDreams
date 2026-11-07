@@ -26,6 +26,8 @@ var _gait_phase := 0.0
 var _wheel_radius := WHEEL_RADIUS
 var _wheel_metadata: Array = []
 var _rotor_metadata: Array = []
+## Share of full rotor speed; a helicopter eases it up and down.
+var rotor_rate := 1.0
 var _gesture := ""
 static var _loop_libraries: Dictionary = {}
 var _owned_sample: Array = []
@@ -110,7 +112,7 @@ func _advance_metadata(step: float, blend: float) -> void:
 	for entry: Dictionary in _rotor_metadata:
 		var rotor := find_child(String(entry.get("node","")),true,false) as Node3D
 		var axis := _axis_index(String(entry.get("axis","Y")))
-		var rate: float = float(entry.get("radians_per_second",0.0))
+		var rate: float = float(entry.get("radians_per_second",0.0))*rotor_rate
 		if rotor != null and axis>=0 and is_finite(rate):
 			rotor.rotation[axis] = wrapf(rotor.rotation[axis]+step*rate,-PI,PI)
 
@@ -212,9 +214,9 @@ func advance_visual(delta: float) -> void:
 		for index in 2:
 			_wheels[index].rotation.y = lerpf(_wheels[index].rotation.y,_steering*.45,blend)
 	if _main_rotor != null and _rotor_metadata.is_empty():
-		_main_rotor.rotation.y = wrapf(_main_rotor.rotation.y+step*24.0,-PI,PI)
+		_main_rotor.rotation.y = wrapf(_main_rotor.rotation.y+step*24.0*rotor_rate,-PI,PI)
 	if _tail_rotor != null and _rotor_metadata.is_empty():
-		_tail_rotor.rotation.x = wrapf(_tail_rotor.rotation.x+step*31.0,-PI,PI)
+		_tail_rotor.rotation.x = wrapf(_tail_rotor.rotation.x+step*31.0*rotor_rate,-PI,PI)
 
 ## Absolute owner clocks survive pool reassignment and demotion. Rendering may
 ## resample a changed pose but never adds time or advances an AnimationPlayer.

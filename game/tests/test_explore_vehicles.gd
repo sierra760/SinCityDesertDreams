@@ -361,7 +361,9 @@ func test_helicopter_camera_relative_acceleration_and_cap() -> void:
 	if not setup(HELI,null,Vector3(22.5,GROUND+1.0,22.5)): return
 	await physics_frame
 	var run := await drive([{"ticks":180,"move":Vector2(0,-1),"yaw":PI/2}])
-	check_between(run.velocities[59].length(),.96,1.04,"horizontal acceleration 1.0")
+	# Speed eases in (at most 1.2 tiles a second squared) rather than ramping linearly.
+	check_between(run.velocities[59].length(),.9,1.2,"eased horizontal acceleration")
+	for i: int in range(1,run.velocities.size()): check(run.velocities[i].length()>=run.velocities[i-1].length()-.0001,"speed builds without dipping")
 	check_between(run.velocities[-1].length(),1.49,1.51,"flight cap 1.5")
 	check(run.positions[-1].x<20,"camera yaw rotates forward flight")
 	check(absf(run.positions[-1].z-22.5)<.01)
