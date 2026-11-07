@@ -10,7 +10,7 @@ extends RefCounted
 
 const Layouts := preload("res://scripts/exploration/resorts/resort_interior_layouts.gd")
 ## How close, in tile units, the walker must be to the threshold.
-const REACH := .65
+const REACH := .40
 ## Vertical tolerance: the apron of a sloped lot, never a hall far below.
 const HEIGHT_REACH := 1.2
 ## Distance of the threshold from the lot's back edge, toward the front. Desert

@@ -72,6 +72,15 @@ var day_seconds := 0.8
 var _targets: Dictionary = {}
 var _dirty := true
 var _reserved_rail: Dictionary = {}
+## Explore's physical actors as oriented boxes {"transform": box centre pose,
+## "half": half extents}. Ambient traffic holds rather than drive into one.
+## Empty outside Explore, so Build traffic never reads it.
+var _explore_obstacles: Array[Dictionary] = []
+## Clear space an ambient vehicle or pedestrian keeps before an Explore actor.
+const YIELD_GAP := .06
+## Cell-centre distance beyond which no actor can reach an obstacle this tick.
+const YIELD_SCAN := 2.0
+static var _body_bounds: Dictionary = {}
 ## Small stable integer ids for StringNames used in per-frame/per-tick keys.
 static var _name_ids: Dictionary = {}
 
@@ -85,6 +94,7 @@ func bind_city(city: City) -> void:
 	graph.bind_city(city)
 	actors.clear()
 	_claims.clear()
+	_explore_obstacles = []
 	_external.clear()
 	_external_states.clear()
 	_air.clear()
@@ -408,6 +418,7 @@ func _step_clock(delta: float, explore_clock: bool) -> void:
 		# Slow terminal turns rather than advancing a narrow reversal at street speed.
 		if a.previous == a.next and a.type != &"pedestrian": speed = minf(speed,.25)
 		if explore_clock and a.cell == a.mod_destination: limit = minf(limit,.5)
+		if speed > 0 and not _explore_obstacles.is_empty() and a.domain != &"air" and _yields_to_obstacle(a,speed,delta): speed = 0
 		var prior_t := float(a.t)
 		var segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
 		a.t = maxf(prior_t,minf(prior_t + speed*delta / maxf(.12,float(segment.get("length",1.0))),limit))
@@ -990,6 +1001,133 @@ func nearest_drivable_vehicle(position: Vector3, max_distance: float = .65) -> D
 			distance = d
 			best = {"id":record.presentation_id,"kind":record.kind,"position":record.presentation_position,"yaw":record.presentation_yaw}
 	return best
+
+## Claim one specific unclaimed drivable vehicle by its id, as returned by
+## nearest_vehicle_by_body. Same record as claim_nearby_vehicle.
+func claim_vehicle(id: int) -> Dictionary:
+	if _claims.has(id): return {}
+	for a: Dictionary in actors:
+		if a.id != id or not CityTrafficCatalog.is_drivable(a.kind): continue
+		var pose := actor_pose(a)
+		_claims[id] = true
+		return {"id":a.id,"kind":a.kind,"position":pose.origin,"yaw":pose.basis.get_euler().y}
+	for record: Dictionary in _external:
+		if record.presentation_id != id or not CityTrafficCatalog.is_drivable(record.kind): continue
+		_claims[id] = true
+		return {"id":record.presentation_id,"kind":record.kind,"position":record.presentation_position,"yaw":record.presentation_yaw}
+	return {}
+
+## The nearest unclaimed drivable vehicle a walker standing at `feet` can
+## reach: the gap is measured to the vehicle's own body, not its centre (see
+## ExploreActorProfile.reach_gap), so a bus and a compact are judged alike.
+## Scripted vehicles that do not allow entry are skipped. {} when none is
+## within `reach`; otherwise the claim fields plus "gap" and "mod".
+func nearest_vehicle_by_body(feet: Vector3, reach: float) -> Dictionary:
+	var best: Dictionary = {}
+	if not feet.is_finite(): return best
+	var gap := reach
+	var scan := reach+1.5
+	for a: Dictionary in actors:
+		if _claims.has(a.id) or not CityTrafficCatalog.is_drivable(a.kind): continue
+		if a.has("mod_owner") and not a.get("mod_enterable",false): continue
+		if a.domain != &"air":
+			var cell: Vector2i = a.cell
+			if absf(cell.x+.5-feet.x) > scan or absf(cell.y+.5-feet.z) > scan: continue
+		var pose := actor_pose(a)
+		var d := ExploreActorProfile.reach_gap(feet,pose,body_bounds(a.kind))
+		if d <= gap:
+			gap = d
+			best = {"id":a.id,"kind":a.kind,"position":pose.origin,"yaw":pose.basis.get_euler().y,"gap":d,"mod":a.has("mod_owner")}
+	for record: Dictionary in _external:
+		if _claims.has(record.presentation_id) or not CityTrafficCatalog.is_drivable(record.kind): continue
+		var pose := Transform3D(Basis(Vector3.UP,float(record.presentation_yaw)),record.presentation_position)
+		var d := ExploreActorProfile.reach_gap(feet,pose,body_bounds(record.kind))
+		if d <= gap:
+			gap = d
+			best = {"id":record.presentation_id,"kind":record.kind,"position":record.presentation_position,"yaw":record.presentation_yaw,"gap":d,"mod":false}
+	return best
+
+## Authored body envelope at feet/waterline for a traffic kind or pedestrian.
+static func body_bounds(kind: StringName) -> AABB:
+	var bounds: Variant = _body_bounds.get(kind)
+	if bounds == null:
+		bounds = CityTrafficCatalog.visual_bounds(kind)
+		_body_bounds[kind] = bounds
+	return bounds
+
+## Ground actors near `center` that Explore gives physical bodies: every
+## unclaimed vehicle, boat, train and pedestrian at its displayed pose,
+## nearest first, at most `limit`. Aircraft fly above the streets and are
+## left out. Entries are {"key", "kind", "pose"}.
+func collision_candidates(center: Vector3, radius: float, limit: int) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	if not center.is_finite(): return found
+	var reach := radius*radius
+	for a: Dictionary in actors:
+		if _claims.has(a.id) or a.domain == &"air": continue
+		var cell: Vector2i = a.cell
+		if absf(cell.x+.5-center.x) > radius+1.5 or absf(cell.y+.5-center.z) > radius+1.5: continue
+		var pose := actor_pose(a)
+		var d := Vector2(pose.origin.x-center.x,pose.origin.z-center.z).length_squared()
+		if d <= reach: found.append({"key":"a:"+str(a.id),"kind":a.kind,"pose":pose,"distance":d})
+	for record: Dictionary in _external:
+		if _claims.has(record.presentation_id) or CityTrafficCatalog.domain(record.kind) == &"air": continue
+		var at: Vector3 = record.presentation_position
+		var d := Vector2(at.x-center.x,at.z-center.z).length_squared()
+		if d <= reach: found.append({"key":"x:"+str(record.presentation_id),"kind":record.kind,"pose":Transform3D(Basis(Vector3.UP,float(record.presentation_yaw)),at),"distance":d})
+	if found.size() > limit:
+		found.sort_custom(func(x: Dictionary, y: Dictionary) -> bool: return float(x.distance) < float(y.distance))
+		found.resize(limit)
+	return found
+
+func set_explore_obstacles(obstacles: Array[Dictionary]) -> void:
+	_explore_obstacles = obstacles
+
+## True when `a`, YIELD_GAP plus this tick's travel further along its path,
+## would run into an Explore actor's box. An actor it already overlaps (one
+## spawned or released on top of it) does not hold it, which could never
+## clear; their solid bodies separate them instead.
+func _yields_to_obstacle(a: Dictionary, speed: float, delta: float) -> bool:
+	var center := Vector2(a.cell)+Vector2(.5,.5)
+	var near := false
+	for obstacle: Dictionary in _explore_obstacles:
+		var at: Vector3 = obstacle.transform.origin
+		if absf(at.x-center.x) <= YIELD_SCAN and absf(at.z-center.y) <= YIELD_SCAN:
+			near = true
+			break
+	if not near: return false
+	var bounds := body_bounds(a.kind)
+	var half := bounds.size*.5
+	var offset := Transform3D(Basis.IDENTITY,bounds.get_center())
+	var current := actor_pose(a)*offset
+	var length := 1.0
+	if a.domain == &"highway":
+		length = maxf(.12,float(graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))).get("length",1.0)))
+	var ahead_t := minf(float(a.t)+(YIELD_GAP+speed*delta)/length,1.0)
+	if ahead_t <= float(a.t): return false
+	var probe := a.duplicate()
+	probe.t = ahead_t
+	var ahead := actor_pose(probe)*offset
+	for obstacle: Dictionary in _explore_obstacles:
+		if boxes_overlap(ahead,half,obstacle.transform,obstacle.half) and not boxes_overlap(current,half,obstacle.transform,obstacle.half): return true
+	return false
+
+## Separating-axis test for two oriented boxes given their centre poses and
+## half extents. Touching boxes count as overlapping.
+static func boxes_overlap(a: Transform3D, a_half: Vector3, b: Transform3D, b_half: Vector3) -> bool:
+	var axes_a: Array[Vector3] = [a.basis.x.normalized(),a.basis.y.normalized(),a.basis.z.normalized()]
+	var axes_b: Array[Vector3] = [b.basis.x.normalized(),b.basis.y.normalized(),b.basis.z.normalized()]
+	var axes: Array[Vector3] = axes_a+axes_b
+	for i: int in 3:
+		for j: int in 3:
+			var cross := axes_a[i].cross(axes_b[j])
+			if cross.length_squared() > .000001: axes.append(cross.normalized())
+	var offset := b.origin-a.origin
+	for axis: Vector3 in axes:
+		var ra := a_half.x*absf(axis.dot(axes_a[0]))+a_half.y*absf(axis.dot(axes_a[1]))+a_half.z*absf(axis.dot(axes_a[2]))
+		var rb := b_half.x*absf(axis.dot(axes_b[0]))+b_half.y*absf(axis.dot(axes_b[1]))+b_half.z*absf(axis.dot(axes_b[2]))
+		if absf(offset.dot(axis)) > ra+rb: return false
+	return true
 
 ## Return a claimed vehicle to traffic. With its heading, a vehicle left on
 ## one of the cell's traffic paths resumes exactly there; otherwise it joins

@@ -77,20 +77,22 @@ Six or eight ambient patrons keep the compact floors and entrances clear.
 
 ## Entering a resort
 
-Build a Gaming Resort, then choose **View → Explore at Street Level** and walk up to the
-resort's front doors. A resort faces the larger map row unless that side has
-no street; then it turns its front to the side with the most adjacent road
-(east, west, then north on ties). The facing is worked out when the city is
-loaded and again when a nearby road changes; it is never saved. A resort with
-no adjacent road keeps the original facing. Near
-the doors the prompt reads **F to enter Comstock Grand** (on touch, **Interact
-to enter …**). Pressing F fades to the entrance mat inside a fully enclosed
-hall; the usual third-person camera follows you. The mat by the door offers
-**F to step outside** and returns you to the resort's front step, facing the
-street. Return to Build works from inside as it does anywhere else.
+Build a Gaming Resort, then choose **View → Explore at Street Level** and walk
+up to the resort's front doors. A resort faces the larger map row unless that
+side has no street; then it turns its front to the side with the most adjacent
+road (east, west, then north on ties). The facing is worked out when the city is
+loaded and again when a nearby road changes; it is never saved. A resort with no
+adjacent road keeps the original facing. Within about 6 m of the doors (0.4
+tile) the prompt reads **F to enter Comstock Grand** (on touch, **Interact to
+enter …**). Pressing F fades to the entrance mat inside a fully enclosed hall;
+the usual third-person camera follows you. The mat by the door offers **F to
+step outside** and returns you to the resort's front step, facing the street.
+Return to Build works from inside as it does anywhere else.
 
-Inside, marinas and vehicles do not answer F. If the resort is demolished or
-replaced while you are inside, you are put back outside with a message.
+A vehicle parked within reach beside the doors is entered first and its prompt
+replaces the door's; step away from it to go in. Inside, marinas and vehicles do
+not answer F. If the resort is demolished or replaced while you are inside, you
+are put back outside with a message.
 
 Each larger resort floor has sixteen other patrons, with varied mid-century clothes.
 They walk between tables and machines, press buttons, place bets and react

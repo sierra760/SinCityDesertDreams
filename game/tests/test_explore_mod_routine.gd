@@ -82,6 +82,12 @@ func test_road_vehicle_uses_engine_route_and_single_clock() -> void:
 	if not _street(): return
 	if not await _enter(): return
 	session.set_physics_process(false)
+	# Explore traffic stops for the player's walker and parked vehicles; keep
+	# them off the scripted car's route so only the route and clock are tested.
+	session.pedestrian.global_position += Vector3(0,0,2)
+	session.car.global_position += Vector3(0,0,4)
+	session.helicopter.global_position += Vector3(0,0,-4)
+	session._sync_traffic_collision()
 	var service := Service.new()
 	service.bind(session,[],Progress.new())
 	service.enter()

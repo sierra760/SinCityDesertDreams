@@ -53,9 +53,9 @@ var _simulation: Simulation
 ## The table record last requested on a resort floor, until it is released.
 var _casino_table: Dictionary = {}
 var _traffic_claim: Dictionary = {}
-var _ambient_prompt_at := 0
-var _ambient_nearby: Dictionary = {}
-var _ambient_claimed := false
+## Static stand-ins for nearby ambient traffic, so nothing drives or walks
+## through it; see ExploreTrafficBodies.
+var _traffic_bodies: ExploreTrafficBodies
 ## Slapstick weapons and pedestrians in pieces; see ExploreMayhem.
 var mayhem: ExploreMayhem
 ## The host's sound player, if any; the slapstick effects play through it.
@@ -169,7 +169,9 @@ func enter(city: City, origin: Vector3) -> bool:
 		_last_safe[pedestrian.get_instance_id()] = pedestrian.global_transform
 		if is_instance_valid(camera_rig): camera_rig.recenter())
 	mode = ExploreActorProfile.Mode.WALK
-	var car_pose := _parking_pose(pedestrian.global_position+Vector3(.4,0,0),1)
+	# Both session vehicles park within entry reach of the walker's body
+	# (ExploreActorProfile.VEHICLE_REACH), one to each side.
+	var car_pose := _parking_pose(pedestrian.global_position+Vector3(.25,0,0),1)
 	if not car_pose.is_empty():
 		car = _make_actor(1,car_pose.transform)
 	var flight_pose := _parking_pose(pedestrian.global_position+Vector3(-.5,0,0),2)
@@ -186,12 +188,17 @@ func enter(city: City, origin: Vector3) -> bool:
 	camera_rig.update_follow(0)
 	view.set_exploration_camera(camera_rig.camera)
 	view.traffic.set_detail_enabled(true)
+	_traffic_bodies = ExploreTrafficBodies.new()
+	_traffic_bodies.name = "ExploreTrafficBodies"
+	view.world.add_child(_traffic_bodies)
+	_traffic_bodies.bind(view.traffic)
 	mayhem = ExploreMayhem.new()
 	view.world.add_child(mayhem)
 	mayhem.bind(view.traffic,pedestrian as ExplorePedestrian)
 	mayhem.audio = audio
 	if view.feedback != null: view.feedback.set_exploring(true)
 	_active = true
+	_sync_traffic_collision()
 	_suspended = false
 	_arming = true
 	_arm_touch_hardware(false)
@@ -502,7 +509,11 @@ func dispose() -> void:
 	_free_retained_world()
 
 func _clear_actors() -> void:
-	if is_instance_valid(view) and is_instance_valid(view.traffic): view.traffic.set_detail_enabled(false)
+	if is_instance_valid(view) and is_instance_valid(view.traffic):
+		view.traffic.set_detail_enabled(false)
+		view.traffic.set_explore_obstacles([])
+	if is_instance_valid(_traffic_bodies): _traffic_bodies.free()
+	_traffic_bodies = null
 	# Everyone in pieces is whole again before the crowd is handed back.
 	if is_instance_valid(mayhem):
 		mayhem.clear()
@@ -536,8 +547,6 @@ func _clear_actors() -> void:
 	resort_service = null
 	occupied = null
 	_last_safe.clear()
-	_ambient_prompt_at = 0
-	_ambient_nearby.clear()
 	_marina_dock.clear()
 	_revision_pending = false
 	_pending_recovery = false
@@ -639,6 +648,7 @@ func _physics_process(delta: float) -> void:
 	_handle_mayhem_input(frame)
 	if is_instance_valid(transit_service): transit_service.step(delta,pedestrian)
 	if is_instance_valid(resort_service): resort_service.step(delta,pedestrian)
+	_sync_traffic_collision()
 	# The walker holds still while a resort door fades.
 	if not (is_instance_valid(resort_service) and resort_service.is_transitioning()): occupied.step(frame,camera_rig.yaw,delta)
 	if is_instance_valid(mayhem): mayhem.step(delta,occupied == pedestrian)
@@ -877,6 +887,11 @@ func request_interaction() -> bool:
 				var used := resort_service.interact(pedestrian.global_position)
 				_publish_status()
 				return used
+		# A vehicle within reach wins over doors, lifts and marinas outside, so a
+		# building entrance beside the street never stops the player getting in.
+		# Mod interactions keep their precedence over vehicles.
+		var vehicle := _vehicle_in_reach()
+		if not vehicle.is_empty() and not _mod_interaction_nearby(): return _enter_vehicle(vehicle)
 		if is_instance_valid(transit_service) and transit_service.interact_elevator():
 			_publish_status()
 			return true
@@ -889,22 +904,10 @@ func request_interaction() -> bool:
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): return _board_marina(&"sailboat",marina)
 		if mod_service != null and mod_service.activate_interaction(): return true
-		if _board_mod_vehicle(): return true
-		var nearest := _nearest_vehicle()
-		if nearest == null:
-			_ambient_claimed = false
-			if _board_ambient(): return true
-			# A claimed vehicle that could not be boarded already explained why.
-			if not _ambient_claimed: _message = "Walk closer to a vehicle, or choose one from the Explore menu (%s)." % ("Menu" if _touch_enabled else "Esc")
-			_publish_status()
-			return false
-		pedestrian.stop_input()
-		pedestrian.clear_support_frame()
-		pedestrian.hide()
-		pedestrian.collision_layer = 0
-		pedestrian.collision_mask = 0
-		occupied = nearest
-		mode = _actor_mode(nearest)
+		if not vehicle.is_empty(): return _enter_vehicle(vehicle)
+		_message = "Walk closer to a vehicle, or choose one from the Explore menu (%s)." % ("Menu" if _touch_enabled else "Esc")
+		_publish_status()
+		return false
 	else:
 		if absf(float(occupied.speed())) >= .01 or (mode == 2 and not occupied.landed()):
 			_message = "Land and stop before exiting." if mode == 2 else "Stop before exiting."
@@ -944,16 +947,107 @@ func _leave_vehicle(pose: Transform3D) -> void:
 		selected_vehicle = null
 	if ended_rail_drive and is_instance_valid(transit_service): transit_service.end_drive_route()
 
+## The session's own car, helicopter or selected vehicle whose body is nearest
+## the walker within ExploreActorProfile.VEHICLE_REACH, or null.
 func _nearest_vehicle() -> CharacterBody3D:
 	var nearest: CharacterBody3D
-	var distance := .65
+	var distance := ExploreActorProfile.VEHICLE_REACH
+	if not is_instance_valid(pedestrian): return nearest
 	for actor: CharacterBody3D in [car,helicopter,selected_vehicle]:
-		if not is_instance_valid(actor): continue
-		var gap := pedestrian.global_position.distance_to(actor.global_position)
-		if gap < distance:
+		if not is_instance_valid(actor) or actor == occupied: continue
+		var gap := _body_gap(actor,pedestrian.global_position)
+		if gap <= distance:
 			distance = gap
 			nearest = actor
 	return nearest
+
+## Walker-to-body gap for a session vehicle, from its first enabled collider.
+func _body_gap(actor: CharacterBody3D, feet: Vector3) -> float:
+	for child: Node in actor.get_children():
+		var collider := child as CollisionShape3D
+		if collider == null or collider.disabled or collider.shape == null: continue
+		var bounds: AABB
+		if collider.shape is BoxShape3D:
+			var size: Vector3 = (collider.shape as BoxShape3D).size
+			bounds = AABB(-size*.5,size)
+		else: bounds = collider.shape.get_debug_mesh().get_aabb()
+		return ExploreActorProfile.reach_gap(feet,collider.global_transform,bounds)
+	return INF
+
+## What F would get into from where the walker stands: {"actor": a session
+## vehicle} or {"traffic": an ambient/mod claim record}, each with "gap", for
+## whichever body is nearest within VEHICLE_REACH. Indoors (stations, lifts,
+## casino floors) nothing is in reach, whatever lies beyond the walls.
+func _vehicle_in_reach() -> Dictionary:
+	if mode != 0 or not is_instance_valid(pedestrian) or not pedestrian.visible: return {}
+	var feet := pedestrian.global_position
+	if is_instance_valid(transit_service) and transit_service.indoors(feet): return {}
+	if is_instance_valid(resort_service) and resort_service.is_inside(): return {}
+	var best: Dictionary = {}
+	var gap := ExploreActorProfile.VEHICLE_REACH
+	var own := _nearest_vehicle()
+	if own != null:
+		gap = _body_gap(own,feet)
+		best = {"actor":own,"gap":gap}
+	var traffic: Node3D = view.get("traffic") if is_instance_valid(view) else null
+	if traffic != null and traffic.has_method("nearest_vehicle_by_body"):
+		var ambient: Dictionary = traffic.nearest_vehicle_by_body(feet,gap)
+		# A session vehicle keeps an exact tie.
+		if not ambient.is_empty() and (best.is_empty() or float(ambient.gap) < gap): best = {"traffic":ambient,"gap":ambient.gap}
+	return best
+
+func _mod_interaction_nearby() -> bool:
+	return mod_service != null and not mod_service.api.interactions.nearby(mod_service.queries.player).is_empty()
+
+func _enter_vehicle(target: Dictionary) -> bool:
+	if target.has("traffic"): return _board_traffic(target.traffic)
+	var nearest: CharacterBody3D = target.actor
+	pedestrian.stop_input()
+	pedestrian.clear_support_frame()
+	pedestrian.hide()
+	pedestrian.collision_layer = 0
+	pedestrian.collision_mask = 0
+	occupied = nearest
+	mode = _actor_mode(nearest)
+	_message = ""
+	_edges.clear()
+	if _touch_enabled: cancel_touch_input()
+	camera_rig.configure_target(occupied,mode)
+	_sync_traffic_collision()
+	_publish_status()
+	return true
+
+## Claim one ambient or mod vehicle and drive it from its own pose. On refusal
+## the vehicle returns to traffic and the message explains why.
+func _board_traffic(found: Dictionary) -> bool:
+	var traffic: Node3D = view.get("traffic")
+	if traffic == null or not traffic.has_method("claim_vehicle"): return false
+	var claim: Dictionary = traffic.claim_vehicle(int(found.id))
+	if claim.is_empty(): return false
+	# The claimed record leaves traffic now; so does its body, before any pose
+	# around it is checked for clearance.
+	_sync_traffic_collision()
+	if _select_vehicle(StringName(claim.kind),claim): return true
+	traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
+	_sync_traffic_collision()
+	_publish_status()
+	return false
+
+## Explore actors as boxes that ambient traffic yields to, and bodies for the
+## ambient traffic around the occupied actor.
+func _sync_traffic_collision() -> void:
+	if not _active or not is_instance_valid(view) or view.get("traffic") == null: return
+	var obstacles: Array[Dictionary] = []
+	for actor: CharacterBody3D in [pedestrian,car,helicopter,selected_vehicle]:
+		if not is_instance_valid(actor) or actor.collision_layer == 0 or not actor.is_inside_tree(): continue
+		for child: Node in actor.get_children():
+			var collider := child as CollisionShape3D
+			if collider == null or collider.disabled or collider.shape == null: continue
+			var bounds: AABB = collider.shape.get_debug_mesh().get_aabb()
+			obstacles.append({"transform":collider.global_transform*Transform3D(Basis.IDENTITY,bounds.get_center()),"half":bounds.size*.5})
+			break
+	view.traffic.set_explore_obstacles(obstacles)
+	if is_instance_valid(_traffic_bodies) and is_instance_valid(occupied): _traffic_bodies.sync(occupied.global_position)
 
 func _exit_pose() -> Dictionary:
 	var shape := ExploreActorProfile.shape(0)
@@ -1029,23 +1123,19 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 	if not _active or not is_instance_valid(occupied): return
 	var prompt := "F to exit" if mode != 0 else ""
 	var inside_resort := mode == 0 and is_instance_valid(resort_service) and resort_service.is_inside()
-	var resort_door: Dictionary = ResortAccess.nearby(view.city,pedestrian.global_position) if mode == 0 and not inside_resort else {}
+	# Same precedence as request_interaction: a vehicle in reach before doors,
+	# lifts and marinas; a mod interaction before the vehicle.
+	var vehicle := _vehicle_in_reach() if mode == 0 and not inside_resort and not _mod_interaction_nearby() else {}
+	var resort_door: Dictionary = ResortAccess.nearby(view.city,pedestrian.global_position) if mode == 0 and not inside_resort and vehicle.is_empty() else {}
 	if inside_resort: prompt = resort_service.prompt(pedestrian.global_position)
+	elif vehicle.has("actor") or bool(vehicle.get("traffic",{}).get("mod",false)): prompt = "F to enter nearby vehicle"
+	elif vehicle.has("traffic"): prompt = "F to enter "+CityTrafficCatalog.display_name(StringName(vehicle.traffic.kind))
 	elif not resort_door.is_empty(): prompt = CasinoLines.enter_prompt(ResortThemes.resort_name(resort_door.key))
 	elif mode == 0:
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): prompt="F to board a boat at the marina"
-		elif not _nearby_mod_vehicle().is_empty(): prompt = "F to enter nearby vehicle"
-		elif _nearest_vehicle() != null: prompt = "F to enter nearby vehicle"
-		else:
-			var now := Time.get_ticks_msec()
-			if now >= _ambient_prompt_at:
-				_ambient_prompt_at = now+200
-				var traffic: Node3D = view.get("traffic")
-				_ambient_nearby = traffic.nearest_drivable_vehicle(pedestrian.global_position,.65) if traffic != null else {}
-			if not _ambient_nearby.is_empty(): prompt = "F to enter "+CityTrafficCatalog.display_name(StringName(_ambient_nearby.kind))
 	if transit_status.is_empty() and is_instance_valid(transit_service): transit_status=transit_service.status()
-	if mode==0 and not inside_resort and not String(transit_status.get("elevator_prompt","")).is_empty(): prompt=String(transit_status.elevator_prompt)
+	if mode==0 and not inside_resort and vehicle.is_empty() and not String(transit_status.get("elevator_prompt","")).is_empty(): prompt=String(transit_status.elevator_prompt)
 	var status := {"vehicle":str(occupied.get("kind")) if occupied == selected_vehicle else "","mode":mode,"speed":occupied.velocity.length(),"altitude":float(occupied.altitude()) if mode == 2 else 0.0,"prompt":prompt,"message":_message}
 	if is_instance_valid(resort_service):
 		status["resort"] = resort_service.status()
@@ -1299,19 +1389,13 @@ func _occupy(actor: CharacterBody3D) -> void:
 	camera_rig.configure_target(occupied,mode)
 	_publish_status()
 
+## Board the nearest ambient (or entry-allowing mod) vehicle within reach.
 func _board_ambient() -> bool:
 	var traffic: Node3D = view.get("traffic")
-	if traffic == null or not traffic.has_method("claim_nearby_vehicle"): return false
-	var claim: Dictionary = traffic.claim_nearby_vehicle(pedestrian.global_position,.65)
-	if claim.is_empty(): return false
-	for actor: Dictionary in traffic.actors:
-		if actor.id == claim.id and actor.has("mod_owner") and not actor.get("mod_enterable",false):
-			traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
-			return false
-	_ambient_claimed = true
-	if _select_vehicle(StringName(claim.kind),claim): return true
-	traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
-	return false
+	if traffic == null or not traffic.has_method("nearest_vehicle_by_body"): return false
+	var found: Dictionary = traffic.nearest_vehicle_by_body(pedestrian.global_position,ExploreActorProfile.VEHICLE_REACH)
+	if found.is_empty(): return false
+	return _board_traffic(found)
 
 func _release_traffic_claim() -> void:
 	if _traffic_claim.is_empty(): return
@@ -1356,36 +1440,18 @@ func dismiss_mod_dialogue() -> void:
 	if mod_dialogue_dismisser.is_valid(): mod_dialogue_dismisser.call()
 	else: resume()
 
+## The entry-allowing mod vehicle F would board, when its body is the nearest
+## in reach (a nearer parked session vehicle or ambient one wins).
 func _nearby_mod_vehicle() -> Dictionary:
-	if mod_service == null or not is_instance_valid(pedestrian): return {}
-	var nearest: Dictionary = {}
-	var distance := .65*.65
-	var handles: Array = mod_service.actors._actors.keys()
-	handles.sort()
-	for id: String in handles:
-		var actor: Dictionary = mod_service.actors._actors[id]
-		var record: Dictionary = actor.record
-		if not record.get("mod_enterable",false) or view.traffic._claims.has(record.id): continue
-		var pose := view.traffic.actor_pose(record)
-		var d := pose.origin.distance_squared_to(pedestrian.global_position)
-		if d < distance:
-			distance = d
-			nearest = {"id":record.id,"kind":record.kind}
-	var parked := _nearest_vehicle()
-	if is_instance_valid(parked) and parked.global_position.distance_squared_to(pedestrian.global_position) < distance: return {}
-	return nearest
+	if mod_service == null: return {}
+	var target := _vehicle_in_reach()
+	if not target.has("traffic") or not bool(target.traffic.get("mod",false)): return {}
+	return {"id":target.traffic.id,"kind":target.traffic.kind}
 
 func _board_mod_vehicle() -> bool:
 	var nearby := _nearby_mod_vehicle()
 	if nearby.is_empty(): return false
-	var claim := view.traffic.claim_nearby_vehicle(pedestrian.global_position,.65)
-	if claim.is_empty(): return false
-	if claim.id != nearby.id:
-		view.traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
-		return false
-	if _select_vehicle(StringName(claim.kind),claim): return true
-	view.traffic.release_vehicle(claim,claim.position,float(claim.get("yaw",INF)))
-	return false
+	return _board_traffic(nearby)
 
 ## A map opened during a manual pause returns to that pause. One opened
 ## during play resumes only if no modal/window has since taken input.

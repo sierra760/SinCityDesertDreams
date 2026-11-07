@@ -139,7 +139,6 @@ func test_removed_marina_cannot_supply_a_remote_docking_exit() -> void:
 func test_distant_marina_never_advertises_or_boards_from_land() -> void:
 	if not await _marina_setup(): return
 	session.pedestrian.global_position+=Vector3(3,0,0)
-	session._ambient_prompt_at=0
 	session._publish_status()
 	check(not hud._prompt_label.text.contains("marina"),"marina action stays local")
 	check(not session.request_interaction())

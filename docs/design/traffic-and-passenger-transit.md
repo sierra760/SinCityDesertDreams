@@ -7,17 +7,23 @@ simulation RNG or add actor positions to city saves.
 
 ## Playing
 
-Use **View → Explore at Street Level** to start walking on the safe outdoor road nearest
-the aerial camera's focus; with no such road, Explore is refused with a notice
-and Build stays open. WASD or the arrow keys move, Shift runs and Space jumps.
-With a keyboard, a short controls hint appears on entering and whenever you
-switch between walking, driving, flying and riding. **F** enters a nearby
-drivable vehicle. **Escape** opens the Explore menu, including the vehicle
-selector, Resume, Recover and Return to Build. All 17 non-airplane catalog types
-are available when their route and clearance requirements are met. Road
-vehicles steer freely on safe support; trains follow connected tracks; boats
-remain on navigable water; the helicopter flies and must land before exit. Boat
-exits require clear dry shore.
+Use **View → Explore at Street Level** to start walking on the safe outdoor road
+nearest the aerial camera's focus; with no such road, Explore is refused with a
+notice and Build stays open. WASD or the arrow keys move, Shift runs and Space
+jumps. With a keyboard, a short controls hint appears on entering and whenever
+you switch between walking, driving, flying and riding. **F** enters a nearby
+drivable vehicle: one whose body is within about 4 m (a quarter tile) of the
+walker, measured to the vehicle itself rather than its centre, so a bus and a
+compact are equally easy to get into. The session car and helicopter park within
+that reach when Explore starts. Outdoors, a vehicle in reach is entered before a
+resort door, station lift or marina beside it, so an entrance never stops you
+getting in; a mod interaction keeps its precedence. Indoors (lifts, stations,
+casino floors) no vehicle answers F. **Escape** opens the Explore menu,
+including the vehicle selector, Resume, Recover and Return to Build. All 17
+non-airplane catalog types are available when their route and clearance
+requirements are met. Road vehicles steer freely on safe support; trains follow
+connected tracks; boats remain on navigable water; the helicopter flies and must
+land before exit. Boat exits require clear dry shore.
 
 To ride as a passenger, approach a usable rail or subway station. Platforms
 align with adjacent reciprocal tracks. The station's placed facing does not
@@ -43,6 +49,17 @@ paused, so pausing the economy does not strand a passenger. Explore suspension
 from menus, lost focus or its panel freezes the entire local journey. Geometry
 edits invalidate routes before further movement. Returning to Build, loading or
 leaving the city restores station/terrain presentation and destroys local actors.
+
+In Explore, ambient vehicles, boats, trains and pedestrians near the player
+are solid. Each one within 2.5 tiles of the occupied actor gets a static body
+the size of its authored model (a box for vehicles and boats, a capsule for
+people) at its displayed pose, so the player's car stops at another car's
+bumper, losing the speed it drove into it with, and a walker cannot pass
+through a parked bus or a passer-by. Exits and placements avoid those bodies
+too. In turn, ambient traffic stops a short gap (about 1 m) before the
+player's walker and vehicles, including parked ones, instead of driving into
+them; a vehicle held up long enough leaves as any stuck vehicle does. These
+holds exist only while exploring, so Build traffic is unchanged.
 
 **View → Show → Traffic and Pedestrians** controls ambient traffic. It does not
 hide incident markers or disable an occupied vehicle/passenger journey.

@@ -245,6 +245,24 @@ func _deflect_from_edge(before: Transform3D) -> void:
 	_edge_contact = EDGE_CONTACT_TICKS
 	rotation.y = lerp_angle(rotation.y,atan2(-along.x,-along.y),EDGE_TURN)
 
+## Another vehicle or a person is a solid body, not a wall to slide along at
+## speed: driving into one removes the part of the speed aimed at it (all of
+## it head-on), so the car stops against it instead of grinding past.
+func _absorb_actor_contacts() -> void:
+	if absf(_speed) <= .0001: return
+	var heading := -global_basis.z*signf(_speed)
+	var flat := Vector2(heading.x,heading.z)
+	if flat.length_squared() < .000001: return
+	flat = flat.normalized()
+	for index: int in get_slide_collision_count():
+		var contact := get_slide_collision(index)
+		var body := contact.get_collider() as CollisionObject3D
+		if body == null or body.collision_layer & ExploreActorProfile.ACTOR == 0: continue
+		var normal := Vector2(contact.get_normal().x,contact.get_normal().z)
+		if normal.length_squared() < .000001: continue
+		var into := -flat.dot(normal.normalized())
+		if into > 0: _speed *= 1.0-into
+
 func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	if not is_instance_valid(_world) or not is_inside_tree(): return
 	if not global_transform.is_finite() or not velocity.is_finite() or not frame.move.is_finite() or not is_finite(delta) or not is_finite(camera_yaw):
@@ -300,6 +318,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	# is positive at the crest of a convex facet.
 	apply_floor_snap()
 	velocity /= factor
+	_absorb_actor_contacts()
 	if route_graph != null and not route_graph.has_cell(Vector2i(floori(global_position.x),floori(global_position.z)),&"road") and not _world.inside_road_tunnel(global_position):
 		_deflect_from_edge(before)
 	_grounded = not _ground_support().is_empty()

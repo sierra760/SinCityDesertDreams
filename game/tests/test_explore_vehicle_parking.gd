@@ -32,7 +32,7 @@ func test_borrowed_car_keeps_its_pose_on_entry_and_exit() -> void:
 	_park_session_vehicles_away()
 	var record := _ambient_car(27,.3)
 	var ambient := view.traffic.actor_pose(record)
-	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.35)
+	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.2)
 	check(session.request_interaction(),"walker boards the nearby ambient car")
 	var car: CharacterBody3D = session.occupied
 	check(car is ExploreCar and car == session.selected_vehicle,"the borrowed car is occupied")
@@ -68,7 +68,7 @@ func test_helicopter_keeps_and_another_car_returns_the_parked_borrowed_car() -> 
 	if not await _setup(_road_city(),Vector3(26.5,.5,20.5)): return
 	_park_session_vehicles_away()
 	var record := _ambient_car(27,.3)
-	session.pedestrian.global_position = view.traffic.actor_pose(record).origin+Vector3(0,0,.35)
+	session.pedestrian.global_position = view.traffic.actor_pose(record).origin+Vector3(0,0,.2)
 	check(session.request_interaction())
 	var borrowed: CharacterBody3D = session.occupied
 	await physics_frame
@@ -90,7 +90,7 @@ func test_helicopter_keeps_and_another_car_returns_the_parked_borrowed_car() -> 
 	check(is_instance_valid(borrowed) and borrowed.global_transform == parked,"leaving the helicopter does not move the car")
 	check(view.traffic._claims.has(record.id))
 	# Choosing another car hands the borrowed one back instead of duplicating it.
-	session.pedestrian.global_position = parked.origin+Vector3(0,0,.35)
+	session.pedestrian.global_position = parked.origin+Vector3(0,0,.2)
 	session.suspend()
 	check(session.select_vehicle(&"bus"),"another road vehicle is selectable")
 	check(not is_instance_valid(borrowed),"the parked borrowed car is not duplicated")
@@ -104,7 +104,7 @@ func test_blocked_claimed_pose_falls_back_to_the_route() -> void:
 	var ambient := view.traffic.actor_pose(record)
 	# The session car sits across the claimed pose, so the car is placed on its route.
 	session.car.global_transform = Transform3D(Basis(Vector3.UP,ambient.basis.get_euler().y),ambient.origin+Vector3.UP*.002)
-	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.6)
+	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.2)
 	await physics_frame
 	check(session._board_ambient(),"a blocked ambient pose still offers its route")
 	check(session.occupied is ExploreCar and session.occupied != session.car)
@@ -132,7 +132,7 @@ func test_boarded_boat_keeps_its_pose_and_stays_moored() -> void:
 	view.traffic.graph.refresh()
 	var record := _ambient(&"water",&"sailboat",Vector2i(21,21),.3)
 	var ambient := view.traffic.actor_pose(record)
-	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.4)
+	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.2)
 	check(session._board_ambient(),"the nearby ambient boat can be boarded")
 	var boat: CharacterBody3D = session.occupied
 	check(boat is ExploreRouteVehicle,"the boat is occupied")
@@ -151,7 +151,7 @@ func test_boarded_train_keeps_its_place_and_rejoins_service_where_stopped() -> v
 	view.traffic.graph.refresh()
 	var record := _ambient(&"rail",&"train",Vector2i(25,20),.3)
 	var ambient := view.traffic.actor_pose(record)
-	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.4)
+	session.pedestrian.global_position = ambient.origin+Vector3(0,0,.2)
 	check(session._board_ambient(),"the nearby ambient train can be boarded")
 	var train: CharacterBody3D = session.occupied
 	check(train is ExploreRouteVehicle,"the train is occupied")
