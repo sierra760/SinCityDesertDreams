@@ -83,7 +83,7 @@ func test_palettes_voices_fonts_reels() -> void:
 		check_eq(ResortThemes.reel_name(key, "B"), ResortThemes.reel_names(key)[5])
 	check_eq(voices.size(), 4)
 	check_eq(ResortThemes.color(&"arcology_comstock", "stone"), Color("c9a878"))
-	check_eq(ResortThemes.reel_name(&"arcology_orbit", "B"), "ORBIT")
+	check_eq(ResortThemes.reel_name(&"arcology_orbit", "B"), "Rocket Engine")
 
 
 func test_patter_covers_every_voice_and_event() -> void:

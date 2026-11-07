@@ -28,7 +28,7 @@
         "Fedora",
         "Emerald",
         "Ledger",
-        "VAULT"
+        "Golden Vault"
       ],
       "games": {
         "blackjack": "House Twenty-One",
@@ -70,7 +70,7 @@
         "Cocktail",
         "Rose",
         "Courthouse",
-        "ALIBI"
+        "Broken Ring"
       ],
       "games": {
         "blackjack": "Second Chance Twenty-One",
@@ -112,7 +112,7 @@
         "Spotlight",
         "Rose",
         "Velvet Curtain",
-        "VELVET"
+        "Keyhole"
       ],
       "games": {
         "blackjack": "Encore Twenty-One",
@@ -154,7 +154,7 @@
         "Atom",
         "Sunglasses",
         "Geiger Meter",
-        "GLOW"
+        "Atomic Sun"
       ],
       "games": {
         "blackjack": "Daybreak Twenty-One",
@@ -196,7 +196,7 @@
         "Desert Owl",
         "Gold Coin",
         "Diamond",
-        "LAST"
+        "Diamond Crest"
       ],
       "games": {
         "blackjack": "Still Standing Twenty-One",
@@ -238,7 +238,7 @@
         "Compass",
         "Light Prism",
         "Dust Goggles",
-        "DUST"
+        "Compass Rose"
       ],
       "games": {
         "blackjack": "Open Road Twenty-One",

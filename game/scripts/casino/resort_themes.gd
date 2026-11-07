@@ -43,7 +43,7 @@ const CLASSIC_RESORTS: Dictionary = {
 			"felt": Color("2e5e4e"), "accent": Color("b06b3a"), "ink": Color("2b1d14"),
 			"paper": Color("f2e6cf"),
 		},
-		"reels": ["Pickaxe", "Lantern", "Mule", "Silver Nugget", "Dynamite", "COMSTOCK"],
+		"reels": ["Pickaxe", "Lantern", "Mule", "Silver Nugget", "Dynamite", "Mine Hoist"],
 		"wheel_emblems": ["Assay Office", "Silver Dollar"],
 	},
 	&"arcology_junction": {
@@ -60,7 +60,7 @@ const CLASSIC_RESORTS: Dictionary = {
 			"felt": Color("2b4a6f"), "accent": Color("4f8f6a"), "ink": Color("1f2a30"),
 			"paper": Color("f4eedc"),
 		},
-		"reels": ["Locomotive", "Lantern", "Bell", "Semaphore", "Ticket", "JUNCTION"],
+		"reels": ["Locomotive", "Lantern", "Bell", "Semaphore", "Ticket", "Golden Spike"],
 		"wheel_emblems": ["Roundhouse", "Golden Spike"],
 	},
 	&"arcology_boulder": {
@@ -77,7 +77,7 @@ const CLASSIC_RESORTS: Dictionary = {
 			"felt": Color("1e8a86"), "accent": Color("2fa6a0"), "ink": Color("15201f"),
 			"paper": Color("f2e8d5"),
 		},
-		"reels": ["Turbine", "Hard Hat", "Dynamo", "Lightning Bolt", "Concrete Bucket", "CROWN"],
+		"reels": ["Turbine", "Hard Hat", "Dynamo", "Lightning Bolt", "Concrete Bucket", "Great Dam"],
 		"wheel_emblems": ["Powerhouse", "High Scaler"],
 	},
 	&"arcology_orbit": {
@@ -94,7 +94,7 @@ const CLASSIC_RESORTS: Dictionary = {
 			"felt": Color("1f7f7a"), "accent": Color("c97a45"), "ink": Color("0f1a33"),
 			"paper": Color("f7f0df"),
 		},
-		"reels": ["Rocket", "Satellite", "Planet", "Helmet", "Atom", "ORBIT"],
+		"reels": ["Rocket", "Satellite", "Planet", "Helmet", "Atom", "Rocket Engine"],
 		"wheel_emblems": ["Mission Control", "Launch Window"],
 	},
 }
@@ -111,7 +111,7 @@ const STORE_THEME := {
 	"palette": {"stone": Color("f2e6cf"), "metal": Color("c49a50"), "wood": Color("4a3025"),
 		"glass": Color("237f78"), "lamp": Color("ffe2b0"), "carpet": Color("b7443e"),
 		"felt": Color("237f78"), "accent": Color("df6b59"), "ink": Color("29221f"), "paper": Color("f8eedc")},
-	"reels": ["Cherries", "Coffee", "Soda", "Horseshoe", "Black Hat", "DESPICABLE"],
+	"reels": ["Cherries", "Coffee", "Soda", "Horseshoe", "Black Hat", "The Rascal"],
 }
 
 ## All playable venues, including the store, for treasury history and saves.
