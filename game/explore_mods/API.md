@@ -1,14 +1,17 @@
 # Explore source packs — API 1
 
 Open **Settings → Explore Mods**, or **Explore menu → Explore Mods**. The seven
-built-in packs are disabled initially. Import a source folder or a `.scddmod`
-ZIP archive by entering its path; `.zip` archives are also supported. Each pack
-must contain manifest.json at its root. Imports stay disabled. Select
-Enable, close the window, then Resume Explore (or enter Explore from Build).
-Only your local preferences choose packs; loading a saved city never enables one.
-Eight packs can be enabled. A ninth Enable reports the session limit.
+built-in packs are off initially. Add a pack with **Add pack file…** (a
+`.scddmod` or `.zip` archive), **Add pack folder…** (a source folder), or by
+dropping either onto the window. Each pack must contain manifest.json at its
+root. Added packs start off. Tick a pack's checkbox to turn it on, close the
+window, then Resume Explore (or enter Explore from Build). Only your local
+preferences choose packs; loading a saved city never turns one on. Eight packs
+can be on at once; the other checkboxes are unavailable until one is turned off.
 
-The panel lists names, versions, states and runtime availability. Reload reads
+Each pack is one card: its name and checkbox, a short description, and a status
+line when it is on, running, or reports an error. **Details** shows the version,
+source location, Reload and Reset progress. Reload reads
 the selected pack's edited source while Explore is suspended, validates a whole
 snapshot, then publishes a fresh version directory. Other packs keep their VM,
 actors and timer phase. A malformed edit preserves the prior installed snapshot;
@@ -17,10 +20,10 @@ are invalid. A pack with no live slot cannot validate a reload while all eight
 other VMs are live. Disabled source import still works at capacity. An import
 validates files; Lua is compiled only on explicit activation/reload.
 
-Reset progress requires a second Confirm reset click and clears only that
+Reset progress asks again (Yes, reset progress / Keep progress) and clears only that
 pack's committed state in the current city. It uses the same progress object as
 Save, autosave, recovery and Share. Save the city afterward to retain that reset.
-Disable removes that owner's actors, interactions, objectives, queries, timers,
+Turning a pack off removes that owner's actors, interactions, objectives, queries, timers,
 effects and pending callbacks. An occupied vehicle transfers safely until exit.
 Copy diagnostics gives a bounded text report. Never include secrets in logs.
 
