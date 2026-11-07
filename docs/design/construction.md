@@ -182,7 +182,12 @@ What each question means for `apply`:
 13. A ramp (`ONRAMP`, 25) is a single flat, dry, empty tile touching at least
     one highway tile and a road on another side; without the road it is
     refused ("a ramp must touch a road"). The road is the ramp's approach and
-    is reshaped to meet it. The ramp id faces the highway.
+    is reshaped to meet it. The ramp id faces the highway. Visible traffic
+    uses each ramp one way: past the road in the carriageway's direction of
+    travel it is an entrance, before the road an exit. In 3D a ramp keeps the
+    road's footprint but carries a single travel lane between paved
+    shoulders, each lane edge marked by a solid white line; collision is
+    unchanged.
 14. A tunnel starts on a straight slope tile that is empty and dry. It bores
     into the hill along the slope axis until the ground comes back down to
     the entrance height; that tile must be the opposite slope and equally

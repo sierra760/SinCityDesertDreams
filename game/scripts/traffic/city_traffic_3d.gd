@@ -279,6 +279,12 @@ func _reconcile() -> void:
 				next = segment.next
 				previous = segment.previous
 				if not adjacent.has(next) or not adjacent.has(previous): continue
+			elif domain != &"rail" and domain != &"water" and not _ramp_way(previous,cell,next):
+				# Ramps are one way: turn the vehicle round, or try elsewhere.
+				if not _ramp_way(next,cell,previous): continue
+				var swap := next
+				next = previous
+				previous = swap
 			if domain == &"rail" and _reserved_rail.has(next): continue
 			var admission_key: Variant = _admission_key(type,cell,next,lane)
 			if admission.has(admission_key): continue
@@ -896,6 +902,11 @@ func _road_facts(cell: Vector2i) -> int:
 		_route_ramps[slot] = known
 	return known
 
+## Whether passing previous → cell → next keeps to the one-way ramps.
+func _ramp_way(previous: Vector2i, cell: Vector2i, next: Vector2i) -> bool:
+	if not _ramp(previous) and not _ramp(cell) and not _ramp(next): return true
+	return graph.ramp_allows(previous,cell) and graph.ramp_allows(cell,next)
+
 func _ramp(cell: Vector2i) -> bool:
 	if cell.x < 0 or cell.y < 0 or cell.x >= City.WIDTH or cell.y >= City.HEIGHT: return graph.is_ramp(cell)
 	return _road_facts(cell) & 2 != 0
@@ -932,7 +943,9 @@ func _choice_continues(cell: Vector2i, domain: Variant, previous: Vector2i, lane
 	var index: Variant = _CULL_DOMAINS.get(domain)
 	if index == null or domain == &"highway" or cell.x < 0 or cell.y < 0 or cell.x >= City.WIDTH or cell.y >= City.HEIGHT:
 		return graph.traffic_choices(cell,domain,previous,lane).has(next)
-	return _neighbor_list(cell,domain).has(next)
+	if not _neighbor_list(cell,domain).has(next): return false
+	# Ramps carry traffic one way (CityTrafficGraph.ramp_flow).
+	return (not _ramp(cell) and not _ramp(next)) or graph.ramp_allows(cell,next)
 
 ## graph.neighbors(cell, domain), shared for this revision. Read only.
 func _neighbor_list(cell: Vector2i, domain: Variant) -> Array:
@@ -1198,6 +1211,9 @@ func release_vehicle(claim: Dictionary, position: Vector3, yaw: float = INF) -> 
 		a.cell = cell
 		a.previous = choices[0]
 		a.next = choices.back()
+		if a.domain != &"rail" and a.domain != &"water" and not _ramp_way(a.previous,cell,a.next) and _ramp_way(a.next,cell,a.previous):
+			a.previous = choices.back()
+			a.next = choices[0]
 		if a.domain==&"highway" and graph.highways.routes.has(cell):
 			var segments: Array = graph.highways.segments(cell,CityTrafficGraph.INVALID,int(a.get("lane",0)))
 			var found := false
@@ -1353,6 +1369,9 @@ func owned_spawn(owner: String, kind: StringName, cell: Vector2i, variant: int, 
 	if choices.is_empty() or (domain == &"rail" and _reserved_rail.has(cell)): return {}
 	var next: Vector2i = choices[0]
 	var previous: Vector2i = choices.back()
+	if domain in [&"road",&"highway"] and not _ramp_way(previous,cell,next) and _ramp_way(next,cell,previous):
+		next = choices.back()
+		previous = choices[0]
 	for actor in actors:
 		if domain != &"air" and actor.cell == cell and actor.type == (&"pedestrian" if kind == &"pedestrian" else domain) and absf(float(actor.t)-.5) < FOLLOW_GAP: return {}
 	var record := {"id":_next_id,"type":&"pedestrian" if kind == &"pedestrian" else domain,"kind":kind,"domain":domain,"cell":cell,"previous":previous,"next":next,"lane":0,"t":.5,"variant":variant,"turns":0,"side":1.0,"speed":.09 if kind == &"pedestrian" else .6 if domain == &"water" else 1.2 if domain == &"rail" else 1.05,"length":CityTrafficCatalog.dimensions(kind).z,"stopped":true,"mod_owner":owner,"mod_hold":true,"mod_phase":0.0}

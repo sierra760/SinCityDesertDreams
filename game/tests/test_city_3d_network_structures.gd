@@ -122,9 +122,10 @@ func test_ramps_reach_their_road_and_highway_edges_for_both_axes() -> void:
 			layer.free()
 
 
-func test_ramps_match_full_road_pavement_and_shoulder_width_throughout() -> void:
+func test_ramps_carry_one_lane_with_shoulders_across_the_road_footprint() -> void:
 	var city := flat_city()
 	var pairs := [[Vector2.RIGHT,Vector2.UP],[Vector2.LEFT,Vector2.UP],[Vector2.LEFT,Vector2.DOWN],[Vector2.RIGHT,Vector2.DOWN]]
+	var lane := CityNetworks3D.RAMP_LANE_WIDTH*.5
 	for axis: bool in [false,true]:
 		for index: int in 4:
 			city.flags.put(10,10,RotationMapper.AXIS_FLAG if axis else 0)
@@ -136,20 +137,31 @@ func test_ramps_match_full_road_pavement_and_shoulder_width_throughout() -> void
 			var pivot := Vector2(10.5,10.5)+(road+high)*.5
 			var layer := CityNetworks3D.new()
 			layer._ramp(city,Vector2i(10,10),93+index)
-			var missing_pavement := 0
-			var excess_pavement := 0
-			var missing_shoulder := 0
+			var missing := {"lane":0,"shoulder":0,"edge":0,"line":0}
+			var excess := {"lane":0,"shoulder":0,"center":0}
 			for step: int in 33:
 				var radial := (-high).rotated((-high).angle_to(-road)*step/32.0)
-				for across: float in [-.299,.299]:
-					if is_nan(surface_y(layer,pivot+radial*(.5+across),PAVEMENT)): missing_pavement += 1
+				var at := func(across: float) -> Vector2: return pivot+radial*(.5+across)
+				for across: float in [-lane+.01,0.0,lane-.01]:
+					if is_nan(surface_y(layer,at.call(across),PAVEMENT)): missing["lane"] += 1
+				for across: float in [-lane-.01,lane+.01]:
+					if not is_nan(surface_y(layer,at.call(across),PAVEMENT)): excess["lane"] += 1
+				for across: float in [-.299,-lane-.01,lane+.01,.299]:
+					if is_nan(surface_y(layer,at.call(across),CityNetworks3D.RAMP_SHOULDER)): missing["shoulder"] += 1
 				for across: float in [-.302,.302]:
-					if not is_nan(surface_y(layer,pivot+radial*(.5+across),PAVEMENT)): excess_pavement += 1
+					if not is_nan(surface_y(layer,at.call(across),CityNetworks3D.RAMP_SHOULDER)): excess["shoulder"] += 1
 				for across: float in [-.335,.335]:
-					if is_nan(surface_y(layer,pivot+radial*(.5+across),Color(.74,.72,.65))): missing_shoulder += 1
-			check_eq(missing_pavement,0,"full .60-tile road width at both mouths and every curve section")
-			check_eq(excess_pavement,0,"pavement keeps the ordinary road's exact width")
-			check_eq(missing_shoulder,0,"both shoulders match the road's .675-tile footprint")
+					if is_nan(surface_y(layer,at.call(across),Color(.74,.72,.65))): missing["edge"] += 1
+				for across: float in [-lane,lane]:
+					if is_nan(surface_y(layer,at.call(across),CityNetworks3D.HIGHWAY_LANE_DIVIDER)): missing["line"] += 1
+				if not is_nan(surface_y(layer,at.call(0.0),CityNetworks3D.HIGHWAY_LANE_DIVIDER)) or not is_nan(surface_y(layer,at.call(0.0),Color(0.86,0.72,0.36))): excess["center"] += 1
+			check_eq(missing["lane"],0,"one travel lane at both mouths and every curve section")
+			check_eq(excess["lane"],0,"the travel lane is no wider than one lane")
+			check_eq(missing["shoulder"],0,"a paved shoulder either side of the lane out to the road's .60-tile width")
+			check_eq(excess["shoulder"],0,"pavement keeps the ordinary road's exact width")
+			check_eq(missing["edge"],0,"both concrete edges match the road's .675-tile footprint")
+			check_eq(missing["line"],0,"a solid white line marks each lane edge")
+			check_eq(excess["center"],0,"no center line on a one-lane ramp")
 			layer.free()
 
 

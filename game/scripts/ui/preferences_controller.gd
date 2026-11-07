@@ -78,8 +78,6 @@ func set_option(key: StringName, value: Variant) -> void:
 			if _host.cloud_saves != null: _host.cloud_saves.coordinator.set_enabled(enabled and _host.cloud_saves.coordinator.supported())
 		&"pause_in_background":
 			set_value("pause_in_background",bool(value))
-		&"offer_ramps":
-			set_value("offer_ramps",bool(value))
 		&"music_enabled", &"effects_enabled", &"music_volume", &"effects_volume":
 			var settings := _host.preferences.duplicate()
 			settings[String(key)] = value
@@ -129,7 +127,6 @@ func option_values() -> Dictionary:
 		"explore_invert_y": preferences.get("explore_invert_y",false),
 		"water_animation": preferences.get("water_animation",true),
 		"pause_in_background": preferences.get("pause_in_background",true),
-		"offer_ramps": preferences.get("offer_ramps",true),
 		"music_enabled": preferences.get("music_enabled",true),
 		"effects_enabled": preferences.get("effects_enabled",true),
 		"music_volume": preferences.get("music_volume",0.8),

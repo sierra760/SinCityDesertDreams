@@ -26,10 +26,11 @@ func _city() -> Dictionary:
 		city.building.put(21, y, NetworkShapes.HIGHWAY_NS)
 	var exits := {20: "Flamingo Road", 40: "Tropicana Avenue", 75: "Russell Road"}
 	for row: int in exits:
-		city.building.put(19, row, 95)
+		# One-way ramps: an exit sits before (north of) its road.
+		city.building.put(19, row, 96)
 		city.flags.put(19, row, RotationMapper.AXIS_FLAG)
-		_road(city, Vector2i(19, row-1), Vector2i(19, row-3))
-		names[Topology.link_key(Vector2i(19, row-1), &"open", Vector2i(19, row-2), &"open")] = exits[row]
+		_road(city, Vector2i(19, row+1), Vector2i(19, row+3))
+		names[Topology.link_key(Vector2i(19, row+1), &"open", Vector2i(19, row+2), &"open")] = exits[row]
 	# Houses lining both sides of the highway.
 	for y: int in range(4, 98):
 		for x: int in [17, 18, 22, 23]:

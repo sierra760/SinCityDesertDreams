@@ -223,11 +223,9 @@ func _prompt_neighbor(neighbor: Dictionary, tool: int, ramp_tiles: Array = [], t
 ## highway is asked about like any other (Skip All declines every site at
 ## once); sites skipped before are not asked about again, and a treasury that
 ## cannot pay for one ramp gets a status line instead of a question.
-## Settings → General can turn the offer off.
+## The offer is always made; there is no setting to turn it off.
 func _offer_onramp(built: Array, toward: Vector2i, tool: int = Tools.Kind.ROAD, _from := Vector2i(-1, -1)) -> void:
 	if _host.builder == null or _host.choice_dialog == null or _host.choice_dialog.is_open():
-		return
-	if not bool(_host.preferences.get("offer_ramps", true)):
 		return
 	var city := _host.sim.city
 	_bind_declines(city)

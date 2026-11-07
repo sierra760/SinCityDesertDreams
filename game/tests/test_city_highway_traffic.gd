@@ -115,8 +115,34 @@ func test_real_side_ramp_merges_in_carriageway_direction() -> void:
 	check(graph.neighbors(high,&"highway").has(ramp),"ramp connection reciprocal")
 	check_eq(graph.traffic_choices(high,&"highway",ramp,1),[high+Vector2i.DOWN],"joining car uses the outside lane facing with traffic")
 	check(graph.traffic_choices(high,&"highway",ramp,0).is_empty(),"ramp cannot cut straight across to median lane")
-	check(graph.traffic_choices(high,&"highway",high+Vector2i.UP,1).has(ramp),"outer lane permits exit ramp")
+	# Past the road in the carriageway's direction (south here): an entrance.
+	check_eq(graph.ramp_flow(ramp),[low,high],"a ramp past the road is an entrance")
+	check(graph.traffic_choices(low,&"road",low+Vector2i.UP,0).has(ramp),"the road leads onto the entrance")
+	check_eq(graph.traffic_choices(ramp,&"road",low,0),[high],"the entrance leads only onto the highway")
+	check(not graph.traffic_choices(high,&"highway",high+Vector2i.UP,1).has(ramp),"highway traffic never leaves by an entrance")
+	check(not graph.traffic_choices(ramp,&"highway",high,1).has(low),"nothing drives down an entrance")
+
+func test_a_ramp_before_the_road_is_an_exit() -> void:
+	var city := _highway_city()
+	# Road below the ramp, highway to its east: before the road for the
+	# southbound carriageway, so traffic leaves the highway here.
+	var ramp := Vector2i(19,24)
+	city.building.putv(ramp,Buildings.ONRAMP_FIRST+3)
+	city.flags.putv(ramp,RotationMapper.AXIS_FLAG)
+	var ends := NetworkShapes.onramp_endpoints(Buildings.ONRAMP_FIRST+3,true)
+	var low := ramp+Vector2i(ends[0])
+	var high := ramp+Vector2i(ends[1])
+	check_eq(low,Vector2i(19,25))
+	check_eq(high,Vector2i(20,24))
+	city.building.putv(low,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,5))
+	var graph := CityTrafficGraph.new()
+	graph.bind_city(city)
+	check(graph.neighbors(high,&"highway").has(ramp),"the exit stays connected")
+	check_eq(graph.ramp_flow(ramp),[high,low],"a ramp before the road is an exit")
+	check(graph.traffic_choices(high,&"highway",high+Vector2i.UP,1).has(ramp),"outer lane permits the exit")
 	check(not graph.traffic_choices(high,&"highway",high+Vector2i.UP,0).has(ramp),"inner lane cannot cut across outer lane")
+	check_eq(graph.traffic_choices(ramp,&"highway",high,1),[low],"the exit leads only onto the road")
+	check(not graph.traffic_choices(low,&"road",low+Vector2i.DOWN,0).has(ramp),"the road never leads up an exit")
 
 func test_lane_following_is_separate_and_claim_release_retains_direction() -> void:
 	var traffic := CityTraffic3D.new()

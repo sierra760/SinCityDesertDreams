@@ -157,13 +157,6 @@ func _build() -> void:
 	var mayor_hint := UIFactory.make_label("Used in your welcome and new cities. Changing it here also updates the open city.", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
 	mayor_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(mayor_hint)
-	var ramps_check := CheckBox.new()
-	ramps_check.text = "Ask about highway ramps"
-	ramps_check.custom_minimum_size.y = 44
-	ramps_check.tooltip_text = "After a road or highway meets a highway, ask whether to add ramps there."
-	ramps_check.toggled.connect(func(on: bool) -> void: _changed(&"offer_ramps",on))
-	checks[&"offer_ramps"] = ramps_check
-	body.add_child(ramps_check)
 	body.add_child(UIFactory.make_section_header("Explore"))
 	mods_button = UIFactory.make_button("Explore Mods")
 	mods_button.name = "ExploreMods"

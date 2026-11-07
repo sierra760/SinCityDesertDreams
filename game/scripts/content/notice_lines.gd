@@ -95,19 +95,19 @@ const PROMPTS: Dictionary = {
 	},
 	&"onramp": {
 		"title": "Add a Highway Ramp?",
-		"body": "This road now meets the highway. Add a Highway Ramp for {cost} so traffic can get on and off? The highlighted tile marks the spot.",
+		"body": "This road now meets the highway. Add a Highway Ramp for {cost}? Ramps run one way with the highway: one past the road lets traffic on, one before it lets traffic off. The highlighted tile marks the spot.",
 	},
 	&"onramp_highway": {
 		"title": "Add a Highway Ramp?",
-		"body": "The new highway passes this road. Add a Highway Ramp for {cost} so traffic can get on and off? The highlighted tile marks the spot.",
+		"body": "The new highway passes this road. Add a Highway Ramp for {cost}? Ramps run one way with the highway: one past the road lets traffic on, one before it lets traffic off. The highlighted tile marks the spot.",
 	},
 	&"onramp_batch": {
 		"title": "Add Highway Ramps?",
-		"body": "Add on-ramps where this road meets the highway? {count} sites · {cost} total. Every site is highlighted on the map.",
+		"body": "Add on-ramps where this road meets the highway? {count} sites · {cost} total. Every site is highlighted on the map. Ramps run one way with the highway: past the road they let traffic on, before it they let traffic off.",
 	},
 	&"onramp_batch_highway": {
 		"title": "Add Highway Ramps?",
-		"body": "Add on-ramps where the new highway meets the roads? {count} sites · {cost} total. Every site is highlighted on the map.",
+		"body": "Add on-ramps where the new highway meets the roads? {count} sites · {cost} total. Every site is highlighted on the map. Ramps run one way with the highway: past a road they let traffic on, before it they let traffic off.",
 	},
 }
 

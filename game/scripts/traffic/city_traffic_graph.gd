@@ -346,6 +346,9 @@ func _entry(domain: StringName, cell: Vector2i) -> Dictionary:
 
 func traffic_choices(cell: Vector2i, domain: StringName, previous: Vector2i, lane: int) -> Array[Vector2i]:
 	var connected := neighbors(cell,domain)
+	if domain == &"road" or domain == &"highway":
+		for i: int in range(connected.size() - 1, -1, -1):
+			if not ramp_allows(cell, connected[i]): connected.remove_at(i)
 	if domain != &"highway" or not highways.routes.has(cell): return connected
 	if is_ramp(previous) and lane != 1: return []
 	var out: Array[Vector2i] = []
@@ -439,6 +442,36 @@ func nearest_cell(position: Vector3, domain: StringName, max_distance: float = 8
 
 func is_ramp(cell: Vector2i) -> bool:
 	return _entry(&"road", cell).has("ramp")
+
+## A ramp carries traffic one way, set by where it sits beside the crossroad,
+## as in a diamond interchange: past the road in the direction its carriageway
+## flows it is an entrance (road onto highway); before the road it is an exit
+## (highway onto road). Returns [from, to], or empty when `cell` is not a ramp
+## or its highway tile is not a straight carriageway with a known direction
+## (such a ramp keeps both directions).
+func ramp_flow(cell: Vector2i) -> Array:
+	var entry := _entry(&"road", cell)
+	if not entry.has("ramp"): return []
+	var road: Vector2i = cell + Vector2i(entry.ramp[0])
+	var high: Vector2i = cell + Vector2i(entry.ramp[1])
+	var along: Vector2i = Vector2i(entry.ramp[0])
+	for segment: Dictionary in highways.routes.get(high, []):
+		if segment.has("radius"): continue
+		var flow: Vector2i = (Vector2i(segment.next) - Vector2i(segment.previous)) / 2
+		if flow == -along: return [road, high]
+		if flow == along: return [high, road]
+	return []
+
+## Whether traffic may move from `from` to the adjacent `to` as far as ramps
+## are concerned: onto a ramp only from its source, off it only to its target.
+func ramp_allows(from: Vector2i, to: Vector2i) -> bool:
+	if is_ramp(to):
+		var flow := ramp_flow(to)
+		if not flow.is_empty() and flow[0] != from: return false
+	if is_ramp(from):
+		var flow := ramp_flow(from)
+		if not flow.is_empty() and flow[1] != to: return false
+	return true
 
 func allows_pedestrians(cell: Vector2i) -> bool:
 	return has_cell(cell,&"road") and not is_upper_road(cell) and not is_ramp(cell)

@@ -32,18 +32,21 @@ static func junction() -> Dictionary:
 	return f
 ## Synthetic layers declare highway carriageways and ramp shape, since normal
 ## builder drag reshapes neighboring blocks. Ordinary road uses Builder.
+## Ramps are one way: this west-side ramp sits before (north of) its road on
+## the southbound carriageway, so it is an exit. `incoming_only` starts the
+## highway at the ramp, leaving no traffic to take it.
 static func exit_city(length: int = 3, incoming_only: bool = false) -> Dictionary:
 	var city := Case.flat_city()
-	for y: int in range(18 if not incoming_only else 20,25):
+	for y: int in range(17 if not incoming_only else 19,22):
 		city.building.put(20,y,NetworkShapes.HIGHWAY_NS)
 		city.building.put(21,y,NetworkShapes.HIGHWAY_NS)
-	city.building.put(19,20,95)
-	city.flags.put(19,20,RotationMapper.AXIS_FLAG)
-	road(city, Vector2i(19,19), Vector2i(19,19-length))
-	road(city, Vector2i(17,19-length), Vector2i(21,19-length))
+	city.building.put(19,19,96)
+	city.flags.put(19,19,RotationMapper.AXIS_FLAG)
+	road(city, Vector2i(19,20), Vector2i(19,20+length))
+	road(city, Vector2i(17,20+length), Vector2i(21,20+length))
 	var f := from_city(city)
-	f.road = Vector2i(19,19)
-	f.junction = Vector2i(19,19-length)
+	f.road = Vector2i(19,20)
+	f.junction = Vector2i(19,20+length)
 	f.named = Topology.link_key(f.junction,&"open",f.junction+Vector2i.LEFT,&"open")
 	return f
 

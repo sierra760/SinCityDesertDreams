@@ -78,7 +78,11 @@ written back into the city.
 
 Paired four-lane highways have two lanes in each direction, with white dividers
 between same-direction lanes. Traffic follows the actual pavement and
-uses the shoulder lane for ramp merges and exits. Unpaired incomplete highway
+uses the shoulder lane for ramp merges and exits. Each ramp is one way, set by
+where it sits beside its crossroad as in a diamond interchange: a ramp past the
+road in the direction its carriageway flows is an entrance (road onto
+highway), one before the road is an exit (highway onto road). A ramp beside a
+carriageway with no known direction keeps both. Unpaired incomplete highway
 fragments fall back to two-way traffic. Routine changes to power, demand and
 congestion refresh traffic without rebuilding unchanged routes.
 

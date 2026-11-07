@@ -280,6 +280,8 @@ func test_ramp_prompts_say_highway_ramp_and_follow_the_tool() -> void:
 	check_eq(road["title"], "Add a Highway Ramp?")
 	check(String(road["body"]).begins_with("This road now meets the highway."), road["body"])
 	check(String(road["body"]).contains("$25"), road["body"])
+	check(String(road["body"]).contains("one way"), "the prompt says ramps run one way")
+	check(not String(road["body"]).contains("on and off"), "a single ramp no longer promises both directions")
 	var highway := NoticeLines.render(&"onramp_highway", {"cost": 25}, "Dry Gulch", "Ada", 2000)
 	check(String(highway["body"]).begins_with("The new highway passes this road."), highway["body"])
 	var batch := NoticeLines.render(&"onramp_batch", {"count": 3, "cost": 75}, "Dry Gulch", "Ada", 2000)

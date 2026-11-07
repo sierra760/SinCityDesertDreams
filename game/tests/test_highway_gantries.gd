@@ -9,8 +9,9 @@ const Topology := preload("res://scripts/core/naming/street_topology.gd")
 const SIGNS := "res://assets/street-name-signs/"
 
 ## A long southbound/northbound highway pair (x=20,21) with three west-side
-## exits from the southbound carriageway at the given rows, each feeding a
-## short named road. Optional developed lots line both sides.
+## exits from the southbound carriageway at the given rows, each before
+## (north of) the short named road it feeds, since ramps are one way.
+## Optional developed lots line both sides.
 static func _highway(exits: Array[int], lined: bool = false) -> Dictionary:
 	var city := flat_city()
 	for y: int in range(2, 100):
@@ -18,10 +19,10 @@ static func _highway(exits: Array[int], lined: bool = false) -> Dictionary:
 		city.building.put(21, y, NetworkShapes.HIGHWAY_NS)
 	var links: Array[String] = []
 	for row: int in exits:
-		city.building.put(19, row, 95)
+		city.building.put(19, row, 96)
 		city.flags.put(19, row, RotationMapper.AXIS_FLAG)
-		Fixtures.road(city, Vector2i(19, row-1), Vector2i(19, row-3))
-		links.append(Topology.link_key(Vector2i(19, row-1), &"open", Vector2i(19, row-2), &"open"))
+		Fixtures.road(city, Vector2i(19, row+1), Vector2i(19, row+3))
+		links.append(Topology.link_key(Vector2i(19, row+1), &"open", Vector2i(19, row+2), &"open"))
 	if lined:
 		for y: int in range(2, 100):
 			for x: int in [18, 19, 22, 23]:
@@ -71,7 +72,7 @@ func test_exit_gantry_spans_its_own_carriageway_tile() -> void:
 		check_eq(gantry.get_meta("arrow"), "→", "ramp is on the travel-right side")
 		var support: Dictionary = gantry.get_meta("support")
 		var cell: Vector2i = support.highway_cell
-		check(cell in [Vector2i(20, 18), Vector2i(20, 19)], "one or two tiles before the exit")
+		check(cell in [Vector2i(20, 17), Vector2i(20, 18)], "one or two tiles before the exit")
 		_check_gantry(gantry, cell, f.topology.traffic_graph())
 	_dispose(s)
 

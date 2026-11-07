@@ -27,8 +27,8 @@ func test_true_exit_direction_connector_limit_and_pair_dedup() -> void:
 			check_eq(sign_node.get_meta("travel_direction"),Vector2i.DOWN)
 			check(sign_node.basis.z.dot(Vector3.FORWARD)>.999,"front faces incoming northward viewer")
 			check_eq(sign_node.get_meta("arrow"),"→","west ramp is driver's right travelling south")
-			check_lt(sign_node.position.z,20.0,"upstream before mouth")
-			check_eq(sign_node.get_meta("support").highway_cell,Vector2i(20,18),"two real highway connections upstream")
+			check_lt(sign_node.position.z,19.0,"upstream before mouth")
+			check_eq(sign_node.get_meta("support").highway_cell,Vector2i(20,17),"two real highway connections upstream")
 		_dispose(s)
 
 func test_named_connector_precedence_first_junction_stop_and_incoming_only() -> void:
@@ -39,7 +39,7 @@ func test_named_connector_precedence_first_junction_stop_and_incoming_only() -> 
 	_assign(s,f,beyond,"Too Far Avenue")
 	check_eq(exit_names_at(s.layer),[],"first unnamed junction ends search")
 	_assign(s,f,f.named,"Fremont Street")
-	var first:=StreetTopology.link_key(f.road,&"open",f.road+Vector2i.UP,&"open")
+	var first:=StreetTopology.link_key(f.road,&"open",f.road+Vector2i.DOWN,&"open")
 	_assign(s,f,first,"Connector Road")
 	check_eq(exit_names_at(s.layer),["Connector Road"])
 	_dispose(s)
@@ -52,14 +52,14 @@ func test_named_connector_precedence_first_junction_stop_and_incoming_only() -> 
 func test_disconnected_overpass_and_short_upstream_fallback() -> void:
 	if not _available(): return
 	var f:=Fixtures.exit_city()
-	for x: int in [20,21]: f.city.building.put(x,18,0)
+	for x: int in [20,21]: f.city.building.put(x,17,0)
 	f.topology.rebuild(f.city)
 	var s:=_layer(f)
 	_assign(s,f,f.named,"Palm Avenue")
 	check_eq(exit_names_at(s.layer),["Palm Avenue"])
 	for sign_node: Node in _signs(s.layer,"exit"):
-		check_eq(sign_node.get_meta("support").highway_cell,Vector2i(20,19))
-	f.city.building.put(19,19,0)
+		check_eq(sign_node.get_meta("support").highway_cell,Vector2i(20,18))
+	f.city.building.put(f.road.x,f.road.y,0)
 	f.topology.rebuild(f.city)
 	s.layer.refresh()
 	check_eq(exit_names_at(s.layer),[])
@@ -107,7 +107,7 @@ func test_unsupported_upstream_water_falls_back_to_supported_mouth() -> void:
 	var f:=Fixtures.exit_city()
 	# A declared wet outer bank excludes both upstream posts, while the ramp
 	# mouth has a dry outside corner. No replacement road/bridge geometry.
-	for y: int in [18,19]:
+	for y: int in [17,18]:
 		f.city.terrain.put(18,y,Terrain.SUBMERGED)
 		for x: int in [20,21]: f.city.terrain.put(x,y,Terrain.SUBMERGED)
 	f.topology.rebuild(f.city)
@@ -116,7 +116,7 @@ func test_unsupported_upstream_water_falls_back_to_supported_mouth() -> void:
 	check_eq(exit_names_at(s.layer),["Palm Avenue"])
 	check_eq(s.layer.diagnostics.size(),0)
 	for assembly: Node in _signs(s.layer,"exit"):
-		check_eq(assembly.get_meta("support").highway_cell,Vector2i(20,20),"unsafe earlier candidates fall through to dry mouth")
+		check_eq(assembly.get_meta("support").highway_cell,Vector2i(20,19),"unsafe earlier candidates fall through to dry mouth")
 	_dispose(s)
 
 func test_sloped_highway_samples_actual_longitudinal_shoulder_height() -> void:
@@ -124,7 +124,7 @@ func test_sloped_highway_samples_actual_longitudinal_shoulder_height() -> void:
 	var f:=Fixtures.exit_city()
 	# Raised highway row creates an actual longitudinal resolved approach;
 	# outer bank remains dry and locally level for the measured post shoes.
-	for x: int in [20,21]: f.city.set_heights(x,19,5,0)
+	for x: int in [20,21]: f.city.set_heights(x,18,5,0)
 	f.topology.rebuild(f.city)
 	var s:=_layer(f)
 	_assign(s,f,f.named,"Palm Avenue")

@@ -103,6 +103,12 @@ const PortalProfile := preload("res://scripts/view/city_portal_3d.gd")
 const HighwayHeight := preload("res://scripts/view/city_highway_height_3d.gd")
 const HIGHWAY_LANE_DIVIDER := Color(0.94, 0.94, 0.90)
 const ROAD_WIDTH := 0.60
+## A ramp is one-way and carries a single lane: RAMP_LANE_WIDTH of travel lane
+## centred in the road-width pavement, paved shoulders either side of it,
+## each lane edge marked by a solid white line.
+const RAMP_LANE_WIDTH := 0.40
+const RAMP_EDGE_LINE := 0.016
+const RAMP_SHOULDER := Color(0.47, 0.49, 0.50)
 ## Distribution poles at Explore scale (1 tile = 16 m): about 6.7 m to the
 ## wire over their own surface, a 0.38 m timber pole and a thin conductor.
 ## Highway crossings lift the same clearance above the elevated deck.
@@ -1442,15 +1448,15 @@ func _ramp(city: City, cell: Vector2i, code: int) -> void:
 		radials[i] = (-high).rotated(sweep * (i/128.0))
 	var columns: Dictionary = {}
 	for surface: int in 3:
-		var color: Color = [Color(0.74, 0.72, 0.65), Color(0.34, 0.38, 0.40), Color(0.86, 0.72, 0.36)][surface]
+		var color: Color = [Color(0.74, 0.72, 0.65), Color(0.34, 0.38, 0.40), HIGHWAY_LANE_DIVIDER][surface]
 		var lift: float = [-0.008, 0.0, 0.006][surface]
 		# The dense grid is visible only; _ramp_floor records collision.
 		var role := PhysicalRole.DETAIL
 		# Preserve the full adjoining road width through both mouths and turn.
-		var width := 0.022 if surface == 2 else ROAD_WIDTH + (0.075 if surface == 0 else 0.0)
+		var width := ROAD_WIDTH + (0.075 if surface == 0 else 0.0)
 		# Emit only the exposed shoulder strips: no dense overlapping layer
 		# under the pavement for the physical resolver to partition.
-		var bands := 24 if surface==1 else 2 if surface==0 else 1
+		var bands := 24 if surface==1 else 2
 		var lows: Array[Array] = []
 		var highs: Array[Array] = []
 		for band: int in bands:
@@ -1459,12 +1465,20 @@ func _ramp(city: City, cell: Vector2i, code: int) -> void:
 			if surface==0:
 				lo = -width*.5 if band==0 else ROAD_WIDTH*.5
 				hi = -ROAD_WIDTH*.5 if band==0 else width*.5
+			elif surface==2:
+				# A solid white edge line along each side of the single lane.
+				var edge := RAMP_LANE_WIDTH*.5*(-1.0 if band==0 else 1.0)
+				lo = edge-RAMP_EDGE_LINE*.5
+				hi = edge+RAMP_EDGE_LINE*.5
 			lows.append(_ramp_column(columns, city, cell, road, high, pivot, radials, stencil, lo))
 			highs.append(_ramp_column(columns, city, cell, road, high, pivot, radials, stencil, hi))
 		for i: int in 128:
-			if surface == 2 and i%16>7:
-				continue
 			for band: int in bands:
+				# One travel lane between paved shoulders: the pavement bands
+				# outside the lane take the shoulder's lighter asphalt.
+				if surface == 1:
+					var middle := -width*.5+width*(band+.5)/bands
+					color = RAMP_SHOULDER if absf(middle) > RAMP_LANE_WIDTH*.5 else Color(0.34, 0.38, 0.40)
 				var lo_offsets: PackedVector2Array = lows[band][0]
 				var lo_heights: PackedFloat64Array = lows[band][1]
 				var hi_offsets: PackedVector2Array = highs[band][0]

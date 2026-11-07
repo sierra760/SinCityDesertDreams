@@ -139,7 +139,7 @@ func test_exit_connector_stops_at_first_junction_and_eight_links() -> void:
 		check_eq(f.topology.exit_destination(exits[0],{f.named:9}),[9] if length<=8 else [],"bounded unnamed connector")
 		check_eq(exits[0].direction,Vector2i.DOWN,"actual departure carriageway")
 		check(exits[0].upstream_points.size()>=3,"two actual highway connections upstream")
-		var first := Topology.link_key(f.road,&"open",f.road+Vector2i.UP,&"open")
+		var first := Topology.link_key(f.road,&"open",f.road+Vector2i.DOWN,&"open")
 		check_eq(f.topology.exit_destination(exits[0],{first:4,f.named:9}),[4],"named connector wins")
 		var beyond := Topology.link_key(f.junction+Vector2i.LEFT,&"open",f.junction+Vector2i.LEFT*2,&"open")
 		check_eq(f.topology.exit_destination(exits[0],{beyond:5}),[],"do not search beyond first unnamed junction")
@@ -153,8 +153,8 @@ func test_exit_intersection_names_and_incoming_only_or_disconnected_ramp() -> vo
 		check_eq(f.topology.exit_destination(exits[0],{f.named:9,east:3}),[3,9],"canonical directional order east then west")
 		check_eq(f.topology.exit_destination(exits[0],{f.named:9,east:9}),[9],"deduplicate one named identity")
 	var incoming := Fixtures.exit_city(3,true)
-	check(incoming.topology.exit_approaches().is_empty(),"no incoming highway predecessor means entrance-only")
-	f.city.building.put(19,19,0)
+	check(incoming.topology.exit_approaches().is_empty(),"no incoming highway predecessor means no exit traffic")
+	f.city.building.put(f.road.x,f.road.y,0)
 	f.topology.rebuild(f.city)
 	check(f.topology.exit_approaches().is_empty(),"disconnected road mouth cannot make exit")
 
@@ -176,7 +176,7 @@ func test_ramp_boundaries_and_exit_changes_invalidate_revision_without_pruning_l
 	var original: Array = []
 	for segment: Dictionary in f.topology.segments({}): original.append_array(segment.links)
 	revision = f.topology.revision
-	for y: int in [18,19]:
+	for y: int in [17,18]:
 		for x: int in [20,21]: f.city.building.put(x,y,NetworkShapes.HIGHWAY_NS)
 	check(f.topology.rebuild(f.city),"new usable departure invalidates derived exit topology")
 	check_gt(f.topology.revision,revision)

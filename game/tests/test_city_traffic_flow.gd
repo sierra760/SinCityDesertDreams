@@ -170,15 +170,19 @@ func test_ramp_up_and_down_traffic_cannot_deadlock() -> void:
 	city.flags.putv(ramp, RotationMapper.AXIS_FLAG)
 	for y: int in range(12, 20): city.building.put(19, y, _road(5))
 	var up := _car(1, ramp, Vector2i(19,19), Vector2i(20,20), .99)
-	var down := _car(2, Vector2i(20,20), Vector2i(20,19), ramp, .99, &"highway")
+	# The ramp is an entrance: highway traffic passes it rather than taking it.
+	var down := _car(2, Vector2i(20,20), Vector2i(20,19), Vector2i(20,21), .99, &"highway")
 	down.lane = 1
 	var queued := _car(3, Vector2i(20,19), Vector2i(20,18), Vector2i(20,20), .8, &"highway")
 	queued.lane = 1
 	queued.stopped = true
 	var traffic := _traffic(city, [up, down, queued])
-	for i: int in 240: traffic._step(TICK)
+	var down_took_ramp := false
+	for i: int in 240:
+		traffic._step(TICK)
+		if down.cell == ramp: down_took_ramp = true
 	check_eq(up.domain, &"highway", "the ramp vehicle merges past stopped traffic")
-	check(down.cell == ramp or down.domain == &"road", "the exiting vehicle takes the ramp")
+	check(not down_took_ramp, "highway traffic does not drive down an entrance")
 	check_eq(traffic.actors.size(), 3, "nothing had to be removed")
 	traffic.free()
 

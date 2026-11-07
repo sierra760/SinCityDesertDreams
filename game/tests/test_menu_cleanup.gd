@@ -26,7 +26,7 @@ func test_navigation_groups_retain_actions_and_popup_suspension() -> void:
 
 func test_options_has_one_home_for_each_preference() -> void:
 	var options := OptionsWindow.new()
-	check_eq(options.checks.keys(),[&"icloud_saves",&"offer_ramps",&"pause_in_background",&"fullscreen",&"tile_grid",&"water_animation",&"music_enabled",&"effects_enabled"])
+	check_eq(options.checks.keys(),[&"icloud_saves",&"pause_in_background",&"fullscreen",&"tile_grid",&"water_animation",&"music_enabled",&"effects_enabled"])
 	check(not options.checks[&"icloud_saves"].visible,"sync preference starts hidden until supported")
 	options.set_sync_status({"supported":true,"state":"pending"})
 	check(options.checks[&"icloud_saves"].visible,"supported platforms expose the sync preference")

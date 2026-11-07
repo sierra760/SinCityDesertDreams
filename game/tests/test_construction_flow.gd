@@ -427,20 +427,18 @@ func test_unaffordable_ramps_are_not_asked_and_are_offered_again_with_money() ->
 	check_eq(host.modal_depth, 0)
 
 
-func test_the_ramp_offer_can_be_turned_off_in_settings() -> void:
+func test_the_ramp_offer_is_always_made() -> void:
 	var city := _host_city()
-	check(bool(host.prefs.option_values().get("offer_ramps", false)), "offered by default")
-	check(ViewPreferences.DEFAULTS.get("offer_ramps", false), "the default is on")
-	check(not ViewPreferences.sanitize({"offer_ramps": false}).offer_ramps, "the choice is kept when read back")
-	host.prefs.set_option(&"offer_ramps", false)
+	check(not host.prefs.option_values().has("offer_ramps"), "no setting for the ramp offer")
+	check(not ViewPreferences.DEFAULTS.has("offer_ramps"), "no saved preference for it")
+	check(not ViewPreferences.sanitize({"offer_ramps": false}).has("offer_ramps"), "an older profile's choice is dropped")
+	# A profile saved when the offer could be turned off still gets the question.
+	host.preferences["offer_ramps"] = false
 	host.select_tool(Tools.Kind.HIGHWAY)
 	check(host.handle_drag(Vector2i(10, 10), Vector2i(21, 11))["applied"])
 	host.select_tool(Tools.Kind.ROAD)
 	check(host.handle_drag(Vector2i(19, 4), Vector2i(19, 9))["applied"])
-	check(not host.choice_dialog.is_open(), "no ramp question while the option is off")
-	host.prefs.set_option(&"offer_ramps", true)
-	host.handle_drag(Vector2i(18, 7), Vector2i(18, 8))
-	check(host.choice_dialog.is_open(), "offered again once it is back on")
+	check(host.choice_dialog.is_open(), "the ramp question is asked")
 	host.escape()
 	check_eq(city.building_at(18, 9), Buildings.NONE)
 
