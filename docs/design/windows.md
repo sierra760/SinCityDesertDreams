@@ -1,8 +1,8 @@
 # Windows
 
 The information windows under `game/scripts/ui/` are the mayor's reports:
-Budget, Tourism, Graphs, Population, Industries, Ordinances, Newspaper, City Maps and
-Neighbors. They read the simulation through `Simulation`, `CityStats` and the
+Budget, Tourism, Graphs, Population, Industries, Ordinances, Advisors, Newspaper,
+City Maps and Neighbors. They read the simulation through `Simulation`, `CityStats` and the
 system getters, write only the settings the player owns (tax rates, funding
 levels, sector taxes, ordinance switches, bonds, auto-budget) and never touch
 the map.
@@ -151,11 +151,23 @@ editing and naming retain their established behavior.
   the remaining stories and fillers in body size.
 - Previous / Next buttons walk `newspaper.archive()`; opening the window
   jumps to the latest issue.
-- Advisor panel: entries from `newspaper.advice()`, urgent ones in the
-  warning color.
+- Stories only; the advisors have their own window.
 - Helpers: `show_issue(index)`, `show_previous()`, `show_next()`,
   `current_index()`, `issue_count()`, `headline_text()`, `date_text()`,
-  `story_count()`, `advice_count()`.
+  `story_count()`.
+
+## Advisors (`AdvisorsWindow`)
+
+- Reports → Advisors. The current city's read-only assessment from
+  `newspaper.advice()`, in importance order: each entry's title (urgent ones
+  in the warning color) and its evidence-specific advice.
+- A note marks the readings as current; the dated Newspaper archive keeps the
+  historical `advisor_need` stories.
+- Empty states distinguish no city, no residents, early monthly reports and no
+  pressing problems.
+- Refreshes when a month or year ends while open; reading advice never changes
+  the city, saves or random numbers.
+- Helpers: `advice_count()`, `advice_text()`.
 
 ## City Maps (`CityMapsWindow`)
 

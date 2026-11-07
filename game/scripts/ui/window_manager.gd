@@ -8,6 +8,7 @@ class_name WindowManager
 extends RefCounted
 
 const SCRIPTS := {
+	"advisors": preload("res://scripts/ui/advisors_window.gd"),
 	"budget": preload("res://scripts/ui/budget_window.gd"),
 	"tourism": preload("res://scripts/ui/tourism_window.gd"),
 	"city_maps": preload("res://scripts/ui/city_maps_window.gd"),

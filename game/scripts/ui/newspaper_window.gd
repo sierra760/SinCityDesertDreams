@@ -3,7 +3,8 @@
 # See LICENSE and LICENSING.md in the repository root.
 
 ## Newspaper window: The Desert Dispatch, one issue at a time with the lead
-## story on top, the archive behind Previous and Next, and the advisors.
+## story on top and the archive behind Previous and Next. The advisors have
+## their own window (AdvisorsWindow).
 class_name NewspaperWindow
 extends Control
 
@@ -24,7 +25,6 @@ var _stories_box: VBoxContainer
 var _page_label: Label
 var _prev_button: Button
 var _next_button: Button
-var _advice_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -125,7 +125,6 @@ func refresh() -> void:
 				_stories_box.add_child(HSeparator.new())
 	_prev_button.disabled = shown <= 0
 	_next_button.disabled = shown < 0 or shown >= count - 1
-	_refresh_advice()
 
 
 # ── Public helpers ───────────────────────────────────────────────────────
@@ -181,10 +180,6 @@ func story_count() -> int:
 	return n / 2
 
 
-func advice_count() -> int:
-	return _advice_box.get_child_count() / 2
-
-
 # ── Building ─────────────────────────────────────────────────────────────
 
 func _build() -> void:
@@ -206,10 +201,6 @@ func _build() -> void:
 	masthead.add_child(HSeparator.new())
 	_body.add_child(masthead)
 
-	var columns := UIFactory.ResponsiveColumns.new()
-	columns.add_theme_constant_override("separation", UITheme.MARGIN)
-	_body.add_child(columns)
-
 	var page := VBoxContainer.new()
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_stories_box = VBoxContainer.new()
@@ -227,19 +218,7 @@ func _build() -> void:
 	_next_button.pressed.connect(show_next)
 	nav.add_child(_next_button)
 	page.add_child(nav)
-	columns.add_child(page)
-
-	var side := VBoxContainer.new()
-	side.custom_minimum_size = Vector2(220, 0)
-	side.add_child(UIFactory.make_section_header("Advisors"))
-	var advice_date := UIFactory.make_label("Current city · latest available readings", UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
-	advice_date.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	advice_date.custom_minimum_size.x = 210
-	side.add_child(advice_date)
-	_advice_box = VBoxContainer.new()
-	_advice_box.add_theme_constant_override("separation", 2)
-	side.add_child(_advice_box)
-	columns.add_child(side)
+	_body.add_child(page)
 
 
 # ── Refreshing ───────────────────────────────────────────────────────────
@@ -260,38 +239,6 @@ func _issues() -> Array:
 		return []
 	var kept: Array = paper.call("archive")
 	return kept
-
-
-func _refresh_advice() -> void:
-	_clear(_advice_box)
-	var paper := _newspaper()
-	var advice: Array = []
-	if paper != null:
-		advice = paper.call("advice")
-	if advice.is_empty():
-		var status := "Load a city to hear from the advisors."
-		if _has_city():
-			if _sim.stats.population == 0:
-				status = "No residents yet. Advice will follow as the town develops."
-			elif _sim.stats.history.is_empty():
-				status = "No warnings so far. Monthly reports are still building up."
-			else:
-				status = "No pressing problems detected. Keep an eye on Budget and the coverage maps."
-		var empty := UIFactory.make_label(status, UITheme.FONT_SMALL, UITheme.TEXT_MUTED)
-		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		empty.custom_minimum_size.x = 210
-		_advice_box.add_child(empty)
-		return
-	for entry in advice:
-		var rec: Dictionary = entry
-		var urgent := bool(rec.get("urgent", false))
-		var title := UIFactory.make_label(String(rec.get("title", "")), UITheme.FONT_BODY,
-			UITheme.MONEY_NEGATIVE if urgent else UITheme.HEADER)
-		_advice_box.add_child(title)
-		var text := UIFactory.make_label(String(rec.get("text", "")), UITheme.FONT_SMALL, UITheme.TEXT_PRIMARY)
-		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		text.custom_minimum_size = Vector2(210, 0)
-		_advice_box.add_child(text)
 
 
 static func _clear(container: Node) -> void:

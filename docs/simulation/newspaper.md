@@ -5,8 +5,8 @@
 The newspaper turns the happenings the other systems report into a monthly
 issue of *The Desert Dispatch*, with a lead story, a few smaller stories and
 human-interest fillers. Big news breaks as an extra edition the same day. The
-same system answers the advisor panel: a short, prioritized list of what the
-city is short of, written in the advisors' voice.
+same system answers the Advisors window (Reports → Advisors): a short,
+prioritized list of what the city is short of, written in the advisors' voice.
 
 ## Inputs
 
@@ -24,7 +24,7 @@ city is short of, written in the advisors' voice.
   grids using the actual service stamp rules.
 - Read-only transport, population, utility, budget, port and accepted tourism
   observations when their systems are present.
-- Written historical content: `NewsStories`, `AdvisorLines`. The sidebar uses
+- Written historical content: `NewsStories`, `AdvisorLines`. The Advisors window uses
   evidence-specific text in the advisor assessment modules.
 
 ## Outputs
@@ -138,7 +138,7 @@ An issue is a JSON-safe Dictionary:
   sufficient care. Available water-treatment readings supply a
   separate health action when treatment has been invented.
 - Transport uses actual attempts/completions and measured congestion. No
-  resident-to-transit-building quota remains in the sidebar. Job advice uses
+  resident-to-transit-building quota remains in the advice. Job advice uses
   the authoritative job total plus neighbor commuting, without adding farm,
   port or visitor jobs a second time. Aggregate sufficiency does not establish
   household access or rule out abandonment.
@@ -172,10 +172,10 @@ Only active emergencies and essential utility service loss are red. Each kind
 appears once; explanatory references between departments avoid prescribing
 another round of the same construction.
 
-Every panel refresh rechecks current construction, power and funding. Traffic,
+Every Advisors window refresh rechecks current construction, power and funding. Traffic,
 employment, health, supply and poll readings retain their simulation sampling
-schedule and are identified as measurements. The sidebar remains current when
-browsing an old issue; its caption explicitly separates it from the archive.
+schedule and are identified as measurements. The Advisors window is separate
+from the dated Newspaper archive; its caption identifies current readings.
 Empty states distinguish no city, no residents, early readings and a measured
 city without detected warnings.
 

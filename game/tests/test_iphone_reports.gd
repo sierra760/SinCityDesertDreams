@@ -15,7 +15,7 @@ func test_phone_report_bodies_fit_without_horizontal_scrolling() -> void:
 	root.size = Vector2i(375,667)
 	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(0,20,375,647))
 	await HostFixture.settle(self, 10)
-	for window_name in ["budget","tourism","graphs","population","industries","ordinances","newspaper","city_maps","neighbors","options","help","license"]:
+	for window_name in ["budget","tourism","graphs","population","industries","ordinances","advisors","newspaper","city_maps","neighbors","options","help","license"]:
 		var window := host.open_window(window_name)
 		await HostFixture.settle(self, 10)
 		var panel: Control = window.get("panel") if window_name in ["options","help","license"] else window.get("_root")

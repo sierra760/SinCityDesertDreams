@@ -22,10 +22,10 @@ const CAMERA_GUARD_POINTS := 220.0
 const CAMERA_VERTICAL_PADDING_POINTS := 8.0
 
 const WINDOW_NAMES: Array[String] = ["budget", "tourism", "graphs", "population", "industries",
-	"ordinances", "newspaper", "city_maps", "neighbors"]
+	"ordinances", "advisors", "newspaper", "city_maps", "neighbors"]
 const WINDOW_TITLES := {
 	"budget": "Budget", "tourism": "Tourism", "graphs": "Graphs", "population": "Population",
-	"industries": "Industries", "ordinances": "Ordinances", "newspaper": "Newspaper",
+	"industries": "Industries", "ordinances": "Ordinances", "advisors": "Advisors", "newspaper": "Newspaper",
 	"city_maps": "City Maps", "neighbors": "Neighbors",
 }
 const OVERLAY_TITLES := {

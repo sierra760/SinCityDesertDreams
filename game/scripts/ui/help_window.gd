@@ -58,6 +58,7 @@ const ROWS: Array = [
 	["#Where to find things"],
 	["Settings → Controls", "Change keyboard bindings, look sensitivity and vertical inversion. Play with keyboard and mouse or touch; game controllers are not supported."],
 	["Reports", "Review your budget, graphs, population, industries, ordinances, newspaper, maps and neighbors."],
+	["Reports → Advisors", "Hear what the city needs most right now, urgent problems first, with the evidence behind each recommendation and what to try."],
 	["View", "Choose zoom and overlays; show or hide traffic, labels and the minimap."],
 	["View → Vegetation Zones", "See your city's ground by elevation and set where desert palms give way to piñon-juniper woodland and then pines. Drag a boundary, switch zones on or off, or choose Automatic to follow the terrain."],
 	["Help → Secret Codes", "Try your luck in a founded city. DOUBLEDOWN bets a tenth of the virtual treasury; HIGHROLLER brings city funds and permits; MARKER adds simulated city debt; CHAPEL is just for fun."],

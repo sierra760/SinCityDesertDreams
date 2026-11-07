@@ -73,6 +73,7 @@ func _all_windows() -> Array[Control]:
 	out.append(IndustriesWindow.new())
 	out.append(OrdinancesWindow.new())
 	out.append(NewspaperWindow.new())
+	out.append(AdvisorsWindow.new())
 	out.append(CityMapsWindow.new())
 	out.append(NeighborsWindow.new())
 	return out
@@ -338,10 +339,36 @@ func test_newspaper_pages_through_the_archive() -> void:
 	check_eq(w.current_index(), 0)
 	w.show_previous()
 	check_eq(w.current_index(), 0, "cannot go before the first issue")
-	check_ge(w.advice_count(), 1, "advisor panel filled")
+	check(not w.has_method("advice_count"), "advisors moved to their own window")
+	for label: Label in w.find_children("*", "Label", true, false):
+		check(label.text != "Advisors", "newspaper has no advisor section")
 	var closed := [0]
 	w.closed.connect(func() -> void: closed[0] += 1)
 	w.close()
+	check_eq(closed[0], 1)
+
+
+# ── Advisors ─────────────────────────────────────────────────────────────
+
+func test_advisors_window_lists_current_advice() -> void:
+	var w: AdvisorsWindow = _mount(AdvisorsWindow.new())
+	w.bind(sim)
+	w.open()
+	var paper := sim.get_system(&"newspaper")
+	var advice: Array = paper.call("advice")
+	check_ge(w.advice_count(), 1, "advisor entries listed")
+	check_eq(w.advice_count(), advice.size(), "one entry per current advisor record")
+	var first: Dictionary = advice[0]
+	check(w.advice_text().contains(String(first["title"])), "first advisor title shown")
+	check(w.advice_text().contains(String(first["text"])), "first advisor advice shown")
+	w.bind(null)
+	check_eq(w.advice_count(), 0)
+	check(w.advice_text().contains("Load a city"), w.advice_text())
+	w.bind(sim)
+	var closed := [0]
+	w.closed.connect(func() -> void: closed[0] += 1)
+	w._unhandled_key_input(_escape())
+	check(not w.visible, "escape closes")
 	check_eq(closed[0], 1)
 
 
