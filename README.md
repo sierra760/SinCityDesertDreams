@@ -5,11 +5,23 @@ connect power and water, balance the budget, and guide a desert town through
 booms, busts and disasters. Then step out of the mayor's office and walk, drive,
 fly, sail or ride the train through the city you built.
 
-![Oro Canyon seen from Explore mode: a river city between canyon walls under a desert sky.](images/oro-canyon-explore.jpg)
-
 Sin City - Desert Dreams (SC2D) is a free, open-source city builder that plays like SimCity 2000.
 Every model, icon, illustration, line of writing and line of code is its own.
 It runs on Godot 4.7.2 and is written in GDScript.
+
+## Build and Explore, Day and Night
+
+Build and Explore show the same city, by day or under a full desert moon.
+**View → Night Mode** (`N`) fades the city to night: lit windows, neon signs,
+casino searchlights, street lamps and headlights.
+
+**Build:** the aerial view with the city tools.
+
+![The Build view of a desert city, wiping between day and night: lit windows, neon casino towers and searchlights appear after dark.](images/day-night-build.webp)
+
+**Explore:** flying the helicopter over the same downtown.
+
+![Explore mode from a helicopter, split diagonally: daylight on the left, the same street at night with neon and searchlights on the right.](images/day-night-explore.jpg)
 
 ## Download
 
@@ -69,6 +81,8 @@ The score, interface sounds and effects are made for this game; see `docs/design
   mid-century and atomic-age signage, palms, desert terrain and animated water.
 - Desert Transit rail halls and subway stations with furnished platforms,
   lobbies and elevators.
+- A full-moon night mode with lit windows, neon, searchlights, street lamps
+  and vehicle lights.
 - A warm ivory, teal and brass interface with BioRhyme lettering.
 - **View → Street Names…** names road segments. The names appear on street
   blades and highway exit signs in Explore, and nearby train and subway
@@ -122,6 +136,7 @@ last only for the session.
 | Inspect a site | Right-click, or `Q` for the Inspect tool |
 | Temporary bulldozer | Hold `B` |
 | Underground view | `U` |
+| Night mode | `N` |
 | Pause / speed | `P` pauses and resumes at the previous speed; `+` and `-` or the Speed menu change speed |
 | New, Load, Save, Save As, Settings | `Cmd`/`Ctrl` + `N`, `O`, `S`, `Shift`+`S`, `,` |
 | Fullscreen | `F11` |
