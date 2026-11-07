@@ -16,7 +16,7 @@ container_id="iCloud.com.sierraburkhart.sincitydesertdreams"
 [application]
 
 config/name="Sin City - Desert Dreams"
-config/version="0.5"
+config/version="0.6"
 run/main_scene="res://scenes/main.tscn"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="SinCityDesertDreams"
@@ -31,8 +31,8 @@ config/name.ios="SC2D"
 
 [audio]
 
-general/ios/mix_with_others=true
 general/ios/session_category=3
+general/ios/mix_with_others=true
 
 [display]
 
