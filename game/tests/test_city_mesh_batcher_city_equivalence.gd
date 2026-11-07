@@ -8,7 +8,8 @@ func _signature(batcher: Node3D) -> Array:
 	var result: Array = []
 	for batch: MultiMeshInstance3D in batcher.get_children():
 		result.append([str(batch.get_meta("chunk")), String(batch.get_meta("domain")), batch.get_meta("source_ids"),
-			batch.get_meta("uploaded_transforms"), batch.multimesh.mesh.get_instance_id(), batch.multimesh.custom_aabb,
+			batch.get_meta("uploaded_transforms"), batch.get_meta("source_regions"),
+			batch.multimesh.mesh.get_instance_id(), batch.multimesh.custom_aabb,
 			batch.cast_shadow, batch.layers, batch.visible, batch.multimesh.instance_count])
 	result.sort_custom(func(a: Array, b: Array) -> bool: return str(a) < str(b))
 	return result
@@ -39,8 +40,9 @@ func test_incremental_city_batches_match_fresh_rebuild() -> void:
 	check(lots.size() > 100 and empty.size() > 100, "fixture has lots and empty ground")
 	var distant_ids := _signature(view.mesh_batches).size()
 	check(distant_ids > 50, "the full city produces many batches")
+	var reused_before := view.mesh_batches.reused_instances
 	for round: int in 3:
-		for step: int in 5:
+		for step: int in 12:
 			match step % 4:
 				0:
 					var cell: Vector2i = lots[rng.randi_range(0, lots.size() - 1)]
@@ -63,5 +65,6 @@ func test_incremental_city_batches_match_fresh_rebuild() -> void:
 		check(_signature(view.mesh_batches) == incremental, "round %d: incremental batches equal a fresh full rebuild" % round)
 		check(_hidden(view) == hidden, "round %d: the same source meshes are hidden behind batches" % round)
 		check(int(statistics.batched_instances) == int(view.mesh_batches.statistics.batched_instances) and int(statistics.batches) == int(view.mesh_batches.statistics.batches), "round %d: incremental statistics equal the full rebuild" % round)
+	check(view.mesh_batches.reused_instances > reused_before, "remade batches reuse their unchanged members' uploaded rows")
 	view.queue_free()
 	await process_frame

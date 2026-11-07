@@ -18,6 +18,9 @@ const COPY_PROPERTIES: Array[StringName] = [
 ]
 
 var statistics: Dictionary = {}
+## Batched instances whose uploaded rows were reused rather than recomputed
+## since this batcher was created.
+var reused_instances := 0
 ## Per-collection memo of whether a shared mesh resource's own surface materials
 ## are all supported; instance overrides are still examined per source.
 var _mesh_material_support: Dictionary = {}
@@ -448,12 +451,15 @@ func _remake_groups(dirty: Dictionary) -> void:
 		var ascending := true
 		var last := -1
 		for record: Dictionary in live:
-			var inventory: Dictionary = _branches[record.branch]
-			if not branch_indices.has(record.branch):
+			# A branch's root and child index, looked up once per remake.
+			var order: Variant = branch_indices.get(record.branch)
+			if order == null:
+				var inventory: Dictionary = _branches[record.branch]
 				var owner: Variant = inventory.owner.get_ref()
-				branch_indices[record.branch] = owner.get_index() if is_instance_valid(owner) else -1
-			var root: int = inventory.root
-			var branch_index: int = branch_indices[record.branch]
+				order = [inventory.root, owner.get_index() if is_instance_valid(owner) else -1]
+				branch_indices[record.branch] = order
+			var root: int = order[0]
+			var branch_index: int = order[1]
 			var ordinal: int = record.ordinal
 			record.root = root
 			record.branch_index = branch_index
@@ -580,6 +586,18 @@ func _make_member_batch(live: Array, key: Array, existing: MultiMeshInstance3D) 
 	if mesh == null:
 		return
 	var count := live.size()
+	var relative := global_transform.affine_inverse()
+	# A member this batch already uploaded keeps its uploaded transform: the
+	# same record (not merely the same source) was uploaded under the same
+	# batcher transform, sources are static once batched, and it is still hidden.
+	var previous_records: Array = []
+	var previous_transforms: Array[Transform3D] = []
+	var previous_index: Dictionary = {}
+	if existing != null and existing.get_meta("relative", null) == relative:
+		previous_records = existing.get_meta("source_records", [])
+		previous_transforms = existing.get_meta("uploaded_transforms", previous_transforms)
+		if previous_transforms.size() == previous_records.size():
+			for j: int in previous_records.size(): previous_index[previous_records[j].id] = j
 	var batch: MultiMesh
 	if existing != null:
 		batch = existing.multimesh
@@ -589,7 +607,6 @@ func _make_member_batch(live: Array, key: Array, existing: MultiMeshInstance3D) 
 		batch.transform_format = MultiMesh.TRANSFORM_3D
 		batch.mesh = mesh
 		batch.instance_count = count
-	var relative := global_transform.affine_inverse()
 	var bounds := AABB()
 	var ids := PackedInt64Array()
 	ids.resize(count)
@@ -597,24 +614,36 @@ func _make_member_batch(live: Array, key: Array, existing: MultiMeshInstance3D) 
 	uploaded_transforms.resize(count)
 	var source_regions: Array[Rect2i] = []
 	var seen_regions: Dictionary = {}
+	var last_region := Rect2i(-1, -1, -1, -1)
 	var source_refs: Array[WeakRef] = []
 	source_refs.resize(count)
+	var joined := PackedInt32Array()
 	var mesh_bounds := mesh.get_aabb()
 	for i: int in count:
 		var record: Dictionary = live[i]
 		var reference: WeakRef = record.ref
-		var source: MeshInstance3D = reference.get_ref()
-		var transform := relative * source.global_transform
+		var from: int = previous_index.get(record.id, -1)
+		var transform: Transform3D
+		if from >= 0 and is_same(previous_records[from], record):
+			transform = previous_transforms[from]
+		else:
+			joined.append(i)
+			var source: MeshInstance3D = reference.get_ref()
+			transform = relative * source.global_transform
 		batch.set_instance_transform(i, transform)
 		uploaded_transforms[i] = transform
 		var instance_bounds: AABB = transform * mesh_bounds
 		bounds = instance_bounds if i == 0 else bounds.merge(instance_bounds)
 		ids[i] = record.id
 		source_refs[i] = reference
+		# Members of one lot are adjacent, so most share the previous region.
 		var region: Rect2i = record.region
-		if not seen_regions.has(region):
-			seen_regions[region] = true
-			source_regions.append(region)
+		if region != last_region:
+			last_region = region
+			if not seen_regions.has(region):
+				seen_regions[region] = true
+				source_regions.append(region)
+	reused_instances += count - joined.size()
 	batch.custom_aabb = bounds
 	var replacement := existing if existing != null else MultiMeshInstance3D.new()
 	if existing == null:
@@ -632,9 +661,13 @@ func _make_member_batch(live: Array, key: Array, existing: MultiMeshInstance3D) 
 	replacement.set_meta("source_refs", source_refs)
 	replacement.set_meta("source_regions", source_regions)
 	replacement.set_meta("uploaded_transforms", uploaded_transforms)
+	replacement.set_meta("source_records", live.duplicate())
+	replacement.set_meta("relative", relative)
 	if existing == null: add_child(replacement)
 	_batches[key] = replacement
-	for record: Dictionary in live:
+	# Reused members are already hidden and listed under the same reference.
+	for i: int in joined:
+		var record: Dictionary = live[i]
 		_hidden[record.id] = record.ref
 		record.ref.get_ref().visible = false
 	statistics.batched_instances += count
