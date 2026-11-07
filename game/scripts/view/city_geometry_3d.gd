@@ -1265,7 +1265,8 @@ void fragment() {
 		base / 12.92, lessThanEqual(base, vec3(0.04045)));
 	// Night mode only: street lamps light the ground beneath them.
 	if (scdd_night > 0.0) {
-		EMISSION += ALBEDO * night_lamp_pools(map_position) * scdd_night;
+		vec3 wash = night_casino_wash(map_position);
+		EMISSION += (ALBEDO * (night_lamp_pools(map_position) + wash * 0.9) + wash * 0.025) * scdd_night;
 	}
 }
 """

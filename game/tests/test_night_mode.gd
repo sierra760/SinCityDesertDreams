@@ -226,3 +226,49 @@ func test_main_menu_key_and_preference() -> void:
 	host.free()
 	DirAccess.remove_absolute(path)
 	check(not CityNightMode.materials_modified(),"leaving the game restores every material")
+
+func test_casinos_get_their_own_glass_neon_wash_and_searchlights() -> void:
+	var city := flat_city(50000000)
+	city.founded_year = 2010
+	var builder := Builder.new(city,CityStats.new())
+	var placed: Dictionary = builder.apply(Tools.Kind.ARCOLOGY_ORBIT,Vector2i(30,30),Vector2i(30,30))
+	check(bool(placed.get("ok",false)),"a Desert Orbit stands in the test city")
+	var encoded := SaveFormat.encode_city(city)
+	var view := CityView3D.new()
+	root.add_child(view)
+	await process_frame
+	view.bind_city(city)
+	view.set_active(true)
+	view.refresh(true)
+	view.set_night_mode(true,true)
+	var casinos := view.night.casinos
+	check(casinos != null and casinos.lots.size() == 1,"the casino is found")
+	if casinos == null or casinos.lots.is_empty():
+		view.free()
+		return
+	var record: Dictionary = casinos.lots[0]
+	var signature: Dictionary = preload("res://scripts/view/casino_night_signatures.gd").of(Buildings.ARCOLOGY_ORBIT)
+	check_eq(record.code,Buildings.ARCOLOGY_ORBIT)
+	var overlaid := 0
+	for mesh: Node in record.node.find_children("*","MeshInstance3D",true,false):
+		if (mesh as MeshInstance3D).material_overlay == record.material: overlaid += 1
+	for batch: Node in view.mesh_batches.find_children("*","MultiMeshInstance3D",true,false):
+		if (batch as MultiMeshInstance3D).material_overlay == record.material: overlaid += 1
+	check_gt(overlaid,0,"neon is drawn over the casino's own meshes")
+	check_eq(record.material.get_shader_parameter("neon_a"),signature.a,"its own neon colours")
+	check_eq(casinos._beams.size(),int(signature.beams),"its searchlights")
+	var center := Vector2i(floori(record.bounds.get_center().x),floori(record.bounds.get_center().z))
+	check_gt(casinos._image.get_pixelv(center).a,0.5,"its colour washes the ground")
+	var glass := 0
+	for prepared: Dictionary in view.night._prepared.values():
+		if int(prepared.code) == Buildings.ARCOLOGY_ORBIT and prepared.role == CityNightMode.Role.WINDOW:
+			glass += 1
+			check_eq(prepared.material.emission,signature.glass,"casino glass takes its own colour")
+	check_gt(glass,0,"the casino has glass")
+	view.set_night_mode(false,true)
+	check(casinos.lots.is_empty() and casinos._beams.is_empty(),"day removes the casino lights")
+	for mesh: Node in record.node.find_children("*","MeshInstance3D",true,false):
+		check((mesh as MeshInstance3D).material_overlay == null,"no neon by day")
+	check(not CityNightMode.materials_modified(),"materials restored")
+	check_eq(SaveFormat.encode_city(city),encoded,"casino lights never change the city")
+	view.free()

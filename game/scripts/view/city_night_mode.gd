@@ -12,6 +12,7 @@ class_name CityNightMode
 extends Node
 
 const Globals := preload("res://scripts/view/city_night_globals.gd")
+const Signatures := preload("res://scripts/view/casino_night_signatures.gd")
 const FADE_SECONDS := 1.5
 
 ## Material roles, found by material name in the authored models.
@@ -33,6 +34,8 @@ const ENERGY := {Role.WINDOW: 1.6, Role.WINDOW_DIM: .6, Role.NEON: 2.4, Role.SIG
 const WINDOW_WARMTH := Color(1.0,.80,.52)
 ## World-space window cells: about two metres wide and one storey tall.
 const WINDOW_SCALE := Vector3(1.0/(8.0*.125),1.0/(8.0*.21),1.0/(8.0*.125))
+## Casinos glow harder than ordinary buildings.
+const CASINO_BOOST := {Role.WINDOW: .85, Role.WINDOW_DIM: 1.4, Role.NEON: 1.2, Role.SIGN: 1.3}
 ## Resort halls (render layer 21) keep their own interior lighting.
 const INTERIOR_LAYER := 1 << 20
 
@@ -57,8 +60,12 @@ var _watching := false
 var _night_sky: Sky
 var _applied_explore: Environment
 var _applied_amount := -1.0
+## Neon, ground wash and searchlights on casinos while it is night.
+var casinos: CityCasinoLights3D
+var _casinos_dirty := false
 
 static var _window_texture: ImageTexture
+static var _casino_window_texture: ImageTexture
 static var _star_texture: ImageTexture
 ## Materials currently carrying night emission, across all views. The model
 ## cache must not persist them in this state.
@@ -70,6 +77,7 @@ static func materials_modified() -> bool:
 func bind(view: Node) -> void:
 	_view = view
 	Globals.ensure()
+	if view.has_signal("geometry_rebuilt"): view.geometry_rebuilt.connect(func(_revision: int) -> void: _mark_casinos())
 
 ## Turn night on or off. `instant` skips the dusk/dawn fade.
 func set_enabled(on: bool, instant: bool = false) -> void:
@@ -96,6 +104,9 @@ func _process(delta: float) -> void:
 		_set_amount(move_toward(amount,target,step))
 	elif not _pending.is_empty():
 		_prepare_pending()
+	if _casinos_dirty and amount > 0.0:
+		_casinos_dirty = false
+		_ensure_casinos().rebuild()
 	# Mods and Explore entry replace the camera environment; restate night.
 	var explore := _explore_environment()
 	if explore != null and explore != _applied_explore and (amount > 0.0 or _applied_explore != null):
@@ -104,7 +115,8 @@ func _process(delta: float) -> void:
 
 func _set_amount(value: float) -> void:
 	value = clampf(value,0.0,1.0)
-	if value > 0.0 and amount == 0.0:
+	var entering := value > 0.0 and amount == 0.0
+	if entering:
 		_watch(true)
 		_collect(_world())
 	amount = value
@@ -112,14 +124,31 @@ func _set_amount(value: float) -> void:
 	Globals.set_night(amount)
 	_apply_environment()
 	for record: Dictionary in _prepared.values(): _apply_material(record)
+	if entering: _ensure_casinos().rebuild()
 	if amount == 0.0:
 		_restore_all()
 		_watch(false)
+		_casinos_dirty = false
+		if casinos != null and is_instance_valid(casinos): casinos.clear()
 	_applied_amount = amount
 
 ## Night-related lighting factors for RenderQuality.
 func sun_scale() -> float: return lerpf(1.0,SUN_NIGHT_SCALE,amount)
 func ambient_scale() -> float: return lerpf(1.0,AMBIENT_NIGHT_SCALE,amount)
+
+func _ensure_casinos() -> CityCasinoLights3D:
+	if casinos == null:
+		casinos = CityCasinoLights3D.new()
+		casinos.name = "CasinoNightLights"
+		casinos.bind(_view)
+		var world := _world()
+		if world != null: world.add_child(casinos)
+	return casinos
+
+func _mark_casinos() -> void:
+	if amount <= 0.0: return
+	_casinos_dirty = true
+	set_process(true)
 
 func _world() -> Node:
 	return _view.world if _view != null and "world" in _view else null
@@ -220,6 +249,7 @@ func _watch(on: bool) -> void:
 
 func _node_added(node: Node) -> void:
 	if node is GeometryInstance3D: _pending.append(node)
+	elif node.has_meta("code") and Signatures.has(int(node.get_meta("code"))): _mark_casinos()
 	set_process(true)
 
 func _prepare_pending() -> void:
@@ -228,36 +258,55 @@ func _prepare_pending() -> void:
 	var nodes := _pending
 	_pending = []
 	for node: Node in nodes:
-		if is_instance_valid(node) and world != null and world.is_ancestor_of(node): _collect_instance(node)
+		if is_instance_valid(node) and world != null and world.is_ancestor_of(node): _collect_instance(node,_code_of(node,world))
 
-func _collect(root: Node) -> void:
+## The building code of the lot holding `node`, or -1.
+static func _code_of(node: Node, world: Node) -> int:
+	var at := node
+	while at != null and at != world:
+		if at.has_meta("code"): return int(at.get_meta("code"))
+		at = at.get_parent()
+	return -1
+
+func _collect(root: Node, code: int = -1) -> void:
 	if root == null: return
-	if root is GeometryInstance3D: _collect_instance(root)
-	for child: Node in root.get_children(): _collect(child)
+	if root.has_meta("code"): code = int(root.get_meta("code"))
+	if root is GeometryInstance3D: _collect_instance(root,code)
+	for child: Node in root.get_children(): _collect(child,code)
 
-func _collect_instance(node: Node) -> void:
+func _collect_instance(node: Node, code: int = -1) -> void:
 	var instance := node as GeometryInstance3D
 	if instance == null or instance.layers & INTERIOR_LAYER: return
-	if instance.material_override != null: _consider(instance.material_override)
+	if instance.material_override != null: _consider(instance.material_override,code)
 	var mesh: Mesh = null
 	if instance is MeshInstance3D:
 		mesh = (instance as MeshInstance3D).mesh
 		for surface: int in (instance as MeshInstance3D).get_surface_override_material_count():
-			_consider((instance as MeshInstance3D).get_surface_override_material(surface))
+			_consider((instance as MeshInstance3D).get_surface_override_material(surface),code)
 	elif instance is MultiMeshInstance3D and (instance as MultiMeshInstance3D).multimesh != null:
 		mesh = (instance as MultiMeshInstance3D).multimesh.mesh
 	if mesh != null:
-		for surface: int in mesh.get_surface_count(): _consider(mesh.surface_get_material(surface))
+		for surface: int in mesh.get_surface_count(): _consider(mesh.surface_get_material(surface),code)
 
-func _consider(material: Material) -> void:
+func _consider(material: Material, code: int = -1) -> void:
 	var base := material as BaseMaterial3D
-	if base == null or _prepared.has(base.get_instance_id()): return
+	if base == null: return
+	var casino := Signatures.has(code)
+	var existing: Dictionary = _prepared.get(base.get_instance_id(),{})
+	if not existing.is_empty():
+		# A batch can reach a casino material before its lot does.
+		if casino and int(existing.code) != code:
+			for key: String in existing.saved: base.set(key,existing.saved[key])
+			existing.code = code
+			_setup(base,existing.role,existing.saved,code)
+			_apply_material(existing)
+		return
 	var role := role_for(base.resource_name)
 	if role == Role.NONE: return
-	var record := {"material":base,"role":role,"saved":_save(base)}
+	var record := {"material":base,"role":role,"saved":_save(base),"code":code if casino else -1}
 	_prepared[base.get_instance_id()] = record
 	_modified_count += 1
-	_setup(base,role,record.saved)
+	_setup(base,role,record.saved,record.code)
 	_apply_material(record)
 
 const _SAVED := ["emission_enabled","emission","emission_energy_multiplier","emission_operator","emission_texture",
@@ -268,7 +317,8 @@ static func _save(material: BaseMaterial3D) -> Dictionary:
 	for key: String in _SAVED: saved[key] = material.get(key)
 	return saved
 
-static func _setup(material: BaseMaterial3D, role: int, saved: Dictionary) -> void:
+static func _setup(material: BaseMaterial3D, role: int, saved: Dictionary, code: int = -1) -> void:
+	var signature: Dictionary = Signatures.of(code)
 	match role:
 		Role.WINDOW, Role.WINDOW_DIM:
 			material.emission_enabled = true
@@ -277,13 +327,14 @@ static func _setup(material: BaseMaterial3D, role: int, saved: Dictionary) -> vo
 			# Glass has no other texture, so world triplanar only places these.
 			if material.albedo_texture == null and material.normal_texture == null:
 				material.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-				material.emission_texture = window_texture()
+				material.emission_texture = casino_window_texture() if not signature.is_empty() else window_texture()
 				material.uv1_triplanar = true
 				material.uv1_world_triplanar = true
 				material.uv1_scale = WINDOW_SCALE
 				material.uv1_triplanar_sharpness = 8.0
 		Role.NEON:
 			material.emission_enabled = true
+			if not signature.is_empty() and material.emission == Color.BLACK: material.emission = signature.a
 			if not bool(saved.emission_enabled) or material.emission == Color.BLACK:
 				material.emission = material.albedo_color
 		Role.HEADLIGHT:
@@ -301,16 +352,20 @@ static func _setup(material: BaseMaterial3D, role: int, saved: Dictionary) -> vo
 		_:
 			material.emission_enabled = true
 			material.emission = material.albedo_color
+	# A casino's glass takes its own colour.
+	if not signature.is_empty() and role in [Role.WINDOW, Role.WINDOW_DIM]:
+		material.emission = signature.glass
 
 func _apply_material(record: Dictionary) -> void:
 	var material: BaseMaterial3D = record.material
 	if not is_instance_valid(material): return
 	var role: int = record.role
+	var boost: float = CASINO_BOOST.get(role,1.0) if int(record.get("code",-1)) >= 0 else 1.0
 	if role == Role.NEON:
 		var day: float = record.saved.emission_energy_multiplier if record.saved.emission_enabled else 0.0
-		material.emission_energy_multiplier = lerpf(day,maxf(day,1.0)*float(ENERGY[role]),amount)
+		material.emission_energy_multiplier = lerpf(day,maxf(day,1.0)*float(ENERGY[role])*boost,amount)
 	else:
-		material.emission_energy_multiplier = float(ENERGY[role])*amount
+		material.emission_energy_multiplier = float(ENERGY[role])*boost*amount
 
 func _restore_all() -> void:
 	for record: Dictionary in _prepared.values():
@@ -345,6 +400,25 @@ static func window_texture() -> ImageTexture:
 	image.generate_mipmaps()
 	_window_texture = ImageTexture.create_from_image(image)
 	return _window_texture
+
+## Casino glass: about half the panes lit in the casino's colour, with soft
+## brightness variation and fine mullions, so light is used sparingly.
+static func casino_window_texture() -> ImageTexture:
+	if _casino_window_texture != null: return _casino_window_texture
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7741
+	var image := Image.create(64,64,false,Image.FORMAT_RGBA8)
+	for cy: int in 8:
+		for cx: int in 8:
+			var bright := rng.randf_range(.72,1.0) if rng.randf() < .52 else .06
+			for py: int in 8:
+				for px: int in 8:
+					var frame := px == 0 or py == 7
+					var value := bright*(.45 if frame else 1.0)
+					image.set_pixel(cx*8+px,cy*8+py,Color(value,value,value))
+	image.generate_mipmaps()
+	_casino_window_texture = ImageTexture.create_from_image(image)
+	return _casino_window_texture
 
 ## Equirectangular star field for the night sky's cover texture. Only the
 ## brighter stars: full moonlight washes out the faint ones.

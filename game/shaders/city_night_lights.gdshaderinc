@@ -7,6 +7,8 @@
 global uniform float scdd_night;
 // One texel per tile: lens x/z within the tile, lens height, pool strength.
 global uniform sampler2D scdd_night_lamps : filter_nearest, repeat_disable;
+// One colour per tile (alpha = strength): casino neon spilling onto the ground.
+global uniform sampler2D scdd_night_wash : filter_linear, repeat_disable;
 
 const vec3 NIGHT_SKY_REFLECTION = vec3(0.025,0.035,0.075);
 // Warm sodium-tungsten light, the colour of an old Las Vegas boulevard.
@@ -33,4 +35,10 @@ vec3 night_lamp_pools(vec3 p) {
 		}
 	}
 	return NIGHT_LAMP_COLOR*min(light*1.5,2.2);
+}
+
+// Casino colour on the ground, smoothly filtered between tile centres.
+vec3 night_casino_wash(vec3 p) {
+	vec4 wash = texture(scdd_night_wash,p.xz/128.0);
+	return wash.rgb*wash.a;
 }
