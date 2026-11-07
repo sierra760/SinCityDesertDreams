@@ -43,7 +43,7 @@ func set_option(key: StringName, value: Variant) -> void:
 			set_value("control_bindings",_host.controls.values())
 			_host.menu_bar.set_bindings(_host.controls)
 			_host.toolbar.controls = _host.controls
-			_host.status_bar.set_speed(_host.sim.speed)
+			_host.sync_status_speed()
 			_host.refresh_toolbar()
 		&"explore_sensitivity", &"explore_invert_y":
 			var settings := _host.preferences.duplicate()

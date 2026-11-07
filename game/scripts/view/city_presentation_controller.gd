@@ -285,8 +285,11 @@ func _apply_exploration_visibility() -> void:
 ## Bring incident markers and ambient traffic up to date with the
 ## simulation's entity records. Disaster records drive the markers; crews and
 ## ordinary vehicles drive traffic, which shows only when `show_vehicles` is
-## on and the plain surface view is up.
-func sync_actors(delta: float, records: Array, transport: SimSystem, paused: bool, show_vehicles: bool, day_seconds: float = 0.8) -> void:
+## on and the plain surface view is up. `paused` is the city's clock: records
+## and incidents hold while it is stopped. `ambient_paused` is the clock of the
+## presentation's own traffic (Explore's while exploring); null follows `paused`.
+func sync_actors(delta: float, records: Array, transport: SimSystem, paused: bool, show_vehicles: bool, day_seconds: float = 0.8, ambient_paused: Variant = null) -> void:
+	var ambient_held: bool = paused if ambient_paused == null else bool(ambient_paused)
 	if view.feedback != null:
 		var incidents: Array = records.filter(func(record: Dictionary) -> bool: return record.get("source", &"") == &"disasters" or not CityTrafficCatalog.is_vehicle_kind(record.kind))
 		view.feedback.day_seconds = day_seconds
@@ -298,7 +301,8 @@ func sync_actors(delta: float, records: Array, transport: SimSystem, paused: boo
 		var camera: Camera3D = view.exploration_camera() if is_instance_valid(view.exploration_camera()) else view.camera
 		var ambient: Array = records.filter(func(record: Dictionary) -> bool: return record.get("source", &"") != &"disasters" or String(record.kind).ends_with("_crew"))
 		view.traffic.day_seconds = day_seconds
-		view.traffic.advance(delta, paused, ambient, camera,
+		view.traffic.records_held = paused
+		view.traffic.advance(delta, ambient_held, ambient, camera,
 			show_vehicles and not is_underground() and view.overlay_kind() == &"")
 
 

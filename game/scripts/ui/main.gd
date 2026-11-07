@@ -1238,7 +1238,7 @@ func _on_speed_changed(speed: int) -> void:
 	if _application_suspended and speed != GameClock.Speed.PAUSED:
 		sim.set_speed(GameClock.Speed.PAUSED)
 		return
-	status_bar.set_speed(speed)
+	sync_status_speed()
 	menu_bar.set_checked(&"speed", true, speed)
 	# Let the display sleep while the city is paused; keep it awake while time runs.
 	sync_keep_screen_on(speed)
@@ -1246,6 +1246,12 @@ func _on_speed_changed(speed: int) -> void:
 		_last_running_speed = speed
 	if modal_depth > 0 and speed != GameClock.Speed.PAUSED:
 		speed_before_modal = speed
+
+
+## The footer shows the city paused while Explore holds it; a speed chosen
+## meanwhile is kept and takes effect on return to Build.
+func sync_status_speed() -> void:
+	status_bar.set_speed(GameClock.Speed.PAUSED if is_exploring() else sim.speed)
 
 
 ## Named holds that stop simulation processing until every holder releases.
@@ -1467,9 +1473,14 @@ func _process(delta: float) -> void:
 	var player_world := Vector3.INF
 	if is_exploring() and is_instance_valid(exploration.occupied): player_world = exploration.occupied.global_position
 	presentation.sync_livestock(delta,agriculture,livestock_paused(),player_world)
+	# Explore holds the city, so its records (crews, aircraft, incidents) stay
+	# where the last simulated day left them while Explore's own traffic moves
+	# on Explore's clock.
+	var city_held := sim.speed == GameClock.Speed.PAUSED or is_exploring()
 	presentation.sync_actors(delta, entity_records.gather(), sim.get_system(&"transport"),
-		sim.speed == GameClock.Speed.PAUSED, bool(preferences.get("vehicles", true)),
-		float(GameClock.SECONDS_PER_DAY.get(sim.speed, 0.8)))
+		city_held, bool(preferences.get("vehicles", true)),
+		float(GameClock.SECONDS_PER_DAY.get(sim.speed, 0.8)),
+		livestock_paused() if is_exploring() else city_held)
 	_follow_disaster_camera(delta)
 
 

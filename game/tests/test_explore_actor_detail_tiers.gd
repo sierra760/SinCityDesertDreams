@@ -187,6 +187,9 @@ func test_detail_assets_work_without_lua() -> void:
 	for x in range(18,34): city.building.put(x,24,NetworkShapes.shape_id(NetworkShapes.Family.ROAD,10))
 	gameplay_host.begin_city(city,{},173,null)
 	gameplay_host.sim.set_speed(GameClock.Speed.PAUSED)
+	# Explore's ambient traffic moves even in a paused city; keep it off so an
+	# ambient car cannot stop beside the parked car the walk below boards.
+	gameplay_host.set_option(&"vehicles",false)
 	gameplay_host.city_view_3d.set_camera_state(Vector3(22.5,4*CityGeometry3D.HEIGHT,24.5),1,12.0)
 	await physics_frame
 	check(gameplay_host.explore_switch.enter(),"ordinary Main Explore entry")
@@ -261,6 +264,7 @@ func test_detail_assets_work_without_lua() -> void:
 	controller.pedestrian.global_position=controller.car.global_position+Vector3(.15,0,0)
 	check(controller.request_interaction(),"ordinary car interaction")
 	check_eq(controller.mode,ExploreActorProfile.Mode.DRIVE)
+	check(controller.occupied==controller.car,"the walk boards the normally parked car")
 	start=controller.occupied.global_position
 	controller.handle_event(_model_key(KEY_W,true))
 	for frame in 40: await physics_frame

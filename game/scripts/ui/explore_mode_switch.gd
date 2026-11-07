@@ -4,9 +4,15 @@
 
 ## Switching between Build and Explore. Entering Explore remembers the Build
 ## camera, tool and map presentation and hides the Build chrome; returning
-## restores them.
+## restores them. The city's simulation is held for the whole Explore session:
+## no days pass while the player walks or drives, and the chosen speed resumes
+## on return. Explore's own world (the player, ambient traffic, livestock,
+## casino patrons and mod scripts) runs on Explore's clock instead.
 class_name ExploreModeSwitch
 extends RefCounted
+
+## The simulation hold Explore keeps from entry until return.
+const HOLD := &"explore"
 
 var _host: GameHost
 ## The Build camera, tool and presentation saved on entering Explore.
@@ -58,6 +64,8 @@ func _enter() -> bool:
 	_snapshot = snapshot
 	host.drop_temporary_bulldoze()
 	host.cancel_map_gesture()
+	host.acquire_sim_process_hold(HOLD)
+	host.sync_status_speed()
 	host.presentation.set_exploration_suspended(true)
 	host.query_panel.close()
 	host.sync_query_feedback()
@@ -78,6 +86,8 @@ func leave() -> void:
 	var view := host.city_view_3d
 	var exit_message: String = host.exploration.take_exit_message()
 	host.exploration.leave()
+	host.release_sim_process_hold(HOLD)
+	host.sync_status_speed()
 	_snapshot.clear()
 	host.shell.phone_tools_open = false
 	host.shell.update_phone_tools()

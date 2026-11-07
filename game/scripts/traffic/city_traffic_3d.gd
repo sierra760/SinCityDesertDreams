@@ -69,6 +69,10 @@ var _external_states: Dictionary = {}
 var _air := CityAirFlights.new()
 ## Real seconds one simulated day takes at the current game speed.
 var day_seconds := 0.8
+## The simulation's clock is stopped (Explore holds the city, or it is paused):
+## records it owns (crews, aircraft) stay put even while this layer's own
+## traffic keeps moving.
+var records_held := false
 var _targets: Dictionary = {}
 var _dirty := true
 var _reserved_rail: Dictionary = {}
@@ -161,7 +165,7 @@ func advance(delta: float, paused: bool, records: Array = [], camera: Camera3D =
 		var target := graph.point(cell,domain)
 		var yaw := -float(record.heading)*PI/4.0
 		var state: Dictionary = _external_states.get(key,{"position":target,"yaw":yaw})
-		if not paused:
+		if not paused and not records_held:
 			# Local interpolation only; reappearing/reordered source records snap.
 			if state.position.distance_squared_to(target) > 36.0: state.position = target
 			else: state.position = state.position.move_toward(target,clampf(delta,0,.2)*.8)
@@ -176,7 +180,7 @@ func advance(delta: float, paused: bool, records: Array = [], camera: Camera3D =
 		if not live_external.has(key): _external_states.erase(key)
 	# Aircraft keep flying while vehicles are hidden, so showing them again
 	# never sends one gliding from a stale place.
-	_air.update(graph.city,air_records,0.0 if paused else clampf(delta,0,.2)/maxf(day_seconds,.01))
+	_air.update(graph.city,air_records,0.0 if paused or records_held else clampf(delta,0,.2)/maxf(day_seconds,.01))
 	for flight: CityAirFlights.Flight in _air.flights:
 		if _external.size() >= MAX_EXTERNAL: break
 		_external.append({"kind":flight.kind,"pos":Vector2(flight.source),"heading":flight.heading,
