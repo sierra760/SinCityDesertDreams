@@ -32,6 +32,13 @@ const BODY_MIDDLE := .055
 const BODY_HEIGHT := .11
 ## Pieces fade from view this far away (tiles), like other close detail.
 const PIECE_RANGE := 4.0
+## A vehicle pops people it runs into at this speed or faster (tiles per
+## second, about 9 km/h); slower, they just block it like any other body.
+const VEHICLE_HIT_SPEED := .15
+## Look this many ticks of travel ahead, plus a small margin (tiles), so a
+## pedestrian pops before the vehicle touches their body.
+const VEHICLE_LOOKAHEAD := 1.6
+const VEHICLE_MARGIN := .006
 
 var traffic: CityTraffic3D
 var walker: ExplorePedestrian
@@ -40,6 +47,9 @@ var _holder: Node3D
 var _holder_kind := -1
 var _rig: Dictionary = {}
 var _rig_model: Node3D
+var _vehicle: CharacterBody3D
+var _vehicle_previous := Vector3.INF
+var _vehicle_velocity := Vector3.ZERO
 var _swing := -1.0
 var _struck := false
 var _cooldown := 0.0
@@ -96,6 +106,61 @@ func step(delta: float, walking: bool) -> void:
 	_advance_pies(dt)
 	_advance_knocked(dt)
 
+## Pop the ambient pedestrians the player's moving vehicle is about to run
+## into. Call before Explore places traffic bodies for this tick: a struck
+## pedestrian then has no body, and the vehicle carries straight on. Speed
+## comes from the vehicle's own movement over the last tick.
+func vehicle_hits(vehicle: CharacterBody3D, delta: float) -> int:
+	if not is_instance_valid(vehicle) or vehicle == walker or not vehicle.is_inside_tree() or not is_instance_valid(traffic):
+		_vehicle = null
+		return 0
+	if not is_finite(delta) or delta <= 0.0: return 0
+	var at := vehicle.global_position
+	if vehicle != _vehicle or not _vehicle_previous.is_finite():
+		_vehicle = vehicle
+		_vehicle_previous = at
+		_vehicle_velocity = Vector3.ZERO
+		return 0
+	var moved := (at-_vehicle_previous)/minf(delta,.1)
+	_vehicle_previous = at
+	# A recovery teleport or a fresh placement is not driving.
+	_vehicle_velocity = moved if moved.length() < 6.0 else Vector3.ZERO
+	var speed := _vehicle_velocity.length()
+	if speed < VEHICLE_HIT_SPEED: return 0
+	var body := _vehicle_box(vehicle)
+	if body.is_empty(): return 0
+	var pose: Transform3D = body.pose
+	var half: Vector3 = body.half+Vector3.ONE*VEHICLE_MARGIN
+	var ahead := _vehicle_velocity*minf(delta,.1)*VEHICLE_LOOKAHEAD
+	var poses: Array[Transform3D] = [pose,pose.translated(ahead*.5),pose.translated(ahead)]
+	var person := CityTraffic3D.body_bounds(&"pedestrian")
+	var person_offset := Transform3D(Basis.IDENTITY,person.get_center())
+	var direction := _vehicle_velocity.normalized()
+	var spec := {"launch":clampf(speed*.35,.25,.7),"lift":clampf(.25+speed*.2,.3,.55)}
+	var hits := 0
+	for target: Dictionary in traffic.pedestrian_targets(pose.origin+ahead*.5,half.length()+ahead.length()+.05):
+		var person_pose: Transform3D = (target.pose as Transform3D)*person_offset
+		var touched := false
+		for probe: Transform3D in poses:
+			if CityTraffic3D.boxes_overlap(probe,half,person_pose,person.size*.5):
+				touched = true
+				break
+		if not touched: continue
+		var push := direction
+		push.y = 0.0
+		if _knock(target,push.normalized() if push.length_squared() > 0.0 else Vector3.FORWARD,spec): hits += 1
+	if hits > 0: _play(&"bonk",-2.0,_rng.randf_range(.8,.95))
+	return hits
+
+## A vehicle's collision box in world space: {"pose" (box centre), "half"}.
+func _vehicle_box(vehicle: CharacterBody3D) -> Dictionary:
+	for child: Node in vehicle.get_children():
+		var collider := child as CollisionShape3D
+		if collider == null or collider.disabled or collider.shape == null: continue
+		var bounds: AABB = collider.shape.get_debug_mesh().get_aabb()
+		return {"pose":collider.global_transform*Transform3D(Basis.IDENTITY,bounds.get_center()),"half":bounds.size*.5}
+	return {}
+
 ## Put every pedestrian back together immediately and drop held props.
 func clear() -> void:
 	for entry: Dictionary in _knocked: _finish(entry)
@@ -108,6 +173,7 @@ func clear() -> void:
 	_holder_kind = -1
 	_swing = -1.0
 	_cooldown = 0.0
+	_vehicle = null
 
 func knocked_count() -> int:
 	return _knocked.size()

@@ -368,3 +368,108 @@ func test_the_throwing_arm_follows_through_after_the_pie_leaves() -> void:
 			reach = minf(reach,hand.z)
 	check(mayhem._struck,"the pie was released")
 	check_lt(reach,-.02,"the empty hand keeps going forward after the release")
+
+## Drives the occupied vehicle in the controller's order: hits are checked,
+## then traffic bodies are placed, then the vehicle moves.
+class HitDriver extends Node:
+	signal completed
+	var session: CityExplorationController
+	var throttle := -1.0
+	var limit := 150
+	var ticks := 0
+	var check_tick: Callable
+	var hits := true
+	func _physics_process(delta: float) -> void:
+		if hits: session.mayhem.vehicle_hits(session.occupied,delta)
+		session._sync_traffic_collision()
+		var frame := ExploreInputFrame.idle()
+		frame.move.y = throttle
+		session.occupied.step(frame,0,delta)
+		session.mayhem.step(delta,false)
+		if check_tick.is_valid(): check_tick.call()
+		ticks += 1
+		if ticks >= limit:
+			set_physics_process(false)
+			completed.emit()
+
+## The session car on the record's line `behind` tiles back, facing along it.
+func _car_behind(record: Dictionary, behind: float) -> ExploreCar:
+	var car := session.car as ExploreCar
+	var pose := view.traffic.actor_pose(record)
+	car.apply_safe_pose(Transform3D(pose.basis,pose.origin+pose.basis.z*behind+Vector3.UP*.002))
+	session._occupy(car)
+	session.helicopter.global_position += Vector3(0,0,-6)
+	return car
+
+func test_a_speeding_car_pops_the_pedestrian_it_hits_and_drives_on() -> void:
+	if not await _setup(_road_city(),Vector3(22.5,.5,20.5)): return
+	var record := _pedestrian(901,28,.5)
+	record.stopped = true
+	var car := _car_behind(record,2.0)
+	var where := view.traffic.actor_pose(record).origin
+	var hit_speed: Array[float] = [-1.0]
+	var driver := HitDriver.new()
+	driver.session = session
+	driver.limit = 200
+	driver.check_tick = func() -> void:
+		if hit_speed[0] < 0.0 and _knocked(record): hit_speed[0] = absf(car.speed())
+	root.add_child(driver)
+	await driver.completed
+	driver.queue_free()
+	check(_knocked(record),"the pedestrian popped apart")
+	check_gt(hit_speed[0],ExploreMayhem.VEHICLE_HIT_SPEED,"at driving speed")
+	var past := (car.global_position-where).dot(-car.global_transform.basis.z)
+	check_gt(past,.2,"the car drove on through where they stood")
+	check_gt(absf(car.speed()),hit_speed[0]*.8,"without being stopped by them")
+	var pieces: Array = session.mayhem._knocked[0].pieces
+	var forward := 0
+	for piece: Dictionary in pieces:
+		if ((piece.position as Vector3)-where).dot(-car.global_transform.basis.z) > .02: forward += 1
+	check_ge(forward,4,"the pieces were thrown ahead of the car")
+
+func test_a_creeping_vehicle_only_nudges_and_walking_never_pops() -> void:
+	if not await _setup(_road_city(),Vector3(22.5,.5,20.5)): return
+	var record := _pedestrian(911,28,.5)
+	var car := _car_behind(record,.16)
+	var mayhem := session.mayhem
+	var dt := 1.0/60.0
+	var along := -car.global_transform.basis.z
+	check_eq(mayhem.vehicle_hits(car,dt),0,"the first tick only learns where the car is")
+	car.global_position += along*.001
+	check_eq(mayhem.vehicle_hits(car,dt),0,"creeping (0.06 tiles per second) into someone does not pop them")
+	check(not _knocked(record),"still whole")
+	car.global_position += along*.02
+	check_eq(mayhem.vehicle_hits(car,dt),1,"the same contact at 1.2 tiles per second does")
+	var far := _pedestrian(912,28,.5)
+	far.side = -1.0
+	var gap := view.traffic.actor_pose(far).origin.distance_to(car.global_position)
+	if gap > .1:
+		car.global_position += along*.02
+		check_eq(mayhem.vehicle_hits(car,dt),0,"someone across the road is not hit by a passing car")
+	session._leave_vehicle(car.global_transform.translated(car.global_transform.basis.x*.3))
+	var walker := session.pedestrian as ExplorePedestrian
+	var person := _pedestrian(913,25,.5)
+	walker.place(Transform3D(Basis.IDENTITY,view.traffic.actor_pose(person).origin+Vector3(0,0,.05)))
+	check_eq(mayhem.vehicle_hits(walker,dt),0,"the walker is not a vehicle")
+	walker.global_position += Vector3(0,0,-.05)
+	check_eq(mayhem.vehicle_hits(walker,dt),0,"walking into someone never pops them")
+	check(not _knocked(person),"they stay whole")
+
+func test_without_the_hit_check_the_pedestrian_would_have_stopped_the_car() -> void:
+	# Control for the drive above: the same run with hits switched off ends with
+	# the car pressed against the pedestrian's body, so popping is what lets it
+	# through.
+	if not await _setup(_road_city(),Vector3(22.5,.5,20.5)): return
+	var record := _pedestrian(921,28,.5)
+	var car := _car_behind(record,2.0)
+	var where := view.traffic.actor_pose(record).origin
+	var driver := HitDriver.new()
+	driver.session = session
+	driver.limit = 200
+	driver.hits = false
+	root.add_child(driver)
+	await driver.completed
+	driver.queue_free()
+	check(not _knocked(record),"nobody popped")
+	var past := (car.global_position-where).dot(-car.global_transform.basis.z)
+	check_lt(past,0.0,"the car is held back short of where they stand")

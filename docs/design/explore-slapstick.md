@@ -40,6 +40,16 @@ A model without that rig (a crowd variant missing its detail model) falls back
 to its single crowd mesh: the weapon stays at the right hand, sways with the
 stride its gait shader draws, and turns about the hand during a swing.
 
+## Vehicles
+
+The player's car, other selected vehicles and a low helicopter pop any ambient
+pedestrian they run into at 0.15 tiles per second (about 9 km/h) or faster,
+throwing the pieces ahead along the direction of travel. Explore checks this
+before it places the traffic bodies for the tick, looking one and a half ticks
+of travel ahead, so the pedestrian loses their body before contact and the
+vehicle carries straight on. Slower, a pedestrian is just a solid body that
+stops the vehicle, as before. Walking into someone never pops them.
+
 ## Pieces and reassembly
 
 `ExploreLimbKit` splits each crowd variant's authored detail model once into

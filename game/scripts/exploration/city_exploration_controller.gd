@@ -648,6 +648,9 @@ func _physics_process(delta: float) -> void:
 	_handle_mayhem_input(frame)
 	if is_instance_valid(transit_service): transit_service.step(delta,pedestrian)
 	if is_instance_valid(resort_service): resort_service.step(delta,pedestrian)
+	# Before traffic bodies are placed: anyone a moving vehicle is about to hit
+	# pops apart and loses their body, so the vehicle drives through.
+	if is_instance_valid(mayhem): mayhem.vehicle_hits(occupied,delta)
 	_sync_traffic_collision()
 	# The walker holds still while a resort door fades.
 	if not (is_instance_valid(resort_service) and resort_service.is_transitioning()): occupied.step(frame,camera_rig.yaw,delta)
