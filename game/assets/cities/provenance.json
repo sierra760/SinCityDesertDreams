@@ -29,14 +29,15 @@
     {
       "name": "Bonanza Gap",
       "file": "Bonanza Gap.sc2d",
-      "bytes": 269762,
-      "sha256": "fa9504e81f2056502d867a5a72a9a8a379b09f8caf6dd879055202731ec1f6ee",
+      "bytes": 270145,
+      "sha256": "95a53000eb34aa5d8b8a339b46ecb275fe477bea72ed0708cf612b3c6d91d09d",
       "source": {
         "file": "Bonanza Gap.sc2d",
-        "bytes": 269762,
-        "sha256": "fa9504e81f2056502d867a5a72a9a8a379b09f8caf6dd879055202731ec1f6ee",
+        "bytes": 270145,
+        "sha256": "95a53000eb34aa5d8b8a339b46ecb275fe477bea72ed0708cf612b3c6d91d09d",
         "conversion": "native save copied byte-for-byte",
-        "included": "2026-11-07: owner requested inclusion of the current named save."
+        "included": "2026-11-07: owner requested inclusion of the current named save.",
+        "updated": "2026-11-07: replaced with the owner's latest named save of the same city (1924, population 6,280, funds 593,422), copied byte-for-byte."
       }
     },
     {
