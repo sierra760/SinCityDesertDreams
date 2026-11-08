@@ -615,31 +615,66 @@ const STORIES: Dictionary = {
 	},
 	&"recall_called": {
 		"priority": URGENT + 1, "decay": ONCE,
-		"headlines": ["Mayor Faces Recall After Treasury Gambling Loss"],
+		"headlines": ["Mayor's Casino Loss Puts Job On The Ballot"],
 		"body": [
-			"Mayor {mayor} lost {count} gambling at {place}, more than half the {entry_treasury} in the treasury when the mayor entered. A recall election has been called for {date}, six months after the loss.",
-			"Approval currently stands at {approval}%, giving a base removal chance of {chance}%. The base will be 100% minus election-day approval, with a random luck swing of up to {luck_limit} percentage points either way. Leaving the tables or winning the money back will not cancel the vote.",
+			"Mayor {mayor} left {place} with a {count} gambling loss charged to {city}'s treasury. Now the mayor's job is on the ballot: a recall election has been set for {date}.",
+			"Recall supporters are asking why the public purse had a seat at the tables in the first place. The first campaign placard reads KEEP YOUR HANDS OFF OUR CHIPS. Its author says the wording also covers the snack budget.",
 		]},
 	&"recall_update": {
 		"priority": URGENT, "decay": ONCE,
-		"headlines": ["Recall Countdown: {months} Until The Vote"],
+		"headlines": ["Recall Campaign Keeps {city} Talking"],
 		"body": [
-			"The gambling-loss recall election remains scheduled for {date}. Mayor {mayor}'s current approval is {approval}%, putting the base removal chance at {chance}%. Election-day luck can shift that by up to {luck_limit} percentage points either way.",
-			"The rating and luck swing on election day will set the final odds. If the recall passes, the mayor leaves office and play must resume from a saved city.",
+			"The recall election on {date} has become the subject of choice in {city}. Mayor {mayor}'s defenders say the mayor deserves to stay; recall supporters keep bringing the conversation back to the missing treasury money.",
+			"The Dispatch has received letters for both sides, along with a request to stop printing letters from either side. That correspondent has now written twice.",
+		]},
+	&"recall_update_5": {
+		"priority": URGENT, "decay": ONCE,
+		"headlines": ["Recall Placards Compete For Every Pair Of Eyes"],
+		"body": [
+			"The first recall placards are appearing around {city} ahead of the {date} election. Mayor {mayor}'s supporters favor KEEP THE MAYOR. Their opponents have found room underneath to add AWAY FROM THE TABLES.",
+			"Campaign volunteers spent the morning arguing over whose sign went up first. By afternoon, the argument had moved on to whose sign was blocking whose sign. Neither side has conceded an inch of cardboard.",
+		]},
+	&"recall_update_4": {
+		"priority": URGENT, "decay": ONCE,
+		"headlines": ["Residents Want The Receipts For Mayor's Casino Visit"],
+		"body": [
+			"Residents of {city} are asking for a public accounting of Mayor {mayor}'s gambling loss as the {date} recall approaches. Letters to the Dispatch ask who thought taking city money to the tables was a sound piece of municipal business.",
+			"One reader enclosed a household budget with a large zero beside CASINO EXPENSES. Another asked whether the mayor had at least kept the receipts. The editor has put both letters in the same envelope.",
+		]},
+	&"recall_update_3": {
+		"priority": URGENT, "decay": ONCE,
+		"headlines": ["Mayor's Supporters Rally To Keep {mayor} In Office"],
+		"body": [
+			"Supporters of Mayor {mayor} gathered for a rally against the recall scheduled for {date}. Speakers urged {city} to let the mayor finish the job. Recall campaigners at the edge of the gathering asked whether that job included another evening at the tables.",
+			"The loudest applause came when a speaker called for an end to the arguing. The arguing resumed over who the remark was aimed at. Volunteers carried on handing out KEEP THE MAYOR leaflets.",
+		]},
+	&"recall_update_2": {
+		"priority": URGENT, "decay": ONCE,
+		"headlines": ["Recall Forum Ends With Questions Still In The Air"],
+		"body": [
+			"A public forum on the {date} recall drew a queue of residents with questions about Mayor {mayor}'s use of {city}'s money. The discussion repeatedly returned to the casino loss, despite a plea from the chair to take one question at a time.",
+			"Supporters asked for a fair hearing; opponents asked for a straight answer. The chair asked for the microphone back. The meeting ended with hands still raised and a promise that unanswered questions would be collected in writing.",
+		]},
+	&"recall_update_1": {
+		"priority": URGENT, "decay": ONCE,
+		"headlines": ["Recall Campaign Enters Its Final Month"],
+		"body": [
+			"With the {date} recall now a month away, both campaigns in {city} are concentrating on getting their voters to the polls. Mayor {mayor}'s name is on fresh leaflets, and volunteers on both sides are going back to doors they have already knocked.",
+			"One resident told the Dispatch the doorstep speeches had become so familiar she could finish them herself. She has asked the next volunteer to begin with the election date and work backward only if invited.",
 		]},
 	&"recall_removed": {
 		"priority": URGENT + 1, "decay": ONCE,
 		"headlines": ["Recall Passes: Mayor Removed From Office"],
 		"body": [
-			"The {date} recall has passed. Mayor {mayor}'s {approval}% approval set the base removal chance at {base_chance}%. The election-day luck swing was {luck}. The final removal chance was {chance}%, and the vote has ended the mayor's tenure.",
-			"City management is now closed. Load the most recent saved city to resume; unsaved progress from this tenure is lost. Existing saves have been preserved.",
+			"Voters in {city} recalled Mayor {mayor} in the {date} election. The mayor has been removed from office following the treasury gambling scandal.",
+			"Recall supporters celebrated the result while the mayor's defenders began taking down their campaign signs. One discarded KEEP THE MAYOR placard had been amended in pencil: OUT OF THE CASINO.",
 		]},
 	&"recall_survived": {
 		"priority": URGENT + 1, "decay": ONCE,
-		"headlines": ["Mayor Survives Recall; City Hall Stays Open"],
+		"headlines": ["Voters Reject Recall; Mayor {mayor} Stays"],
 		"body": [
-			"The {date} recall has failed. Mayor {mayor}'s {approval}% approval set the base removal chance at {base_chance}%. The election-day luck swing was {luck}. The final removal chance was {chance}%; the mayor survived the vote and remains in office.",
-			"This recall is concluded. Another resort visit that loses more than half its entry treasury can bring another election.",
+			"Voters in {city} rejected the recall of Mayor {mayor} in the {date} election. The mayor remains in office after a campaign dominated by the loss of treasury money at the casino.",
+			"The mayor's supporters celebrated as recall volunteers folded their signs. A letter already waiting at the Dispatch congratulates the mayor and asks that future visits to the tables be made with the mayor's own money. The envelope contains no chips.",
 		]},
 	# The mayor's casino play at the gaming resorts (see docs/simulation/casino.md).
 	&"casino_debut": {
@@ -970,7 +1005,7 @@ const DISTRICTS: Array[String] = [
 	"the southwest corner", "the south end", "the southeast corner",
 ]
 
-const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind", "event", "date", "entry_treasury", "approval", "chance", "months", "base_chance", "luck", "luck_limit"]
+const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind", "event", "date"]
 
 
 static func kinds() -> Array[StringName]:
@@ -985,8 +1020,13 @@ static func has(kind: StringName) -> bool:
 
 
 ## The template a report resolves to. Disaster reports pick their own kind's
-## template when one exists; unknown kinds fall back to the generic story.
+## template when one exists; recall updates follow their campaign month.
+## Unknown kinds fall back to the generic story.
 static func template_key(kind: StringName, args: Dictionary = {}) -> StringName:
+	if kind == &"recall_update":
+		var campaign_story := StringName("recall_update_%d" % int(args.get("months", 0)))
+		if STORIES.has(campaign_story):
+			return campaign_story
 	if kind == &"disaster_started" and args.has("kind"):
 		var specific := StringName("disaster_" + String(args["kind"]))
 		if STORIES.has(specific):
@@ -1056,13 +1096,6 @@ static func values_for(kind: StringName, args: Dictionary, city_name: String, ma
 		"kind": kind_text(kind, args),
 		"event": String(args.get("event","City event")),
 		"date": String(args.get("date","next month")),
-		"entry_treasury": NoticeLines.money(int(args.get("entry_funds", 0))),
-		"approval": str(int(args.get("approval", 0))),
-		"chance": str(int(args.get("chance", 0))),
-		"base_chance": str(int(args.get("base_chance", args.get("chance", 0)))),
-		"luck": "%+d percentage point%s" % [int(args.get("luck", 0)), "" if absi(int(args.get("luck", 0))) == 1 else "s"],
-		"luck_limit": str(int(args.get("luck_limit", MayoralRecall.LUCK_SWING))),
-		"months": "%d %s" % [int(args.get("months", 0)), "Month" if int(args.get("months", 0)) == 1 else "Months"],
 	}
 
 

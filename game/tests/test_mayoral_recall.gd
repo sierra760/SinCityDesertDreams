@@ -38,9 +38,10 @@ func test_strict_half_threshold_and_unsettled_refunds() -> void:
 	lose(10000)
 	check_eq(r.due_day, -1, "exactly half is safe")
 	lose(1)
+	check_eq(r.due_day, -1,"loss alone does not call a recall")
+	sim.casino_end_visit()
 	check_eq(r.due_day, 150)
-	check_eq(r.entry_funds, 20000)
-	check_eq(r.visit_loss, 10001)
+	check_eq(r.entry_funds, 0,"departed visit is cleared")
 
 func test_winnings_offset_losses_and_city_expenses_do_not_count() -> void:
 	var r: Variant = recall()
@@ -51,6 +52,8 @@ func test_winnings_offset_losses_and_city_expenses_do_not_count() -> void:
 	lose(15000)
 	check_eq(r.due_day, -1)
 	lose(1)
+	check_eq(r.due_day, -1,"loss alone does not call a recall")
+	sim.casino_end_visit()
 	check_eq(r.due_day, 150)
 
 func test_odd_baseline_and_nonpositive_entry() -> void:
@@ -61,6 +64,8 @@ func test_odd_baseline_and_nonpositive_entry() -> void:
 	lose(50)
 	check_eq(r.due_day, -1)
 	lose(1)
+	check_eq(r.due_day, -1,"loss alone does not call a recall")
+	sim.casino_end_visit()
 	check_eq(r.due_day, 150)
 	sim.casino_end_visit()
 	r.load({})
@@ -79,11 +84,13 @@ func test_only_active_resort_and_one_pending_date() -> void:
 	check_eq(r.due_day, -1)
 	sim.city.funds = 20000
 	lose(11000)
+	sim.casino_end_visit()
 	var due: int = r.due_day
 	sim.casino_end_visit()
 	sim.clock.day = 20
 	sim.casino_begin_visit(RESORT)
 	lose(5000)
+	sim.casino_end_visit()
 	check_eq(r.due_day, due, "later loss cannot postpone election")
 
 func test_exact_six_month_date_across_year_and_current_approval() -> void:
@@ -93,6 +100,7 @@ func test_exact_six_month_date_across_year_and_current_approval() -> void:
 	sim.city.day = 223
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
+	sim.casino_end_visit()
 	check_eq(r.due_day, 373)
 	sim.stats.approval = 0
 	seed_recall(0)
@@ -113,6 +121,7 @@ func test_dismissal_stops_direct_days_and_bets() -> void:
 	if r == null: return
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
+	sim.casino_end_visit()
 	sim.clock.day = 150
 	sim.city.day = 150
 	sim.stats.approval = 0
@@ -130,6 +139,7 @@ func test_save_restore_preserves_campaign_rng_and_old_saves() -> void:
 	if r == null: return
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
+	sim.casino_end_visit()
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(sim.snapshot()))
 	var city_data := SaveFormat.encode_city(sim.city)
 	check_eq(SaveFormat.validate_snapshot(snapshot), "")
@@ -164,6 +174,7 @@ func test_campaign_reports_once_and_fresh_visit_after_survival() -> void:
 		if String(story.kind).begins_with("recall_"): reports.append(story.kind))
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
+	sim.casino_end_visit()
 	check_eq(reports.count(&"recall_called"), 1)
 	for day in [25, 50, 75, 100, 125, 150]:
 		sim.clock.day = day
@@ -178,7 +189,13 @@ func test_campaign_reports_once_and_fresh_visit_after_survival() -> void:
 	sim.casino_end_visit()
 	sim.casino_begin_visit(RESORT)
 	lose(sim.city.funds / 2 + 1)
+	sim.casino_end_visit()
 	check_eq(r.due_day, 301)
+
+func check_recall_article(body: String) -> void:
+	check(not body.contains("{"),"article placeholders resolve")
+	for phrase in ["%","probability","percentage","base odds","removal chance","luck swing","saved city","save file","unsaved","load","more than half"]:
+		check(not body.to_lower().contains(phrase),"newspaper stays in-world: "+phrase)
 
 func test_urgent_paper_prints_call_and_result_even_after_another_extra() -> void:
 	var r: Variant = recall()
@@ -187,11 +204,14 @@ func test_urgent_paper_prints_call_and_result_even_after_another_extra() -> void
 	sim._drain_events()
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
+	sim.casino_end_visit()
 	var paper: SimSystem = sim.get_system(&"newspaper")
 	var issue: Dictionary = paper.call("latest_issue")
 	check_eq(String(issue.stories[0].kind), "recall_called")
 	var body := String(issue.stories[0].body)
-	check(body.contains("$20,000") and body.contains("$11,000"), "paper explains both amounts")
+	check(body.contains("$11,000") and body.contains("Comstock Grand"), "paper reports the loss and resort")
+	check(body.contains("July 1, 1900"), "paper names election day")
+	check_recall_article(body)
 	check(not body.contains("{"), "all placeholders resolve")
 	sim.clock.day = 150
 	sim.city.day = 150
@@ -202,14 +222,18 @@ func test_urgent_paper_prints_call_and_result_even_after_another_extra() -> void
 	sim.advance_day()
 	issue = paper.call("latest_issue")
 	check_eq(String(issue.stories[0].kind), "recall_removed")
-	check(String(issue.stories[0].body).contains("100%"))
-	check(String(issue.stories[0].body).contains("luck"),"result explains how luck changed the base odds")
+	body = String(issue.stories[0].body)
+	check(body.contains("July 1, 1900"))
+	check(body.to_lower().contains("removed from office"),"story reports the actual result")
+	check_recall_article(body)
 
-func test_monthly_campaign_updates_print_current_odds_immediately() -> void:
+func test_monthly_campaign_updates_print_distinct_stories_immediately() -> void:
 	var r: Variant = recall()
 	if r == null: return
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
+	sim.casino_end_visit()
+	var headlines: Dictionary = {}
 	for day in [25,50,75,100,125]:
 		sim.clock.day = day
 		sim.city.day = day
@@ -218,11 +242,11 @@ func test_monthly_campaign_updates_print_current_odds_immediately() -> void:
 		var issue: Dictionary = sim.get_system(&"newspaper").call("latest_issue")
 		check_eq(int(issue.month), day / 25 + 1)
 		check_eq(String(issue.stories[0].kind), "recall_update")
-		var remaining: int = 6 - day / 25
-		var unit := "Month" if remaining == 1 else "Months"
-		check_eq(String(issue.stories[0].headline), "Recall Countdown: %d %s Until The Vote" % [remaining, unit])
-		check(String(issue.stories[0].body).contains("%d%%" % sim.stats.approval))
-		check(String(issue.stories[0].body).contains("luck") and String(issue.stories[0].body).contains("15"),"campaign explains the election-day swing")
+		headlines[String(issue.stories[0].headline)] = true
+		var body := String(issue.stories[0].body)
+		check(body.contains("July 1, 1900"),"every campaign story gives election day")
+		check_recall_article(body)
+	check_eq(headlines.size(),5,"five stages have distinct reporting, not repeated instructions")
 
 func test_election_draw_uses_own_saved_rng_at_intermediate_approval() -> void:
 	var r: Variant = recall()
@@ -250,15 +274,9 @@ func test_election_draw_uses_own_saved_rng_at_intermediate_approval() -> void:
 		var kind := &"recall_removed" if r.dismissed else &"recall_survived"
 		var values := NewsStories.values_for(kind,r.result,ctx.city.name,ctx.city.mayor,ctx.clock.year())
 		var body := NewsStories.body(kind,r.result,values)
-		check(body.contains("at 30%"),"result reports approval-based odds")
-		check(body.contains("%+d percentage points" % luck),"result reports signed luck swing")
-		check(body.contains("chance was %d%%" % (30+luck)),"result reports final odds")
-		check(not body.contains("{"),"result placeholders resolve")
+		check_recall_article(body)
+		check(body.contains("recalled") if r.dismissed else body.contains("rejected"),"story follows the actual outcome")
 	check_eq(sim.rng.state(), simulation_state, "recall draw never consumes city RNG")
-	for row in [[-1,"-1 percentage point."],[0,"+0 percentage points."],[1,"+1 percentage point."],[15,"+15 percentage points."]]:
-		var args := {"luck":int(row[0])}
-		var values := NewsStories.values_for(&"recall_removed",args,"Test City","Mayor",1900)
-		check(NewsStories.body(&"recall_removed",args,values).contains(row[1]),"luck units use the correct singular or plural")
 
 
 func test_march_vote_finishes_before_recall_reads_approval() -> void:
@@ -310,6 +328,7 @@ func test_resolved_luck_and_roll_survive_json_restore_without_another_draw() -> 
 	if r == null: return
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
+	sim.casino_end_visit()
 	sim.clock.day = 150
 	sim.city.day = 150
 	sim.stats.approval = 70
@@ -322,3 +341,64 @@ func test_resolved_luck_and_roll_survive_json_restore_without_another_draw() -> 
 	sim.advance_day()
 	check_eq(r.result,result)
 	check_eq(str(r.save().rng_state),rng_state,"a resolved recall never draws again")
+
+func test_warning_on_each_crossing_allows_recovery_before_departure() -> void:
+	var r: Variant = recall()
+	if r == null: return
+	var warnings: Array = []
+	var reports: Array = []
+	sim.notice_raised.connect(func(kind: StringName,payload: Dictionary) -> void:
+		if kind == &"recall_warning": warnings.append(payload))
+	sim.news_published.connect(func(story: Dictionary) -> void:
+		if story.kind == &"recall_called": reports.append(story))
+	sim.casino_begin_visit(RESORT)
+	lose(10000)
+	check_eq(warnings.size(),0,"exactly half is safe")
+	lose(1)
+	check_eq(warnings.size(),1,"crossing below half warns")
+	check_eq(r.due_day,-1,"there is still time to win back the losses")
+	lose(100)
+	check_eq(warnings.size(),1,"staying below half does not spam warnings")
+	lose(100,201)
+	check_eq(r.visit_loss,10000,"win returns exactly to half")
+	lose(1)
+	check_eq(warnings.size(),2,"another dip warns again")
+	lose(100,201)
+	sim.casino_end_visit()
+	check_eq(r.due_day,-1,"leaving after recovery calls no recall")
+	check_eq(reports.size(),0)
+
+func test_unrecovered_departure_calls_once_six_months_from_exit() -> void:
+	var r: Variant = recall()
+	if r == null: return
+	var reports: Array = []
+	sim.news_published.connect(func(story: Dictionary) -> void:
+		if story.kind == &"recall_called": reports.append(story))
+	sim.casino_begin_visit(RESORT)
+	lose(11000)
+	check_eq(r.due_day,-1)
+	sim.clock.day = 17
+	sim.city.day = 17
+	sim.casino_end_visit()
+	check_eq(r.due_day,167)
+	check_eq(reports.size(),1)
+	check_eq(int(reports[0].args.amount),11000)
+	check_eq(int(reports[0].args.entry_funds),20000)
+	sim.casino_end_visit()
+	check_eq(reports.size(),1,"duplicate cleanup cannot call another election")
+
+func test_at_risk_visit_survives_json_without_repeating_warning() -> void:
+	var r: Variant = recall()
+	if r == null: return
+	var warnings: Array = []
+	sim.notice_raised.connect(func(kind: StringName,_payload: Dictionary) -> void:
+		if kind == &"recall_warning": warnings.append(kind))
+	sim.casino_begin_visit(RESORT)
+	lose(11000)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(r.save()))
+	r.load(saved)
+	check_eq(r.due_day,-1)
+	lose(1)
+	check_eq(warnings.size(),1)
+	sim.casino_end_visit()
+	check_eq(r.due_day,150)

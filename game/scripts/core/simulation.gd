@@ -321,11 +321,15 @@ func is_mayor_dismissed() -> bool:
 
 
 func casino_begin_visit(resort: StringName) -> void:
-	if city != null and casino() != null: casino().recall.begin_visit(_ctx, resort)
+	if city != null and casino() != null:
+		casino().recall.begin_visit(_ctx, resort)
+		_drain_events()
 
 
 func casino_end_visit() -> void:
-	if casino() != null: casino().recall.end_visit()
+	if city != null and casino() != null:
+		casino().recall.end_visit(_ctx)
+		_drain_events()
 
 
 ## Debit a casino round's stake from the treasury. Publishes the new balance

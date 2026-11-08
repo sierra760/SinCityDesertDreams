@@ -20,6 +20,7 @@ func _dismiss_mayor() -> void:
 	host.sim.casino_begin_visit(COMSTOCK)
 	check(host.sim.casino_commit(COMSTOCK, &"blackjack", 11000))
 	host.sim.casino_settle(COMSTOCK, &"blackjack", 11000, 0)
+	host.sim.casino_end_visit()
 	host.notices.clear_pending()
 	host.notice_dialog.dismiss()
 	host.sim.clock.day = 150
@@ -94,6 +95,7 @@ func test_surviving_recall_keeps_authority_and_save_available() -> void:
 	host.sim.casino_begin_visit(COMSTOCK)
 	host.sim.casino_commit(COMSTOCK, &"blackjack", 11000)
 	host.sim.casino_settle(COMSTOCK, &"blackjack", 11000, 0)
+	host.sim.casino_end_visit()
 	host.notices.clear_pending()
 	host.notice_dialog.dismiss()
 	host.sim.clock.day = 150
@@ -156,3 +158,18 @@ func test_newer_same_named_city_cannot_replace_this_citys_last_save() -> void:
 	document.header.saved_at = int(Time.get_unix_time_from_system()) + 1000
 	check_eq(SaveFormat._write_replacement(foreign_path,JSON.stringify(document).to_utf8_buffer()),OK)
 	check_eq(host.recall_flow.latest_save(),previous,"a newer different city with the same name and mayor is never selected")
+
+func test_loading_at_risk_visit_finishes_it_outside_without_overwriting_save() -> void:
+	found(20000)
+	host.sim.casino_begin_visit(COMSTOCK)
+	check(host.sim.casino_commit(COMSTOCK,&"blackjack",11000))
+	host.sim.casino_settle(COMSTOCK,&"blackjack",11000,0)
+	check_eq(host.sim.casino().recall.due_day,-1)
+	host.notice_dialog.dismiss()
+	var path := host.files.save_city_as(PRIOR_NAME)
+	check(not path.is_empty())
+	var saved_hash := FileAccess.get_sha256(path)
+	check(host.load_city(path))
+	check_eq(host.sim.casino().recall.visit_resort,&"","loaded city opens outside the casino")
+	check_eq(host.sim.casino().recall.due_day,150,"loading outside cannot wipe an unfinished losing visit")
+	check_eq(FileAccess.get_sha256(path),saved_hash,"loading preserves the saved file")

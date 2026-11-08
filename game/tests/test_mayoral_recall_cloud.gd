@@ -9,6 +9,7 @@ func test_removal_preserves_cloud_checkpoint_and_blocks_all_capture_routes() -> 
 	host.sim.casino_begin_visit(&"arcology_comstock")
 	check(host.sim.casino_commit(&"arcology_comstock", &"blackjack", 11000))
 	host.sim.casino_settle(&"arcology_comstock", &"blackjack", 11000, 0)
+	host.sim.casino_end_visit()
 	check_eq(cloud.capture(&"campaign"), OK)
 	var checkpoint := row().duplicate(true)
 	host.notices.clear_pending()

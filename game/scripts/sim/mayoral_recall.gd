@@ -25,30 +25,38 @@ func setup(ctx: SimContext) -> void:
 
 func begin_visit(ctx: SimContext, resort: StringName) -> void:
 	if dismissed or not ResortThemes.has(resort): return
+	# A new doorway cannot silently replace an unfinished saved visit.
+	if visit_resort != &"": end_visit(ctx)
 	visit_resort = resort
 	entry_funds = maxi(0, ctx.city.funds)
 	visit_loss = 0
 	visit_prosecuted = false
 
-func end_visit() -> void:
+## A temporary loss only warns. The final net loss is judged at departure.
+func end_visit(ctx: SimContext) -> void:
+	if not dismissed and due_day < 0 and not visit_prosecuted and _at_risk():
+		due_day = ctx.clock.day + DELAY
+		next_update = ctx.clock.day + GameClock.DAYS_PER_MONTH
+		result = {}
+		var args := _args(ctx)
+		args["place"] = ResortThemes.resort_name(visit_resort)
+		args["amount"] = visit_loss
+		args["entry_funds"] = entry_funds
+		ctx.events.report(&"recall_called", args)
 	visit_resort = &""
 	entry_funds = 0
 	visit_loss = 0
 	visit_prosecuted = false
 
+func _at_risk() -> bool:
+	return visit_resort != &"" and entry_funds > 0 and visit_loss > entry_funds / 2
+
 func settle(ctx: SimContext, resort: StringName, stake: int, paid: int) -> void:
 	if dismissed or resort != visit_resort or visit_resort == &"": return
+	var was_at_risk := _at_risk()
 	visit_loss += stake - paid
-	if due_day >= 0 or visit_prosecuted or entry_funds <= 0 or visit_loss <= entry_funds / 2: return
-	visit_prosecuted = true
-	due_day = ctx.clock.day + DELAY
-	next_update = ctx.clock.day + GameClock.DAYS_PER_MONTH
-	result = {}
-	var args := _args(ctx)
-	args["place"] = ResortThemes.resort_name(resort)
-	args["amount"] = visit_loss
-	args["entry_funds"] = entry_funds
-	ctx.events.report(&"recall_called", args)
+	if not was_at_risk and _at_risk() and not visit_prosecuted:
+		ctx.events.notify(&"recall_warning", {"entry_funds": entry_funds, "loss": visit_loss})
 
 ## Run after the day's systems, so March's approval vote is already current.
 func advance(ctx: SimContext) -> void:

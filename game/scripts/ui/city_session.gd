@@ -375,6 +375,9 @@ func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CitySt
 	host.menu_bar.set_checked(&"auto_budget", sim.stats.auto_budget)
 	host.menu_bar.set_checked(&"underground", host.presentation.is_underground())
 	view.set_active(true)
+	# Saves reopen in Build, outside the casino. Finish any saved visit there
+	# so a load cannot erase its loss by starting a fresh entry baseline.
+	if not snapshot.is_empty(): sim.casino_end_visit()
 	return true
 
 

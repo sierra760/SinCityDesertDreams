@@ -13,6 +13,10 @@ extends RefCounted
 
 ## kind -> {title, body}
 const NOTICES: Dictionary = {
+	&"recall_warning": {
+		"title": "Recall Warning",
+		"body": "You have lost more than 50% of the treasury you had when you entered. If you leave this casino with less than half of that money, citizens will demand a recall election. You can still win it back before leaving.",
+	},
 	&"disaster": {
 		"title": "Emergency: {kind}",
 		"body": "Reports are coming in of {phrase} near {place}. Crews will answer where stations stand; where they do not, the map is yours to work with the emergency tools.",

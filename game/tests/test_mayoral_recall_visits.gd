@@ -29,3 +29,32 @@ func test_clear_and_demolition_end_visit() -> void:
 	host.sim.casino_begin_visit(COMSTOCK)
 	host.exploration.resort_service.clear()
 	check_eq(r.visit_resort, &"", "Explore disposal ends visit")
+
+func test_real_floor_warns_and_only_calls_recall_at_the_door() -> void:
+	if not await _walk_inside(): return
+	var r := host.sim.casino().recall
+	check(host.open_casino_table(COMSTOCK,&"blackjack"))
+	check(host.sim.casino_commit(COMSTOCK,&"blackjack",110000))
+	host.sim.casino_settle(COMSTOCK,&"blackjack",110000,0)
+	check(host.notice_dialog.is_open(),"warning appears at the table")
+	check(host.notice_dialog.body_label.text.contains("50%"))
+	check(host.notice_dialog.body_label.text.contains("leave"))
+	check_eq(r.due_day,-1)
+	host.notice_dialog.dismiss()
+	host.force_close_casino()
+	check_eq(r.due_day,-1,"leaving the table is not leaving the casino")
+	check_eq(r.entry_funds,START_FUNDS)
+	check(host.sim.casino_commit(COMSTOCK,&"blackjack",1000))
+	host.sim.casino_settle(COMSTOCK,&"blackjack",1000,12000)
+	check(host.exploration.resort_service.leave())
+	check_eq(r.due_day,-1,"recovered treasury leaves safely")
+	var record := {"anchor":ANCHOR,"code":Buildings.ARCOLOGY_COMSTOCK,"key":COMSTOCK}
+	check(host.exploration.resort_service.enter(record))
+	var loss := host.sim.city.funds / 2 + 1
+	check(host.sim.casino_commit(COMSTOCK,&"blackjack",loss))
+	host.sim.casino_settle(COMSTOCK,&"blackjack",loss,0)
+	check_eq(r.due_day,-1)
+	host.notice_dialog.dismiss()
+	check(host.exploration.resort_service.leave())
+	check_eq(r.due_day,150)
+	check(host.notice_dialog.is_open(),"departure publishes the recall extra")
