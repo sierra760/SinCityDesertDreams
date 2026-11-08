@@ -96,6 +96,7 @@ func preview(tool: int, from: Vector2i, to: Vector2i = Vector2i(-1, -1), options
 ## plan that needs the player's answer first comes back with
 ## `needs_confirmation` and nothing charged; answer it through `options`.
 func apply(tool: int, from: Vector2i, to: Vector2i = Vector2i(-1, -1), options: Dictionary = {}) -> Dictionary:
+	if sim != null and sim.is_mayor_dismissed(): return _fail("The mayor has been removed from office.")
 	var plan := _plan(tool, from, to if to != Vector2i(-1, -1) else from, options)
 	plan["applied"] = false
 	if not bool(plan["ok"]):
@@ -134,6 +135,7 @@ func apply(tool: int, from: Vector2i, to: Vector2i = Vector2i(-1, -1), options: 
 ## Give a facility a name of its own (shown by the query panel). Empty text
 ## clears it. Returns {ok, reason}.
 func rename_facility(at: Vector2i, text: String) -> Dictionary:
+	if sim != null and sim.is_mayor_dismissed(): return _fail("The mayor has been removed from office.")
 	if not city.in_bounds(at.x, at.y):
 		return {"ok": false, "reason": REASON_BOUNDS}
 	var anchor := city.anchor_of(at.x, at.y)
@@ -200,6 +202,7 @@ func _tree_protest(plan: Dictionary) -> void:
 
 ## Write a sign. Empty text removes it. Returns {ok, reason}.
 func place_sign(at: Vector2i, text: String) -> Dictionary:
+	if sim != null and sim.is_mayor_dismissed(): return _fail("The mayor has been removed from office.")
 	if not city.in_bounds(at.x, at.y):
 		return {"ok": false, "reason": REASON_BOUNDS}
 	var trimmed := text.strip_edges().left(SIGN_TEXT_MAX)

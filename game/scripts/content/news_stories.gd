@@ -613,6 +613,34 @@ const STORIES: Dictionary = {
 			"Mayor {mayor} watched the launch from the courthouse steps. The council is already arguing over what to build on the empty lots.",
 		],
 	},
+	&"recall_called": {
+		"priority": URGENT + 1, "decay": ONCE,
+		"headlines": ["Mayor Faces Recall After Treasury Gambling Loss"],
+		"body": [
+			"Mayor {mayor} lost {count} gambling at {place}, more than half the {entry_treasury} in the treasury when the mayor entered. A recall election has been called for {date}, six months after the loss.",
+			"Approval currently stands at {approval}%. The chance of removal will be 100% minus the mayor's approval on election day; at today's rating that would be {chance}%. Leaving the tables or winning the money back will not cancel the vote.",
+		]},
+	&"recall_update": {
+		"priority": URGENT, "decay": ONCE,
+		"headlines": ["Recall Countdown: {months} Until The Vote"],
+		"body": [
+			"The gambling-loss recall election remains scheduled for {date}. Mayor {mayor}'s current approval is {approval}%, implying a {chance}% chance of removal if the election were held today.",
+			"The rating on election day will decide the odds. If the recall passes, the mayor leaves office and play must resume from a saved city.",
+		]},
+	&"recall_removed": {
+		"priority": URGENT + 1, "decay": ONCE,
+		"headlines": ["Recall Passes: Mayor Removed From Office"],
+		"body": [
+			"The {date} recall has passed. Mayor {mayor} had {approval}% approval, giving the recall a {chance}% chance of success. The vote has ended the mayor's tenure.",
+			"City management is now closed. Load the most recent saved city to resume; unsaved progress from this tenure is lost. Existing saves have been preserved.",
+		]},
+	&"recall_survived": {
+		"priority": URGENT + 1, "decay": ONCE,
+		"headlines": ["Mayor Survives Recall; City Hall Stays Open"],
+		"body": [
+			"The {date} recall has failed. Mayor {mayor}'s {approval}% approval meant a {chance}% chance of removal, but the mayor survived the vote and remains in office.",
+			"This recall is concluded. Another resort visit that loses more than half its entry treasury can bring another election.",
+		]},
 	# The mayor's casino play at the gaming resorts (see docs/simulation/casino.md).
 	&"casino_debut": {
 		"priority": MINOR, "decay": ONCE,
@@ -942,7 +970,7 @@ const DISTRICTS: Array[String] = [
 	"the southwest corner", "the south end", "the southeast corner",
 ]
 
-const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind", "event", "date"]
+const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind", "event", "date", "entry_treasury", "approval", "chance", "months"]
 
 
 static func kinds() -> Array[StringName]:
@@ -1028,6 +1056,10 @@ static func values_for(kind: StringName, args: Dictionary, city_name: String, ma
 		"kind": kind_text(kind, args),
 		"event": String(args.get("event","City event")),
 		"date": String(args.get("date","next month")),
+		"entry_treasury": NoticeLines.money(int(args.get("entry_funds", 0))),
+		"approval": str(int(args.get("approval", 0))),
+		"chance": str(int(args.get("chance", 0))),
+		"months": "%d %s" % [int(args.get("months", 0)), "Month" if int(args.get("months", 0)) == 1 else "Months"],
 	}
 
 

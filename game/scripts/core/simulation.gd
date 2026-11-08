@@ -108,7 +108,7 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
-	if not _ready_to_run or speed == GameClock.Speed.PAUSED or budget_review_pending:
+	if not _ready_to_run or speed == GameClock.Speed.PAUSED or budget_review_pending or is_mayor_dismissed():
 		return
 	if not is_finite(delta) or delta < 0.0:
 		return
@@ -121,7 +121,7 @@ func _process(delta: float) -> void:
 	batching = true
 	while guard < MAX_DAYS_PER_FRAME:
 		# Signals emitted by a day can pause, change speed, or open a modal.
-		if not _ready_to_run or speed == GameClock.Speed.PAUSED or budget_review_pending:
+		if not _ready_to_run or speed == GameClock.Speed.PAUSED or budget_review_pending or is_mayor_dismissed():
 			break
 		var per_day: float = GameClock.SECONDS_PER_DAY[speed]
 		var paced := speed != GameClock.Speed.FASTEST
@@ -194,7 +194,7 @@ func get_system(system_key: StringName) -> SimSystem:
 
 
 func set_speed(value: int) -> void:
-	speed = clampi(value, GameClock.Speed.PAUSED, GameClock.Speed.FASTEST)
+	speed = GameClock.Speed.PAUSED if is_mayor_dismissed() else clampi(value, GameClock.Speed.PAUSED, GameClock.Speed.FASTEST)
 
 
 func toggle_pause() -> void:
@@ -208,7 +208,7 @@ func toggle_pause() -> void:
 
 ## Run one simulated day. Safe to call directly from tests and tools.
 func advance_day() -> void:
-	if city == null or not _ready_to_run or budget_review_pending:
+	if city == null or not _ready_to_run or budget_review_pending or is_mayor_dismissed():
 		return
 	events.clear()
 	for s in systems:
@@ -226,6 +226,8 @@ func advance_day() -> void:
 	if clock.is_year_end():
 		for s in systems:
 			s.yearly(_ctx)
+	if casino() != null: casino().recall.advance(_ctx)
+	if is_mayor_dismissed(): set_speed(GameClock.Speed.PAUSED)
 	_drain_events()
 	var y := clock.year()
 	var m := clock.month()
@@ -233,7 +235,7 @@ func advance_day() -> void:
 	day_advanced.emit(y, m, d)
 	if clock.is_month_end():
 		month_ended.emit(y, m)
-	if clock.is_year_end():
+	if clock.is_year_end() and not is_mayor_dismissed():
 		year_ended.emit(y)
 		budget_review_pending = true
 		budget_review_due.emit(y)
@@ -313,11 +315,24 @@ func casino() -> CasinoSystem:
 	return get_system(&"casino") as CasinoSystem
 
 
+## True after a passed recall, until a different city snapshot is loaded.
+func is_mayor_dismissed() -> bool:
+	return casino() != null and casino().recall.dismissed
+
+
+func casino_begin_visit(resort: StringName) -> void:
+	if city != null and casino() != null: casino().recall.begin_visit(_ctx, resort)
+
+
+func casino_end_visit() -> void:
+	if casino() != null: casino().recall.end_visit()
+
+
 ## Debit a casino round's stake from the treasury. Publishes the new balance
 ## immediately, even while paused. False when the system refuses it.
 func casino_commit(resort: StringName, game: StringName, staked: int) -> bool:
 	var system := casino()
-	if system == null or city == null:
+	if system == null or city == null or is_mayor_dismissed():
 		return false
 	var ok := system.commit_round(_ctx, resort, game, staked)
 	_emit_scalars()

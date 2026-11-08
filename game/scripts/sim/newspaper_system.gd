@@ -101,7 +101,7 @@ func _print_extra(ctx: SimContext, fresh: Array[Dictionary]) -> void:
 	for story in fresh:
 		if int(story["priority"]) < NewspaperParams.EXTRA_PRIORITY:
 			continue
-		if _extra_day == ctx.clock.day and story["kind"] != &"disaster_started":
+		if _extra_day == ctx.clock.day and story["kind"] not in [&"disaster_started", &"recall_called", &"recall_update", &"recall_removed", &"recall_survived"]:
 			continue
 		_publish(ctx, true)
 		_extra_day = ctx.clock.day

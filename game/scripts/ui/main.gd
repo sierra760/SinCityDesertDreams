@@ -43,6 +43,7 @@ var entity_records: CityEntityRecords
 @onready var ui_layer: CanvasLayer = $UI
 
 var shell: GameShellLayout
+var recall_flow: MayoralRecallFlow
 var files: CityFileFlow
 var session: CitySession
 var cloud_saves: CloudSaveSession
@@ -130,6 +131,7 @@ var _background_save_error: Error = OK
 
 
 func _init() -> void:
+	recall_flow = MayoralRecallFlow.new(self)
 	session = CitySession.new(self)
 	construction = ConstructionFlow.new(self)
 	prefs = PreferencesController.new(self)
@@ -465,6 +467,7 @@ func explore_progress_snapshot() -> Dictionary:
 
 ## Write the annual backup. Only a founded city has one.
 func autosave() -> Error:
+	if sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	if stage != Stage.PLAY:
 		return ERR_UNAVAILABLE
 	return SaveFormat.save(CityFileFlow.autosave_path(), sim.city, sim.snapshot(), SaveFormat.STAGE_PLAY, {}, explore_progress_snapshot())
@@ -478,6 +481,7 @@ func can_quit_application() -> bool:
 ## Save a recovery copy while a mobile OS still allows background execution.
 ## Named and annual saves, and the unsaved-changes state, are left untouched.
 func suspend_for_background(recovery_path: String = "") -> Error:
+	if sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	if _help_sources_open(): (windows.help as HelpWindow).sources_dialog.close()
 	if is_instance_valid(new_city_dialog) and new_city_dialog.is_open(): new_city_dialog.cancel_online_work()
 	if _application_suspended: return _background_save_error
@@ -974,6 +978,7 @@ func toggle_underground() -> void:
 # ── Menus ────────────────────────────────────────────────────────────────
 
 func _on_menu_action(action: StringName, value: Variant) -> void:
+	if in_game and sim.is_mayor_dismissed(): return
 	if loading_screen.visible: return
 	if action in [&"zoom_in", &"zoom_out", &"zoom", &"rotate", &"recenter", &"underground", &"overlay"] and (is_exploring() or is_input_blocked() or WindowDrag.is_dragging()):
 		menu_bar.set_checked(&"zoom", true, city_view_3d.zoom_level())
@@ -1128,6 +1133,8 @@ func open_casino_table(resort: StringName, game: StringName, rng: CasinoRng = nu
 		casino_overlay.closed.connect(_on_casino_closed)
 		casino_overlay.round_settled.connect(func(_resort: StringName, _game: StringName, _outcome: Dictionary) -> void: _refresh_after_casino())
 		if audio != null: audio.bind_casino(casino_overlay)
+	if not is_exploring() or exploration.resort_service == null or not exploration.resort_service.is_inside() or sim.casino().recall.visit_resort != resort:
+		sim.casino_begin_visit(resort)
 	push_modal()
 	modal_layer.move_child(casino_overlay, modal_layer.get_child_count() - 1)
 	casino_overlay.open(sim, resort, game, rng)
@@ -1146,6 +1153,8 @@ func force_close_casino() -> void:
 
 
 func _on_casino_closed() -> void:
+	if not is_exploring() or exploration.resort_service == null or not exploration.resort_service.is_inside():
+		sim.casino_end_visit()
 	pop_modal()
 	if is_instance_valid(exploration): exploration.release_casino_table_view()
 	# Resume Explore now, when nothing else holds input, so the HUD comes
@@ -1199,7 +1208,7 @@ func sync_help_sources_hold() -> void:
 
 
 func is_input_blocked() -> bool:
-	return is_casino_open() or _help_sources_open() or _application_suspended or loading_screen.visible or not in_game or modal_depth > 0 or title_screen.visible or share_dialog.is_open() or notice_dialog.is_open() \
+	return sim.is_mayor_dismissed() or is_casino_open() or _help_sources_open() or _application_suspended or loading_screen.visible or not in_game or modal_depth > 0 or title_screen.visible or share_dialog.is_open() or notice_dialog.is_open() \
 		or choice_dialog.is_open() or new_city_dialog.is_open() or load_dialog.is_open() or save_dialog.is_open() \
 		or files.picker_modal or (files.import_dialog != null and files.import_dialog.visible)
 
@@ -1277,6 +1286,7 @@ func release_sim_process_hold(owner: StringName) -> void:
 # ── Time ─────────────────────────────────────────────────────────────────
 
 func _on_day_advanced(_year: int, _month: int, _day: int) -> void:
+	recall_flow.sync()
 	# Several days can run in one frame; present only the last of them.
 	if sim.batching:
 		_day_presentation_pending = true
@@ -1301,6 +1311,7 @@ func _present_day() -> void:
 
 
 func _on_budget_review_due(_year: int) -> void:
+	if sim.is_mayor_dismissed(): return
 	if autosave() != OK:
 		notices.show("Automatic Backup Failed", "The automatic backup couldn't be written. Use City → Save As to save your city to another file.")
 	present_budget_review()
@@ -1446,6 +1457,7 @@ func sync_3d_cursor() -> void:
 
 
 func _process(delta: float) -> void:
+	recall_flow.sync()
 	if loading_screen != null and loading_screen.visible:
 		# Revocation must advance during presented-frame waits; periodic
 		# checkpoint time and all ordinary host work remain paused below.

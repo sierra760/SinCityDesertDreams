@@ -251,6 +251,7 @@ func _report_capture(error: Error) -> Error:
 	return error
 
 func capture(reason: StringName) -> Error:
+	if _host.sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	if not _cloud_active(): return ERR_UNAVAILABLE
 	_activate()
 	return _report_capture(_capture(reason, false))
@@ -259,6 +260,7 @@ func capture(reason: StringName) -> Error:
 ## Start one normal nonblocking scheduler pass after the safe local capture;
 ## generic captures and prepublication guards never recursively advance it.
 func prepare_application_recovery(path: String) -> Error:
+	if _host.sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	if not CityFileFlow.is_tracked_application_recovery_path(path): return OK
 	# The local named-destination note describes only the bytes it hashed.
 	CityFileFlow.clear_recovery_destination()
@@ -276,6 +278,7 @@ func prepare_application_recovery(path: String) -> Error:
 	return error
 
 func capture_background(recovery_path: String = "") -> Error:
+	if _host.sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	if not _cloud_active():
 		# Sync is off: keep only the recovery's named destination, so a reopened
 		# recovery still saves to the player's file. No library work.
@@ -301,6 +304,7 @@ func capture_background(recovery_path: String = "") -> Error:
 	return error
 
 func _capture(_reason: StringName, force: bool) -> Error:
+	if _host.sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	if not _current(): return ERR_UNAVAILABLE
 	if not _pending_recovery.is_empty() and owner == coordinator.status().owner:
 		var recovered := _resume_recovery()
@@ -330,8 +334,9 @@ func _capture(_reason: StringName, force: bool) -> Error:
 	return error
 
 func tick(delta: float) -> void:
-	# Drain account revocation even while unfocused; no capture/network waiting.
+	# Loading and account revocation must progress even after removal.
 	coordinator.advance(Time.get_ticks_msec())
+	if _host.sim.is_mayor_dismissed(): return
 	# Don't Save was chosen, then the Load/New/Import step was cancelled: the
 	# same city is still open, so its session continues unchanged.
 	if _inert_discard_pending and _current() and not _host.files._city_action_blocked():
@@ -520,7 +525,7 @@ func _current() -> bool:
 	return not slot_id.is_empty() and _city != null and _city.get_ref() == _host.sim.city and _host.in_game
 
 func _allowed(ignore_discard: bool = false) -> bool:
-	return _cloud_active() and _current() and (ignore_discard or not _discarded) and not _revoked and not _removed and (owner.is_empty() or coordinator.status().owner == owner)
+	return not _host.sim.is_mayor_dismissed() and _cloud_active() and _current() and (ignore_discard or not _discarded) and not _revoked and not _removed and (owner.is_empty() or coordinator.status().owner == owner)
 
 ## Sync is on and the platform can perform it. Otherwise the session is inert.
 func _cloud_active() -> bool:

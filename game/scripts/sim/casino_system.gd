@@ -18,11 +18,16 @@ const LEDGER_FIELDS: Array[String] = ["rounds", "staked", "returned", "best_win"
 ## resort key -> ledger (see LEDGER_FIELDS)
 var _ledgers: Dictionary = {}
 var _debut_reported := false
+var recall := MayoralRecall.new()
 
 
 func _init() -> void:
 	key = &"casino"
 	_reset_ledgers()
+
+
+func setup(ctx: SimContext) -> void:
+	recall.setup(ctx)
 
 
 ## Day 22, before the newspaper prints: month stories, then month nets reset.
@@ -56,6 +61,8 @@ func limits(resort: StringName, funds: int) -> Dictionary:
 ## {ok, reason}: refuses an unknown resort and a treasury below the minimum
 ## (the reason names the minimum and the treasury).
 func can_play(resort: StringName, funds: int) -> Dictionary:
+	if recall.dismissed:
+		return {"ok": false, "reason": "The mayor has been removed from office."}
 	if not ResortThemes.has(resort):
 		return {"ok": false, "reason": CasinoLines.UNKNOWN_RESORT}
 	var minimum := int(CasinoParams.table_limits(resort)["minimum"])
@@ -69,7 +76,7 @@ func can_play(resort: StringName, funds: int) -> Dictionary:
 ## Debit `staked` from the treasury. False, with nothing changed, for an
 ## unknown resort or game, a stake of zero or less, or one over the treasury.
 func commit_round(ctx: SimContext, resort: StringName, game: StringName, staked: int) -> bool:
-	if ctx == null or ctx.city == null:
+	if recall.dismissed or ctx == null or ctx.city == null:
 		return false
 	if not ResortThemes.offers(resort, game):
 		return false
@@ -83,11 +90,12 @@ func commit_round(ctx: SimContext, resort: StringName, game: StringName, staked:
 
 ## Credit `returned` and record the round (`staked` is the round total).
 func settle_round(ctx: SimContext, resort: StringName, game: StringName, staked: int, returned: int) -> void:
-	if ctx == null or ctx.city == null or not ResortThemes.offers(resort, game):
+	if recall.dismissed or ctx == null or ctx.city == null or not ResortThemes.offers(resort, game):
 		return
 	var paid := maxi(0, returned)
 	var stake := maxi(0, staked)
 	ctx.city.funds += paid
+	recall.settle(ctx, resort, stake, paid)
 	var row: Dictionary = _ledgers[resort]
 	var net := paid - stake
 	row["rounds"] = int(row["rounds"]) + 1
@@ -105,7 +113,7 @@ func settle_round(ctx: SimContext, resort: StringName, game: StringName, staked:
 
 ## Credit `staked` back without a ledger entry (a round abandoned mid-play).
 func refund_round(ctx: SimContext, resort: StringName, game: StringName, staked: int) -> void:
-	if ctx == null or ctx.city == null or not ResortThemes.offers(resort, game) or staked <= 0:
+	if recall.dismissed or ctx == null or ctx.city == null or not ResortThemes.offers(resort, game) or staked <= 0:
 		return
 	ctx.city.funds += staked
 
@@ -145,7 +153,7 @@ func save() -> Dictionary:
 	for resort in _ledgers:
 		var row: Dictionary = _ledgers[resort]
 		rows[String(resort)] = row.duplicate()
-	return {"ledgers": rows, "debut": _debut_reported}
+	return {"ledgers": rows, "debut": _debut_reported, "recall": recall.save()}
 
 
 func load(data: Dictionary) -> void:
@@ -162,6 +170,7 @@ func load(data: Dictionary) -> void:
 			for field in LEDGER_FIELDS:
 				row[field] = int(source.get(field, 0))
 	_debut_reported = bool(data.get("debut", false))
+	recall.load(data.get("recall", {}))
 
 
 func _reset_ledgers() -> void:

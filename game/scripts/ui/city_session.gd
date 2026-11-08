@@ -326,6 +326,7 @@ func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CitySt
 	var sim := host.sim
 	if sim.city != city and not host.files.finish_cloud_session(): return false
 	host.street_names.leave()
+	host.recall_flow.reset()
 	host.files.reset()
 	host.message_seconds_left = 0.0
 	host.explore_switch.dispose()

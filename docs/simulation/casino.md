@@ -182,7 +182,7 @@ baccarat (Boulder Crown) and a launch game called trajectory (Desert Orbit).
 
 ## Save state
 
-`save()` returns `ledgers` (resort key → ledger) and `debut` (bool). `load()`
+`save()` returns `ledgers` (resort key → ledger), `debut` (bool), and `recall` (visit accounting, election date, result and independent random state). `load()`
 fills missing resorts and fields with zeros, so saves made before the casino
 existed load with empty ledgers. Nothing about a round in progress is saved:
 a city that closes during a committed round refunds the stake first.
@@ -224,3 +224,15 @@ patrons than current venue attendance. Empty venues render no patrons. Cached
 halls refresh when that venue's attendance changes, including equal-total
 redistributions. Entering, pausing or leaving a hall cannot admit visitors,
 advance tourism, draw simulation RNG or book tax. See [Tourism](tourism.md).
+
+## Mayoral recall for gambling losses
+
+Walking into a gaming resort fixes the visit's treasury baseline. Tables share that baseline until the mayor leaves the resort or Explore. Settled net losses greater than half a positive entry balance call a recall election; exactly half does not. Winnings offset losses, held stakes and refunded rounds do not count, and ordinary city expenses are excluded.
+
+The election takes place six simulation months (150 days) after the triggering loss. Only one recall can be pending; further losses cannot postpone it and winning money back cannot cancel it. City time remains paused during Explore. The chance of removal is 100% minus the existing approval rating on election day, after any approval vote scheduled that day. A separate persisted random stream supplies one election draw.
+
+The Desert Dispatch publishes the call, monthly campaign updates and the result. A surviving mayor retains office; the prosecuted visit cannot immediately call another recall, while a fresh qualifying visit can. A removed mayor reads the result paper, then chooses to load the latest available save for this city or return to title. If no local copy is found, Load City includes cloud-only saves.
+
+Dismissal blocks simulation advancement, construction, gambling and saving. Manual, annual, background, sharing and cloud capture paths preserve previous saves; cloud inventory and download processing remain available for recovery. Failed loads leave dismissal in force. Old saves without recall fields have no active recall or dismissal.
+
+`MayoralRecall`, owned and saved by `CasinoSystem`, handles the rules. `Simulation.casino_begin_visit`, `casino_end_visit` and `is_mayor_dismissed` expose the boundaries and result; `MayoralRecallFlow` owns the result-first UI and recovery choices.

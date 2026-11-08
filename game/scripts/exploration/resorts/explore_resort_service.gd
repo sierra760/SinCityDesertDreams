@@ -111,6 +111,7 @@ func enter(resort: Dictionary) -> bool:
 		# The hall can be closed by a city edit while the door fades.
 		if not is_instance_valid(world): return
 		_inside = world
+		if is_instance_valid(_simulation): _simulation.casino_begin_visit(world.key)
 		_sync_presence()
 		_place(world.mat_transform()))
 	return true
@@ -121,6 +122,7 @@ func leave() -> bool:
 	var outside := _outdoor_pose()
 	_transition(func() -> void:
 		_inside = null
+		if is_instance_valid(_simulation): _simulation.casino_end_visit()
 		_sync_presence()
 		_place(outside))
 	return true
@@ -234,6 +236,7 @@ func step(delta: float, pedestrian: ExplorePedestrian = null) -> void:
 	if _transitioning or not is_inside() or not is_instance_valid(walker): return
 	if not _inside.contains(walker.global_position):
 		_inside = null
+		if is_instance_valid(_simulation): _simulation.casino_end_visit()
 		_sync_presence()
 		return
 	_inside.patrons.step(delta,walker.global_position-_inside.position)
@@ -257,6 +260,7 @@ func _refresh_cached(anchors: Array) -> void:
 		if closed_name.is_empty(): closed_name = "The resort"
 		if was_inside:
 			_inside = null
+			if is_instance_valid(_simulation): _simulation.casino_end_visit()
 			_resort = {"anchor": anchor}
 			# A provisional pose at the old door; the physical world still
 			# shows the old building, so `settle_ejection` checks the real
@@ -294,6 +298,7 @@ func status() -> Dictionary:
 		"prompt": prompt(feet) if is_inside() else ""}
 
 func clear() -> void:
+	if is_instance_valid(_simulation): _simulation.casino_end_visit()
 	_disconnect_attendance()
 	_inside = null
 	_last = null

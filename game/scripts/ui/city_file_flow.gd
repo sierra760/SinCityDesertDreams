@@ -200,6 +200,7 @@ func _restore_cloud_manual(intent: Dictionary) -> Error:
 
 ## Write a share copy without changing the manual save path/checkpoint.
 func prepare_city_share(path: String = "") -> Dictionary:
+	if path.is_empty() and _host.sim.is_mayor_dismissed(): return {"ok": false, "error": "The mayor has been removed from office."}
 	if not path.is_empty(): return CityShare.copy_saved(path)
 	if not _host.in_game: return {"ok":false,"error":"Open a city before sharing it."}
 	var editing := _host.stage == GameHost.Stage.EDITING
@@ -237,6 +238,7 @@ func request_city_share(path: String = "") -> void:
 
 
 func open_save_dialog() -> void:
+	if _host.sim.is_mayor_dismissed(): return
 	var dialog := _host.save_dialog
 	if not _host.in_game or dialog.is_open():
 		return
@@ -462,6 +464,9 @@ func reset() -> void:
 ## Leave the current city (New, Load, Import, Regenerate or Quit), first
 ## offering to save unsaved changes.
 func request_city_action(action: StringName) -> void:
+	if _host.sim.is_mayor_dismissed():
+		if action == &"quit": _quit_now()
+		return
 	# A dialog already open is handling the decision; don't nest another.
 	if _city_action_blocked(): return
 	if not _pending_city_action.is_empty() or not _after_save_action.is_empty(): return
@@ -612,6 +617,7 @@ func save_city_as(save_name: String) -> String:
 ## simulation snapshot and marked as still being shaped, with its generator
 ## settings.
 func write_save(path: String) -> Error:
+	if _host.sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	var sim := _host.sim
 	var err: Error
 	if _host.stage == GameHost.Stage.EDITING:
