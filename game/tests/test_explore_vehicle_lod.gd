@@ -107,3 +107,44 @@ func test_render_promotes_distant_ambient_and_port_vehicles_without_duplicate_ba
 	traffic.set_detail_enabled(false)
 	traffic._render(camera)
 	check(traffic.detail_manager==null,"Build mode releases detail")
+
+func test_large_display_and_aircraft_keep_detail_until_small_on_screen() -> void:
+	var camera := fixture()
+	root.size = Vector2i(3840,2160)
+	await process_frame
+	var manager := ExploreActorDetailManager.new()
+	manager.bind(host)
+	for kind: StringName in [&"car",&"bus",&"plane",&"helicopter"]:
+		check(manager.update([state("vehicle",kind,300.0)],camera).has("vehicle"),String(kind)+" retains detail while conspicuous on a large display")
+		manager.update([],camera)
+	check(manager.update([state("plane",&"plane",600.0)],camera).has("plane"),"large aircraft stays detailed well beyond the car distance")
+	manager.clear()
+
+func test_large_vehicle_detail_survives_resolution_reduction_and_wide_view_edges() -> void:
+	root.size = Vector2i(3840,2160)
+	await process_frame
+	var view := CityView3D.new()
+	root.add_child(view)
+	var camera := Camera3D.new()
+	view.world.add_child(camera)
+	view.set_exploration_camera(camera)
+	var manager := ExploreActorDetailManager.new()
+	manager.bind(view.world)
+	for scale: int in [100,75,50]:
+		view.set_render_options("high",scale)
+		manager.clear()
+		check(manager.update([state("car",&"car",400.0)],camera).has("car"),"native-size car retains detail at render scale "+str(scale))
+		manager.clear()
+		var edge := state("edge",&"car",450.0)
+		edge.position.x=500.0/16.0
+		edge.yaw=PI/2.0
+		check(camera.is_position_in_frustum(edge.position),"wide-view fixture remains on screen")
+		check(manager.update([edge],camera).has("edge"),"car still spans noticeable pixels near the side of a wide view")
+	manager.clear()
+	view.set_render_options("high",100)
+	camera.fov=140.0
+	check(manager.update([state("fov",&"car",400.0)],camera).is_empty(),"small screen coverage at wide FOV returns to batches")
+	camera.fov=65.0
+	check(manager.update([state("fov",&"car",400.0)],camera).has("fov"),"changed FOV immediately re-evaluates detail")
+	manager.clear()
+	view.free()

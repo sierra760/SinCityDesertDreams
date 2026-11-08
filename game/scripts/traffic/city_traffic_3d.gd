@@ -1437,24 +1437,30 @@ func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_
 	if selected_only and (detail_manager == null or detail_manager.is_empty()): return result
 	if not selected_only and (not is_instance_valid(camera) or not is_visible_in_tree()): return result
 	var camera_position := camera.global_position if not selected_only else Vector3.ZERO
+	var radii: Dictionary = {}
 	for actor: Dictionary in actors:
 		if _claims.has(actor.id): continue
 		if owner_filter>=0 and actor.has("mod_owner")!=(owner_filter==1): continue
 		if selected_only:
 			var id := String(actor.get("mod_handle","ambient:"+str(actor.id)))
 			if not detail_manager.contains(id): continue
-		elif not _detail_may_be_near(actor,camera_position): continue
+		else:
+			if not radii.has(actor.kind): radii[actor.kind] = ExploreActorDetailManager.detail_radius(actor.kind,camera,true,true)
+			if not _detail_may_be_near(actor,camera_position,radii[actor.kind]): continue
 		result.append(_visual_state(actor))
 	if not selected_only:
 		for record: Dictionary in _external:
 			if _claims.has(record.presentation_id): continue
 			var point: Vector3=record.presentation_position
-			if camera_position.distance_squared_to(point)>ExploreActorDetailManager.VEHICLE_EXIT*ExploreActorDetailManager.VEHICLE_EXIT: continue
+			var kind := StringName(record.kind)
+			if not radii.has(kind): radii[kind] = ExploreActorDetailManager.detail_radius(kind,camera,true,true)
+			var radius: float = radii[kind]
+			if camera_position.distance_squared_to(point)>radius*radius: continue
 			result.append({"id":"external:"+str(record.presentation_id),"kind":String(record.kind),"variant":0,"position":point,"yaw":float(record.presentation_yaw),"speed":0.0,"steering":0.0,"airborne":CityTrafficCatalog.domain(record.kind)==&"air","phase":0.0,"visual_time":_elapsed})
 	return result
 
-func _detail_may_be_near(actor: Dictionary, camera_position: Vector3) -> bool:
-	var radius := ExploreActorDetailManager.EXIT if actor.kind==&"pedestrian" else ExploreActorDetailManager.VEHICLE_EXIT
+func _detail_may_be_near(actor: Dictionary, camera_position: Vector3, radius: float = -1.0) -> bool:
+	if radius < 0.0: radius = ExploreActorDetailManager.EXIT if actor.kind==&"pedestrian" else ExploreActorDetailManager.VEHICLE_EXIT
 	if actor.domain == &"air":
 		return camera_position.distance_squared_to(actor.air_position) <= radius*radius
 	# Highway curves use authored anchors/radii; unusual extrapolated records

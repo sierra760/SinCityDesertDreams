@@ -49,3 +49,25 @@ func test_mobile_shadow_focus_and_camera_handoff() -> void:
 	check_eq(Vector3(sun.directional_shadow_split_1,sun.directional_shadow_split_2,sun.directional_shadow_split_3),close_splits,"aerial focus restored")
 	check_eq([view.camera.near, view.camera.far],planes,"visibility planes remain unchanged")
 	view.free()
+
+func test_upper_visible_ground_stays_in_focused_cascades() -> void:
+	var view := CityView3D.new()
+	root.add_child(view)
+	for resolution: Vector2i in [Vector2i(1280,720),Vector2i(3840,2160),Vector2i(1200,2000)]:
+		view.viewport.size = resolution
+		for quality: String in ["high","balanced"]:
+			view.set_render_options(quality,100)
+			view.viewport.size = resolution
+			for rotation: int in 4:
+				for size: float in [20.0,70.0,100.0,180.0,2048.0]:
+					view.set_camera_state(Vector3(64,8,64),rotation,size)
+					var ground := Plane(Vector3.UP,0.0)
+					for corner: Vector2 in [Vector2(.05,.05),Vector2(.5,.05),Vector2(.95,.05)]:
+						var pixel := corner*Vector2(resolution)
+						var hit: Variant = ground.intersects_ray(view.camera.project_ray_origin(pixel),view.camera.project_ray_normal(pixel))
+						if hit == null or hit.x<0 or hit.x>128 or hit.z<0 or hit.z>128: continue
+						var depth: float = -view.camera.to_local(hit).z
+						for child: Node in view.world.get_children():
+							if child is DirectionalLight3D:
+								check(depth < view.camera.near + (view.camera.far-view.camera.near)*child.directional_shadow_split_3,"upper visible ground must avoid the huge final cascade")
+	view.free()

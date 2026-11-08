@@ -788,7 +788,7 @@ func set_exploration_camera(value: Camera3D) -> void:
 	_labels.hide()
 	camera.current = false
 	value.current = true
-	RenderQuality.apply_shadow_focus(self)
+	RenderQuality.apply(self, render_quality)
 
 
 func clear_exploration_camera() -> void:
@@ -799,6 +799,7 @@ func clear_exploration_camera() -> void:
 	_exploration_camera = null
 	aerial_controls_enabled = true
 	camera.current = true
+	RenderQuality.apply(self, render_quality)
 	_labels.show()
 	_update_camera()
 
@@ -1278,7 +1279,9 @@ func _update_display_metrics(_metrics: Dictionary) -> void:
 	container.position = bounds.position
 	container.size = bounds.size
 	var native_size := display_layout.drawable_size() if display_layout != null else Vector2i(bounds.size)
+	viewport.set_meta(&"native_drawable_size", native_size)
 	viewport.size = RenderQuality.scaled_size(native_size, render_scale)
+	if world != null: RenderQuality.apply_mesh_detail(self, render_quality)
 	_update_camera()
 
 ## Attach the overlay and underground helpers once; no surface geometry is rebuilt.

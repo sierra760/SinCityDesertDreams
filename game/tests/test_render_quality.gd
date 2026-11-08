@@ -40,3 +40,22 @@ func test_resolution_preserves_ui_camera_city_and_live_picking() -> void:
 			check_eq(child.directional_shadow_max_distance,400.0)
 	view.free()
 	layout.free()
+
+func test_explore_uses_small_native_pixel_detail_error_and_restores_build() -> void:
+	var view := CityView3D.new()
+	root.add_child(view)
+	var actor_camera := Camera3D.new()
+	view.world.add_child(actor_camera)
+	for quality: String in ["high","balanced","performance"]:
+		for scale: int in [50,75,100]:
+			view.set_render_options(quality,scale)
+			var build_threshold := view.viewport.mesh_lod_threshold
+			view.set_exploration_camera(actor_camera)
+			var native_error := view.viewport.mesh_lod_threshold*100.0/scale
+			check(native_error<=1.0,"Explore mesh changes stay within a native pixel at every render scale")
+			check(view.viewport.mesh_lod_threshold<build_threshold,"Explore retains geometry beyond aerial detail distances")
+			view.set_render_options(quality,scale)
+			check(view.viewport.mesh_lod_threshold*100.0/scale<=1.0,"quality updates retain Explore detail")
+			view.clear_exploration_camera()
+			check_eq(view.viewport.mesh_lod_threshold,build_threshold,"Build restores its original detail budget")
+	view.free()

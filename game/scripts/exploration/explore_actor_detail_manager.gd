@@ -22,15 +22,19 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 		clear()
 		return {}
 	var eligible: Array[Dictionary] = []
+	var radii: Dictionary = {}
 	if is_instance_valid(_parent) and is_instance_valid(camera) and _parent.is_visible_in_tree():
 		var frustum := camera.get_frustum()
 		for state in candidates:
 			var id: String=state.id
 			if state.get("excluded",false) or not state.get("visible",true): continue
 			var distance: float=camera.global_position.distance_squared_to(state.position)
-			var pedestrian := String(state.kind)=="pedestrian"
-			var radius: float=(EXIT if _selected.has(id) else ENTER) if pedestrian else (VEHICLE_EXIT if _selected.has(id) else VEHICLE_ENTER)
-			if distance>radius*radius or not _body_in_frustum(state,frustum): continue
+			var kind := StringName(state.kind)
+			if not radii.has(kind):
+				radii[kind] = Vector2(detail_radius(kind,camera,false),detail_radius(kind,camera,true))
+			var radius: float = radii[kind].y if _selected.has(id) else radii[kind].x
+			var depth := sqrt(distance) if String(state.kind)=="pedestrian" else maxf(0.0,-camera.to_local(state.position).z)
+			if depth>radius or not _body_in_frustum(state,frustum): continue
 			eligible.append({"state":state,"distance":distance})
 	eligible.sort_custom(func(a: Dictionary,b: Dictionary)->bool:
 		return String(a.state.id)<String(b.state.id) if a.distance==b.distance else a.distance<b.distance)
@@ -95,6 +99,29 @@ func update(candidates: Array[Dictionary], camera: Camera3D) -> Dictionary:
 		visual.visible=true
 		_sample(visual,wanted[id])
 	return _selected.duplicate()
+
+## A fixed world distance alone makes long aircraft and high-resolution views
+## switch while still conspicuous. Retain the distance floors, but reserve
+## simple vehicle bodies for under 12 native pixels (8 when already detailed).
+## Vehicle eligibility uses camera depth so side-of-screen models stay detailed;
+## broad-phase callers request a conservative enclosing world-space radius.
+static func detail_radius(kind: StringName, camera: Camera3D, selected: bool, broad_phase: bool = false) -> float:
+	if kind == &"pedestrian": return EXIT if selected else ENTER
+	var radius := VEHICLE_EXIT if selected else VEHICLE_ENTER
+	if camera.projection != Camera3D.PROJECTION_PERSPECTIVE: return radius
+	var viewport := camera.get_viewport()
+	var screen: Vector2 = viewport.get_meta(&"native_drawable_size",viewport.get_visible_rect().size)
+	var focal_pixels: float = screen.y / (2.0 * tan(deg_to_rad(camera.fov) * 0.5))
+	if camera.keep_aspect == Camera3D.KEEP_WIDTH:
+		focal_pixels = screen.x / (2.0 * tan(deg_to_rad(camera.fov) * 0.5))
+	var bounds := CityTrafficCatalog.visual_bounds(kind)
+	radius = maxf(radius, bounds.size.length() * focal_pixels / (8.0 if selected else 12.0))
+	if broad_phase:
+		# Preparation rejects by radial distance; exact eligibility uses depth.
+		# Enclose the furthest frustum corner at this depth, plus the body.
+		radius *= Vector3(screen.x/(2.0*focal_pixels),screen.y/(2.0*focal_pixels),1.0).length()
+		radius += bounds.size.length()
+	return radius
 
 ## Feet or the vehicle origin can leave the screen before the visible body.
 ## Test its oriented envelope against each camera plane, keeping the existing
