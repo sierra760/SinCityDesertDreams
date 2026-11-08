@@ -35,6 +35,37 @@ func _init(host: GameHost) -> void:
 	_host = host
 
 
+## The same name is used by reports, sharing and future saves. Keep the
+## current file and cloud slot: renaming the city does not create a new city.
+func prompt_rename() -> void:
+	if _host.is_input_blocked() or _host.sim.city == null: return
+	var city := _host.sim.city
+	var previous_limit := _host.notice_dialog.line_edit.max_length
+	# Creation limits new names to 24 characters. Imported/older names can be
+	# longer: showing and accepting one must preserve it in full.
+	_host.notice_dialog.line_edit.max_length = maxi(24,city.name.length())
+	_host.notices.queue("Rename City", "Enter a name for your city:",
+		[["Rename", &"submit"], ["Cancel", &"cancel"]],
+		_finish_rename.bind(city,previous_limit), true, city.name)
+	_host.notice_dialog.line_edit.select_all()
+
+
+func _finish_rename(choice: StringName, city: City, previous_limit: int) -> void:
+	var new_name := _host.notice_dialog.prompt_text()
+	_host.notice_dialog.line_edit.max_length = previous_limit
+	if choice != &"submit" or _host.sim.city != city: return
+	if new_name.is_empty():
+		_host.show_message("Enter a city name to rename the city.")
+		return
+	city.name = new_name
+	if _host.stage == GameHost.Stage.EDITING:
+		_host.editing_params["name"] = new_name
+		_host.status_bar.show_editing(new_name)
+		_host.status_bar.set_message(editing_message(new_name))
+	_host.shell.refresh_city_name()
+	_host.window_manager.refresh_open()
+
+
 ## Generate a city from `params` (see `TerrainGenerator`) and show it in
 ## the editing stage. A pre-generated `prebuilt` city (from the dialog's
 ## preview) is used as is. Play starts with `found_city`.

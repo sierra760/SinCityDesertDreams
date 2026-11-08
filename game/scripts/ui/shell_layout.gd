@@ -11,6 +11,9 @@ extends Node
 var phone_layout := false
 ## Whether the phone Tools drawer is showing.
 var phone_tools_open := false
+## A separate floating control so the city name remains available in Explore,
+## even when the phone's build menu and footer are hidden.
+var city_name_button: Button
 var _host: GameHost
 var _pending := false
 
@@ -29,6 +32,14 @@ func build_chrome(layer: CanvasLayer) -> void:
 	menu_bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	menu_bar.offset_bottom = GameMenuBar.BAR_HEIGHT
 	layer.add_child(menu_bar)
+	menu_bar.minimum_size_changed.connect(schedule)
+	city_name_button = UIFactory.make_button("", "Rename city")
+	city_name_button.name = "CityName"
+	city_name_button.clip_text = true
+	city_name_button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	city_name_button.pressed.connect(_host.session.prompt_rename)
+	city_name_button.hide()
+	layer.add_child(city_name_button)
 	var toolbar := Toolbar.new()
 	_host.toolbar = toolbar
 	toolbar.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
@@ -76,6 +87,10 @@ func apply_metrics(metrics: Dictionary) -> void:
 	phone_layout = DisplayLayout.is_phone(metrics)
 	phone_tools_open = false
 	_host.menu_bar.set_phone_layout(phone_layout)
+	for control: Control in _host.menu_bar.phone_controls():
+		# A rotation can move a Menu button without resizing it. Re-measure
+		# after its container settles, rather than using the old position.
+		if not control.item_rect_changed.is_connected(schedule): control.item_rect_changed.connect(schedule)
 	_host.status_bar.set_phone_layout(phone_layout)
 	update_phone_tools()
 	_host.title_screen.apply_layout(bounds)
@@ -127,7 +142,8 @@ func _measure() -> void:
 	menu_bar.offset_top = menu_rect.position.y
 	menu_bar.offset_bottom = menu_rect.end.y
 	var menu_inset := maxf(0.0,menu_rect.end.y-bounds.position.y)
-	var top_inset := 0.0 if immersive else menu_inset
+	var top_inset := _place_city_name(bounds,menu_rect,immersive)
+	menu_inset = maxf(menu_inset,top_inset)
 	var bottom_inset := 0.0 if not status_bar.visible else status_bar.size.y
 	status_bar.offset_left = bounds.position.x
 	status_bar.offset_right = bounds.end.x - full.size.x
@@ -148,7 +164,9 @@ func _measure() -> void:
 	toolbar.offset_right = bounds.position.x + toolbar.custom_minimum_size.x
 	toolbar.offset_top = bounds.position.y + menu_inset
 	toolbar.offset_bottom = bounds.end.y - full.size.y - status_bar.size.y
-	if is_instance_valid(_host.explore_hud): _host.explore_hud.set_chrome_insets(top_inset,bottom_inset)
+	if is_instance_valid(_host.explore_hud):
+		_host.explore_hud.city_name_height = GameMenuBar.BAR_HEIGHT+8.0 if immersive and city_name_button.visible else 0.0
+		_host.explore_hud.set_chrome_insets(top_inset,bottom_inset)
 	update_explore_camera_chrome()
 	_host.mini_map.apply_layout(bounds, menu_inset, status_bar.size.y, toolbar.size.x if toolbar.visible else 0.0)
 	if _host.city_view_3d != null and _host.city_view_3d.underground_legend != null:
@@ -170,6 +188,55 @@ func _measure() -> void:
 	query_panel.offset_bottom = minf(bounds.end.y - status_bar.size.y - 8, query_panel.offset_top + ceilf(natural))
 	_host.presentation.refresh_query_pointer_hover()
 	if _host.street_names != null: _host.street_names.refresh_layout()
+
+
+## Refresh only the identity and its layout; no city geometry needs rebuilding.
+func refresh_city_name() -> void:
+	var city := _host.sim.city
+	city_name_button.text = city.name if city != null else ""
+	city_name_button.tooltip_text = "%s — tap to rename city" % city_name_button.text
+	schedule()
+
+
+## Reuse the unused part of the top row where possible. Camera wings and
+## cramped rows get a single compact badge below, inside the safe rectangle.
+## Return the space reserved above the city controls and report windows.
+func _place_city_name(bounds: Rect2, menu_rect: Rect2, immersive: bool) -> float:
+	city_name_button.visible = _host.in_game and not _host.title_screen.visible
+	var inset := 0.0 if immersive else maxf(0.0,menu_rect.end.y-bounds.position.y)
+	if not city_name_button.visible: return inset
+	var margin := 8.0
+	var font := city_name_button.get_theme_font("font")
+	var text_width := font.get_string_size(city_name_button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,UITheme.FONT_BODY).x
+	var width := minf(clampf(text_width+32.0,120.0,280.0),maxf(44.0,bounds.size.x-margin*2))
+	if immersive:
+		# Beside Explore's Map/Menu, above only its walking summary. Keep the
+		# full safe area for the thumb controls and expanded map.
+		city_name_button.position = bounds.position+Vector2(margin,margin)
+		city_name_button.size = Vector2(minf(width,maxf(44.0,bounds.size.x-172.0)),GameMenuBar.BAR_HEIGHT)
+		return 0.0
+	var row_left := bounds.position.x+_host.menu_bar.get_minimum_size().x+margin
+	var row_right := bounds.end.x-margin
+	var row_y := menu_rect.position.y
+	var fits := not phone_layout and row_right-row_left >= minf(width,120.0)
+	if phone_layout and not immersive:
+		var controls := _host.menu_bar.phone_controls().filter(func(c: Control) -> bool: return c.is_visible_in_tree())
+		if not controls.is_empty():
+			row_left = (controls[controls.size()-2] as Control).get_global_rect().end.x+margin if controls.size() >= 2 else bounds.position.x+margin
+			row_right = (controls.back() as Control).get_global_rect().position.x-margin
+			row_y = (controls.back() as Control).get_global_rect().position.y
+			# The centre above the safe rectangle belongs to the camera housing.
+			fits = row_y >= bounds.position.y and row_right-row_left >= 120.0
+	var position: Vector2
+	if fits:
+		width = minf(width,row_right-row_left)
+		position = Vector2(row_right-width,row_y)
+	else:
+		position = Vector2(bounds.end.x-width-margin,bounds.position.y+inset+margin)
+		inset += GameMenuBar.BAR_HEIGHT+margin
+	city_name_button.position = position
+	city_name_button.size = Vector2(width,GameMenuBar.BAR_HEIGHT)
+	return inset
 
 
 ## Open or close the phone Tools drawer. Ignored outside the phone layout.
@@ -199,6 +266,8 @@ func update_explore_camera_chrome() -> void:
 	var bounds := _host.display_layout.logical_rect()
 	var full: Rect2 = _host.display_layout.metrics.get("full_logical_rect",bounds)
 	var top := maxf(bounds.position.y,_host.menu_bar.get_global_rect().end.y) if _host.menu_bar.visible else bounds.position.y
+	if city_name_button.visible and not (phone_layout and _host.is_exploring() and not exploration.is_suspended()):
+		top = maxf(top,city_name_button.get_global_rect().end.y)
 	exploration.camera_rig.set_chrome_insets(top * scale,(full.size.y - bounds.end.y + (0.0 if not _host.status_bar.visible else _host.status_bar.size.y)) * scale)
 
 
@@ -225,6 +294,8 @@ func apply_popups(node: Node) -> void:
 ## Show the city chrome while a city is open; hide it for the title screen.
 func set_chrome_visible(on: bool) -> void:
 	var menu_bar := _host.menu_bar
+	refresh_city_name()
+	city_name_button.visible = on
 	_host.refresh_street_menus()
 	phone_tools_open = false
 	update_phone_tools()

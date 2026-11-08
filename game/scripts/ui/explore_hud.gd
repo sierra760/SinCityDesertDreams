@@ -46,6 +46,9 @@ var _destination_picker: OptionButton
 var _transit_station := -1
 var _destinations: Array = []
 var touch_controls: ExploreTouchControls
+## The shell's city-name button sits above the active phone summary, beside
+## Map/Menu. It does not take height from thumb controls or the expanded map.
+var city_name_height := 0.0
 var _touch_enabled := false
 var _suspended := false
 var controls := ControlBindings.new()
@@ -497,6 +500,7 @@ func _reflow() -> void:
 	var status_column := _actor_label.get_parent()
 	status_column.move_child(_prompt_label,1 if phone else 3)
 	_status_panel.position = available.position + Vector2(margin, margin)
+	if not _suspended: _status_panel.position.y += city_name_height
 	# Hidden controls do not consume the captured player's critical status space.
 	var status_height := minf(150.0, maxf(0.0, available.size.y - margin * 2.0))
 	var status_width := minf(330.0, available.size.x * .39)

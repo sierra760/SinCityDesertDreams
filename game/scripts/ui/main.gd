@@ -1219,6 +1219,7 @@ func touch_ui_owned(point: Vector2) -> bool:
 	if is_input_blocked() or display_layout.blocks_city_touch(): return true
 	if not display_layout.logical_rect().has_point(point): return true
 	if menu_bar.owns_point(point): return true
+	if shell.city_name_button.is_visible_in_tree() and shell.city_name_button.get_global_rect().has_point(point): return true
 	for control: Control in [status_bar,toolbar,query_panel]:
 		if control.is_visible_in_tree() and control.get_global_rect().has_point(point): return true
 	if is_exploring() and explore_hud.navigation.owns_touch(point): return true
