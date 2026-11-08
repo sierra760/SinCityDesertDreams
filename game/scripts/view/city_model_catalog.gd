@@ -122,6 +122,10 @@ func instantiate_model(code: int) -> Node3D:
 	if not model is Node3D:
 		model.free()
 		return null
+	# Only compiled catalog models may use the matching prepared night geometry.
+	var night_source: String = entries[code].get("glb_sha256","")
+	if not night_source.is_empty() and runtime_compilation_enabled and runtime_scenes.get([code,true]) is PackedScene:
+		model.set_meta("night_geometry_source",night_source+":"+str(RuntimeCompiler.VERSION))
 	configure_physical_collisions(model)
 	var wrapper := Node3D.new()
 	wrapper.add_child(model)
