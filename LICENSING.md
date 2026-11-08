@@ -45,9 +45,9 @@ This license covers project-owned:
 - textures, surface and ground images, and material maps;
 - illustrations, title and menu artwork, UI icons and app-icon artwork;
 - preview renders and screenshots in this repository; and
-- the nine included cities in `game/assets/cities/`: Adaven, Aliso Niguel,
-  Foothills Ranch, Grant Pass - Soledad, La Presa, Lawndale, Oro Canyon, Salton
-  Shores and Valle del Mar.
+- the eleven included cities in `game/assets/cities/`: Adaven, Aliso Niguel,
+  Bonanza Gap, Foothills Ranch, Grant Pass - Soledad, La Presa, Lawndale,
+  Old Bottle, Oro Canyon, Salton Shores and Valle del Mar.
 
 In short, you may share and adapt these assets if you:
 

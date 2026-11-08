@@ -4,7 +4,7 @@
 
 extends "res://tests/exploration/async_test_case.gd"
 
-const NAMES := ["Adaven", "Aliso Niguel", "Foothills Ranch", "Grant Pass - Soledad", "La Presa", "Lawndale", "Oro Canyon", "Salton Shores", "Valle del Mar"]
+const NAMES := ["Adaven", "Aliso Niguel", "Bonanza Gap", "Foothills Ranch", "Grant Pass - Soledad", "La Presa", "Lawndale", "Old Bottle", "Oro Canyon", "Salton Shores", "Valle del Mar"]
 const CATALOG := "res://scripts/io/bundled_cities.gd"
 const MAIN := preload("res://scenes/main.tscn")
 
@@ -26,7 +26,7 @@ func _path(city_name: String) -> String:
 
 func test_every_requested_city_is_a_loadable_native_save() -> void:
 	var entries := _entries()
-	check_eq(entries.size(), 9, "the eight supplied cities plus Adaven")
+	check_eq(entries.size(), 11, "the eight classic cities plus Adaven, Bonanza Gap and Old Bottle")
 	for index in entries.size():
 		check_eq(entries[index]["name"], NAMES[index])
 		var path := _path(NAMES[index])
@@ -80,7 +80,7 @@ func test_same_name_personal_save_and_included_city_route_separately() -> void:
 	dialog.load_requested.connect(func(path: String) -> void: native_paths.append(path))
 	dialog.connect("bundled_city_requested", func(path: String) -> void: bundled_paths.append(path))
 	dialog.call("open", saves, entries)
-	check_eq(dialog.item_list.item_count, 10)
+	check_eq(dialog.item_list.item_count, 12)
 	dialog.select(0)
 	dialog.confirm()
 	check_eq(native_paths, ["user://saves/La Presa.sc2d"] as Array[String])
@@ -106,7 +106,7 @@ func test_included_cities_work_without_personal_saves_and_refresh_clears_routing
 		dialog.free()
 		return
 	dialog.call("open", [] as Array[Dictionary], _entries())
-	check_eq(dialog.item_list.item_count, 9)
+	check_eq(dialog.item_list.item_count, 11)
 	check(not dialog.empty_label.visible)
 	check(not dialog.load_button.disabled)
 	check_eq(dialog.selected_path(), _path("Adaven"))

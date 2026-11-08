@@ -112,9 +112,9 @@ last only for the session.
 
 **Cities and saves**
 
-- Nine ready-to-play cities appear in **Load City** as **Included city**:
-  Adaven, Aliso Niguel, Foothills Ranch, Grant Pass - Soledad, La Presa,
-  Lawndale, Oro Canyon, Salton Shores and Valle del Mar.
+- Eleven ready-to-play cities appear in **Load City** as **Included city**:
+  Adaven, Aliso Niguel, Bonanza Gap, Foothills Ranch, Grant Pass - Soledad,
+  La Presa, Lawndale, Old Bottle, Oro Canyon, Salton Shores and Valle del Mar.
 - **Import Classic City** opens your own SimCity 2000 `.sc2` cities. Export back
   to `.sc2` is not supported; progress saves as native `.sc2d`.
 - **Share City** makes a playable copy to send to a friend. On macOS this opens

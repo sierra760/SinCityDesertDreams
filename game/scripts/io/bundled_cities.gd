@@ -10,10 +10,12 @@ extends RefCounted
 const NAMES: Array[String] = [
 	"Adaven",
 	"Aliso Niguel",
+	"Bonanza Gap",
 	"Foothills Ranch",
 	"Grant Pass - Soledad",
 	"La Presa",
 	"Lawndale",
+	"Old Bottle",
 	"Oro Canyon",
 	"Salton Shores",
 	"Valle del Mar",

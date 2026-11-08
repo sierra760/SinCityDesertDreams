@@ -110,7 +110,8 @@ def main(argv: list[str]) -> int:
     provenance["engine"] = engine_version(godot)
     provenance["inclusion_authorization"] = (
         "Supplied for inclusion by the project owner: the eight classic .sc2 cities on 2026-10-05 and "
-        "the owner's own city Adaven on 2026-10-06. Every included city ships as a fully imported "
+        "the owner's own city Adaven on 2026-10-06, and Bonanza Gap and Old Bottle on 2026-11-07. "
+        "Every included city ships as a fully imported "
         "native .sc2d save.")
     provenance["sources_note"] = ("Classic .sc2 sources remain in this directory as conversion inputs and test "
                                   "fixtures; export presets include only the .sc2d files and this provenance.")

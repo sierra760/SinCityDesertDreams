@@ -1,6 +1,6 @@
 {
   "kind": "user-supplied custom cities",
-  "inclusion_authorization": "Supplied for inclusion by the project owner: the eight classic .sc2 cities on 2026-10-05 and the owner's own city Adaven on 2026-10-06. Every included city ships as a fully imported native .sc2d save.",
+  "inclusion_authorization": "Supplied for inclusion by the project owner: the eight classic .sc2 cities on 2026-10-05, the owner's own city Adaven on 2026-10-06, and Bonanza Gap and Old Bottle on 2026-11-07. Every included city ships as a fully imported native .sc2d save.",
   "license": "CC-BY-NC-SA-4.0; see LICENSING.md",
   "cities": [
     {
@@ -24,6 +24,19 @@
         "bytes": 100619,
         "sha256": "61172660a75762512b5e4f50d3ed7bf834206554e8648c541faa849524943a66",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save"
+      }
+    },
+    {
+      "name": "Bonanza Gap",
+      "file": "Bonanza Gap.sc2d",
+      "bytes": 269762,
+      "sha256": "fa9504e81f2056502d867a5a72a9a8a379b09f8caf6dd879055202731ec1f6ee",
+      "source": {
+        "file": "Bonanza Gap.sc2d",
+        "bytes": 269762,
+        "sha256": "fa9504e81f2056502d867a5a72a9a8a379b09f8caf6dd879055202731ec1f6ee",
+        "conversion": "native save copied byte-for-byte",
+        "included": "2026-11-07: owner requested inclusion of the current named save."
       }
     },
     {
@@ -75,6 +88,19 @@
         "sha256": "fa4b15e0a6ac8bf0816bddadabb4f74aad20ad8e898b9229ef89cd7e20134e4a",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
         "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      }
+    },
+    {
+      "name": "Old Bottle",
+      "file": "Old Bottle.sc2d",
+      "bytes": 550271,
+      "sha256": "108ac13c2726c99b4ace4d039f1efc8ac7122290cfc454877352e2cbd3393855",
+      "source": {
+        "file": "Old Bottle.sc2d",
+        "bytes": 550271,
+        "sha256": "108ac13c2726c99b4ace4d039f1efc8ac7122290cfc454877352e2cbd3393855",
+        "conversion": "native save copied byte-for-byte",
+        "included": "2026-11-07: owner requested inclusion of the current named save."
       }
     },
     {
