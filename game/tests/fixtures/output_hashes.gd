@@ -38,27 +38,28 @@ const HASHES := {
 	"ramp/29_12": "ad641d7d1e65a44e5a7c72a7ddf702689023a7dea265c93cf62269c314496126",
 	"ramp/32_12": "fe985d8c5553d782681a1c3ed9fb97e15f680df1b8632b5f27569b75ca846a56",
 	"world_quad/random_quads": "e2539e14c565442ce3230c3a363c869041b4bffebd576a8db4c09929d3ca8afb",
-	"growth_lots/La Presa": "001f0160708cd4ea5c36963df83c15fd22cc3e3febec35f22776344455d60e42",
-	"growth_lots/Foothills Ranch": "5e8ba3bd0a3c71585de50b5dcb4bce50e2628735dbe9010aaeaef0aa4de42240",
-	"growth_lots/Valle del Mar": "a7c6d617ccddf8f3b4ba16a4727d865bc3a305e33c83c90cf69000536b311358",
-	"growth_lots/Oro Canyon": "d4997580134f6295a7b4339a438926086cc48a9295ce43bed03c6610266d812e",
-	"growth_lots/Aliso Niguel": "5e27381ac4a3eb45955aad21553c84adc43ff44aa41f3679a9ca52f3d4d1496d",
+	# Model subtrees include the prepared-night source tag; view refreshes also
+	# include the current casino signs and Mayor's House model.
+	"growth_lots/La Presa": "22d0e7c9309bb6bd17ab639ac8e746f1f33d5caaa6d6f412406c907c2cff046f",
+	"growth_lots/Foothills Ranch": "85e4e76e84c18c5b5eefd7d0b5624176b2151be192b3eb171f1ab2d8218680df",
+	"growth_lots/Valle del Mar": "37a964213d0cbfb6175eeb92f10d95ee37b8df98940e8b69cf38814b73de6b6d",
+	"growth_lots/Oro Canyon": "0ecae991c6efa96d07dbeee024053d98bdb5436f346f8d043eae8a86f6569d95",
+	"growth_lots/Aliso Niguel": "2636c33105eb67511febb5e5e5e5edd7813536b0dc8099448bd30827dcb8bd1e",
 	"growth_lots/Grant Pass - Soledad": "641fcd2d0fb8d06e43c8724d6e6e29ed6dc1db2f62f8721d5ca3329df5400a52",
-	"growth_lots/Lawndale": "e1e36c48f625d2bcc14b81592c8b529551978b841a6fd0bbff44debe83b73f44",
-	"growth_lots/Salton Shores": "096cdf32b31b5dafbf3b49ec6d8ae06a8b4a21cd3704ff5d445bb5480b06caef",
-	"growth_view/La Presa": "b15ea5fac3a01733e78961573daf8103d6d7e8b67d201df53e193bb6f09364f2",
-	"growth_view/Foothills Ranch": "252dc81a1fd9e70b27c4b9afc903528ed707965e5fd563fec53755c3fff93cdb",
-	"growth_view/Valle del Mar": "ae09be17a9d51200c0679b516325e8e6a4253fffc27b73f6a070a9a6fb782d3b",
+	"growth_lots/Lawndale": "efddd3755d6c27ec6199a5f940985d0703f5b1ed984cf04623fa4a9cf990aba1",
+	"growth_lots/Salton Shores": "19c0580a659d90193b5e2e60fdc27d2dd1925698b621b1a17d12b5258fc0258e",
+	"growth_view/La Presa": "1944d04505468f14168bfd25c79ec50cbddd028afd763e1381acf6532c8a12bf",
+	"growth_view/Foothills Ranch": "1c93981ca3df88312d039b67f3c4d977246f96315b171b7ee5753a20a9b239c0",
+	"growth_view/Valle del Mar": "0e6e4d1db9d5e175e15488e50b0bde82b7fa492fe64f9a04c02e86fcd64daf96",
 	"growth_batcher/synthetic": "8dcae3a61c329ba42deaede987e93462214ae1def30a8021b45d84d5a1d2e365",
 }
 
 const PLATFORM_HASHES := {
 	"Windows": {
-		"network_physics/mixed_far_city": "f8b3fede66ac8d41e39b7daab3f0d04aac82347b41d68aab4913b0e9d5768588",
-		"ramp/32_3": "3b1b1adbbf13b8e1afa5a50beece0595f6938708a68fbab2a06c78dbb303c403",
-		"ramp/32_5": "2cb8908033fa4ce13d82bd4267af844edb0d1ccfda1554001210c5b29c9e6f26",
-		"ramp/32_10": "b22092a676621280f2eb71b1b2a33d6b64ebdf9651eee8e46d665a24edea1ad0",
-		"ramp/32_12": "3838bcef746c55e7bc4049dadc467b572b1db526258467ee4cdec8ca7aaf05c1",
+		"ramp/32_3": "7116f46522f4c1827ab5f65d59a0a1f3d7ba6496f44533bd94123faac5d827c7",
+		"ramp/32_5": "39cea01ca5e4f7e153a849701659d38822c86c6e40053555ad6d322bb81a77fd",
+		"ramp/32_10": "0b66e6e3b4365450cf064b49d84e718e879362c5529c3bb7e59357a97ab4029a",
+		"ramp/32_12": "006dd146677f9c465366e9b614e3515c0b2ee2ece1e77f2ae261380fd0c10a28",
 	},
 }
 

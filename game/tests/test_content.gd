@@ -36,9 +36,13 @@ func test_city_names_are_plentiful_and_distinct() -> void:
 
 
 func test_story_templates_have_variants_and_paragraphs() -> void:
+	var recall_stages: Array[StringName] = [&"recall_called", &"recall_update", &"recall_update_5", &"recall_update_4", &"recall_update_3", &"recall_update_2", &"recall_update_1", &"recall_removed", &"recall_survived"]
 	for kind in NewsStories.kinds():
 		var heads := NewsStories.headline_variants(kind)
-		check_between(heads.size(), 3, 6, "%s headline variants" % kind)
+		if kind in recall_stages:
+			check_eq(heads.size(), 1, "%s keeps one headline to preserve saved newspaper RNG consumption" % kind)
+		else:
+			check_between(heads.size(), 3, 6, "%s headline variants" % kind)
 		var body := NewsStories.body_paragraphs(kind)
 		check_between(body.size(), 2, 3, "%s body paragraphs" % kind)
 		var seen: Dictionary = {}

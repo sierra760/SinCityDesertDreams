@@ -58,7 +58,7 @@ func descend(ticks: int) -> void:
 
 func test_deck_nose_contact_counts_as_supported_landing() -> void:
 	# Body centre Z21.07 is beyond the deck's edge at Z21; the front of the
-	# physical box rests on the code 75 deck at tile (22,20).
+	# physical box rests on the code 75 dead-end guard at tile (22,20).
 	setup(Fixture.underpass_city(),Vector3(22.5,GROUND+1.2,21.07))
 	await physics_frame
 	await descend(120)
@@ -76,18 +76,13 @@ func test_deck_nose_contact_counts_as_supported_landing() -> void:
 	var stopped := helicopter.position
 	await descend(30)
 	check(helicopter.landed() and helicopter.position.distance_to(stopped)<.001 and reports.is_empty(),"edge landing remains valid across subsequent physics ticks")
+	check(helicopter.position.y-float(nose.position.y)>.10,"dead-end guard leaves the deck beyond the permitted exit drop")
 	var pedestrian := ExplorePedestrian.new()
 	fixture.add_child(pedestrian)
 	pedestrian.bind(world)
 	pedestrian.position = Vector3(24.5,GROUND,21.5)
 	session.pedestrian = pedestrian
-	var exit_pose: Dictionary = session.call("_exit_pose")
-	check(not exit_pose.is_empty(),"the upper deck has a clear, supported exit beside the aircraft")
-	if not exit_pose.is_empty():
-		var at: Transform3D = exit_pose.transform
-		var shape_at := at.translated_local(Vector3.UP*float(ExploreActorProfile.geometry(0).foot_offset))
-		check(not world.support_near(at.origin,.045,.10,[pedestrian.get_rid()]).is_empty(),"exit candidate has actual floor")
-		check(world.has_clearance(shape_at,ExploreActorProfile.shape(0),[pedestrian.get_rid()]),"exit candidate is physically clear")
+	check((session.call("_exit_pose") as Dictionary).is_empty(),"landing on the dead-end guard does not authorize an unsafe drop to the deck")
 	world.clear()
 	helicopter.step(ExploreInputFrame.idle(),0.0,1.0/60.0)
 	helicopter.step(ExploreInputFrame.idle(),0.0,1.0/60.0)
@@ -117,6 +112,19 @@ func test_centered_upper_deck_and_flat_takeoff_remain_supported() -> void:
 	await descend(240)
 	check(helicopter.landed() and bool(session.call("_valid_actor",helicopter)),"centered upper-deck landing remains valid")
 	check(helicopter.position.y>GROUND+.379 and reports.is_empty(),"lowered highway deck does not snap to lower road")
+	var world: CityTraversalWorld3D = fixture.get_node("traversal")
+	var pedestrian := ExplorePedestrian.new()
+	fixture.add_child(pedestrian)
+	pedestrian.bind(world)
+	pedestrian.position = Vector3(24.5,GROUND,21.5)
+	session.pedestrian = pedestrian
+	var exit_pose: Dictionary = session.call("_exit_pose")
+	check(not exit_pose.is_empty(),"a centered deck landing has a clear, supported exit beside the aircraft")
+	if not exit_pose.is_empty():
+		var at: Transform3D = exit_pose.transform
+		var shape_at := at.translated_local(Vector3.UP*float(ExploreActorProfile.geometry(0).foot_offset))
+		check(not world.support_near(at.origin,.045,.10,[pedestrian.get_rid()]).is_empty(),"exit candidate has actual floor")
+		check(world.has_clearance(shape_at,ExploreActorProfile.shape(0),[pedestrian.get_rid()]),"exit candidate is physically clear")
 	await after_each()
 	setup(flat_city(),Vector3(22.5,GROUND+.002,22.5))
 	await physics_frame

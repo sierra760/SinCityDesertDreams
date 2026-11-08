@@ -188,14 +188,18 @@ func test_main_settings_persist_apply_and_survive_explore_reentry() -> void:
 	owned.append(host)
 	check_eq(host.prefs.option_values().get("explore_character"),"man","startup restores saved selection")
 	var city := flat_city()
-	city.building.put(10,10,30)
+	city.stamp_building(10,10,Buildings.MAYORS_RESIDENCE)
+	for x: int in range(8,15): city.building.put(x,12,30)
 	host.begin_city(city,{},4242,CityStats.new())
 	host.sim.set_speed(GameClock.Speed.PAUSED)
 	host.city_view_3d.set_camera_state(Vector3(10.5,4*CityGeometry3D.HEIGHT,10.5),1,12.0)
 	await physics_frame
 	var before_city := SaveFormat.encode_city(city)
 	var before_sim := host.sim.snapshot().duplicate(true)
-	check(host.enter_explore(),"enters on a supported road")
+	check(host.enter_explore(),"offers the Mayor's House start")
+	check(host.notice_dialog.is_open(),"house fixture asks where to start")
+	host.notice_dialog.dismiss(&"house")
+	check(host.exploration.is_active(),"Mayor's House choice enters Explore")
 	if not host.exploration.is_active(): return
 	var pedestrian: CharacterBody3D = host.exploration.pedestrian
 	check_eq(pedestrian.get("character"),"man","entry uses saved selection")
@@ -214,6 +218,10 @@ func test_main_settings_persist_apply_and_survive_explore_reentry() -> void:
 	check(host.exploration.is_suspended(),"Settings does not resume input")
 	check_eq(ViewPreferences.read(PREFS).get("explore_character"),"woman")
 	window.close()
+	var helicopter := host.exploration.helicopter
+	check(is_instance_valid(helicopter),"Mayor's House supplies the parked helicopter")
+	if not is_instance_valid(helicopter): return
+	pedestrian.global_position = helicopter.global_position+Vector3(-.19,0,0)
 	check(host.exploration.select_vehicle(&"helicopter"),"parked helicopter can be selected while suspended")
 	var occupied: CharacterBody3D = host.exploration.occupied
 	check(occupied != pedestrian and not pedestrian.visible)
@@ -228,6 +236,8 @@ func test_main_settings_persist_apply_and_survive_explore_reentry() -> void:
 	host.set_option(&"explore_character","woman")
 	host.return_to_build()
 	check(host.enter_explore())
+	host.notice_dialog.dismiss(&"house")
+	check(host.exploration.is_active(),"Mayor's House choice starts the new session")
 	check_eq(host.exploration.pedestrian.get("character"),"woman","new session keeps selection")
 	host.return_to_build()
 	check_eq(SaveFormat.encode_city(city),before_city)

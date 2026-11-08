@@ -29,11 +29,16 @@ func test_road_layers_close_their_exposed_edges_on_flat_and_creased_ground() -> 
 ## Hit a grounded wall facing `normal` (horizontal); tile-border walls between
 ## neighboring pieces cannot stand in for a missing diagonal edge.
 func _wall_hit(faces: PackedVector3Array, a: Vector3, b: Vector3, normal: Vector2) -> bool:
+	# A normalized ray avoids the segment predicate's determinant cutoff on
+	# the shortest diagonal facets. Keep the original finite probe interval.
+	var direction := (b-a).normalized()
+	var length_squared := a.distance_squared_to(b)
 	for i: int in range(0,faces.size(),3):
 		var n := (faces[i+1]-faces[i]).cross(faces[i+2]-faces[i])
 		var flat := Vector2(n.x,n.z)
 		if flat.length()<.000001 or absf(n.y)>flat.length()*.001 or absf(flat.normalized().dot(normal))<.999: continue
-		if Geometry3D.segment_intersects_triangle(a,b,faces[i],faces[i+1],faces[i+2]) != null: return true
+		var hit: Variant = Geometry3D.ray_intersects_triangle(a,direction,faces[i],faces[i+1],faces[i+2])
+		if hit != null and a.distance_squared_to(hit)<=length_squared: return true
 	return false
 
 ## Bend tiles are straight diagonal strips between their saved edge intercepts.

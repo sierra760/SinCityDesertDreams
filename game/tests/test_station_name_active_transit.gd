@@ -171,7 +171,13 @@ func test_main_revision_reaches_live_service_and_releases_old_session() -> void:
 	host.city_view_3d.refresh(true)
 	check(host.enter_explore(),"real Main enters Explore on fixture road")
 	var live: ExploreTransitService=host.exploration.transit_service
+	check(is_instance_valid(live),"Main owns the active transit service")
 	if is_instance_valid(live):
+		# Main starts near map center regardless of the Build camera. Move the
+		# walker to the station before exercising live name refresh wiring.
+		var station: Dictionary = live.network.stations[0]
+		host.exploration.pedestrian.global_position = Vector3(station.anchor.x+.5,station.surface+.002,station.anchor.y+.5)
+		live.step(.016,host.exploration.pedestrian)
 		check(is_instance_valid(live.train),"nearby station prepares service")
 		var instance_ids := _identity(live.world)
 		var anchor := Vector2i(20,20)

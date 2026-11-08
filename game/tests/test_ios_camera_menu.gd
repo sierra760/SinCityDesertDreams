@@ -36,8 +36,11 @@ func test_portrait_actions_use_camera_wings_and_recover_the_menu_row() -> void:
 		check(not host.menu_bar.phone_inspect_button.visible,"third action moves into Menu")
 		host.shell.set_phone_tools_open(true)
 		await Fixture.settle(self,6)
-		check(host.toolbar.position.y>=bar.end.y,"drawer clears the bar")
-		check(host.toolbar.position.y<safe.position.y+44,"drawer benefits from recovered space")
+		var badge := host.shell.city_name_button.get_global_rect()
+		check(host.shell.city_name_button.is_visible_in_tree(),"city name remains available below the camera wings")
+		check(safe.grow(.1).encloses(badge),"city name clears the camera housing")
+		check_eq(badge.position.y,bar.end.y+8.0,"one badge row follows the recovered menu row")
+		check_eq(host.toolbar.position.y,badge.end.y,"drawer clears the city name without an extra row")
 		host.shell.set_phone_tools_open(false)
 func test_landscape_face_reaches_edges_but_actions_avoid_side_camera() -> void:
 	for safe in [Rect2i(47,0,750,369),Rect2i(0,0,797,369)]:
@@ -112,8 +115,10 @@ func test_ios_explore_pause_and_inspector_use_the_recovered_inset() -> void:
 	await phone(Vector2i(390,844),Rect2i(0,47,390,763))
 	host.open_query(Vector2i(64,64))
 	await Fixture.settle(self,6)
-	check(host.query_panel.position.y>=host.menu_bar.get_global_rect().end.y,"inspector clears wing row")
-	check(host.query_panel.position.y<47+44,"inspector benefits from reclaimed height")
+	var badge := host.shell.city_name_button.get_global_rect()
+	check(host.shell.city_name_button.is_visible_in_tree(),"inspector retains the city name control")
+	check_eq(badge.position.y,host.menu_bar.get_global_rect().end.y+8.0)
+	check_eq(host.query_panel.position.y,badge.end.y+8.0,"inspector clears the badge with one margin")
 	host.query_panel.close()
 	host.city_view_3d.set_camera_state(Vector3(64,2.4,61),0,48)
 	host.exploration.set_touch_controls_enabled(true)
@@ -126,7 +131,8 @@ func test_ios_explore_pause_and_inspector_use_the_recovered_inset() -> void:
 	await Fixture.settle(self,8)
 	check(host.menu_bar.visible,"pause restores menu wings")
 	check_eq(host.menu_bar.position.y,0.0)
-	check_eq(host.explore_hud._usable_rect().position.y,host.menu_bar.get_global_rect().end.y,"pause reserves the actual bar end once")
+	check(host.shell.city_name_button.is_visible_in_tree(),"pause retains the city name control")
+	check_eq(host.explore_hud._usable_rect().position.y,host.shell.city_name_button.get_global_rect().end.y,"pause reserves the actual city-name row end once")
 
 func test_street_names_panel_uses_actual_chrome_end() -> void:
 	await phone(Vector2i(390,844),Rect2i(0,47,390,763))

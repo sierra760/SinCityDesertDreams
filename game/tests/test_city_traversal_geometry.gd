@@ -7,6 +7,7 @@ extends "res://tests/test_case.gd"
 const Hashes := preload("res://tests/fixtures/output_hashes.gd")
 
 # SHA-256 of the render/query arrays built for each terrain, ramp and network case.
+# Includes the single-lane ramp surface and its two solid white edge lines.
 # After an intended geometry change, copy the new hash from the failing check here.
 const BASELINES := {
 	"terrain 10": "4d5254d97e34af597e1922b58a3bd3a08d10411fa68be520901e29bee539beba",
@@ -19,14 +20,14 @@ const BASELINES := {
 	"terrain 67": "4706f19007ee324d0dbacb0971442304f88b2a917f5cfaa426e084c119af77bb",
 	"terrain 68": "78f582cec54ca4e99f39339e86754349116d05436c3ce773dc53b663697cdd9a",
 	"terrain 69": "71fdd158810e6c575ebcfc67f50827b45c9b39028f712bd8d2465b9363aed3cf",
-	"ramp 0 false": "4da823c9dd4ee32e9d040eba11e920d54437d5b5fc02b598b6ee964a5be75405",
-	"ramp 1 false": "b348226f3a0863e0f160c8e167167fbefc314d2c6033ad6178db65ca072da1e7",
-	"ramp 2 false": "e74ef3d9004b01836fd346b9d391c72c1a63854b18c864ac7869a84a1525925f",
-	"ramp 3 false": "0e668bdf53c8af6fc79a87b6cf9323c7360532ce7b305f04dea54700c3f31438",
-	"ramp 0 true": "29b014d4e91d11e0eee1ae37b849625141ac6c14a5ad64ccb9c2c978f027f3ed",
-	"ramp 1 true": "60c607243cd08e364e43096d8b140e815701d87635481846379786418fad1297",
-	"ramp 2 true": "7c57e21e3979ad8cdf55b82654ae9d5ab6f025eec01ec581c3de34ee30631829",
-	"ramp 3 true": "96f4b8f33963a46c9c754d1ea58aaa0329f1a1af0033bfe4b541c066041185b6",
+	"ramp 0 false": "10588018cda512c4a9fcbd9270eeaed31bb86a9d6a95cd250d0ac26c3d37eb7d",
+	"ramp 1 false": "a7c43bce05aea349d83b88d45405b52f048f40d70f15975ce94f45bc42a373cb",
+	"ramp 2 false": "7067a6ae61f0447cd5533d331fb38d51460d5b368a5a77b4685aeea1f66813fe",
+	"ramp 3 false": "012a936d8dd03decb7a079d582ae89195528f1c85a2b868ac7e6f0b67f02a607",
+	"ramp 0 true": "d6439330d0a12c13a1ee4ee95ca8d1abb1844381754dbbf3a3a58284e2373925",
+	"ramp 1 true": "aa1316e833cbf0b598fc71700a8b9286e16d7e18567743b2b80a5407be3b0e6f",
+	"ramp 2 true": "636dae4e4d17d0c890932a6dcb377d37408dd7b6dc5faa5998e8acd052aa0e72",
+	"ramp 3 true": "cc7f78be02bc6ab57b613941fbe92f0a3686af2fbee1e17cfd31ac8718eb9d78",
 	"network 87 false": "ced911f6b3fc6b273f26c08056dbfbf99ba07a518ca1868615b0da4d08c8f644",
 	"network 87 true": "23abafd8843e532878c9e13103dcadc91e694ffbf28a3c22b4366272f4809c53",
 	"network 89 false": "1a1f2bc5e1b90091dc205e110689555a5cd834372767d6692af41d3fcbadae87",
@@ -49,14 +50,14 @@ const BASELINES := {
 # Hashes that differ on Windows, which rounds some engine math differently.
 const PLATFORM_BASELINES := {
 	"Windows": {
-		"ramp 0 false": "ac7433d776840b0c4cbcff38a2fd962c42bb1b7e579a8cf2566762fe49a0ca58",
-		"ramp 1 false": "febcbc6e6cd3b2c534c9f484511d3662b96eaf5a77d7bd0d85489a36d4ce16b1",
-		"ramp 2 false": "d68da3cce7632ba446a871ca0768207bb78e6e73cdd60d4f99674920be55ca7b",
-		"ramp 3 false": "2211a5a116a7656f476c8b410ef593f2341418bafa4ec98fa37e1144f3e5c1eb",
-		"ramp 0 true": "34cc23a2eb13ea03089dddfa3bd621f4d83ecb126451cb899e87b14fab1f5843",
-		"ramp 1 true": "ea359de23d0952ea3a8ebfbdd63aeaf244c1ea34cfbb3fb7c2eb4a8d8277bcd3",
-		"ramp 2 true": "3b8431dadc27a296acb34c97c48514d7b51ed430684e0532a37ffb4e2de59ad5",
-		"ramp 3 true": "56fd721309a70e476ead27533804b1ce4f70b5e4566bd8721e354f15c63ec49f",
+		"ramp 0 false": "27b36e53ccf752a7fe22e00801b2fdb19e615f1501702cd44decde13f2f1a9ef",
+		"ramp 1 false": "6617608274db1261f6daad7de0171fbd39c70c458ce179d03eaf3128dc7c0ca4",
+		"ramp 2 false": "ee36f28ecc6fc4be1d3f7cd674d7e3f40ddd127a266920005931f1a992226e40",
+		"ramp 3 false": "9e0e035caadd42cdcee7c6b0f5a850bec73b88595cb8aae60a8f5bdeefa36db2",
+		"ramp 0 true": "157ea660b29a0f33043f5ebd78b3de7efa0382591fd2cc1fdf878b441b26a8c7",
+		"ramp 1 true": "d92f5386a4d172071f1d28be151e31fce7fbfe040805e50c7be1b9924e5d0acc",
+		"ramp 2 true": "ef8bd1596e8d5ec3e35bd80178b262fd90a912793af869c9a33689c7cca1c965",
+		"ramp 3 true": "94bd10e6b0e78c0e6d372a5a87ef588e81dceb12a42311be5d260feae1534063",
 	},
 }
 var baselines: Dictionary = Hashes.for_platform(BASELINES, PLATFORM_BASELINES)
