@@ -11,6 +11,11 @@ func after_each() -> void:
 		if FileAccess.file_exists(path): DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	await super.after_each()
 
+func _seed_recall(seed: int) -> void:
+	var saved := host.sim.casino().recall.save()
+	saved.rng_state = str(SimRng.new(seed).state())
+	host.sim.casino().recall.load(saved)
+
 func _dismiss_mayor() -> void:
 	host.sim.casino_begin_visit(COMSTOCK)
 	check(host.sim.casino_commit(COMSTOCK, &"blackjack", 11000))
@@ -20,6 +25,7 @@ func _dismiss_mayor() -> void:
 	host.sim.clock.day = 150
 	host.sim.city.day = 150
 	host.sim.stats.approval = 0
+	_seed_recall(0)
 	host.sim.advance_day()
 	check(host.sim.is_mayor_dismissed())
 
@@ -93,6 +99,7 @@ func test_surviving_recall_keeps_authority_and_save_available() -> void:
 	host.sim.clock.day = 150
 	host.sim.city.day = 150
 	host.sim.stats.approval = 100
+	_seed_recall(1)
 	host.sim.advance_day()
 	check(not host.sim.is_mayor_dismissed())
 	check_ne(host.files.save_city_as(PRIOR_NAME), "")

@@ -14,6 +14,9 @@ func test_removal_preserves_cloud_checkpoint_and_blocks_all_capture_routes() -> 
 	host.notices.clear_pending()
 	host.notice_dialog.dismiss()
 	host.sim.stats.approval = 0
+	var recalled := host.sim.casino().recall.save()
+	recalled.rng_state = str(SimRng.new(0).state())
+	host.sim.casino().recall.load(recalled)
 	host.sim.clock.day = 150
 	host.sim.city.day = 150
 	host.sim.advance_day()

@@ -8,6 +8,8 @@ class_name MayoralRecall
 extends RefCounted
 
 const DELAY := 6 * GameClock.DAYS_PER_MONTH
+## Percentage points; the election-day swing is uniform and inclusive.
+const LUCK_SWING := 15
 var visit_resort: StringName = &""
 var entry_funds := 0
 var visit_loss := 0
@@ -53,10 +55,13 @@ func advance(ctx: SimContext) -> void:
 	if dismissed or due_day < 0: return
 	if ctx.clock.day >= due_day:
 		var approval := clampi(ctx.stats.approval, 0, 100)
-		var chance := 100 - approval
+		var base_chance := 100 - approval
+		var luck := _rng.range_int(-LUCK_SWING, LUCK_SWING)
+		var chance := clampi(base_chance + luck, 0, 100)
 		var roll := _rng.below(100)
 		dismissed = roll < chance
-		result = {"day": ctx.clock.day, "approval": approval, "chance": chance,
+		result = {"day": ctx.clock.day, "approval": approval, "base_chance": base_chance,
+			"luck": luck, "chance": chance,
 			"roll": roll, "removed": dismissed, "date": _date(due_day, ctx.clock.founded_year)}
 		due_day = -1
 		next_update = -1
@@ -70,7 +75,7 @@ func advance(ctx: SimContext) -> void:
 func _args(ctx: SimContext) -> Dictionary:
 	var approval := clampi(ctx.stats.approval, 0, 100)
 	return {"date": _date(due_day, ctx.clock.founded_year), "approval": approval,
-		"chance": 100 - approval, "months": maxi(1, ceili(float(due_day - ctx.clock.day) / GameClock.DAYS_PER_MONTH))}
+		"chance": 100 - approval, "luck_limit": LUCK_SWING, "months": maxi(1, ceili(float(due_day - ctx.clock.day) / GameClock.DAYS_PER_MONTH))}
 
 static func _date(day: int, founded_year: int) -> String:
 	var clock := GameClock.new()
@@ -93,4 +98,7 @@ func load(data: Dictionary) -> void:
 	next_update = int(data.get("next_update", due_day))
 	dismissed = bool(data.get("dismissed", false))
 	result = (data.get("result", {}) as Dictionary).duplicate(true)
+	# JSON numbers arrive as floats; retain the resolved election's integer fields.
+	for field in ["day", "approval", "base_chance", "luck", "chance", "roll"]:
+		if result.has(field): result[field] = int(result[field])
 	if data.has("rng_state"): _rng.set_state(int(str(data.rng_state)))

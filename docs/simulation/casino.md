@@ -229,7 +229,11 @@ advance tourism, draw simulation RNG or book tax. See [Tourism](tourism.md).
 
 Walking into a gaming resort fixes the visit's treasury baseline. Tables share that baseline until the mayor leaves the resort or Explore. Settled net losses greater than half a positive entry balance call a recall election; exactly half does not. Winnings offset losses, held stakes and refunded rounds do not count, and ordinary city expenses are excluded.
 
-The election takes place six simulation months (150 days) after the triggering loss. Only one recall can be pending; further losses cannot postpone it and winning money back cannot cancel it. City time remains paused during Explore. The chance of removal is 100% minus the existing approval rating on election day, after any approval vote scheduled that day. A separate persisted random stream supplies one election draw.
+The election takes place six simulation months (150 days) after the triggering loss. Only one recall can be pending; further losses cannot postpone it and winning money back cannot cancel it. City time remains paused during Explore. The base removal chance is 100% minus the existing approval rating on election day, after any approval vote scheduled that day.
+
+Election-day luck adds a uniformly drawn integer from −15 to +15 percentage points. Clamp the resulting chance to 0–100%, then draw the election result against those final odds. For example, 70% approval gives a 30% base chance of removal, with final odds between 15% and 45%. Even 100% approval can suffer an upset, and a mayor with no approval can still get lucky.
+
+Both draws use the recall's separate persisted random stream. The resolved result records approval, base chance, luck swing, final chance and election draw; save/load cannot reroll them. Campaign coverage labels the base odds and explains the possible swing, while the result paper reports the actual swing and final odds.
 
 The Desert Dispatch publishes the call, monthly campaign updates and the result. A surviving mayor retains office; the prosecuted visit cannot immediately call another recall, while a fresh qualifying visit can. A removed mayor reads the result paper, then chooses to load the latest available save for this city or return to title. If no local copy is found, Load City includes cloud-only saves.
 

@@ -618,27 +618,27 @@ const STORIES: Dictionary = {
 		"headlines": ["Mayor Faces Recall After Treasury Gambling Loss"],
 		"body": [
 			"Mayor {mayor} lost {count} gambling at {place}, more than half the {entry_treasury} in the treasury when the mayor entered. A recall election has been called for {date}, six months after the loss.",
-			"Approval currently stands at {approval}%. The chance of removal will be 100% minus the mayor's approval on election day; at today's rating that would be {chance}%. Leaving the tables or winning the money back will not cancel the vote.",
+			"Approval currently stands at {approval}%, giving a base removal chance of {chance}%. The base will be 100% minus election-day approval, with a random luck swing of up to {luck_limit} percentage points either way. Leaving the tables or winning the money back will not cancel the vote.",
 		]},
 	&"recall_update": {
 		"priority": URGENT, "decay": ONCE,
 		"headlines": ["Recall Countdown: {months} Until The Vote"],
 		"body": [
-			"The gambling-loss recall election remains scheduled for {date}. Mayor {mayor}'s current approval is {approval}%, implying a {chance}% chance of removal if the election were held today.",
-			"The rating on election day will decide the odds. If the recall passes, the mayor leaves office and play must resume from a saved city.",
+			"The gambling-loss recall election remains scheduled for {date}. Mayor {mayor}'s current approval is {approval}%, putting the base removal chance at {chance}%. Election-day luck can shift that by up to {luck_limit} percentage points either way.",
+			"The rating and luck swing on election day will set the final odds. If the recall passes, the mayor leaves office and play must resume from a saved city.",
 		]},
 	&"recall_removed": {
 		"priority": URGENT + 1, "decay": ONCE,
 		"headlines": ["Recall Passes: Mayor Removed From Office"],
 		"body": [
-			"The {date} recall has passed. Mayor {mayor} had {approval}% approval, giving the recall a {chance}% chance of success. The vote has ended the mayor's tenure.",
+			"The {date} recall has passed. Mayor {mayor}'s {approval}% approval set the base removal chance at {base_chance}%. The election-day luck swing was {luck}. The final removal chance was {chance}%, and the vote has ended the mayor's tenure.",
 			"City management is now closed. Load the most recent saved city to resume; unsaved progress from this tenure is lost. Existing saves have been preserved.",
 		]},
 	&"recall_survived": {
 		"priority": URGENT + 1, "decay": ONCE,
 		"headlines": ["Mayor Survives Recall; City Hall Stays Open"],
 		"body": [
-			"The {date} recall has failed. Mayor {mayor}'s {approval}% approval meant a {chance}% chance of removal, but the mayor survived the vote and remains in office.",
+			"The {date} recall has failed. Mayor {mayor}'s {approval}% approval set the base removal chance at {base_chance}%. The election-day luck swing was {luck}. The final removal chance was {chance}%; the mayor survived the vote and remains in office.",
 			"This recall is concluded. Another resort visit that loses more than half its entry treasury can bring another election.",
 		]},
 	# The mayor's casino play at the gaming resorts (see docs/simulation/casino.md).
@@ -970,7 +970,7 @@ const DISTRICTS: Array[String] = [
 	"the southwest corner", "the south end", "the southeast corner",
 ]
 
-const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind", "event", "date", "entry_treasury", "approval", "chance", "months"]
+const PLACEHOLDERS: Array[String] = ["city", "mayor", "year", "count", "place", "kind", "event", "date", "entry_treasury", "approval", "chance", "months", "base_chance", "luck", "luck_limit"]
 
 
 static func kinds() -> Array[StringName]:
@@ -1059,6 +1059,9 @@ static func values_for(kind: StringName, args: Dictionary, city_name: String, ma
 		"entry_treasury": NoticeLines.money(int(args.get("entry_funds", 0))),
 		"approval": str(int(args.get("approval", 0))),
 		"chance": str(int(args.get("chance", 0))),
+		"base_chance": str(int(args.get("base_chance", args.get("chance", 0)))),
+		"luck": "%+d percentage point%s" % [int(args.get("luck", 0)), "" if absi(int(args.get("luck", 0))) == 1 else "s"],
+		"luck_limit": str(int(args.get("luck_limit", MayoralRecall.LUCK_SWING))),
 		"months": "%d %s" % [int(args.get("months", 0)), "Month" if int(args.get("months", 0)) == 1 else "Months"],
 	}
 

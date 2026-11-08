@@ -21,6 +21,13 @@ func lose(stake: int, returned: int = 0) -> void:
 	check(sim.casino_commit(RESORT, &"blackjack", stake))
 	sim.casino_settle(RESORT, &"blackjack", stake, returned)
 
+## Seed 0 draws luck +11, seed 1 draws -4. Endpoint fixtures deliberately
+## choose a guaranteed result; separate tests cover surprise outcomes.
+func seed_recall(seed: int) -> void:
+	var saved := sim.casino().recall.save()
+	saved.rng_state = str(SimRng.new(seed).state())
+	sim.casino().recall.load(saved)
+
 func test_strict_half_threshold_and_unsettled_refunds() -> void:
 	var r: Variant = recall()
 	if r == null: return
@@ -88,11 +95,13 @@ func test_exact_six_month_date_across_year_and_current_approval() -> void:
 	lose(11000)
 	check_eq(r.due_day, 373)
 	sim.stats.approval = 0
+	seed_recall(0)
 	sim.clock.day = 372
 	sim.city.day = 372
 	sim.advance_day()
 	check(r.result.is_empty(), "not on the day before election")
 	sim.stats.approval = 100
+	seed_recall(1)
 	sim.advance_day()
 	check(not r.dismissed)
 	check_eq(int(r.result.approval), 100)
@@ -107,6 +116,7 @@ func test_dismissal_stops_direct_days_and_bets() -> void:
 	sim.clock.day = 150
 	sim.city.day = 150
 	sim.stats.approval = 0
+	seed_recall(0)
 	sim.advance_day()
 	check(sim.is_mayor_dismissed())
 	var day := sim.city.day
@@ -120,7 +130,7 @@ func test_save_restore_preserves_campaign_rng_and_old_saves() -> void:
 	if r == null: return
 	sim.casino_begin_visit(RESORT)
 	lose(11000)
-	var snapshot := sim.snapshot()
+	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(sim.snapshot()))
 	var city_data := SaveFormat.encode_city(sim.city)
 	check_eq(SaveFormat.validate_snapshot(snapshot), "")
 	var saved_rng := str(snapshot.systems.casino.recall.rng_state)
@@ -159,6 +169,7 @@ func test_campaign_reports_once_and_fresh_visit_after_survival() -> void:
 		sim.clock.day = day
 		sim.city.day = day
 		sim.stats.approval = 100
+		seed_recall(1)
 		sim.advance_day()
 	check_eq(reports.count(&"recall_update"), 5)
 	check_eq(reports.count(&"recall_survived"), 1)
@@ -185,12 +196,14 @@ func test_urgent_paper_prints_call_and_result_even_after_another_extra() -> void
 	sim.clock.day = 150
 	sim.city.day = 150
 	sim.stats.approval = 0
+	seed_recall(0)
 	sim.events.report(&"disaster_started", {"kind":"fire"})
 	sim._drain_events()
 	sim.advance_day()
 	issue = paper.call("latest_issue")
 	check_eq(String(issue.stories[0].kind), "recall_removed")
 	check(String(issue.stories[0].body).contains("100%"))
+	check(String(issue.stories[0].body).contains("luck"),"result explains how luck changed the base odds")
 
 func test_monthly_campaign_updates_print_current_odds_immediately() -> void:
 	var r: Variant = recall()
@@ -209,6 +222,7 @@ func test_monthly_campaign_updates_print_current_odds_immediately() -> void:
 		var unit := "Month" if remaining == 1 else "Months"
 		check_eq(String(issue.stories[0].headline), "Recall Countdown: %d %s Until The Vote" % [remaining, unit])
 		check(String(issue.stories[0].body).contains("%d%%" % sim.stats.approval))
+		check(String(issue.stories[0].body).contains("luck") and String(issue.stories[0].body).contains("15"),"campaign explains the election-day swing")
 
 func test_election_draw_uses_own_saved_rng_at_intermediate_approval() -> void:
 	var r: Variant = recall()
@@ -223,13 +237,29 @@ func test_election_draw_uses_own_saved_rng_at_intermediate_approval() -> void:
 	for seed in range(10):
 		var draw := SimRng.new(seed)
 		var initial := str(draw.state())
+		var luck := draw.range_int(-15,15)
 		var roll := draw.below(100)
 		r.load({"due_day":0,"rng_state":initial})
 		ctx.stats.approval = 70
 		r.advance(ctx)
 		check_eq(int(r.result.roll), roll)
-		check_eq(r.dismissed, roll < 30)
+		check_eq(int(r.result.get("base_chance", -1)),30)
+		check_eq(int(r.result.get("luck", -99)),luck)
+		check_eq(int(r.result.chance),30+luck)
+		check_eq(r.dismissed, roll < 30+luck)
+		var kind := &"recall_removed" if r.dismissed else &"recall_survived"
+		var values := NewsStories.values_for(kind,r.result,ctx.city.name,ctx.city.mayor,ctx.clock.year())
+		var body := NewsStories.body(kind,r.result,values)
+		check(body.contains("at 30%"),"result reports approval-based odds")
+		check(body.contains("%+d percentage points" % luck),"result reports signed luck swing")
+		check(body.contains("chance was %d%%" % (30+luck)),"result reports final odds")
+		check(not body.contains("{"),"result placeholders resolve")
 	check_eq(sim.rng.state(), simulation_state, "recall draw never consumes city RNG")
+	for row in [[-1,"-1 percentage point."],[0,"+0 percentage points."],[1,"+1 percentage point."],[15,"+15 percentage points."]]:
+		var args := {"luck":int(row[0])}
+		var values := NewsStories.values_for(&"recall_removed",args,"Test City","Mayor",1900)
+		check(NewsStories.body(&"recall_removed",args,values).contains(row[1]),"luck units use the correct singular or plural")
+
 
 func test_march_vote_finishes_before_recall_reads_approval() -> void:
 	var r: Variant = recall()
@@ -243,3 +273,52 @@ func test_march_vote_finishes_before_recall_reads_approval() -> void:
 	sim.advance_day()
 	check_between(sim.stats.approval,0,100)
 	check_eq(int(r.result.approval),sim.stats.approval)
+
+func test_luck_changes_odds_in_both_directions_and_clamps_extremes() -> void:
+	var r: Variant = recall()
+	if r == null: return
+	var ctx := SimContext.new()
+	ctx.city = sim.city
+	ctx.stats = sim.stats
+	ctx.clock = sim.clock
+	ctx.events = CityEvents.new()
+	ctx.rng = sim.rng
+	var seen: Dictionary = {}
+	var popular_surprise := false
+	var unpopular_surprise := false
+	for approval in [0,50,100]:
+		for seed in 1024:
+			r.load({"due_day":0,"rng_state":str(SimRng.new(seed).state())})
+			ctx.stats.approval = approval
+			r.advance(ctx)
+			check(r.result.has("luck"),"election records its separate luck draw")
+			if not r.result.has("luck"): return
+			var luck := int(r.result.luck)
+			check_between(luck,-15,15)
+			check_eq(int(r.result.base_chance),100-approval)
+			check_eq(int(r.result.chance),clampi(100-approval+luck,0,100))
+			check_eq(r.dismissed,int(r.result.roll)<int(r.result.chance))
+			if approval == 50: seen[luck] = true
+			if approval == 100 and r.dismissed: popular_surprise = true
+			if approval == 0 and not r.dismissed: unpopular_surprise = true
+	check_eq(seen.size(),31,"all 31 integer luck swings occur")
+	check(popular_surprise,"even full approval can lose after an unlucky swing")
+	check(unpopular_surprise,"even zero approval can survive a lucky swing")
+
+func test_resolved_luck_and_roll_survive_json_restore_without_another_draw() -> void:
+	var r: Variant = recall()
+	if r == null: return
+	sim.casino_begin_visit(RESORT)
+	lose(11000)
+	sim.clock.day = 150
+	sim.city.day = 150
+	sim.stats.approval = 70
+	sim.advance_day()
+	check(r.result.has("luck"))
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(r.save()))
+	var result: Dictionary = r.result.duplicate(true)
+	var rng_state: String = saved.rng_state
+	r.load(saved)
+	sim.advance_day()
+	check_eq(r.result,result)
+	check_eq(str(r.save().rng_state),rng_state,"a resolved recall never draws again")
