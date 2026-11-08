@@ -1187,9 +1187,9 @@
       "name": "red-hip-roof-raised-porch-mayors-house",
       "master_blend_sha256": "88929af584fc83530705c9a0dda75c474da5d44cc6162701bce021328b8ef8c8",
       "standalone_glb_sha256": "ff332c1148e19e0bde5ff1eec2ececdcf276a7fbd1b401001903cdcc48601fff",
-      "runtime_glb_sha256": "ebdde1fbdf559b59df7e90c0777059a32a2c5dda411dc8d311230fb08e7a8dc0",
+      "runtime_glb_sha256": "8fa76059c3f4ade759ce44abb25673658bb5489d59d4d21edb3e64d0815dffe0",
       "textured_materials": 5,
-      "runtime_bytes": 337928
+      "runtime_bytes": 319220
     },
     {
       "code": 244,

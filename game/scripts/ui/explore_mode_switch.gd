@@ -17,6 +17,8 @@ const HOLD := &"explore"
 var _host: GameHost
 ## The Build camera, tool and presentation saved on entering Explore.
 var _snapshot: Dictionary = {}
+var _choice_city: City
+var _choice_token := 0
 
 
 func _init(host: GameHost) -> void:
@@ -26,7 +28,7 @@ func _init(host: GameHost) -> void:
 ## Whether Explore can start: a founded city with nothing else holding input.
 func can_enter() -> bool:
 	var host := _host
-	return host.stage == GameHost.Stage.PLAY and not host.is_input_blocked() and not host.is_exploring() \
+	return _choice_city == null and host.stage == GameHost.Stage.PLAY and not host.is_input_blocked() and not host.is_exploring() \
 		and not host.street_names.is_active() and is_instance_valid(host.exploration)
 
 
@@ -34,16 +36,46 @@ func can_enter() -> bool:
 func enter() -> bool:
 	if not can_enter():
 		return false
-	return _enter()
+	return _request_start(false)
 
 
 ## Enter Explore behind the loading screen.
 func request() -> void:
 	if not can_enter(): return
-	_host.run_loading("Preparing Explore…","Preparing walking paths, vehicles and station interiors.",_enter)
+	_request_start(true)
 
 
-func _enter() -> bool:
+func _request_start(loading: bool) -> bool:
+	var city := _host.sim.city
+	var house := ExploreMayorsHouse.find(city)
+	if house.is_empty(): return _start(false,loading)
+	_choice_city = city
+	_choice_token += 1
+	_host.notices.queue("Start Exploring","Where would you like to start? The Mayor’s House has a Desert Cruiser, police cruiser, fire truck and helicopter waiting at ground level.",
+		[["Map Center",&"center"],["Mayor’s House",&"house"],["Cancel",&"cancel"]],_answer_start.bind(city,_choice_token,loading))
+	return true
+
+func _answer_start(choice: StringName, city: City, token: int, loading: bool) -> void:
+	if token != _choice_token or _choice_city != city: return
+	_choice_city = null
+	if choice not in [&"center",&"house"] or _host.stage != GameHost.Stage.PLAY or _host.sim.city != city: return
+	_start(choice == &"house",loading)
+
+func _start(at_house: bool, loading: bool) -> bool:
+	var city := _host.sim.city
+	var token := _choice_token
+	if loading:
+		_host.run_loading("Preparing Explore…","Preparing walking paths, vehicles and station interiors.",_enter_current.bind(city,token,at_house))
+		return true
+	return _enter_current(city,token,at_house)
+
+## Loading yields before its work runs. Revalidate on the far side of that
+## yield, so replacing/closing a city or disposing the switch cancels entry.
+func _enter_current(city: City, token: int, at_house: bool) -> bool:
+	if token != _choice_token or city != _host.sim.city or _host.stage != GameHost.Stage.PLAY or _host.is_exploring(): return false
+	return _enter(at_house)
+
+func _enter(at_house: bool = false) -> bool:
 	var host := _host
 	var view := host.city_view_3d
 	var snapshot := {"center":view.center,"quarter_turn":view.quarter_turn,
@@ -54,7 +86,7 @@ func _enter() -> bool:
 	host.exploration.modal_open = host.is_input_blocked
 	host.exploration.window_open = func() -> bool:
 		return is_instance_valid(host.window_manager) and host.window_manager.front() != null
-	if not host.exploration.enter(host.sim.city,view.center):
+	if not host.exploration.enter(host.sim.city,ExploreMayorsHouse.map_center(),at_house):
 		host.notices.show("Cannot Enter Explore Mode", "Explore mode requires a safe outdoor road. Build a road with clear space and try again.")
 		return false
 	# A Build window (Budget, Graphs, Options…) would sit over the walk with
@@ -107,6 +139,11 @@ func leave() -> void:
 
 ## Leave Explore if needed and release its actors and world.
 func dispose() -> void:
+	var pending := _choice_city != null
+	_choice_token += 1
+	_choice_city = null
+	if pending and _host.notice_dialog.is_open() and _host.notice_dialog.title_label.text == "Start Exploring":
+		_host.notice_dialog.dismiss(&"cancel")
 	# Closing the city discards any pending explanation for the old session.
 	if is_instance_valid(_host.exploration): _host.exploration.take_exit_message()
 	leave()

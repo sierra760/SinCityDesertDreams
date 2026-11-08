@@ -136,7 +136,7 @@ end
 
 local function board_hint()
   if flying() then return nil end
-  return "board a helicopter: walk to the parked one, or Explore menu → Choose a vehicle → Helicopter"
+  return "board a helicopter: visit the Mayor’s House or walk to a nearby parked aircraft"
 end
 
 -- Setup --------------------------------------------------------------------

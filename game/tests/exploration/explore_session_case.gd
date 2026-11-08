@@ -56,6 +56,7 @@ func _enter(origin: Vector3 = Vector3(22.5,GROUND,20.5)) -> bool:
 	await physics_frame
 	var entered: bool = session.enter(city,origin)
 	check(entered,"supported dry entry succeeds")
+	if entered: preload("res://tests/exploration/session_vehicle_fixture.gd").park(session)
 	await physics_frame
 	return entered
 

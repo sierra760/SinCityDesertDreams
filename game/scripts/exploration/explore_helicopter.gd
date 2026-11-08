@@ -84,8 +84,10 @@ func _init() -> void:
 	add_child(_visual)
 	_visual.rotor_rate = 0.0
 	set_physics_process(false)
+	set_process(false)
 
 func bind(traversal: CityTraversalWorld3D) -> void:
+	set_process(false)
 	_world = traversal
 	stop_input()
 
@@ -108,6 +110,7 @@ func _process(delta: float) -> void:
 	if _rotor < ROTOR_REST: _rotor = 0.0
 	_visual.rotor_rate = _rotor
 	_visual.advance_visual(dt)
+	if _rotor <= 0.0: set_process(false)
 
 func _request(reason: String) -> void:
 	velocity = Vector3.ZERO
@@ -169,6 +172,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 		return
 	_grounded = supported and velocity.y<=.001
 	_stepped_frame = Engine.get_physics_frames()
+	set_process(true)
 	var input := frame.move.limit_length(1)
 	var camera := Basis(Vector3.UP,camera_yaw)
 	var desired := camera*Vector3(input.x,0,input.y)*MAX_SPEED

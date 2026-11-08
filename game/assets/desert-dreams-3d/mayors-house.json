@@ -1,0 +1,79 @@
+{
+  "meters_per_tile": 16.0,
+  "ground_m": 0.21,
+  "front": "+Z",
+  "walk": [
+    0.0,
+    -0.15
+  ],
+  "apron": [
+    -14.8,
+    -0.7,
+    29.6,
+    16.7
+  ],
+  "slots": [
+    {
+      "kind": "car",
+      "marker": "MayorParking_car",
+      "position": [
+        2.2,
+        4.8
+      ],
+      "yaw": 3.141592653589793
+    },
+    {
+      "kind": "police",
+      "marker": "MayorParking_police",
+      "position": [
+        6.6,
+        4.8
+      ],
+      "yaw": 3.141592653589793
+    },
+    {
+      "kind": "fire_engine",
+      "marker": "MayorParking_fire_engine",
+      "position": [
+        11.4,
+        4.8
+      ],
+      "yaw": 3.141592653589793
+    },
+    {
+      "kind": "helicopter",
+      "marker": "MayorHelipad",
+      "position": [
+        -7.5,
+        6.0
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "trees": [
+    [
+      -12.2,
+      -11.5
+    ],
+    [
+      -12.2,
+      -8.3
+    ],
+    [
+      -12.2,
+      -5.1
+    ],
+    [
+      12.2,
+      -11.5
+    ],
+    [
+      12.2,
+      -8.3
+    ],
+    [
+      12.2,
+      -5.1
+    ]
+  ]
+}

@@ -195,6 +195,7 @@ func test_detail_assets_work_without_lua() -> void:
 	check(gameplay_host.explore_switch.enter(),"ordinary Main Explore entry")
 	var controller:=gameplay_host.exploration
 	if not controller.is_active(): return
+	preload("res://tests/exploration/session_vehicle_fixture.gd").park(controller)
 	var before:=SaveFormat.encode_city(city).duplicate(true)
 	var simulation:=gameplay_host.sim.snapshot().duplicate(true)
 	var settings:=gameplay_host.preferences.duplicate(true)
@@ -321,7 +322,7 @@ func _model_key(code: Key, pressed: bool) -> InputEventKey:
 
 func _collider_pins(controller: CityExplorationController) -> Array:
 	var result: Array=[]
-	for actor: CharacterBody3D in [controller.pedestrian,controller.car,controller.helicopter]:
+	for actor: CharacterBody3D in controller._actors():
 		var items: Array=[]
 		for child in actor.get_children():
 			if child is CollisionShape3D:

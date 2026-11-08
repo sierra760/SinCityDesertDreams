@@ -1,0 +1,13 @@
+{
+  "code": 243,
+  "tool": "tools/build_mayors_house.py",
+  "original_sha256": "ebdde1fbdf559b59df7e90c0777059a32a2c5dda411dc8d311230fb08e7a8dc0",
+  "runtime_sha256": "8fa76059c3f4ade759ce44abb25673658bb5489d59d4d21edb3e64d0815dffe0",
+  "triangles": 4358,
+  "layout": "game/assets/desert-dreams-3d/mayors-house.json",
+  "description": "Spanish Revival cream residence with tiled hip roofs, shutters, limestone cornices, arcaded porch and balustrades; ground-level motor court; two side rows of three global elevation-based planting anchors; original shared material/texture sets retained.",
+  "master": "assets/mayors-house/243.blend",
+  "master_sha256": "1501a6dea4b4e0f820383fd97e39272ef4307b5667a9ca22e728a39a026e0958",
+  "planting_anchors": "six named MayorTree empties; runtime uses global elevation-selected vegetation",
+  "layout_sha256": "22edd3a5aea8b1c1057e30e70ae6771a97acd8ce9487217ac9f0c9da54f5c6f3"
+}

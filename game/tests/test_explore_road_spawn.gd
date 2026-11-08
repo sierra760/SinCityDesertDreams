@@ -202,6 +202,7 @@ func test_recover_keeps_driver_in_car_on_outdoor_road() -> void:
 	await setup(two_road_city())
 	check(session.enter(view.city,Vector3(22.5,GROUND,20.5)))
 	if not session.is_active(): return
+	preload("res://tests/exploration/session_vehicle_fixture.gd").park(session)
 	session.set_physics_process(false)
 	check(session.request_interaction(),"player enters the parked car")
 	var car: CharacterBody3D = session.car
@@ -216,6 +217,7 @@ func test_recover_lands_airborne_helicopter_on_outdoor_road() -> void:
 	await setup(two_road_city())
 	check(session.enter(view.city,Vector3(22.5,GROUND,20.5)))
 	if not session.is_active(): return
+	preload("res://tests/exploration/session_vehicle_fixture.gd").park(session)
 	session.set_physics_process(false)
 	session.suspend()
 	check(session.select_vehicle(&"helicopter"))
@@ -234,6 +236,7 @@ func test_recover_dismounts_when_only_the_player_fits_the_road() -> void:
 	await setup(city)
 	check(session.enter(view.city,Vector3(28.5,GROUND,20.5)))
 	if not session.is_active(): return
+	preload("res://tests/exploration/session_vehicle_fixture.gd").park(session)
 	session.set_physics_process(false)
 	check(session.request_interaction(),"player enters the parked car")
 	var car: CharacterBody3D = session.car

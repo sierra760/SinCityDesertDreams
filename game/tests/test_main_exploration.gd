@@ -206,6 +206,7 @@ func test_focus_loss_holds_input_and_resize_keeps_flight_camera() -> void:
 	await _play()
 	check(host.enter_explore())
 	var session: CityExplorationController = host.exploration
+	preload("res://tests/exploration/session_vehicle_fixture.gd").park(session)
 	var aircraft: CharacterBody3D = session.helicopter
 	session.pedestrian.global_position = aircraft.global_position+Vector3(.30,0,0)
 	check(session.request_interaction())
@@ -385,6 +386,7 @@ func test_f_edge_enters_and_exits_car_while_e_is_not_interaction() -> void:
 	await _play()
 	check(host.enter_explore())
 	var session: CityExplorationController = host.exploration
+	preload("res://tests/exploration/session_vehicle_fixture.gd").park(session)
 	for tick in 3: await physics_frame
 	host._unhandled_key_input(_key(KEY_E,true))
 	for tick in 2: await physics_frame

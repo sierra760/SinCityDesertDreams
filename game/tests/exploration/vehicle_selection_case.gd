@@ -42,6 +42,7 @@ func _setup(city: City, origin: Vector3 = Vector3(22.5,.5,23.5)) -> bool:
 	var entered := session.enter(city,origin)
 	session.set_physics_process(false)
 	check(entered)
+	if entered: preload("res://tests/exploration/session_vehicle_fixture.gd").park(session)
 	return entered
 
 func after_each() -> void:

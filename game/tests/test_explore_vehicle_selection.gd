@@ -109,13 +109,15 @@ func test_ambient_helicopter_claim_is_released_on_exit_and_leave() -> void:
 	var parked := session.helicopter.global_position
 	check(session._board_ambient(),"nearby helicopter can be claimed")
 	check(traffic._claims.has(-42))
-	check_eq(session.occupied,session.helicopter)
-	check(Vector2(session.helicopter.global_position.x-session.pedestrian.global_position.x,
-		session.helicopter.global_position.z-session.pedestrian.global_position.z).length()<.01,
-		"the session helicopter lands at the claimed ambient pose instead of its distant parking")
-	check(session.helicopter.global_position.distance_to(parked)>4.0,"distant parked helicopter is not occupied in place")
+	var borrowed := session.occupied as ExploreHelicopter
+	check(borrowed != null and borrowed == session.selected_vehicle,"real claim owns a separate aircraft")
+	if borrowed == null: return
+	check(Vector2(borrowed.global_position.x-session.pedestrian.global_position.x,
+		borrowed.global_position.z-session.pedestrian.global_position.z).length()<.01,
+		"borrowed helicopter starts at the actual ambient pose")
+	check_eq(session.helicopter.global_position,parked,"distant owned helicopter remains parked")
 	await physics_frame
-	session.helicopter.step(ExploreInputFrame.idle(),0,.016)
+	borrowed.step(ExploreInputFrame.idle(),0,.016)
 	check(session.request_interaction(),"landed helicopter exits safely")
 	check(traffic._claims.is_empty(),"exit releases ambient helicopter claim")
 	traffic._external[0].presentation_position = session.pedestrian.global_position

@@ -26,6 +26,8 @@ const EDGE_CONTACT_TICKS := 30
 const EDGE_BACKOFF := .02
 var kind: StringName = &"car"
 var route_graph: RefCounted
+## Read-only motor court, assigned by Explore; never added to traffic routes.
+var driveway: Dictionary = {}
 var _world: CityTraversalWorld3D
 var _visual: ExploreActorVisual
 var _collider: CollisionShape3D
@@ -319,7 +321,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	apply_floor_snap()
 	velocity /= factor
 	_absorb_actor_contacts()
-	if route_graph != null and not route_graph.has_cell(Vector2i(floori(global_position.x),floori(global_position.z)),&"road") and not _world.inside_road_tunnel(global_position):
+	if not on_drivable_ground():
 		_deflect_from_edge(before)
 	_grounded = not _ground_support().is_empty()
 	if not global_position.is_finite(): _request("nonfinite")
@@ -328,3 +330,9 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	elif not _grounded: _request("unsupported")
 	_visual.set_motion(_speed,steering,false)
 	_visual.advance_visual(dt)
+
+## The existing road rule plus the single bounded ground-level motor court.
+func on_drivable_ground() -> bool:
+	if route_graph == null or route_graph.has_cell(Vector2i(floori(global_position.x),floori(global_position.z)),&"road"): return true
+	if is_instance_valid(_world) and _world.inside_road_tunnel(global_position): return true
+	return ExploreMayorsHouse.allows(driveway,global_transform,vehicle_size())
