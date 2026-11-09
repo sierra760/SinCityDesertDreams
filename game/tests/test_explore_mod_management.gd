@@ -448,3 +448,95 @@ func test_native_errors_reach_plain_text_panel_and_bounded_copy() -> void:
 	copied = registry.diagnostic_text()
 	check(copied.to_utf8_buffer().size() <= 16384,"copy cap applies to UTF-8 bytes")
 	check(not copied.contains("secret-build"))
+
+func _folders(path: String) -> PackedStringArray:
+	var directory := DirAccess.open(path)
+	return directory.get_directories() if directory != null else PackedStringArray()
+
+func test_reloading_a_built_in_pack_installs_no_copy() -> void:
+	serial += 1
+	var registry := Registry.new()
+	registry.install_directory = "user://bundled-reload-%d" % serial
+	registry.scan("res://explore_mods")
+	var before := registry._find("desert_stroll")
+	check(not before.is_empty(),"built-in pack is listed")
+	var result := registry.reload("desert_stroll",true)
+	check(result.ok,"a built-in pack reloads")
+	check_eq(result.get("code",""),"reloaded_pending_resume")
+	check(_folders(registry.install_directory).is_empty(),"reload leaves no installed copy of a built-in pack")
+	check(not FileAccess.file_exists(registry.install_directory.path_join("catalog.json")),"and no catalogue entry")
+	var entry := registry._find("desert_stroll")
+	check_eq(String(entry.path),"res://explore_mods/desert_stroll","the registry keeps serving the shipped pack")
+	check_eq(entry.content_hash,before.content_hash)
+	check(registry.set_enabled("desert_stroll",true).ok)
+	check_eq(registry.active_packs().size(),1,"the reloaded pack still starts")
+
+func test_scan_prefers_the_shipped_pack_over_an_earlier_reloaded_copy() -> void:
+	serial += 1
+	var registry := Registry.new()
+	registry.install_directory = "user://bundled-stale-%d" % serial
+	# What an earlier build left behind after Reload: an installed copy of a
+	# built-in pack, catalogued with its res:// source.
+	var shipped := ExploreModPack.read("res://explore_mods/desert_stroll")
+	var old: Dictionary = shipped.duplicate(true)
+	old.manifest.version = "0.0.1"
+	var stale := registry.install_directory.path_join("version-1-1")
+	check(registry._publish(old,stale).ok)
+	var other := fixture("third_party")
+	check(registry.import_pack(other).ok)
+	var kept := String(registry._find("third_party").path)
+	var catalog := FileAccess.open(registry.install_directory.path_join("catalog.json"),FileAccess.WRITE)
+	catalog.store_string(JSON.stringify([{"version":"version-1-1","source_path":"res://explore_mods/desert_stroll"},{"version":kept.get_file(),"source_path":other}])); catalog.close()
+	var fresh := Registry.new()
+	fresh.install_directory = registry.install_directory
+	fresh.scan("res://explore_mods")
+	var entry := fresh._find("desert_stroll")
+	check(not entry.is_empty(),"the built-in pack is still usable, not a duplicate")
+	if not entry.is_empty():
+		check_eq(String(entry.path),"res://explore_mods/desert_stroll","the shipped pack wins")
+		check_eq(String(entry.manifest.version),String(shipped.manifest.version),"with the shipped version")
+	check(not DirAccess.dir_exists_absolute(stale),"the stale copy is removed")
+	check_eq(String(fresh._find("third_party").path),kept,"an imported pack keeps its installed version")
+	check_eq(String(fresh._find("third_party").source_path),other)
+
+func test_refused_archive_imports_leave_no_folders() -> void:
+	serial += 1
+	var archive := "user://leak-%d.scddmod" % serial
+	var source := fixture("leak")
+	var writer := ZIPPacker.new()
+	check_eq(writer.open(archive),OK)
+	for name in ["manifest.json","main.lua"]:
+		writer.start_file(name)
+		writer.write_file(FileAccess.get_file_as_bytes(source.path_join(name)))
+		writer.close_file()
+	writer.close()
+	var registry := Registry.new()
+	registry.install_directory = "user://leak-install-%d" % serial
+	check(registry.import_pack(source).ok)
+	var before := _folders(registry.install_directory)
+	var refused := registry.import_pack(archive)
+	check_eq(refused.get("code",""),"duplicate_id")
+	check_eq(_folders(registry.install_directory),before,"a refused duplicate archive leaves nothing extracted")
+	# The catalogue cannot be written: nothing of the attempt may remain.
+	serial += 1
+	var blocked := Registry.new()
+	blocked.install_directory = "user://leak-blocked-%d" % serial
+	DirAccess.make_dir_recursive_absolute(blocked.install_directory.path_join("catalog.json.tmp"))
+	var failed := blocked.import_pack(archive)
+	check_eq(failed.get("code",""),"catalog_publish")
+	check_eq(_folders(blocked.install_directory),PackedStringArray(["catalog.json.tmp"]),"neither the version nor its source copy remains")
+	check(blocked.entries().is_empty())
+
+func test_dialogue_choices_keep_only_declared_fields() -> void:
+	var interactions := ExploreModInteractions.new()
+	var shown: Array[Dictionary] = []
+	interactions.present = func(dialogue: Dictionary) -> bool:
+		shown.append(dialogue)
+		return true
+	var supplied := [{"key":"a","label":"x","cost":1,"disabled":true},{"key":"b","label":"y"}]
+	check_eq(interactions.dialogue("pack","k","s","t",supplied).code,"ok")
+	check_eq(shown.size(),1)
+	if shown.size() == 1: check_eq(shown[0].choices,[{"key":"a","label":"x"},{"key":"b","label":"y"}],"only key and label reach the dialog")
+	check_eq(supplied[0].get("cost"),1,"the caller's own table is untouched")
+	interactions.choose("b")
+	check_eq(interactions.take_choices()[0].data.choice,"b","choices still answer by key")

@@ -212,3 +212,29 @@ func test_real_city_traffic_keeps_flowing() -> void:
 		check_lt(share, .2, name + ": most vehicles are moving (stopped share %.3f)" % share)
 		check_lt(longest, CityTraffic3D.STUCK_LIMIT+TICK, name + ": no vehicle waits beyond the release limit")
 		traffic.free()
+
+func test_reconcile_keeps_claimed_actors_whose_route_was_removed() -> void:
+	var city := _crossroads()
+	var driven := _car(1, Vector2i(17,20), Vector2i(16,20), Vector2i(18,20), .4)
+	var knocked := _car(2, Vector2i(22,20), Vector2i(21,20), Vector2i(23,20), .4, &"pedestrian")
+	var free := _car(3, Vector2i(24,20), Vector2i(23,20), Vector2i(25,20), .4)
+	var traffic := _traffic(city, [driven, knocked, free])
+	check(not traffic.claim_vehicle(1).is_empty(), "the player takes the car")
+	check(traffic.knock_pedestrian(2), "the pedestrian is knocked")
+	# The road is bulldozed under all three.
+	for i: int in range(15, 26):
+		city.building.put(i, 20, 0)
+		city.building.put(20, i, 0)
+	traffic.graph.refresh()
+	traffic._reconcile()
+	check(traffic.actors.has(driven), "a claimed car is not removed under its driver")
+	check(traffic.actors.has(knocked), "a knocked pedestrian is not removed while in pieces")
+	check(not traffic.actors.has(free), "an unclaimed actor on a removed road still goes")
+	for id: Variant in traffic._claims.keys():
+		check(traffic.actors.any(func(a: Dictionary) -> bool: return a.id == id), "every claim still names a live actor")
+	check(traffic.is_knocked(2), "the pedestrian can still be reassembled")
+	traffic.restore_pedestrian(2)
+	check(not traffic._claims.has(2), "restoring releases the claim")
+	traffic._reconcile()
+	check(not traffic.actors.has(knocked), "once free it is judged like any other actor")
+	traffic.free()

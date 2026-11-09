@@ -219,6 +219,9 @@ func _reconcile() -> void:
 	for i: int in range(actors.size()-1,-1,-1):
 		var a: Dictionary = actors[i]
 		if a.domain == &"air" and a.has("mod_owner"): continue # Registry owns revision invalidation.
+		# Explore holds a claimed actor (a driven car, a knocked pedestrian);
+		# its owner releases it, and it is judged again once it is free.
+		if _claims.has(a.id): continue
 		if not (_choice_continues(a.cell,a.domain,a.previous,int(a.get(&"lane",0)),a.next) or _exit_choice(a.cell,a.domain,a.previous,int(a.get(&"lane",0))) == a.next) or not (_route_has(a.previous,a.domain) or (a.domain in [&"road",&"highway"] and _route_has(a.previous,&"road"))) or (a.domain == &"rail" and (_reserved_rail.has(a.cell) or _reserved_rail.has(a.next))): actors.remove_at(i)
 	var cars := 0.0
 	var people := 0.0

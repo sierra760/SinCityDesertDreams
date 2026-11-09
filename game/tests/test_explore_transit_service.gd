@@ -353,3 +353,29 @@ func test_unoccupied_local_service_follows_a_different_station_network() -> void
 	service.step(.1,walker)
 	check_eq(service.state,"approaching")
 	check_eq(service.network.station(int(service.route_data.from)).anchor,Vector2i(20,27),"approaching a different network prepares its local train")
+
+func test_recovery_offers_the_platform_only_inside_the_station() -> void:
+	await _setup(true)
+	check(_wait_boarding())
+	var station := service.network.station_for_route(service.route_data,0)
+	var platform: Vector3 = station.platform
+	check(is_instance_valid(service.world),"the station world outlives the walker's visit")
+	var inside := service.recover_pose(platform+Vector3.UP*.002)
+	check(not inside.is_empty(),"a walker on the platform recovers to it")
+	if not inside.is_empty(): check(inside.transform.origin.distance_to(platform)<.01,"recovery stands on the platform")
+	check(not service.recover_pose(platform+Vector3.DOWN*.2).is_empty(),"a walker fallen just under the platform recovers to it")
+	check(not service.recover_pose(service.train.global_transform*Vector3(0,.027,0)).is_empty(),"a rider recovers to the platform")
+	var surface := Vector3(station.anchor.x+.5,station.surface+.002,station.anchor.y+.5)
+	check(service.recover_pose(surface+Vector3(8,0,6)).is_empty(),"a walker across town is not sent to the platform")
+	check(service.recover_pose(Vector3(3.5,-4,3.5)).is_empty(),"a walker fallen under distant ground is not sent to the platform")
+	check(service.recover_pose(Vector3.INF).is_empty(),"a non-finite position is nowhere in the station")
+	check_eq(service.status().station_id,0,"the remembered station is unchanged by these questions")
+
+func test_recovery_never_offers_a_platform_that_was_not_built() -> void:
+	await _setup(true)
+	check(_wait_boarding())
+	var platform: Vector3 = service.network.station(0).platform
+	service._retire()
+	check_eq(service._station_id,0,"the service still remembers the station")
+	check(service.world.supports.is_empty(),"its rooms are gone")
+	check(service.recover_pose(platform+Vector3.UP*.002).is_empty(),"no floor, no platform recovery")

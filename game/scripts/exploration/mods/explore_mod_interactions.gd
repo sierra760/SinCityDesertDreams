@@ -53,11 +53,14 @@ func dialogue(owner: String, key: String, speaker: String, text: String, choices
 	if not _dialogue.is_empty() or (busy.is_valid() and busy.call()): return {"code":"busy"}
 	if key.is_empty() or text.to_utf8_buffer().size() > 2048 or choices.size() > 8 or choices.is_empty(): return {"code":"invalid_argument"}
 	var keys: Dictionary = {}
+	# Only the declared fields reach the dialog; a pack cannot add others.
+	var offered: Array[Dictionary] = []
 	for choice in choices:
 		if not choice is Dictionary or not choice.get("key") is String or not choice.get("label") is String: return {"code":"invalid_argument"}
 		if choice.key.is_empty() or keys.has(choice.key) or choice.label.to_utf8_buffer().size() > 4096: return {"code":"invalid_argument"}
 		keys[choice.key] = true
-	_dialogue = {"owner":owner,"key":key,"speaker":speaker,"text":text,"choices":choices.duplicate(true)}
+		offered.append({"key":choice.key,"label":choice.label})
+	_dialogue = {"owner":owner,"key":key,"speaker":speaker,"text":text,"choices":offered}
 	if present.is_valid() and not present.call(_dialogue.duplicate(true)):
 		_dialogue.clear()
 		return {"code":"busy"}

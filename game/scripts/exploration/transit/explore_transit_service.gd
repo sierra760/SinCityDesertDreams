@@ -9,6 +9,8 @@ extends Node3D
 ## Tile units: boarding guidance starts within 16 m, on the same level.
 const GUIDANCE_RANGE := 1.0
 const GUIDANCE_HEIGHT := .25
+const RECOVER_MARGIN := .1
+const RECOVER_DROP := .5
 
 var network: ExploreTransitNetwork
 var world: ExploreTransitWorld3D
@@ -379,16 +381,32 @@ func support_for(feet: Vector3) -> Dictionary:
 func contains(feet: Vector3) -> bool:
 	return not support_for(feet).is_empty()
 
-func recover_pose(_feet: Vector3) -> Dictionary:
-	if _station_id>=0 and is_instance_valid(world):
-		var station := network.station_for_route(route_data,_station_id)
-		if not station.is_empty():
-			var position: Vector3 = station.platform+Vector3.UP*.003
-			var at := Transform3D(Basis.IDENTITY,position)
-			var shape_at := at
-			shape_at.origin.y += .0575
-			if traversal.has_clearance(shape_at,ExploreActorProfile.shape(0),[walker.get_rid()]): return {"transform":at}
+## The current station's platform, for a walker lost inside the station or
+## train space. Anywhere else the caller's own last safe pose applies.
+func recover_pose(feet: Vector3) -> Dictionary:
+	if _station_id<0 or not is_instance_valid(world) or network == null or not _in_transit_space(feet): return {}
+	var station := network.station_for_route(route_data,_station_id)
+	if station.is_empty(): return {}
+	var position: Vector3 = station.platform+Vector3.UP*.003
+	# has_clearance does not look for a floor: require the built platform.
+	if world.support_for(position).is_empty(): return {}
+	var at := Transform3D(Basis.IDENTITY,position)
+	var shape_at := at
+	shape_at.origin.y += .0575
+	if traversal.has_clearance(shape_at,ExploreActorProfile.shape(0),[walker.get_rid()]): return {"transform":at}
 	return {}
+
+## Inside the carriage, on or indoors of the built station, or within a small
+## margin of one of its floors (a walker that slipped just off or under it).
+func _in_transit_space(feet: Vector3) -> bool:
+	if not feet.is_finite(): return false
+	if contains(feet) or indoors(feet): return true
+	for support: Dictionary in world.supports:
+		var at: Transform3D = support.at
+		var local := at.affine_inverse()*feet
+		var box: AABB = support.bounds
+		if local.x>=box.position.x-RECOVER_MARGIN and local.x<=box.end.x+RECOVER_MARGIN and local.z>=box.position.z-RECOVER_MARGIN and local.z<=box.end.z+RECOVER_MARGIN and local.y>=float(support.floor)-RECOVER_DROP and local.y<=float(support.floor)+.23: return true
+	return false
 
 func status() -> Dictionary:
 	var passenger := is_instance_valid(train) and is_instance_valid(walker) and train.contains(walker.global_position)

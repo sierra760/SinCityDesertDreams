@@ -46,6 +46,11 @@ func scan(directory: String) -> Array[Dictionary]:
 				var version: String = entry.version
 				if not ExploreModManifest.safe_path(version) or version.contains("/"): continue
 				var path := install_directory.path_join(version)
+				# A copy made by reloading a built-in pack never outlives the
+				# shipped version: the bundled pack stays current after updates.
+				if String(entry.get("source_path","")).begins_with("res://"):
+					ExploreModPack._remove(path)
+					continue
 				var snapshot := ExploreModPack.read(path)
 				var item := snapshot.duplicate()
 				item["path"] = path
@@ -125,7 +130,10 @@ func import_pack(path: String) -> Dictionary:
 		loaded = ExploreModPack.read(path)
 	if not loaded.ok: return _bad("",loaded.code)
 	var id: String = loaded.manifest.id
-	if not _find(id).is_empty(): return _bad(id,"duplicate_id")
+	if not _find(id).is_empty():
+		# An archive is already extracted; a refusal leaves nothing installed.
+		if is_archive: ExploreModPack._remove(destination)
+		return _bad(id,"duplicate_id")
 	if not is_archive:
 		loaded = _publish(loaded,destination)
 		if not loaded.ok: return _bad(id,loaded.code)
@@ -133,14 +141,19 @@ func import_pack(path: String) -> Dictionary:
 	entry["snapshot"] = loaded
 	entry["path"] = destination
 	entry["source_path"] = path
+	var working := ""
 	if is_archive:
-		var working := _destination()+"-source"
+		working = _destination()+"-source"
 		var copied := _publish(loaded,working)
-		if not copied.ok: return _bad(id,copied.code)
+		if not copied.ok:
+			ExploreModPack._remove(destination)
+			return _bad(id,copied.code)
 		entry["source_path"] = working
 	_entries.append(entry)
 	if not _save_catalog():
 		_entries.erase(entry)
+		ExploreModPack._remove(destination)
+		if not working.is_empty(): ExploreModPack._remove(working)
 		return _bad(id,"catalog_publish")
 	# Imported packs always require a new explicit Enable, even if a stale
 	# preference for this missing identity existed.
@@ -158,18 +171,25 @@ func reload(id: String, suspended: bool) -> Dictionary:
 	if candidate.manifest.id != id: return _bad(id,"identity_changed")
 	var validation := _validate_source(candidate)
 	if not validation.ok: return _reload_failed(id,validation.code,String(validation.get("diagnostic","")))
-	var destination := _destination()
-	candidate = _publish(candidate,destination)
-	if not candidate.ok: return _reload_failed(id,candidate.code)
+	# A built-in pack is read again where it ships. Publishing an installed
+	# copy would shadow every later shipped version of it.
+	var bundled := String(old.source_path).begins_with("res://")
+	var destination: String = old.source_path if bundled else _destination()
+	if not bundled:
+		candidate = _publish(candidate,destination)
+		if not candidate.ok: return _reload_failed(id,candidate.code)
 	var entry := candidate.duplicate()
 	entry["snapshot"] = candidate
 	entry["path"] = destination
 	entry["source_path"] = old.source_path
 	var index := _entries.find(old)
 	_entries[index] = entry
-	if not _save_catalog():
+	var stale := bundled and String(old.path).begins_with(install_directory+"/")
+	if (not bundled or stale) and not _save_catalog():
 		_entries[index] = old
+		if not bundled: ExploreModPack._remove(destination)
 		return _reload_failed(id,"catalog_publish")
+	if stale: ExploreModPack._remove(String(old.path))
 	changed.emit()
 	return {"ok":true,"code":"reloaded_pending_resume"}
 
