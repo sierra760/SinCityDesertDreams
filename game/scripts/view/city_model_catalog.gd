@@ -120,7 +120,7 @@ func instantiate_model(code: int) -> Node3D:
 			return null
 	var model: Node = scene.instantiate()
 	if not model is Node3D:
-		model.free()
+		if model != null: model.free()
 		return null
 	# Only compiled catalog models may use the matching prepared night geometry.
 	var night_source: String = entries[code].get("glb_sha256","")
@@ -185,7 +185,16 @@ func _load_compiled(code: int, shadows: bool) -> PackedScene:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 		return null
 	var loaded: Variant = ResourceLoader.load(path, "PackedScene", ResourceLoader.CACHE_MODE_IGNORE)
-	return loaded if loaded is PackedScene else null
+	# An entry that does not load, or does not make a model, is a miss: drop
+	# it so the model compiles now and the entry is written again.
+	var scene := loaded as PackedScene
+	var probe: Node = scene.instantiate() if scene != null and scene.can_instantiate() else null
+	var usable := probe is Node3D
+	if probe != null: probe.free()
+	if not usable:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+		return null
+	return scene
 
 
 func _store_compiled(code: int, shadows: bool, compiled: PackedScene) -> void:
@@ -202,7 +211,17 @@ func _store_compiled(code: int, shadows: bool, compiled: PackedScene) -> void:
 		for file: String in directory.get_files():
 			if file.begins_with(prefix) and file != path.get_file():
 				directory.remove(file)
-	ResourceSaver.save(compiled, path)
+	# Write beside the entry and rename into place, so a kill or a full disk
+	# part way through never leaves a truncated file under the entry's name.
+	var partial := path.get_basename() + ".partial.scn"
+	var partial_file := ProjectSettings.globalize_path(partial)
+	var entry_file := ProjectSettings.globalize_path(path)
+	if ResourceSaver.save(compiled, partial) != OK:
+		DirAccess.remove_absolute(partial_file)
+		return
+	if FileAccess.file_exists(path): DirAccess.remove_absolute(entry_file)
+	if DirAccess.rename_absolute(partial_file, entry_file) != OK:
+		DirAccess.remove_absolute(partial_file)
 
 
 ## Imported shells cannot intercept terrain or building queries.

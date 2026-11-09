@@ -106,6 +106,65 @@ func test_damaged_or_stale_entries_fall_back_to_compilation() -> void:
 	if other != null: other.free()
 	check_eq(disabled.compiled_cache_hits, 0, "a disabled cache never reads entries")
 
+## An entry that loads but cannot make a model must not be used on every
+## lot forever: it is dropped, the model compiles, and a good entry replaces it.
+func test_entries_that_make_no_model_are_dropped_and_rewritten() -> void:
+	var probe := Catalog.new()
+	probe.load_manifest(Catalog.ROOT + "catalog.json")
+	var codes: Array = probe.entries.keys().filter(func(code: int) -> bool: return not Buildings.is_agricultural(code))
+	codes.sort()
+	var code: int = codes[1]
+	var path := probe.compiled_cache_path(code, true)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(Catalog.compiled_cache_dir()))
+	var plain := Node.new()
+	var wrong_root := PackedScene.new()
+	wrong_root.pack(plain)
+	plain.free()
+	for poisoned: PackedScene in [PackedScene.new(), wrong_root]:
+		check_eq(ResourceSaver.save(poisoned, path), OK)
+		var digest := FileAccess.get_sha256(path)
+		var catalog := Catalog.new()
+		catalog.load_manifest(Catalog.ROOT + "catalog.json")
+		var model := catalog.instantiate_model(code)
+		check(model != null, "a poisoned entry still yields a model")
+		if model != null: model.free()
+		check_eq(catalog.compiled_cache_hits, 0, "the poisoned entry is not a hit")
+		check_eq(catalog.compiled_cache_misses, 1, "the model compiled")
+		check(FileAccess.file_exists(path), "the entry was written again")
+		check_ne(FileAccess.get_sha256(path), digest, "with a different, usable scene")
+		var reader := Catalog.new()
+		reader.load_manifest(Catalog.ROOT + "catalog.json")
+		var again := reader.instantiate_model(code)
+		check(again != null and again.get_child_count() == 1 and again.get_child(0) is Node3D, "the rewritten entry makes the model")
+		if again != null: again.free()
+		check_eq(reader.compiled_cache_hits, 1, "and is a hit from then on")
+
+
+## A write is complete or absent: it goes to a partial file that is renamed
+## into place, and leftovers of an interrupted write are never read.
+func test_writes_land_whole_and_interrupted_writes_are_ignored() -> void:
+	var catalog := Catalog.new()
+	catalog.load_manifest(Catalog.ROOT + "catalog.json")
+	var codes: Array = catalog.entries.keys().filter(func(code: int) -> bool: return not Buildings.is_agricultural(code))
+	codes.sort()
+	var code: int = codes[2]
+	var path := catalog.compiled_cache_path(code, true)
+	var partial := path.get_basename() + ".partial.scn"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(Catalog.compiled_cache_dir()))
+	if FileAccess.file_exists(path): DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# What a kill part way through a write leaves behind.
+	var cut := FileAccess.open(partial, FileAccess.WRITE)
+	cut.store_string("RSRC cut short")
+	cut.close()
+	var model := catalog.instantiate_model(code)
+	check(model != null, "an interrupted earlier write does not stop the model")
+	if model != null: model.free()
+	check_eq(catalog.compiled_cache_misses, 1, "the leftover is not read as an entry")
+	check(FileAccess.file_exists(path), "the entry is in place")
+	check(not FileAccess.file_exists(partial), "no partial file remains")
+	check(ResourceLoader.load(path, "PackedScene", ResourceLoader.CACHE_MODE_IGNORE) is PackedScene, "and is a whole scene")
+
+
 func test_cache_key_tracks_source_hash_and_versions() -> void:
 	var catalog := Catalog.new()
 	catalog.load_manifest(Catalog.ROOT + "catalog.json")
