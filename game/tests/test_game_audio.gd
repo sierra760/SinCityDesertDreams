@@ -307,3 +307,31 @@ func test_returning_to_title_interrupts_city_transition_fade() -> void:
 	check(audio._music.playing,"returning to title restarts its theme without the old fade")
 	check_eq(audio._song,GameAudio.TITLE_SONG)
 	await _finish_playback_fixture(audio)
+
+
+func test_freed_buttons_are_forgotten_and_a_reused_id_still_clicks() -> void:
+	var before := host.audio._hooked.size()
+	for _i in 6:
+		var button := Button.new()
+		host.ui_layer.add_child(button)
+		check(host.audio._hooked.has(button.get_instance_id()), "fixture: a new button is hooked")
+		button.queue_free()
+	await process_frame
+	await process_frame
+	check_eq(host.audio._hooked.size(), before, "freed buttons leave no record behind")
+	# A stale record under a new button's id must not cost it its click.
+	var probe := Button.new()
+	var gone := Button.new()
+	host.audio._hooked[probe.get_instance_id()] = weakref(gone)
+	gone.free()
+	host.ui_layer.add_child(probe)
+	host.audio.played.clear()
+	probe.pressed.emit()
+	check(&"click" in host.audio.played, "the new button clicks")
+	var moved := Button.new()
+	host.ui_layer.add_child(moved)
+	moved.reparent(host.modal_layer)
+	check_eq(moved.pressed.get_connections().size(), 1, "a moved button is hooked once")
+	probe.free()
+	moved.free()
+	await process_frame

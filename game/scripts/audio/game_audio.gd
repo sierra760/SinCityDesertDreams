@@ -776,17 +776,32 @@ func _hook_tree(node: Node) -> void:
 
 
 func _hook_node(node: Node) -> void:
-	if _hooked.has(node.get_instance_id()):
+	var id := node.get_instance_id()
+	# An id can be reused once its control is freed; only the same live
+	# control counts as already hooked.
+	if _hooked.has(id) and (_hooked[id] as WeakRef).get_ref() == node:
 		return
 	if node is CheckBox or node is CheckButton:
-		_hooked[node.get_instance_id()] = true
 		(node as BaseButton).toggled.connect(func(_on: bool) -> void: play(&"toggle"))
 	elif node is BaseButton:
-		_hooked[node.get_instance_id()] = true
 		(node as BaseButton).pressed.connect(_on_button_pressed.bind(node))
 	elif node is PopupMenu:
-		_hooked[node.get_instance_id()] = true
 		(node as PopupMenu).id_pressed.connect(func(_id: int) -> void: play(&"click"))
+	else:
+		return
+	_hooked[id] = weakref(node)
+	node.tree_exiting.connect(_on_hooked_exiting.bind(id))
+
+
+func _on_hooked_exiting(id: int) -> void:
+	_forget_hooked.call_deferred(id)
+
+
+## Drop the record of a control that left the tree to be freed. A control
+## that was only moved is still alive and stays hooked.
+func _forget_hooked(id: int) -> void:
+	if _hooked.has(id) and (_hooked[id] as WeakRef).get_ref() == null:
+		_hooked.erase(id)
 
 
 func _on_button_pressed(button: BaseButton) -> void:
