@@ -180,7 +180,7 @@ func enter(city: City, origin: Vector3, at_house: bool = false) -> bool:
 	_manual_pause = false
 	_resume_when_unblocked = false
 	_create_house_vehicles()
-	if house_fallback: _message = "The Mayor's House has no safe walking space. Starting on the central street instead."
+	if house_fallback: _message = "The Mayor's House has no safe walking space. Starting on a street near the current view instead."
 	camera_rig = CityExploreCamera3D.new()
 	view.world.add_child(camera_rig)
 	camera_rig.recovery_requested.connect(func() -> void: _pending_recovery = true)

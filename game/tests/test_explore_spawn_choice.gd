@@ -29,13 +29,13 @@ func _play(house: bool = true) -> void:
 	host.city_view_3d.set_camera_state(Vector3(20.5,2.5,22.5),1,12)
 	await physics_frame
 
-func test_no_house_uses_map_center_instead_of_the_build_camera() -> void:
+func test_no_house_starts_near_the_active_build_view() -> void:
 	await _play(false)
 	check(host.enter_explore())
 	check(host.exploration.is_active())
 	if not host.exploration.is_active(): return
 	var at := host.exploration.pedestrian.global_position
-	check_eq(Vector2i(floori(at.x),floori(at.z)),Vector2i(64,64),"central road beats camera-adjacent road")
+	check_eq(Vector2i(floori(at.x),floori(at.z)),Vector2i(20,22),"camera-adjacent road beats map-center road")
 	check(host.exploration.car==null and host.exploration.helicopter==null)
 
 func test_house_prompts_once_and_cancel_keeps_build_unchanged() -> void:
@@ -46,6 +46,7 @@ func test_house_prompts_once_and_cancel_keeps_build_unchanged() -> void:
 	check(not host.exploration.is_active(),"choice precedes actor creation")
 	check(host.notice_dialog.is_open())
 	check_eq(host.notice_dialog.choice_buttons.size(),3)
+	check_eq(host.notice_dialog.choice_buttons[0].text,"Current View")
 	check(not host.enter_explore(),"pending choice cannot duplicate")
 	host.notice_dialog.dismiss()
 	check(not host.exploration.is_active())
@@ -63,10 +64,22 @@ func test_both_choices_keep_the_same_four_vehicle_fleet_at_the_house() -> void:
 		if not host.exploration.is_active(): return
 		check_eq(host.exploration.owned_vehicles.size(),4)
 		var at := host.exploration.pedestrian.global_position
-		if choice == &"center": check_eq(Vector2i(floori(at.x),floori(at.z)),Vector2i(64,64))
+		if choice == &"center": check_eq(Vector2i(floori(at.x),floori(at.z)),Vector2i(20,22))
 		else: check_lt(Vector2(at.x-21,at.z-21).length(),1)
 		for vehicle: CharacterBody3D in host.exploration.owned_vehicles:
 			check_lt(Vector2(vehicle.global_position.x-21,vehicle.global_position.z-21).length(),1.3)
+		host.return_to_build()
+
+func test_loading_street_entry_uses_the_active_view_with_or_without_a_house() -> void:
+	for house: bool in [false,true]:
+		await _play(house)
+		host.explore_switch.request()
+		if house: host.notice_dialog.dismiss(&"center")
+		for frame in 12: await process_frame
+		check(host.exploration.is_active())
+		if not host.exploration.is_active(): return
+		var at := host.exploration.pedestrian.global_position
+		check_eq(Vector2i(floori(at.x),floori(at.z)),Vector2i(20,22))
 		host.return_to_build()
 
 func test_dispose_invalidates_a_pending_house_choice() -> void:

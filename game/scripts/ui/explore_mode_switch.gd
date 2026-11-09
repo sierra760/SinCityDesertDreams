@@ -52,7 +52,7 @@ func _request_start(loading: bool) -> bool:
 	_choice_city = city
 	_choice_token += 1
 	_host.notices.queue("Start Exploring","Where would you like to start? The Mayor’s House has a Desert Cruiser, police cruiser, fire truck and helicopter waiting at ground level.",
-		[["Map Center",&"center"],["Mayor’s House",&"house"],["Cancel",&"cancel"]],_answer_start.bind(city,_choice_token,loading))
+		[["Current View",&"center"],["Mayor’s House",&"house"],["Cancel",&"cancel"]],_answer_start.bind(city,_choice_token,loading))
 	return true
 
 func _answer_start(choice: StringName, city: City, token: int, loading: bool) -> void:
@@ -86,7 +86,7 @@ func _enter(at_house: bool = false) -> bool:
 	host.exploration.modal_open = host.is_input_blocked
 	host.exploration.window_open = func() -> bool:
 		return is_instance_valid(host.window_manager) and host.window_manager.front() != null
-	if not host.exploration.enter(host.sim.city,ExploreMayorsHouse.map_center(),at_house):
+	if not host.exploration.enter(host.sim.city,view.center,at_house):
 		host.notices.show("Cannot Enter Explore Mode", "Explore mode requires a safe outdoor road. Build a road with clear space and try again.")
 		return false
 	# A Build window (Budget, Graphs, Options…) would sit over the walk with
