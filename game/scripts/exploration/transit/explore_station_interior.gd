@@ -208,7 +208,8 @@ static func populate(parent: Node3D, station: Dictionary) -> Dictionary:
 	else:
 		# Surface platform: a brass totem carries the name board, roundel and
 		# boarding guidance at the platform end beyond the balustrade.
-		var post := Vector3(side*.33,0,.40)
+		var span: Vector2 = station.get("platform_span",Vector2(-.45,.45))
+		var post := Vector3(side*.33,0,minf(.40,span.y-.05))
 		var start: int = parent.shell_face_count()
 		parent.add_box(pose,post+Vector3(0,.128,0),Vector3(.010,.206,.010),ExploreTransitWorld3D.ShellFinish.BRASS,false)
 		parent.add_box(pose,post+Vector3(0,.027,0),Vector3(.030,.004,.030),ExploreTransitWorld3D.ShellFinish.BRASS,false)

@@ -29,6 +29,13 @@ material groups, shares simple materials, and scales exactly once by 1/16.
 Both `dimensions()` and returned meshes/nodes are in runtime tile units. Raw
 GLB consumers must apply 1/16 themselves, without applying catalog scaling too.
 
+Running rails use a 2.08 m centre-to-centre gauge (1.04 m either side of the
+track centre). The passenger carriage's four wheel treads use those centres;
+ambient locomotive and subway wheel centres lie within the shared rail heads.
+Surface track, bridges, subway ramps, utility overlays and Explore tunnel rails
+share the runtime dimensions in `CityNetworks3D`. The passenger-carriage wheel
+adjustment preserves every non-wheel material's triangles and its outer bounds.
+
 The 16 pedestrians vary four skin palettes, four body/height combinations,
 eight shirts, four trouser palettes, hats/caps/backpacks/bags and sunglasses.
 The shared gait shader takes MultiMesh `INSTANCE_CUSTOM.x` in cycles and `.y`

@@ -16,6 +16,8 @@ EXPORT = ROOT/'game/assets/desert-dreams-traffic'
 # Preview renders and manifests go to $SCDD_REVIEW_DIR (default: <repo>/tmp/review).
 REVIEW = Path(os.environ.get('SCDD_REVIEW_DIR', ROOT/'tmp/review'))/'traffic-models'
 KINDS = ['car','compact','sedan','taxi','pickup','van','bus','truck','police','fire_engine','ambulance','military','train','subway','ship','sailboat','helicopter','plane']
+# Matches CityNetworks3D.RAIL_HALF_GAUGE at the runtime's 16 metres per tile.
+RAIL_WHEEL_HALF_GAUGE = 1.04
 PALETTE = {
     'cream':(.85,.76,.57), 'teal':(.035,.32,.32), 'copper':(.60,.22,.085), 'gold':(.95,.56,.075),
     'red':(.65,.06,.035), 'olive':(.24,.30,.17), 'blue':(.11,.24,.38), 'glass':(.035,.11,.14),
@@ -210,7 +212,7 @@ def transit(part):
         # glazed headers, woven seats, brass fittings and a lit ceiling.
         box('Low floor',(0,0,.30),(3.84,10,.20),'floor')
         for side in [-1,1]:
-            for y in [-3.65,3.65]:cylinder('Rail wheel',(side*1.45,y,.12),.12,.20,'rubber','X')
+            for y in [-3.65,3.65]:cylinder('Rail wheel',(side*RAIL_WHEEL_HALF_GAUGE,y,.12),.12,.20,'rubber','X')
             # Window apertures are genuine holes, not opaque glass panels. No
             # two boxes share a face plane, so nothing can z-fight up close.
             for y in [-3.16,3.16]:

@@ -366,6 +366,8 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 	if not missing_model:
 		preload("res://scripts/view/city_lot_support_3d.gd").add_to(model,city,code,
 			str(code)+":"+str(catalog.entries[code]))
+	if code == Buildings.RAIL_STATION:
+		ExploreTransitWorld3D.add_rail_platforms(model,city,rect)
 	# Retain the authored metre transform before the compiler removes meshes.
 	if Buildings.is_agricultural(code) and not missing_model:
 		model.set_meta("authored_transform", model.transform * (model.get_child(0) as Node3D).transform)

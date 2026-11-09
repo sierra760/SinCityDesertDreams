@@ -43,7 +43,7 @@ func test_road_and_rail_diagonal_surfaces_and_details_stay_in_straight_bands() -
 				var distance := absf((p-STARTS[quarter]).dot(normal))
 				if family==NetworkShapes.Family.ROAD:
 					if distance>.011/sqrt(2.0)+.00001:bent_details+=1
-				elif absf(distance-.156/sqrt(2.0))>.013/sqrt(2.0)+.00001:bent_details+=1
+				elif absf(distance-1.04/16.0)>.088/16.0+.00001:bent_details+=1
 			check_eq(bent_details,0,"markings and steel rails follow straight diagonal bands")
 			if family==NetworkShapes.Family.ROAD:
 				for t: float in [.05,.25,.5,.75,.95]:

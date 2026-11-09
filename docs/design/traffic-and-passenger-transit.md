@@ -25,9 +25,11 @@ requirements are met. Road vehicles steer freely on safe support; trains follow
 connected tracks; boats remain on navigable water; the helicopter flies and must
 land before exit. Boat exits require clear dry shore.
 
-To ride as a passenger, approach a usable rail or subway station. Platforms
-align with adjacent reciprocal tracks. The station's placed facing does not
-restrict service: its model and platform rotate toward a usable connection,
+To ride as a passenger, approach a usable rail or subway station. Surface rail
+platforms, approach steps and safety railings are permanent parts of the station
+in Build and Explore, including when no train is nearby or no destination is
+connected. Their continuous span matches the station apron. Platforms align with
+adjacent reciprocal tracks. The station's placed facing does not restrict service: its model and platform rotate toward a usable connection,
 including a track terminus. Routes choose among valid connections when a station
 adjoins more than one line. Subway stations have a solid street plaza and a
 small entrance pavilion; a freestanding Desert Transit (DT) pylon stands on
@@ -115,6 +117,10 @@ terrain with bounded grades. Surface rail ballast has solid sloping shoulders
 down to terrain; bridge spans keep their bridge geometry. Subway overlays use
 the same railway berm, sleepers, steel rails and curved network masks. Explore
 tunnels use a solid ballast profile scaled to the passenger carriage.
+Surface, bridge, portal, overlay and tunnel rails share the carriage wheel gauge.
+Diagonal rail offsets are measured across the track, and offset-line joins keep
+the steel connected where diagonal track meets a straight. Tunnel rail tops use
+the surface track's wheel-contact datum without moving cabin or platform floors.
 Continuous textured walls and cooler soffits enclose the running tubes and turns;
 warm light strips run along both sides. Solid chamber bases close the spaces between
 branching ballast beds. Short unprepared branch approaches end in matching walls;

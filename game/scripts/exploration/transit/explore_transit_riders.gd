@@ -154,6 +154,8 @@ func _layout(station: Dictionary) -> Dictionary:
 	var stand: Array = SUBWAY_SPOTS if subway else RAIL_SPOTS
 	for point: Vector2 in stand:
 		var z := point.y*s if subway else point.y
+		var span: Vector2 = station.get("platform_span",Vector2(-.45,.45))
+		if not subway and (z<span.x+.025 or z>span.y-.025): continue
 		var at := pose*Vector3(s*point.x,floor_y,z)
 		spots.append({"at":at,"front":at,"yaw":_yaw(pose.basis*Vector3(-s,0,-z*.6)),"seat":-1.0,"taken":false})
 	if subway:

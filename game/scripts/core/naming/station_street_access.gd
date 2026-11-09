@@ -122,6 +122,7 @@ static func station_connections(value: City, rect: Rect2i, subway := false) -> A
 	var out: Array[Dictionary] = []
 	var cells: Array[Vector2i] = []
 	var deck_profiles: Dictionary = {}
+	var approach_profiles: Dictionary = {}
 	var decks_ready := false
 	var surface := CityGeometry3D.ground_height(value,rect.position)
 	if subway:
@@ -136,14 +137,20 @@ static func station_connections(value: City, rect: Rect2i, subway := false) -> A
 		if not value.in_bounds(cell.x,cell.y): continue
 		var mask := _station_mask(value,cell,subway)
 		if mask==0: continue
+		var rail_position := Vector3.ZERO
 		if not subway:
 			var height := CityGeometry3D.ground_height(value,cell)+.055
+			if not decks_ready:
+				var profiles := CityNetworks3D.shared_bridge_profiles(value)
+				deck_profiles = profiles[0]
+				approach_profiles = profiles[1]
+				decks_ready = true
 			if NetworkShapes.is_rail_bridge(value.building.atv(cell)):
-				if not decks_ready:
-					deck_profiles = CityNetworks3D.shared_bridge_profiles(value)[0]
-					decks_ready = true
 				if deck_profiles.has(cell): height = (float(deck_profiles[cell].start)+float(deck_profiles[cell].end))*.5+.015
+			elif approach_profiles.has(cell) and int(approach_profiles[cell].family)==NetworkShapes.Family.RAIL:
+				height = preload("res://scripts/view/city_bridge_approaches_3d.gd").height(approach_profiles[cell],Vector2(.5,.5))+.015
 			if absf(surface-height)>.09: continue
+			rail_position = Vector3(cell.x+.5,height,cell.y+.5)
 		for direction: Vector2i in [Vector2i.UP,Vector2i.RIGHT]:
 			var links := 0
 			for step: Vector2i in [direction,-direction]:
@@ -158,7 +165,8 @@ static func station_connections(value: City, rect: Rect2i, subway := false) -> A
 			else:
 				var right := Vector2i(-direction.y,direction.x)
 				for side: int in [1,-1]:
-					if rect.has_point(cell+right*side): out.append({"cell":cell,"direction":direction,"side":side,"links":links})
+					if rect.has_point(cell+right*side):
+						out.append({"cell":cell,"direction":direction,"side":side,"links":links,"position":rail_position})
 	var ranked: Array[Dictionary] = []
 	for own: bool in [true,false]:
 		for links: int in [2,1]:

@@ -6,6 +6,11 @@
 class_name CityNetworks3D
 extends Node3D
 
+## Tile units, shared with the Explore tunnel track and 16 m-scale carriages.
+const RAIL_HALF_GAUGE := .065
+const RAIL_HEAD_WIDTH := .011
+const RAIL_SLEEPER_WIDTH := .235
+
 var _regions: Dictionary = {}
 var _region_inputs: Dictionary = {}
 var _region_initialized := false
@@ -852,13 +857,13 @@ func _rail_details(city: City, cell: Vector2i, mask: int, elevation: float) -> v
 		for i: int in 7:
 			var center := first.lerp(last,(float(i)+.5)/7.0)
 			var along := tangent*.013
-			var across := normal*(.25/sqrt(2.0))
+			var across := normal*(RAIL_SLEEPER_WIDTH*.5)
 			var sleeper: Array[Vector2] = [center-along-across,center-along+across,center+along+across,center+along-across]
 			for axis: int in 2:
 				sleeper = clip_axis(clip_axis(sleeper,axis,0,true),axis,1,false)
 			_surface_polygon(city,cell,sleeper,timber,elevation)
-		for radius: float in [.344,.656]:
-			_surface_polygon(city,cell,diagonal_strip(mask,.026,0,1,radius),steel,elevation+.006)
+		for offset: float in [-RAIL_HALF_GAUGE,RAIL_HALF_GAUGE]:
+			_rail_band(city,cell,first,last,offset,steel,elevation+.006)
 		return
 	for direction: int in 4:
 		if not mask & (1 << direction):
@@ -867,11 +872,61 @@ func _rail_details(city: City, cell: Vector2i, mask: int, elevation: float) -> v
 		var half := 0.0 if direction in [0, 3] else 0.5
 		for i: int in 4:
 			var at := half + 0.04 + i * 0.125
-			var tie := Rect2(0.25, at, 0.5, 0.026) if vertical else Rect2(at, 0.25, 0.026, 0.5)
+			var tie := Rect2(.5-RAIL_SLEEPER_WIDTH*.5,at,RAIL_SLEEPER_WIDTH,.026) if vertical else Rect2(at,.5-RAIL_SLEEPER_WIDTH*.5,.026,RAIL_SLEEPER_WIDTH)
 			_rect(city, cell, tie, timber, elevation)
-		for across: float in [0.344, 0.656]:
-			var track := Rect2(across - 0.013, half, 0.026, 0.5) if vertical else Rect2(half, across - 0.013, 0.5, 0.026)
-			_rect(city, cell, track, steel, elevation + 0.006)
+		var end: Vector2 = [Vector2(.5,0),Vector2(1,.5),Vector2(.5,1),Vector2(0,.5)][direction]
+		for offset: float in [-RAIL_HALF_GAUGE,RAIL_HALF_GAUGE]:
+			_rail_band(city,cell,Vector2(.5,.5),end,offset,steel,elevation+.006)
+
+
+## Parallel rails keep their physical gauge on a diagonal. At a connected
+## tile edge, intersect the two offset lines and clip both adjoining pieces
+## to the tile; a 45-degree change then has neither a gauge jump nor a gap.
+func _rail_band(city: City, cell: Vector2i, first: Vector2, last: Vector2, offset: float, steel: Color, elevation: float) -> void:
+	var along := (last-first).normalized()
+	var before := -_rail_outward(city,cell,first,-along)
+	var after := _rail_outward(city,cell,last,along)
+	var normal := Vector2(-along.y,along.x)
+	var previous := Vector2(-before.y,before.x)
+	var next := Vector2(-after.y,after.x)
+	var start := (previous+normal)/maxf(.01,1.0+previous.dot(normal))
+	var finish := (normal+next)/maxf(.01,1.0+normal.dot(next))
+	var centers: Array[Vector2] = [first,last]
+	var normals: Array[Vector2] = [start,finish]
+	if not before.is_equal_approx(along):
+		centers.push_front(first-before*.5)
+		normals.push_front(previous)
+	if not after.is_equal_approx(along):
+		centers.append(last+after*.5)
+		normals.append(next)
+	for i: int in range(centers.size()-1):
+		var inner := offset-RAIL_HEAD_WIDTH*.5
+		var outer := offset+RAIL_HEAD_WIDTH*.5
+		var polygon: Array[Vector2] = [centers[i]+normals[i]*inner,centers[i]+normals[i]*outer,
+			centers[i+1]+normals[i+1]*outer,centers[i+1]+normals[i+1]*inner]
+		for axis: int in 2: polygon = clip_axis(clip_axis(polygon,axis,0,true),axis,1,false)
+		if polygon.size()>=3: _surface_polygon(city,cell,polygon,steel,elevation)
+
+
+func _rail_outward(city: City, cell: Vector2i, edge: Vector2, fallback: Vector2) -> Vector2:
+	var direction := Vector2i.UP if is_zero_approx(edge.y) else Vector2i.RIGHT if is_equal_approx(edge.x,1.0) else Vector2i.DOWN if is_equal_approx(edge.y,1.0) else Vector2i.LEFT if is_zero_approx(edge.x) else Vector2i.ZERO
+	if direction == Vector2i.ZERO: return fallback
+	var neighbor := cell+direction
+	if not city.in_bounds(neighbor.x,neighbor.y): return fallback
+	var mask := _rail_mask(city,neighbor)
+	var incoming := [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT].find(-direction)
+	if not mask & (1<<incoming): return fallback
+	if mask not in [3,6,9,12]: return Vector2(direction)
+	var first: Vector2 = PIVOTS[mask]+BEND_START[mask]*.5
+	var last: Vector2 = PIVOTS[mask]+BEND_END[mask]*.5
+	var entry := edge-Vector2(direction)
+	return (last-first).normalized() if first.is_equal_approx(entry) else (first-last).normalized()
+
+
+func _rail_mask(city: City, cell: Vector2i) -> int:
+	var code := city.building.atv(cell)
+	if NetworkShapes.is_rail_bridge(code): return 10 if city.flags.atv(cell)&RotationMapper.AXIS_FLAG else 5
+	return network_mask(code,NetworkShapes.Family.RAIL) if NetworkShapes.in_family(code,NetworkShapes.Family.RAIL) else 0
 
 
 func _arc(city: City, cell: Vector2i, mask: int, width: float, color: Color, elevation: float,
@@ -2125,9 +2180,9 @@ func _portal(city: City, cell: Vector2i) -> void:
 	if not tunnel:
 		for i: int in 8:
 			_portal_strip(cell, profile, i * depth / 8.0, i * depth / 8.0 + 0.026,
-				-0.25, 0.25, Color(0.40, 0.33, 0.26), 0.008)
-		for side: float in [-0.156, 0.156]:
-			_portal_strip(cell, profile, 0, depth + 0.03, side - 0.013, side + 0.013, Color(0.72, 0.75, 0.71), 0.014)
+				-RAIL_SLEEPER_WIDTH*.5,RAIL_SLEEPER_WIDTH*.5,Color(.40,.33,.26),.008)
+		for side: float in [-RAIL_HALF_GAUGE,RAIL_HALF_GAUGE]:
+			_portal_strip(cell,profile,0,depth+.03,side-RAIL_HEAD_WIDTH*.5,side+RAIL_HEAD_WIDTH*.5,Color(.72,.75,.71),.014)
 	var concrete := Color(0.62, 0.60, 0.54)
 	var mouth := _portal_point(cell, profile, depth, 0)
 	var across := Vector3(profile.across.x, 0, profile.across.y)

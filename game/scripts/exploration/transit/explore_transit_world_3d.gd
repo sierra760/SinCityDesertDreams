@@ -109,6 +109,10 @@ func build(path: Dictionary) -> void:
 			if not passages.is_empty(): _portal_passages[cell] = passages
 	for stop: Dictionary in path.stops:
 		var station: Dictionary = network.station_for_route(path,int(stop.station))
+		var permanent := _rail_platform(station) if not station.subway else {}
+		if not permanent.is_empty():
+			station = station.duplicate()
+			station.platform_span = permanent.platform_span
 		active_stations.append(station)
 		if station.subway:
 			var lift_pose := Elevator.pose_for(station)
@@ -279,10 +283,73 @@ func _junction_chamber(point: Vector3, openings: Array, roof := true, low := 0.0
 	ShellFinish.finish_passage(self,at,start)
 	supports.append({"at":at,"bounds":AABB(Vector3(-.36,low-.078,-.36),Vector3(.72,high-low+.31,.72)),"floor":low-.075})
 
-func _platform(station: Dictionary) -> void:
+## The same surface slabs, steps and balustrades belong to the permanent city
+## station. Build every usable track-side pose, including an unserved terminus.
+## Use an unbound mesh emitter so this does not prepare routes or cut terrain.
+static func add_rail_platforms(model: Node3D, city: City, rect: Rect2i) -> void:
+	var connections := StationStreetAccess.station_connections(city,rect)
+	if connections.is_empty(): return
+	var emitter := ExploreTransitWorld3D.new()
+	var poses: Array[Dictionary] = []
+	for connection: Dictionary in connections:
+		var forward: Vector2i = connection.direction
+		var station := {"position":connection.position,"yaw":atan2(-float(forward.x),-float(forward.y)),
+			"side":connection.side,"surface":CityGeometry3D.ground_height(city,rect.position),"subway":false}
+		# The authored apron is 26.4 m wide, centred on the 32 m station lot.
+		# Adjacent track cells meet at their boundary instead of leaving a gap
+		# opposite the hall door; their outer ends stop at the apron ends.
+		var center := Vector3(rect.position.x+rect.size.x*.5,0,rect.position.y+rect.size.y*.5)
+		var local := Basis(Vector3.UP,float(station.yaw)).inverse()*(center-Vector3(station.position))
+		station.platform_span = Vector2(maxf(-.5,local.z-.825),minf(.5,local.z+.825))
+		poses.append(station)
+		emitter._platform(station,false)
+	var platforms := Node3D.new()
+	platforms.name = "RailPlatforms"
+	# The emitted vertices are in city space; cancel the rotated hall transform.
+	platforms.transform = model.transform.affine_inverse()
+	platforms.set_meta("station_poses",poses)
+	for child: Node in emitter.get_children():
+		emitter.remove_child(child)
+		platforms.add_child(child)
+	var body := StaticBody3D.new()
+	body.collision_layer = CityModelCatalog.SHELL_LAYER
+	body.collision_mask = 0
+	var shape := ConcavePolygonShape3D.new()
+	shape.backface_collision = true
+	shape.set_faces(emitter._physical)
+	var collision := CollisionShape3D.new()
+	collision.shape = shape
+	body.add_child(collision)
+	platforms.add_child(body)
+	model.add_child(platforms)
+	emitter.free()
+
+func _rail_platform(station: Dictionary) -> Dictionary:
+	if not is_instance_valid(view): return {}
+	for model: Node3D in view.buildings.get_children():
+		if model.get_meta("cell",Vector2i(-1,-1)) != station.get("anchor"): continue
+		var platforms := model.get_node_or_null("RailPlatforms")
+		if platforms == null: continue
+		for pose: Dictionary in platforms.get_meta("station_poses",[]):
+			if Vector3(pose.position).is_equal_approx(station.position) and is_equal_approx(float(pose.yaw),float(station.yaw)) and int(pose.side)==int(station.side): return pose
+	return {}
+
+func _platform(station: Dictionary, furnished: bool = true) -> void:
 	var pose := Transform3D(Basis(Vector3.UP,float(station.yaw)),station.position)
 	var side := float(station.side)
 	var subway := bool(station.subway)
+	var span: Vector2 = station.get("platform_span",Vector2(-.45,.45))
+	var middle := (span.x+span.y)*.5
+	var length := span.y-span.x
+	var step_length := length if station.has("platform_span") else length-.02
+	# The permanent city shell already supplies visuals and solid collision.
+	# Retain the service's support hint and wayfinding without a second slab.
+	if not subway and not _rail_platform(station).is_empty():
+		supports.append({"at":pose,"bounds":AABB(Vector3(side*.245-.105,.024,span.x),Vector3(.21,.25,length)),"floor":.025})
+		var interior := ExploreStationInterior.populate(self,station)
+		_physical.append_array(interior.faces)
+		supports.append_array(interior.supports)
+		return
 	var slab_start := _faces.size()
 	if subway:
 		# A solid terrazzo platform from the ballast base to the wall face; no
@@ -292,33 +359,36 @@ func _platform(station: Dictionary) -> void:
 	else:
 		# Surface platform and its shallow approach steps share the terrazzo
 		# finish of the rail hall apron; the last tread tucks under the lot slab.
-		add_box(pose,Vector3(side*.245,.005,0),Vector3(.21,.04,.90),ShellFinish.STONE,true)
+		add_box(pose,Vector3(side*.245,.005,middle),Vector3(.21,.04,length),ShellFinish.STONE,true)
 		var base: float = float(station.surface)-station.position.y
 		# Each tread carries a brass nosing on its outer edge, as does the
 		# platform edge above the first tread, so the steps read individually.
-		add_box(pose,Vector3(side*.346,.0262,0),Vector3(.008,.0024,.88),ShellFinish.BRASS,false)
+		add_box(pose,Vector3(side*.346,.0262,middle),Vector3(.008,.0024,length-.02),ShellFinish.BRASS,false)
 		for i: int in 3:
 			var x := side*(.375+float(i)*.05)
 			var width := .05 if i<2 else .065
 			if i==2: x = side*.4825
 			var y := lerpf(.025,base+.0115,float(i+1)/3.0)
-			add_box(pose,Vector3(x,y-.014,0),Vector3(width,.028,.88),ShellFinish.STONE,true)
-			if i<2: add_box(pose,Vector3(x+side*(width*.5-.004),y+.0012,0),Vector3(.008,.0024,.88),ShellFinish.BRASS,false)
-	add_box(pose,Vector3(side*.150,.027,0),Vector3(.012,.004,.88),Color(.98,.73,.18),false)
+			add_box(pose,Vector3(x,y-.014,middle),Vector3(width,.028,step_length),ShellFinish.STONE,true)
+			if i<2: add_box(pose,Vector3(x+side*(width*.5-.004),y+.0012,middle),Vector3(.008,.0024,length-.02),ShellFinish.BRASS,false)
+	add_box(pose,Vector3(side*.150,.027,middle),Vector3(.012,.004,length-.02),Color(.98,.73,.18),false)
 	# Railings leave only the central boarding aperture accessible.
-	for z: float in [-.27,.27]:
+	for limits: Vector2 in [Vector2(span.x+.01,-.10),Vector2(.10,span.y-.01)]:
+		var z := (limits.x+limits.y)*.5
+		var rail_length := limits.y-limits.x
 		# A real balustrade stands on the slab. Its continuous collision
 		# barrier still prevents stepping into a moving carriage.
-		ExploreStationInterior.add_solid_box(_physical,pose,Vector3(side*.147,.058,z),Vector3(.012,.07,.34))
+		ExploreStationInterior.add_solid_box(_physical,pose,Vector3(side*.147,.058,z),Vector3(.012,.07,rail_length))
 		for post: int in 6:
-			add_box(pose,Vector3(side*.147,.060,z-.170+post*.068),Vector3(.003,.068,.003),ShellFinish.BRASS,false)
-		_rail(pose,Vector3(side*.147,.057,z-.170),Vector3(side*.147,.057,z+.170),.0010)
-		_rail(pose,Vector3(side*.147,.094,z-.170),Vector3(side*.147,.094,z+.170),.0015)
+			add_box(pose,Vector3(side*.147,.060,lerpf(limits.x,limits.y,post/5.0)),Vector3(.003,.068,.003),ShellFinish.BRASS,false)
+		_rail(pose,Vector3(side*.147,.057,limits.x),Vector3(side*.147,.057,limits.y),.0010)
+		_rail(pose,Vector3(side*.147,.094,limits.x),Vector3(side*.147,.094,limits.y),.0015)
 	ShellFinish.finish_passage(self,pose,slab_start)
-	supports.append({"at":pose,"bounds":AABB(Vector3(side*.245-.105,.024,-.45),Vector3(.21,.25,.9)),"floor":.025})
+	supports.append({"at":pose,"bounds":AABB(Vector3(side*.245-.105,.024,span.x),Vector3(.21,.25,length)),"floor":.025})
 	if subway:
 		_station_room(station)
 		_elevator_access(station)
+	if not furnished: return
 	var interior := ExploreStationInterior.populate(self,station)
 	_physical.append_array(interior.faces)
 	supports.append_array(interior.supports)
@@ -499,13 +569,15 @@ func _track(at: Transform3D, length: float) -> void:
 	var count := maxi(1,ceili(length/.085))
 	for i: int in count:
 		var z := -length*.5+(float(i)+.5)*length/count
-		add_box(at,Vector3(0,-.010,z),Vector3(.235,.010,.026),Color(.40,.33,.26,.3),false)
-		for x: float in [-.065,.065]:
-			add_box(at,Vector3(x,-.005,z),Vector3(.024,.003,.021),Color(.34,.35,.32,.6),false)
-	for x: float in [-.065,.065]:
-		add_box(at,Vector3(x,-.007,0),Vector3(.017,.003,length),Color(.43,.46,.44,.6),false,true)
-		add_box(at,Vector3(x,-.001,0),Vector3(.003,.010,length),Color(.47,.49,.46,.6),false,true)
-		add_box(at,Vector3(x,.006,0),Vector3(.011,.004,length),Color(.72,.75,.71,.6),false,true)
+		add_box(at,Vector3(0,-.019,z),Vector3(CityNetworks3D.RAIL_SLEEPER_WIDTH,.010,.026),Color(.40,.33,.26,.3),false)
+		for x: float in [-CityNetworks3D.RAIL_HALF_GAUGE,CityNetworks3D.RAIL_HALF_GAUGE]:
+			add_box(at,Vector3(x,-.0105,z),Vector3(.024,.003,.021),Color(.34,.35,.32,.6),false)
+	for x: float in [-CityNetworks3D.RAIL_HALF_GAUGE,CityNetworks3D.RAIL_HALF_GAUGE]:
+		# The carriage pose is the same rail datum above and below ground.
+		# Rail tops sit .001 tile below it; foot and sleepers meet above ballast.
+		add_box(at,Vector3(x,-.0125,0),Vector3(.017,.003,length),Color(.43,.46,.44,.6),false,true)
+		add_box(at,Vector3(x,-.0075,0),Vector3(.003,.007,length),Color(.47,.49,.46,.6),false,true)
+		add_box(at,Vector3(x,-.0025,0),Vector3(CityNetworks3D.RAIL_HEAD_WIDTH,.003,length),Color(.72,.75,.71,.6),false,true)
 	_finish_track(at,start)
 
 ## Sweep a closed profile along the same quarter-circle used by the train.
@@ -582,15 +654,15 @@ func _curved_track(points: PackedVector3Array) -> void:
 	var start := _faces.size()
 	_sweep_track(points,[Vector2(-.33,-.11),Vector2(.33,-.11),Vector2(.33,-.07),Vector2(-.33,-.07)],Color(.30,.31,.29,.9),true)
 	_sweep_track(points,[Vector2(-.22,-.07),Vector2(.22,-.07),Vector2(.135,-.015),Vector2(-.135,-.015)],Color(.51,.50,.45,0),true)
-	for x: float in [-.065,.065]:
+	for x: float in [-CityNetworks3D.RAIL_HALF_GAUGE,CityNetworks3D.RAIL_HALF_GAUGE]:
 		# One continuous I-shaped running rail, including its foot and head.
 		var profile: Array[Vector2]=[]
-		for p: Vector2 in [Vector2(-.0085,-.0085),Vector2(.0085,-.0085),Vector2(.0085,-.0055),Vector2(.0015,-.0055),Vector2(.0015,.004),Vector2(.0055,.004),Vector2(.0055,.008),Vector2(-.0055,.008),Vector2(-.0055,.004),Vector2(-.0015,.004),Vector2(-.0015,-.0055),Vector2(-.0085,-.0055)]: profile.append(p+Vector2(x,0))
+		for p: Vector2 in [Vector2(-.0085,-.014),Vector2(.0085,-.014),Vector2(.0085,-.011),Vector2(.0015,-.011),Vector2(.0015,-.004),Vector2(.0055,-.004),Vector2(.0055,-.001),Vector2(-.0055,-.001),Vector2(-.0055,-.004),Vector2(-.0015,-.004),Vector2(-.0015,-.011),Vector2(-.0085,-.011)]: profile.append(p+Vector2(x,0))
 		_sweep_track(points,profile,Color(.72,.75,.71,.6),false)
 	for i: int in range(1,24,2):
 		var at := Transform3D(Basis.looking_at((points[i+1]-points[i-1]).normalized()),points[i])
-		add_box(at,Vector3(0,-.010,0),Vector3(.235,.010,.026),Color(.40,.33,.26,.3),false)
-		for x: float in [-.065,.065]: add_box(at,Vector3(x,-.005,0),Vector3(.024,.003,.021),Color(.34,.35,.32,.6),false)
+		add_box(at,Vector3(0,-.019,0),Vector3(CityNetworks3D.RAIL_SLEEPER_WIDTH,.010,.026),Color(.40,.33,.26,.3),false)
+		for x: float in [-CityNetworks3D.RAIL_HALF_GAUGE,CityNetworks3D.RAIL_HALF_GAUGE]: add_box(at,Vector3(x,-.0105,0),Vector3(.024,.003,.021),Color(.34,.35,.32,.6),false)
 	_finish_track(Transform3D.IDENTITY,start)
 
 func _finish_track(at: Transform3D, start: int) -> void:

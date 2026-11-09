@@ -47,6 +47,8 @@ static var _ribbon_arm_cache: Dictionary = {}
 class RailwayOverlay extends CityNetworks3D:
 	var bed_offset := 0.0
 	var surface_facets: Dictionary = {}
+	func _rail_mask(value: City, cell: Vector2i) -> int:
+		return NetworkShapes.underground_mask(value.underground.atv(cell),NetworkShapes.Family.SUBWAY)
 	func _point(value: City, cell: Vector2i, offset: Vector2, elevation: float) -> Vector3:
 		var facet: Array = surface_facets.get(cell, [])
 		if facet.is_empty():

@@ -224,7 +224,7 @@ func test_imported_rail_slopes_join_both_axes_of_a_bridge() -> void:
 	for ew: bool in [false, true]:
 		var city := flat_city()
 		var direction := Vector2i.RIGHT if ew else Vector2i.DOWN
-		var across := Vector2(0, 0.156) if ew else Vector2(0.156, 0)
+		var across := Vector2(0, (1.04/16.0)) if ew else Vector2((1.04/16.0), 0)
 		var start := Vector2i(10, 10)
 		var near_bank := start - direction
 		var far_bank := start + direction * 6
@@ -308,8 +308,8 @@ func test_subway_rails_descend_toward_the_underground_mouth() -> void:
 		layer.rebuild(city)
 		var outward: Vector2 = [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT][index]
 		var cross := Vector2(-outward.y, outward.x)
-		var outside_y := surface_y(layer, Vector2(10.5, 10.5) + outward * 0.49 + cross * 0.156, STEEL)
-		var inside_y := surface_y(layer, Vector2(10.5, 10.5) - outward * 0.25 + cross * 0.156, STEEL)
+		var outside_y := surface_y(layer, Vector2(10.5, 10.5) + outward * 0.49 + cross * (1.04/16.0), STEEL)
+		var inside_y := surface_y(layer, Vector2(10.5, 10.5) - outward * 0.25 + cross * (1.04/16.0), STEEL)
 		check(not is_nan(outside_y) and not is_nan(inside_y), "both ends retain steel rail surfaces")
 		check_gt(outside_y - inside_y, 0.3, "subway track descends below the terrain")
 		check_gt(layer.get_child_count(), 1, "subway has an actual entrance surround")
