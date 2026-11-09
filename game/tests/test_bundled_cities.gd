@@ -4,7 +4,7 @@
 
 extends "res://tests/exploration/async_test_case.gd"
 
-const NAMES := ["Adaven", "Aliso Niguel", "Bonanza Gap", "Foothills Ranch", "Grant Pass - Soledad", "La Presa", "Lawndale", "Old Bottle", "Oro Canyon", "Salton Shores", "Valle del Mar"]
+const NAMES := ["Adaven", "Aliso Niguel", "Bonanza Gap", "Foothills Ranch", "Grant Pass - Soledad", "Harbor Palms", "Juniper Basin", "La Presa", "Oro Canyon", "Salton Shores", "Silver Ridge", "Valle del Mar"]
 const CATALOG := "res://scripts/io/bundled_cities.gd"
 const MAIN := preload("res://scenes/main.tscn")
 
@@ -26,7 +26,7 @@ func _path(city_name: String) -> String:
 
 func test_every_requested_city_is_a_loadable_native_save() -> void:
 	var entries := _entries()
-	check_eq(entries.size(), 11, "the eight classic cities plus Adaven, Bonanza Gap and Old Bottle")
+	check_eq(entries.size(), 12, "nine classic cities and three native cities")
 	for index in entries.size():
 		check_eq(entries[index]["name"], NAMES[index])
 		var path := _path(NAMES[index])
@@ -41,7 +41,8 @@ func test_every_requested_city_is_a_loadable_native_save() -> void:
 		check_eq(city.terrain.width, 128)
 		check_eq(city.terrain.height, 128)
 		check_eq(city.name, NAMES[index], "city carries its catalog name")
-		var source := "res://assets/cities/%s.sc2" % NAMES[index]
+		var source_name: String = {"Harbor Palms":"Lawndale", "Juniper Basin":"Old Bottle", "Silver Ridge":"Magnolia Township"}.get(NAMES[index], NAMES[index])
+		var source := "res://assets/cities/%s.sc2" % source_name
 		if not FileAccess.file_exists(source): continue
 		# Converted classic cities keep the imported city's identity.
 		var imported := Sc2Import.load(source)
@@ -80,7 +81,7 @@ func test_same_name_personal_save_and_included_city_route_separately() -> void:
 	dialog.load_requested.connect(func(path: String) -> void: native_paths.append(path))
 	dialog.connect("bundled_city_requested", func(path: String) -> void: bundled_paths.append(path))
 	dialog.call("open", saves, entries)
-	check_eq(dialog.item_list.item_count, 12)
+	check_eq(dialog.item_list.item_count, 13)
 	dialog.select(0)
 	dialog.confirm()
 	check_eq(native_paths, ["user://saves/La Presa.sc2d"] as Array[String])
@@ -106,7 +107,7 @@ func test_included_cities_work_without_personal_saves_and_refresh_clears_routing
 		dialog.free()
 		return
 	dialog.call("open", [] as Array[Dictionary], _entries())
-	check_eq(dialog.item_list.item_count, 11)
+	check_eq(dialog.item_list.item_count, 12)
 	check(not dialog.empty_label.visible)
 	check(not dialog.load_button.disabled)
 	check_eq(dialog.selected_path(), _path("Adaven"))
@@ -161,7 +162,7 @@ func test_main_picker_opens_every_included_city_as_new_paused_playable_city() ->
 	await process_frame
 
 
-func test_included_city_signs_are_drawn_when_labels_are_enabled() -> void:
+func test_classic_signs_are_removed_but_personal_signs_still_draw() -> void:
 	var host: GameHost = MAIN.instantiate()
 	host.preferences_path = "user://bundled-city-signs-test.cfg"
 	root.add_child(host)
@@ -175,20 +176,24 @@ func test_included_city_signs_are_drawn_when_labels_are_enabled() -> void:
 			await process_frame
 			if not host.loading_screen.visible: break
 		var signs: Dictionary = host.sim.city.signs
-		check_eq(signs.size(), 9, "the classic city's player signs survive inclusion")
-		check_eq(String(signs.get(Vector2i(10, 20), "")), "La Mesa Freeway")
+		check_eq(signs.size(), 0, "classic signs are removed from the included city")
+		check_eq(host.city_view_3d._labels.get_child_count(), 0, "no classic labels remain")
+		# Curation must not disable ordinary player-authored signs.
+		host.sim.city.signs[Vector2i(10,20)] = "Mayor's viewpoint"
+		host.city_view_3d.refresh(true)
+		check_eq(String(signs.get(Vector2i(10, 20), "")), "Mayor's viewpoint")
 		check(host.city_view_3d.labels_visible, "signs and labels default on")
-		check_eq(host.city_view_3d._labels.get_child_count(), 9, "one aerial label per sign")
+		check_eq(host.city_view_3d._labels.get_child_count(), 1, "new personal sign is drawn")
 		host.city_view_3d.set_center_cell(Vector2i(10, 20))
 		var label: Label = host.city_view_3d._label_nodes.get(Vector2i(10, 20))
 		check(label != null and label.is_visible_in_tree(), "the centred sign's label is shown")
 		if label != null:
-			check_eq(label.text, "La Mesa Freeway")
+			check_eq(label.text, "Mayor's viewpoint")
 			check(host.get_viewport().get_visible_rect().has_point(label.position), "the label is on screen")
 		host.set_option(&"labels", false)
 		check_eq(host.city_view_3d._labels.get_child_count(), 0, "turning labels off removes them")
 		host.set_option(&"labels", true)
-		check_eq(host.city_view_3d._labels.get_child_count(), 9, "turning labels on restores them")
+		check_eq(host.city_view_3d._labels.get_child_count(), 1, "turning labels on restores them")
 	host.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://bundled-city-signs-test.cfg"))
 	await process_frame

@@ -6,8 +6,9 @@
 
 Classic `.sc2` sources in game/assets/cities are imported by the game host
 inside an isolated project copy (with its own user data) and saved exactly as a
-player's Import Classic City → Save would write them. Already-native saves are
-copied byte-for-byte. Only the `.sc2d` files and provenance.json are exported;
+player's Import Classic City → Save would write them. Already-native sources
+are copied before the curation pass. Street naming and resort variety are
+applied to every output. Only `.sc2d` files and provenance.json are exported;
 the classic sources stay in the repository as conversion inputs and fixtures.
 
     python3 tools/build_bundled_cities.py --native "Adaven=/path/to/Adaven.sc2d"
@@ -34,7 +35,7 @@ import run_tests  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 CITIES = ROOT / "game" / "assets" / "cities"
 CLASSIC = ["Aliso Niguel", "Foothills Ranch", "Grant Pass - Soledad", "La Presa",
-           "Lawndale", "Oro Canyon", "Salton Shores", "Valle del Mar"]
+           "Lawndale", "Magnolia Township", "Oro Canyon", "Salton Shores", "Valle del Mar"]
 
 
 def sha256(path: Path) -> str:
@@ -61,7 +62,7 @@ def convert(godot: str, names: list[str], output: Path) -> None:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--native", action="append", default=[], metavar="NAME=PATH",
-                        help="include an existing native save, copied byte-for-byte")
+                        help="include an existing native save before applying bundled-city curation")
     parser.add_argument("--city", action="append", default=[], metavar="NAME",
                         help="rebuild only this classic city (repeatable)")
     args = parser.parse_args(argv)
@@ -110,7 +111,8 @@ def main(argv: list[str]) -> int:
     provenance["engine"] = engine_version(godot)
     provenance["inclusion_authorization"] = (
         "Supplied for inclusion by the project owner: the eight classic .sc2 cities on 2026-10-05 and "
-        "the owner's own city Adaven on 2026-10-06, and Bonanza Gap and Old Bottle on 2026-11-07. "
+        "the owner's own city Adaven on 2026-10-06, Bonanza Gap and Old Bottle on 2026-11-07, "
+        "and Magnolia Township on 2026-11-08. "
         "Every included city ships as a fully imported "
         "native .sc2d save.")
     provenance["sources_note"] = ("Classic .sc2 sources remain in this directory as conversion inputs and test "
@@ -118,7 +120,9 @@ def main(argv: list[str]) -> int:
     provenance["license"] = "CC-BY-NC-SA-4.0; see LICENSING.md"
     provenance["cities"] = entries
     provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
-    print(f"wrote {len(entries)} included cities")
+    import curate_bundled_cities
+    curate_bundled_cities.main()
+    print("Imported and curated the included cities")
     return 0
 
 

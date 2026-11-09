@@ -13,11 +13,12 @@ const NAMES: Array[String] = [
 	"Bonanza Gap",
 	"Foothills Ranch",
 	"Grant Pass - Soledad",
+	"Harbor Palms",
+	"Juniper Basin",
 	"La Presa",
-	"Lawndale",
-	"Old Bottle",
 	"Oro Canyon",
 	"Salton Shores",
+	"Silver Ridge",
 	"Valle del Mar",
 ]
 

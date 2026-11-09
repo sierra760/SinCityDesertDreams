@@ -29,6 +29,14 @@ func _sim_from(path: String) -> Simulation:
 	sim.setup(result["city"], -1, null, result["snapshot"])
 	if not (result["snapshot"] as Dictionary).is_empty():
 		sim.restore(result["snapshot"])
+	# Match GameHost's naming lifecycle when damage removes named connections.
+	# The simulation alone has no presentation-owned street naming service.
+	var topology := StreetTopology.new()
+	topology.rebuild(sim.city)
+	var naming := StreetNamingService.new()
+	naming.set_station_allocator(StationNameResolver.reconcile)
+	check(naming.bind_city(sim.city,topology).ok)
+	sim.map_changed.connect(func(rect: Rect2i) -> void: naming.reconcile(rect))
 	return sim
 
 

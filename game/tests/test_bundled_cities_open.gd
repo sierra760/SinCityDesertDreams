@@ -6,7 +6,7 @@
 ## settlement class, and no backlog of technology news from before today.
 extends "res://tests/test_case.gd"
 
-const NAMES := ["Adaven", "Aliso Niguel", "Bonanza Gap", "Foothills Ranch", "Grant Pass - Soledad", "La Presa", "Lawndale", "Old Bottle", "Oro Canyon", "Salton Shores", "Valle del Mar"]
+const NAMES := ["Adaven", "Aliso Niguel", "Bonanza Gap", "Foothills Ranch", "Grant Pass - Soledad", "Harbor Palms", "Juniper Basin", "La Presa", "Oro Canyon", "Salton Shores", "Silver Ridge", "Valle del Mar"]
 
 
 func _open(city_name: String) -> Simulation:

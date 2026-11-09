@@ -1,36 +1,54 @@
 {
   "kind": "user-supplied custom cities",
-  "inclusion_authorization": "Supplied for inclusion by the project owner: the eight classic .sc2 cities on 2026-10-05, the owner's own city Adaven on 2026-10-06, and Bonanza Gap and Old Bottle on 2026-11-07. Every included city ships as a fully imported native .sc2d save.",
+  "inclusion_authorization": "Supplied for inclusion by the project owner: the eight classic .sc2 cities on 2026-10-05, the owner's own city Adaven on 2026-10-06, and Bonanza Gap and Old Bottle on 2026-11-07. Every included city ships as a fully imported native .sc2d save. Magnolia Township supplied for inclusion on 2026-11-08; curated as Silver Ridge. Old Bottle is now Juniper Basin and Lawndale is now Harbor Palms.",
   "license": "CC-BY-NC-SA-4.0; see LICENSING.md",
   "cities": [
     {
       "name": "Adaven",
       "file": "Adaven.sc2d",
-      "bytes": 175097,
-      "sha256": "dec33de32d26afd8e9425f01a709212c16374fd63660a902537d4560e565dbe1",
+      "bytes": 175154,
+      "sha256": "a5cc20fe42354083e41f0e5d5f430c69000aaa44e601d9fa2a5ce95aa02d6166",
       "source": {
         "file": "Adaven.sc2d",
         "conversion": "native save copied byte-for-byte",
         "updated": "2026-10-12: replaced with the owner's current named save of the same city (1965, population 1,460), saved on 2026-10-12."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Adaven",
+        "theme": "Rural Nevada mining and ranching; preserve the owner’s authored names.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
       "name": "Aliso Niguel",
       "file": "Aliso Niguel.sc2d",
-      "bytes": 50184,
-      "sha256": "61ddb4185ffb14a62ec4c11800bb1712cb05875f674274128ba87f457521da98",
+      "bytes": 116920,
+      "sha256": "d2a1db01362c47001cdfdad60b19b9ee3a1963d5a93a6f97a9cb6f003010c8d8",
       "source": {
         "file": "Aliso Niguel.sc2",
         "bytes": 100619,
         "sha256": "61172660a75762512b5e4f50d3ed7bf834206554e8648c541faa849524943a66",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save"
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Aliso Niguel",
+        "theme": "Coastal southern Orange County suburb: creeks, canyons, beaches and native scrub.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
       "name": "Bonanza Gap",
       "file": "Bonanza Gap.sc2d",
       "bytes": 270145,
-      "sha256": "95a53000eb34aa5d8b8a339b46ecb275fe477bea72ed0708cf612b3c6d91d09d",
+      "sha256": "7658b78670a709fa60f479749954583b2c5204d59b85fe3f3e8014252f894c73",
       "source": {
         "file": "Bonanza Gap.sc2d",
         "bytes": 270145,
@@ -38,113 +56,216 @@
         "conversion": "native save copied byte-for-byte",
         "included": "2026-11-07: owner requested inclusion of the current named save.",
         "updated": "2026-11-07: replaced with the owner's latest named save of the same city (1924, population 6,280, funds 593,422), copied byte-for-byte."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Bonanza Gap",
+        "theme": "Rural Nevada casino and rail town; preserve the owner’s authored names.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
       "name": "Foothills Ranch",
       "file": "Foothills Ranch.sc2d",
-      "bytes": 59776,
-      "sha256": "fe29d9b6a872823637b79fba3ae546841cec8ad9c737c3549ae3d157fbd35a80",
+      "bytes": 141601,
+      "sha256": "b5f4aeb023ecee96f2d199b9f2749fb91128d2fc86e29265ed820faa7ae244a1",
       "source": {
         "file": "Foothills Ranch.sc2",
         "bytes": 103043,
         "sha256": "8d18a5b5cb2d537e2112a93a137ff3c92f45383c05bd3b24f3c51789ae43a26e",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save"
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Foothills Ranch",
+        "theme": "Mountain-front suburb combining Colorado’s Front Range and the San Gabriel Valley.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
       "name": "Grant Pass - Soledad",
       "file": "Grant Pass - Soledad.sc2d",
-      "bytes": 85911,
-      "sha256": "4ed38d57a18c0b426d64168f4c09218735ecb3a6354b13b2971757bb23b26e30",
+      "bytes": 193854,
+      "sha256": "55d407f8b9fdcab2ebf8e58907a4d0028c3048d5faf81f374bebc5e4f63dd02b",
       "source": {
         "file": "Grant Pass - Soledad.sc2",
         "bytes": 102453,
         "sha256": "95efadc6ee1b3521773151d87513874d4632a3f3922455d53b62b966468bd9b2",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
         "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Grant Pass - Soledad",
+        "theme": "Arizona–Sonora border cities; dams mark x=67, Sonora west and Arizona east.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
-      "name": "La Presa",
-      "file": "La Presa.sc2d",
-      "bytes": 84894,
-      "sha256": "e0e441b0ec72a5d144d2ae48326fe8003754ba0d47bc0eea36d7f5b4f93273a9",
-      "source": {
-        "file": "La Presa.sc2",
-        "bytes": 105873,
-        "sha256": "66cd855b9d68fa119d3d81c0d326f79bc25430db87f86a1b24c7aca247a2ef20",
-        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
-        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
-      }
-    },
-    {
-      "name": "Lawndale",
-      "file": "Lawndale.sc2d",
-      "bytes": 72482,
-      "sha256": "8ef151da06841b0a88abc5841591e999289cda5ec8b8a78289fe6b1b12625694",
+      "name": "Harbor Palms",
+      "file": "Harbor Palms.sc2d",
+      "bytes": 178960,
+      "sha256": "43a491326686acf0c01b845c0a778495e5ddf05d6a8b3936dd8039154f40b4d2",
       "source": {
         "file": "Lawndale.sc2",
         "bytes": 113771,
         "sha256": "fa4b15e0a6ac8bf0816bddadabb4f74aad20ad8e898b9229ef89cd7e20134e4a",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
         "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Lawndale",
+        "theme": "Long Beach and Southern California’s South Bay: working harbor, beach neighborhoods and aerospace.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
-      "name": "Old Bottle",
-      "file": "Old Bottle.sc2d",
-      "bytes": 550271,
-      "sha256": "108ac13c2726c99b4ace4d039f1efc8ac7122290cfc454877352e2cbd3393855",
+      "name": "Juniper Basin",
+      "file": "Juniper Basin.sc2d",
+      "bytes": 552749,
+      "sha256": "616699ebff7dfec9bc3eda49b2922574c532a2d13bb0a2b9fe79773c16123453",
       "source": {
         "file": "Old Bottle.sc2d",
         "bytes": 550271,
         "sha256": "108ac13c2726c99b4ace4d039f1efc8ac7122290cfc454877352e2cbd3393855",
         "conversion": "native save copied byte-for-byte",
         "included": "2026-11-07: owner requested inclusion of the current named save."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Old Bottle",
+        "theme": "Nevada basin city on pine-and-juniper foothills; existing Nevada names retained.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
+      }
+    },
+    {
+      "name": "La Presa",
+      "file": "La Presa.sc2d",
+      "bytes": 170303,
+      "sha256": "0c6a610debbc6b1eeddb600a4c17da5fcba7373709ce5231b0729b4bb3e5ac7e",
+      "source": {
+        "file": "La Presa.sc2",
+        "bytes": 105873,
+        "sha256": "66cd855b9d68fa119d3d81c0d326f79bc25430db87f86a1b24c7aca247a2ef20",
+        "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
+        "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "La Presa",
+        "theme": "California coast below an immense dam: reservoir engineering, marine life and coastal hills.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
       "name": "Oro Canyon",
       "file": "Oro Canyon.sc2d",
-      "bytes": 63248,
-      "sha256": "24c85e64a917d8860a1a0d0ec843fbc09bec890badb317934c344f97da4d79af",
+      "bytes": 158646,
+      "sha256": "c58cf6c423654eaf45435febb50c1dd57274dc23a6a45c16d511b3373cbd3daa",
       "source": {
         "file": "Oro Canyon.sc2",
         "bytes": 92300,
         "sha256": "ce8b648eb7356ccd935b18f4ae97a9a84a8f05b5da8ee2674cf2d25a1383cb63",
         "conversion": "imported with GameHost.import_city, given its catalog city name, then saved paused with SaveFormat.save",
         "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Oro Canyon",
+        "theme": "Colorado River mining city: river navigation, desert geology and mining heritage.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
       "name": "Salton Shores",
       "file": "Salton Shores.sc2d",
-      "bytes": 24901,
-      "sha256": "b175ccaa385aaff416f74b48f39d64f101cb98463108b9d40d08542a59f72d64",
+      "bytes": 46601,
+      "sha256": "4e9d466ad6ee92e0736e21621211fe9dce044569027b587f71bf23cee5cac254",
       "source": {
         "file": "Salton Shores.sc2",
         "bytes": 56430,
         "sha256": "bd277eef9a4364678c4462f190d82b3fb58da63b463bbedc195443aed900aff0",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
         "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Salton Shores",
+        "theme": "Salton Sea and Imperial/Coachella desert basin: saltwater shore, agriculture and desert geology.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
+      }
+    },
+    {
+      "source": {
+        "file": "Magnolia Township.sc2",
+        "bytes": 74390,
+        "sha256": "881d9eb3c5a2cc7430a83114138ebf88b079a95b0633e0e00b2edaf354f51c35",
+        "conversion": "imported with GameHost.import_city and saved paused with SaveFormat.save; supplied for inclusion 2026-11-08"
+      },
+      "name": "Silver Ridge",
+      "file": "Silver Ridge.sc2d",
+      "bytes": 87899,
+      "sha256": "89c32055656c5d36c81b9d47e138aa1b89c7b3f05cb08ea90f54a1d5b3efe7be",
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Magnolia Township",
+        "theme": "Hillside mining towns linked by ridge roads, with ore, rail and timber names.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     },
     {
       "name": "Valle del Mar",
       "file": "Valle del Mar.sc2d",
-      "bytes": 74190,
-      "sha256": "1a27492c82522fc04313336d8ac31992975114ff81b3ccda72137f616e0f8cfd",
+      "bytes": 205556,
+      "sha256": "30540725b4483aa337780bf0829825509c9f12b13cdba09d5729ccee8b1d2016",
       "source": {
         "file": "Valle del Mar.sc2",
         "bytes": 110142,
         "sha256": "439569c5053059650c92b963ab81a5f71fe07174532111bc58918ef4d4788916",
         "conversion": "imported with GameHost.import_city, then saved paused with SaveFormat.save",
         "signs": "2026-10-06: player signs from the classic XTXT/XLAB chunks were added to city.signs after an importer fix; every other byte is unchanged."
+      },
+      "curation": {
+        "date": "2026-11-08",
+        "original_name": "Valle del Mar",
+        "theme": "L’Enfant-style civic avenues on the California coast: county avenues, numbered streets and lettered streets.",
+        "tool": "tools/curate_bundled_cities.py",
+        "changes": "Themed continuous street names, classic signs removed, 4x4 resort variety; original terrain and simulation history retained.",
+        "street_naming_policy": "Distinct base names within each city, across street types and languages",
+        "naming_followup": "2026-11-08: suffix-only repeats replaced with unused locally themed base names"
       }
     }
   ],
   "format": "sc2d",
   "engine": "4.6.1.stable.official.14d19694e",
-  "sources_note": "Classic .sc2 sources remain in this directory as conversion inputs and test fixtures; export presets include only the .sc2d files and this provenance."
+  "sources_note": "Classic .sc2 sources remain in this directory as conversion inputs and test fixtures; export presets include only the .sc2d files and this provenance.",
+  "curation_engine": "4.7.2.stable.official.ed1daf0bf"
 }

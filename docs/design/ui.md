@@ -126,7 +126,7 @@ space; long operation details are bounded rather than growing off screen.
 
 ## Input and construction
 
-Load City lists personal saves and recovery copies first, followed by nine
+Load City lists personal saves and recovery copies first, followed by twelve
 included cities marked **Included city**. Included entries are fully imported
 native `.sc2d` saves opened by the native loader; they are credited to the
 player's Mayor name and begin paused with no native save path, so Save creates
