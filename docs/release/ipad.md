@@ -110,11 +110,17 @@ background.
 To make a device build, install matching Godot 4.7.2 export templates
 and Xcode on macOS. Open `game/project.godot`, select **Project → Export → iOS**,
 set your Apple Team ID, and verify the bundle identifier against that
-account. The preset exports to `ios/SCDD.xcodeproj` beside `game/` and keeps
-files from earlier exports there (`delete_old_export_files_unconditionally` is
+account. The preset exports to `releases/SC2D-ios-v0.7.0/SC2D.xcodeproj` beside `game/`
+and keeps files from earlier exports there (`delete_old_export_files_unconditionally` is
 off); to start clean, choose a new empty directory in the export dialog
-instead. Open the Xcode project, configure development signing and select a
-connected iPad. This follows the
+instead. After every export, run
+`python3 tools/clean_ios_usage_descriptions.py <export directory> --apply` to
+remove the empty camera, microphone and photo-library permission descriptions
+Godot writes. App Store Connect rejects a build that keeps them; the same
+script with `--check` verifies a project, `.xcarchive` or `.ipa` and prints its
+version and build number. Raise the build number in the Xcode target for each
+upload. Open the Xcode project, configure development
+signing and select a connected iPad. This follows the
 [Godot iOS export workflow](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_ios.html).
 
 The preset is arm64 and includes iPhone and iPad, permits all rotations and exposes Documents

@@ -27,17 +27,17 @@ casino searchlights, street lamps and headlights.
 
 Builds for **macOS** and **Windows** are on the
 [Releases page](https://github.com/sierra760/SinCityDesertDreams/releases).
-Version 0.1 is an early release; expect rough edges.
+The current version is 0.7. It is an early release; expect rough edges.
 
 | Platform | Package | Notes |
 | --- | --- | --- |
 | macOS 12 or later | `.dmg`, universal (Apple silicon and Intel) | Drag the app to Applications. If macOS says it can't verify the app, open **System Settings → Privacy & Security** and choose **Open Anyway**. |
-| Windows 10/11, 64-bit (x64) | `.exe`, a single file | The game data is built into the `.exe`, so it runs from any folder. If SmartScreen appears, choose **More info → Run anyway**. A GPU with Vulkan support is recommended. |
+| Windows 10/11, 64-bit (x64) | `.zip` holding the `.exe` and two `.dll` files | Unzip everything into one folder and run the `.exe`. The game data is built into the `.exe`. Keep `SCDDGeometry.windows.x86_64.dll` and `SCDDExploreLua.windows.x86_64.dll` beside it: without them the game still starts, but it uses slower fallback code and Explore missions do not run. If SmartScreen appears, choose **More info → Run anyway**. A GPU with Vulkan support is recommended. |
 
 The game works offline. It has no game accounts, telemetry, ads or in-app
-purchases. Saves and settings stay on your device by default. Supported Apple
-builds offer optional **iCloud saves** in Settings, using your Apple iCloud
-account to sync cities; see [cloud saves](docs/design/cloud-saves.md).
+purchases. Saves and settings stay on your device. Optional **iCloud saves**
+for Apple builds are in the source but are switched off in the 0.7 builds; see
+[cloud saves](docs/design/cloud-saves.md).
 
 The optional real-world terrain chooser contacts its configured street-map
 and place-search providers while open, and checks a small settings file on
@@ -77,7 +77,7 @@ The score, interface sounds and effects are made for this game; see `docs/design
 
 **Look and feel**
 
-- A 3D city with 144 original Blender building models, Las Vegas
+- A 3D city with 170 original Blender building models, Las Vegas
   mid-century and atomic-age signage, palms, desert terrain and animated water.
 - Desert Transit rail halls and subway stations with furnished platforms,
   lobbies and elevators.
@@ -180,8 +180,10 @@ Install the standard build of [Godot 4.7.2](https://godotengine.org/download/arc
 godot --path game
 ```
 
-Native geometry and city-sharing libraries are included for macOS and iOS.
-Other platforms use equivalent GDScript code paths.
+Prebuilt native libraries are included under `game/addons/*/bin`. The geometry
+kernel and the Lua runtime for Explore missions cover macOS, iOS and Windows
+x64. City sharing and cloud saves are Apple-only. On other platforms the
+geometry falls back to equivalent GDScript, and Explore missions do not run.
 
 ## Development
 
@@ -203,8 +205,11 @@ Further reading:
 - [Traffic and passenger transit](docs/design/traffic-and-passenger-transit.md),
   [street names](docs/design/street-names.md) and [marina boats](docs/release/marina-boats.md)
 - [File formats](docs/design/file-formats.md) and the [roadmap](docs/design/roadmap.md)
-- iPad and iPhone touch support is in progress; see [iPad](docs/release/ipad.md)
-  and [iPhone](docs/release/iphone.md)
+- An iPhone and iPad build exists. CI exports and compiles it unsigned, and
+  the touch interface is tested on the desktop with simulated screen sizes and
+  scripted input. It has not yet had acceptance testing as a signed build on a
+  physical iPhone or iPad. See [iPad](docs/release/ipad.md) and
+  [iPhone](docs/release/iphone.md)
 
 ## FAQ
 

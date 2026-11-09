@@ -188,6 +188,7 @@ jobs:
           plist=$(find build/ios -maxdepth 2 -name '*-Info.plist' -print -quit)
           test -n "$plist" || { echo "::error::export contains no Info.plist"; exit 1; }
           python tools/clean_ios_usage_descriptions.py "$plist" --apply
+          python tools/clean_ios_usage_descriptions.py build/ios --check
       - name: Build unsigned device app
         run: |
           xcodebuild -version
@@ -197,7 +198,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
           app=$(find build/ios/DerivedData/Build/Products -maxdepth 2 -name '*.app' -print -quit)
           test -n "$app" || { echo "::error::xcodebuild produced no .app"; exit 1; }
-          for framework in SCDDGeometry SCDDNativeShare SCDDAppleCloud; do
+          for framework in SCDDGeometry SCDDExploreLua SCDDNativeShare SCDDAppleCloud; do
             test -d "$app/Frameworks/$framework.framework" || { echo "::error::app is missing $framework.framework"; exit 1; }
           done
           du -sh "$app"
@@ -209,6 +210,7 @@ jobs:
           ditto "$APP" "build/ios/ipa/Payload/$(basename "$APP")"
           (cd build/ios/ipa && zip -qry ../SC2D-ios-unsigned.ipa Payload)
           unzip -l build/ios/SC2D-ios-unsigned.ipa | grep -q 'Payload/[^/]*\.app/Info\.plist$' || { echo "::error::IPA has no Payload app"; exit 1; }
+          python tools/clean_ios_usage_descriptions.py build/ios/SC2D-ios-unsigned.ipa --check
           ls -l build/ios/SC2D-ios-unsigned.ipa
       - uses: actions/upload-artifact@v4
         with:

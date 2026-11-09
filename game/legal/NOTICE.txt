@@ -10,7 +10,7 @@ This program is distributed WITHOUT ANY WARRANTY; without even the implied
 warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 Project-owned art and assets, including 3D models, textures, illustrations,
-icons, editable masters, screenshots and the nine included cities, are licensed
+icons, editable masters, screenshots and the twelve included cities, are licensed
 under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
 (SPDX: CC-BY-NC-SA-4.0). You may share and adapt them for non-commercial
 purposes with credit, under the same license. The full license is bundled in

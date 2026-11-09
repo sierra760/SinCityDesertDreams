@@ -102,6 +102,11 @@ as `addons/apple_share/GODOT-CPP-LICENSE.md`,
 `core/templates/sort_array.h` and remains under the MIT license stated in that
 file.
 
+Explore mods run on the upstream Lua 5.4.9 library, Copyright (C) 1994-2026
+Lua.org, PUC-Rio, under the MIT license. The full permission notice is in
+`native/explore-lua/LUA-LICENSE.txt` and is bundled as
+`game/addons/scdd_explore_lua/LUA-LICENSE.txt`.
+
 Third-party material retains its existing licenses and notices. In particular,
 the bundled BioRhyme, BioRhyme Expanded, Atomic Age and Overpass fonts retain their SIL
 Open Font License notices, and Fontdiner Swanky its Apache License 2.0 notice,
