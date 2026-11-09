@@ -217,7 +217,7 @@ func _pump_output(city: City, anchor: Vector2i, rain: int) -> int:
 			var y := anchor.y + dy
 			if city.in_bounds(x, y) and city.is_water(x, y) and not city.is_salt_water(x, y):
 				out += Params.FRESH_NEIGHBOR_YIELD
-	return out
+	return out * Params.WATER_OUTPUT_MULTIPLIER
 
 
 func _desalination_output(city: City, anchor: Vector2i, id: int) -> int:
@@ -230,7 +230,7 @@ func _desalination_output(city: City, anchor: Vector2i, id: int) -> int:
 				continue
 			if city.is_water(x, y) and city.is_salt_water(x, y):
 				out += Params.SALT_NEIGHBOR_YIELD
-	return out
+	return out * Params.WATER_OUTPUT_MULTIPLIER
 
 
 # ── Distribution ─────────────────────────────────────────────────────────

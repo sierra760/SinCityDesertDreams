@@ -86,7 +86,9 @@ func test_powered_pump_waters_through_pipes() -> void:
 	c.stamp_building(10, 10, Buildings.WATER_PUMP)
 	powered(c, 10, 10)
 	pipe(c, Vector2i(11, 10), Vector2i(15, 10))
-	c.stamp_building(16, 10, HOUSE)
+	for x in range(16, 36):
+		for y in range(10, 20):
+			c.stamp_building(x, y, HOUSE)   # one pump serves a 200-tile district
 	c.stamp_building(30, 30, HOUSE)
 	var ctx := make_ctx(c)
 	var water := make_water()
@@ -98,10 +100,10 @@ func test_powered_pump_waters_through_pipes() -> void:
 	check(c.is_watered(12, 10), "pipe is wet")
 	check(c.is_watered(10, 10), "pump tile watered")
 	check(not c.is_watered(30, 30))
-	check_eq(ctx.stats.water_capacity, 27, "water table 4 and default rain")
-	check_eq(ctx.stats.water_demand, 2)
+	check_eq(ctx.stats.water_capacity, 216, "water table 4 and default rain")
+	check_eq(ctx.stats.water_demand, 201)
 	check_eq(ctx.stats.unwatered_buildings, 1)
-	check_eq(water.consumed(), 1)
+	check_eq(water.consumed(), 200)
 
 
 func test_unpowered_pump_gives_nothing() -> void:
@@ -125,16 +127,16 @@ func test_fresh_water_boosts_pump_and_salt_needs_desalination() -> void:
 	var ctx := make_ctx(c)
 	var water := make_water()
 	water.setup(ctx)
-	check_eq(ctx.stats.water_capacity, 27 + 8 * 10, "eight fresh neighbours")
+	check_eq(ctx.stats.water_capacity, 216 + 8 * 80, "eight fresh neighbours")
 	fresh_lake(c, 9, 9, 3, 3, true)
 	c.terrain.put(10, 10, Terrain.FLAT)
 	water.monthly(ctx)
-	check_eq(ctx.stats.water_capacity, 27, "salt water gives a pump nothing")
+	check_eq(ctx.stats.water_capacity, 216, "salt water gives a pump nothing")
 	c.stamp_building(40, 40, Buildings.DESALINATION)
 	powered(c, 40, 40, 3, 3)
 	fresh_lake(c, 39, 39, 5, 1, true)   # five salt tiles along the north edge
 	water.monthly(ctx)
-	check_eq(ctx.stats.water_capacity, 27 + 5 * 20, "desalination draws on salt water")
+	check_eq(ctx.stats.water_capacity, 216 + 5 * 160, "desalination draws on salt water")
 	check(c.is_watered(41, 41), "desalination tiles are wet")
 
 
@@ -153,64 +155,64 @@ func island_pump(c: City, x: int, y: int) -> void:
 func test_tower_charges_from_surplus_and_covers_an_outage() -> void:
 	var c := flat_city()
 	c.sea_level = 10
-	island_pump(c, 10, 10)   # 50 + 7 + 70 = 127 units
+	island_pump(c, 10, 10)   # (50 + 7 + 70) * 8 = 1016 units
 	island_pump(c, 10, 14)
 	pipe(c, Vector2i(11, 10), Vector2i(20, 10))
 	pipe(c, Vector2i(11, 14), Vector2i(20, 14))
 	pipe(c, Vector2i(20, 11), Vector2i(20, 13))
 	c.stamp_building(21, 10, Buildings.WATER_TOWER)
 	powered(c, 21, 10, 2, 2)
-	for x in range(21, 41):
-		for y in range(14, 19):
-			c.stamp_building(x, y, HOUSE)   # 100 consumer tiles
+	for x in range(21, 61):
+		for y in range(14, 34):
+			c.stamp_building(x, y, HOUSE)   # 800 consumer tiles
 	var ctx := make_ctx(c)
 	var water := make_water()
 	water.setup(ctx)
-	check_eq(ctx.stats.water_capacity, 254, "two pumps")
-	check_eq(ctx.stats.water_demand, 100)
-	check_eq(ctx.stats.water_storage_capacity, 400)
-	check_eq(ctx.stats.water_stored, 200, "surplus 154 rounds to two tower tiles")
+	check_eq(ctx.stats.water_capacity, 2032, "two pumps")
+	check_eq(ctx.stats.water_demand, 800)
+	check_eq(ctx.stats.water_storage_capacity, 3200)
+	check_eq(ctx.stats.water_stored, 1600, "surplus 1232 rounds to two tower tiles")
 	check_eq(ctx.stats.unwatered_buildings, 0)
 	water.monthly(ctx)
-	check_eq(ctx.stats.water_capacity, 454, "released storage counts as capacity")
-	check_eq(ctx.stats.water_stored, 400, "tower fills up")
+	check_eq(ctx.stats.water_capacity, 3632, "released storage counts as capacity")
+	check_eq(ctx.stats.water_stored, 3200, "tower fills up")
 	water.monthly(ctx)
-	check_eq(ctx.stats.water_stored, 400)
-	check_eq(c.facility(Vector2i(21, 10)).get("stored"), 400)
+	check_eq(ctx.stats.water_stored, 3200)
+	check_eq(c.facility(Vector2i(21, 10)).get("stored"), 3200)
 	# Pumps lose power: the tower carries the district for four months.
 	c.set_flag(10, 10, TileFlags.POWERED, false)
 	c.set_flag(10, 14, TileFlags.POWERED, false)
-	var expected_stored := [300, 200, 100, 0]
+	var expected_stored := [2400, 1600, 800, 0]
 	for stored in expected_stored:
 		water.monthly(ctx)
 		check_eq(ctx.stats.unwatered_buildings, 0, "houses still served")
 		check_eq(ctx.stats.water_stored, stored)
 	check(not water.is_shortage(), "storage covered the load, no network was short")
 	water.monthly(ctx)
-	check_eq(ctx.stats.unwatered_buildings, 100, "tower empty, district dry")
+	check_eq(ctx.stats.unwatered_buildings, 800, "tower empty, district dry")
 	check_eq(ctx.stats.water_capacity, 0)
 	# Power returns: the pumps serve the district and the tower refills.
 	powered(c, 10, 10)
 	powered(c, 10, 14)
 	water.monthly(ctx)
 	check_eq(ctx.stats.unwatered_buildings, 0)
-	check_eq(ctx.stats.water_stored, 200)
+	check_eq(ctx.stats.water_stored, 1600)
 
 
 func test_short_network_dries_farthest_consumers() -> void:
 	var c := flat_city()
 	c.sea_level = 0
-	c.stamp_building(10, 10, Buildings.WATER_PUMP)   # 7 units from rain alone
+	c.stamp_building(10, 10, Buildings.WATER_PUMP)   # 56 units from rain alone
 	powered(c, 10, 10)
-	for x in range(11, 21):
+	for x in range(11, 70):
 		c.stamp_building(x, 10, HOUSE)
 	var ctx := make_ctx(c)
 	var water := make_water()
 	water.setup(ctx)
-	check_eq(ctx.stats.water_capacity, 7)
+	check_eq(ctx.stats.water_capacity, 56)
 	check(c.is_watered(11, 10))
-	check(c.is_watered(17, 10))
-	check(not c.is_watered(18, 10))
+	check(c.is_watered(66, 10))
+	check(not c.is_watered(67, 10))
 	check_eq(ctx.stats.unwatered_buildings, 3)
 	check(water.is_shortage())
 	check(&"water_shortage" in news_kinds(ctx), "shortage reported once")
@@ -253,7 +255,7 @@ func test_water_facility_records() -> void:
 	var water := make_water()
 	water.setup(ctx)
 	check_eq(c.facility(Vector2i(10, 10)).get("key"), &"water_pump")
-	check_eq(c.facility(Vector2i(10, 10)).get("output"), 27)
+	check_eq(c.facility(Vector2i(10, 10)).get("output"), 216)
 	check_eq(c.facility(Vector2i(20, 20)).get("key"), &"water_tower")
 	var summary := water.network_summary()
 	check_eq(summary.facilities.size(), 2)
@@ -290,7 +292,7 @@ func test_save_load_round_trip() -> void:
 	c.sea_level = 0
 	c.stamp_building(10, 10, Buildings.WATER_PUMP)
 	powered(c, 10, 10)
-	for x in range(11, 21):
+	for x in range(11, 70):
 		c.stamp_building(x, 10, HOUSE)
 	var ctx := make_ctx(c)
 	var water := make_water()

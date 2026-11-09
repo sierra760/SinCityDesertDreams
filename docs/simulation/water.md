@@ -79,6 +79,10 @@ the construction tools follow when they lay pipes and subways.
    - Desalination plant: `SALT_NEIGHBOR_YIELD` for every salt-water tile in the
      ring one tile wide around its footprint. Salt water yields nothing to a
      pump; it needs a desalination plant.
+   - Both source totals are multiplied by `WATER_OUTPUT_MULTIPLIER` after the
+     rain division is rounded down. At the default water table and rainfall,
+     an inland pump supplies 216 units; eight fresh neighbors raise it to 856.
+     A desalination plant with five salt-water neighbors supplies 800 units.
    - Treatment plants produce no water.
 4. **Networks.** The map is scanned column by column. Each powered pump or
    desalination anchor, and each tower tile that holds water, seeds a
@@ -121,12 +125,13 @@ the construction tools follow when they lay pipes and subways.
 | Name | Value | Tunes |
 |---|---|---|
 | `LOAD_PER_TILE` | 1 | Units drawn by one developed tile. |
+| `WATER_OUTPUT_MULTIPLIER` | 8 | Multiplies total pump and desalination production. |
 | `WATER_TABLE_FACTOR` | 5 | Pump output per level of the global water table. |
 | `RAIN_DIVISOR` | 2 | Pump output from precipitation (half the rain value). |
 | `FRESH_NEIGHBOR_YIELD` | 10 | Pump output per adjacent fresh water tile. |
 | `SALT_NEIGHBOR_YIELD` | 20 | Desalination output per adjacent salt water tile. |
 | `DEFAULT_WATER_TABLE` | 4 | Water table used when the city has no global level. |
-| `TOWER_UNITS_PER_TILE` | 100 | Storage per tower tile. |
+| `TOWER_UNITS_PER_TILE` | 800 | Storage per tower tile; 3,200 per 2×2 tower. |
 | `TREATMENT_COVERAGE` | 2000 | Consumption one treatment plant can clean. |
 | `DEFAULT_RAIN` | 15 | Precipitation used when no weather system is present. |
 
@@ -153,6 +158,10 @@ Codes 1–15 and 31–34 conduct water. `UtilityParams` exposes `is_pipe`,
 Tower contents live in the `flags` layer and facility records in the city,
 both saved with the city. Capacity, demand, unserved buildings and storage
 are read back from the saved `CityStats`.
+
+Existing cities retain their saved summary until the next distribution pass.
+The next monthly or network-edit pass applies the current production and storage
+capacities to their existing facilities; no facilities need to be rebuilt.
 
 ## Agricultural irrigation
 

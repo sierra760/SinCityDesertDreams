@@ -75,6 +75,10 @@ const AGELESS_PLANTS: Array[StringName] = [&"plant_hydro_a", &"plant_hydro_b", &
 
 # ── Water ────────────────────────────────────────────────────────────────
 
+## Scale source production so each facility serves a larger district while
+## preserving the relative effects of groundwater, rain and shoreline siting.
+const WATER_OUTPUT_MULTIPLIER := 8
+
 ## Pump output per level of the global water table, and the divisor applied to
 ## precipitation before it is added.
 const WATER_TABLE_FACTOR := 5
@@ -89,7 +93,7 @@ const SALT_NEIGHBOR_YIELD := 20
 const DEFAULT_WATER_TABLE := 4
 
 ## Storage per water tower tile.
-const TOWER_UNITS_PER_TILE := 100
+const TOWER_UNITS_PER_TILE := 800
 
 ## Consumption one treatment plant can clean.
 const TREATMENT_COVERAGE := 2000

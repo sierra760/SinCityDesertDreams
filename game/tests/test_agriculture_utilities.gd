@@ -66,14 +66,14 @@ func test_water_distribution_never_partially_funds_a_tile() -> void:
 	var ctx: SimContext = f.ctx
 	var water: WaterSystem = f.water
 	c.stamp_building(11, 10, AgricultureParams.building_id(&"vegetables"))
-	# Rain fallback gives seven units: only two of three load-three tiles fit.
-	c.stamp_building(12, 10, AgricultureParams.building_id(&"vegetables"))
-	c.stamp_building(13, 10, AgricultureParams.building_id(&"vegetables"))
-	water.networks_changed(ctx, Rect2i(10, 10, 4, 1))
-	check_eq(ctx.stats.water_demand, 9)
-	check_eq(water.consumed(), 6)
+	# Rain fallback gives 56 units: eighteen load-three tiles fit, with two units left.
+	for x in range(12, 30):
+		c.stamp_building(x, 10, AgricultureParams.building_id(&"vegetables"))
+	water.networks_changed(ctx, Rect2i(10, 10, 20, 1))
+	check_eq(ctx.stats.water_demand, 57)
+	check_eq(water.consumed(), 54)
 	check(c.is_watered(11, 10) and c.is_watered(12, 10))
-	check(not c.is_watered(13, 10), "remaining one cannot fund three")
+	check(not c.is_watered(29, 10), "remaining two cannot fund three")
 	check_eq(ctx.stats.unwatered_buildings, 1)
 
 
@@ -134,7 +134,7 @@ func test_preflight_tower_storage_and_full_multitile_service() -> void:
 	water.setup(ctx)
 	var before := _snapshot(c, ctx, water)
 	check(water.can_supply_lot(c, Rect2i(12, 10, 2, 2), 3), "stored tower water serves the entire prepared lot")
-	check(not water.can_supply_lot(c, Rect2i(12, 10, 2, 2), 30), "one hundred cannot fully serve four load-thirty tiles")
+	check(not water.can_supply_lot(c, Rect2i(12, 10, 2, 2), 240), "eight hundred cannot fully serve four load-240 tiles")
 	check_eq(_snapshot(c, ctx, water), before, "tower not drained on success or refusal")
 	c.set_flag(10, 10, TileFlags.WATERED, false)
 	check(not water.can_supply_lot(c, Rect2i(12, 10, 2, 2), 3), "empty tower cannot seed")
@@ -211,26 +211,24 @@ func _has_color(colors: PackedColorArray, expected: Color) -> bool:
 	return false
 
 
-class LowRain extends SimSystem:
-	func precipitation() -> int: return 4
-
-
 func test_two_units_cannot_supply_load_three_and_partial_lot_is_unserved() -> void:
 	var f := _water_fixture()
 	var c: City = f.city
 	var ctx: SimContext = f.ctx
 	var water: WaterSystem = f.water
-	ctx.systems[&"weather"] = LowRain.new()
+	# Hold an established two-unit source to exercise partial-tile refusal
+	# independently of the pump output balance.
+	c.facility(Vector2i(10, 10))["output"] = 2
 	c.stamp_building(11, 10, AgricultureParams.building_id(&"vegetables"))
-	water.networks_changed(ctx, Rect2i(11, 10, 1, 1))
+	water.reallocate_established(ctx, Rect2i(11, 10, 1, 1))
 	check_eq(ctx.stats.water_capacity, 2)
 	check_eq(water.consumed(), 0)
 	check(not c.is_watered(11, 10))
 	check_eq(ctx.stats.unwatered_buildings, 1)
 	c.clear_footprint(11, 10)
 	c.stamp_building(11, 10, AgricultureParams.building_id(&"dairy"))
-	ctx.systems.clear()
-	water.networks_changed(ctx, Rect2i(11, 10, 3, 3))
+	c.facility(Vector2i(10, 10))["output"] = 7
+	water.reallocate_established(ctx, Rect2i(11, 10, 3, 3))
 	check_eq(ctx.stats.water_demand, 27)
 	check_eq(water.consumed(), 6)
 	check_eq(ctx.stats.unwatered_buildings, 1, "partially served agriculture lot remains in shortage count")
