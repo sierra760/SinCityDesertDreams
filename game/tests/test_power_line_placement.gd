@@ -23,17 +23,22 @@ func test_all_standalone_line_shapes_allow_zoning() -> void:
 		b.city.set_flag(p.x, p.y, TileFlags.CONDUCTS_POWER, true)
 	b.city.terrain.put(20, 21, Terrain.make(Terrain.FLAT, Terrain.SURFACE))
 	b.stats.rewards_offered[&"military_base"] = true
+	b.stats.rewards_offered[Tools.MILITARY_PLACEMENT_KEY] = true
 	for tool in [Tools.Kind.ZONE_RES_LOW, Tools.Kind.ZONE_RES_HIGH,
 			Tools.Kind.ZONE_COM_LOW, Tools.Kind.ZONE_COM_HIGH,
 			Tools.Kind.ZONE_IND_LOW, Tools.Kind.ZONE_IND_HIGH, Tools.Kind.AIRPORT,
 			Tools.Kind.SEAPORT, Tools.Kind.REWARD_MILITARY_BASE]:
-		var quote := b.preview(tool, Vector2i(20, 20), Vector2i(34, 20))
-		check(quote.ok, "lines accept zone tool %d: %s" % [tool, quote.reason])
-		check_eq(quote.tiles.size(), 15)
-		check_eq(quote.cost, Tools.cost(tool) * 15)
-		var result := b.apply(tool, Vector2i(20, 20), Vector2i(34, 20))
-		check(result.applied)
-		check_eq(result.cost, quote.cost)
+		# A base is at most eight tiles on a side, so it takes the row in two parts.
+		var spans: Array = [[20, 27], [28, 34]] if tool == Tools.Kind.REWARD_MILITARY_BASE else [[20, 34]]
+		for span: Array in spans:
+			var count := int(span[1]) - int(span[0]) + 1
+			var quote := b.preview(tool, Vector2i(span[0], 20), Vector2i(span[1], 20))
+			check(quote.ok, "lines accept zone tool %d: %s" % [tool, quote.reason])
+			check_eq(quote.tiles.size(), count)
+			check_eq(quote.cost, Tools.cost(tool) * count)
+			var result := b.apply(tool, Vector2i(span[0], 20), Vector2i(span[1], 20))
+			check(result.applied)
+			check_eq(result.cost, quote.cost)
 		for x in range(20, 35):
 			check_eq(b.city.zone_kind_at(x, 20), Tools.zone_kind(tool))
 			check(NetworkShapes.is_plain_power(b.city.building_at(x, 20)), "line remains")

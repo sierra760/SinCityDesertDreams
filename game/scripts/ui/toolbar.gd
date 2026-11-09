@@ -426,7 +426,7 @@ static func tooltip_for(tool: int, reason: String, free: bool = false, bindings:
 
 
 ## A reward tool that has not been offered says how it is earned: the
-## population that brings the offer, or that the council turned the base down.
+## population that brings the offer, or why the base cannot be placed.
 static func reward_lock_reason(tool: int, reason: String, rewards: SimSystem = null) -> String:
 	if not Tools.is_reward_tool(tool) or reason != "not yet offered to the city":
 		return reason
@@ -434,7 +434,11 @@ static func reward_lock_reason(tool: int, reason: String, rewards: SimSystem = n
 	if key == RewardParams.MILITARY_KEY and rewards != null and rewards.has_method("military_offer"):
 		var offer: Dictionary = rewards.call("military_offer")
 		if bool(offer.get("answered", false)) and not bool(offer.get("accepted", false)):
+			if StringName(offer.get("kind", &"")) == &"none":
+				return "the military found no site for a base"
 			return "the council turned down the base"
+		if bool(offer.get("pending", false)):
+			return "the council has not answered the proposal yet"
 	for milestone: Dictionary in RewardParams.MILESTONES:
 		if StringName(milestone.get("key", &"")) == key:
 			var people := UIFactory.commafy(int(milestone.get("population", 0)))

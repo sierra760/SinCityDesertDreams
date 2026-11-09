@@ -731,3 +731,71 @@ func test_orbit_departure_copy_describes_tourists() -> void:
 	check(String(notice.body).contains("42 tourists"))
 	for headline: String in NewsStories.STORIES[&"resort_launch"].headlines:
 		check(not headline.to_lower().contains("resident"), "departure headline describes tourists")
+
+
+func test_military_tool_opens_only_for_an_accepted_base_without_a_site() -> void:
+	var tool := Tools.Kind.REWARD_MILITARY_BASE
+	var c := flat_city()
+	var ctx := _context(c)
+	var rewards := RewardSystem.new()
+	_register(ctx, [rewards])
+	_reach_military(ctx, rewards)
+	check(rewards.military_offer().pending, "fixture: the offer waits")
+	check(not Tools.is_available(tool, c, ctx.stats), "no placing before the council answers")
+	rewards.decline_military()
+	check(not Tools.is_available(tool, c, ctx.stats), "a declined base cannot be zoned by hand")
+	check_eq(Toolbar.reward_lock_reason(tool, Tools.locked_reason(tool, c, ctx.stats), rewards), "the council turned down the base")
+	_run_days(ctx, [rewards], 2 * GameClock.DAYS_PER_MONTH)
+	check(not Tools.is_available(tool, c, ctx.stats), "and stays locked")
+	check_eq(_count_zone(c, Zones.MILITARY), 0)
+
+
+func test_declined_base_from_an_older_save_loads_locked() -> void:
+	var tool := Tools.Kind.REWARD_MILITARY_BASE
+	var c := flat_city()
+	var ctx := _context(c)
+	ctx.stats.rewards_offered[&"military_base"] = true
+	var rewards := RewardSystem.new()
+	_register(ctx, [rewards])
+	rewards.load({"milestones_passed": RewardParams.MILESTONES.size(), "military": {"kind": "army", "answered": true, "accepted": false, "site": [10, 10, 8, 8]}})
+	check(not Tools.is_available(tool, c, ctx.stats), "the old save's declined base is locked")
+	check_eq(Toolbar.reward_lock_reason(tool, Tools.locked_reason(tool, c, ctx.stats), rewards), "the council turned down the base")
+
+
+func test_accepted_base_locks_the_tool_and_a_lost_site_is_placed_once_by_hand() -> void:
+	var tool := Tools.Kind.REWARD_MILITARY_BASE
+	var c := flat_city()
+	var ctx := _context(c)
+	var rewards := RewardSystem.new()
+	_register(ctx, [rewards])
+	_reach_military(ctx, rewards)
+	check(rewards.accept_military())
+	check(not Tools.is_available(tool, c, ctx.stats), "the zoned base leaves nothing to place")
+	check_eq(Tools.locked_reason(tool, c, ctx.stats), "already built")
+	# A second city whose proposed site is built over before the answer.
+	var c2 := flat_city()
+	var ctx2 := _context(c2)
+	var rewards2 := RewardSystem.new()
+	_register(ctx2, [rewards2])
+	_reach_military(ctx2, rewards2)
+	var site: Rect2i = rewards2.military_offer().site
+	for y in range(site.position.y, site.end.y):
+		for x in range(site.position.x, site.end.x):
+			c2.zone.put(x, y, Zones.make(Zones.RES_LOW))
+	check(not rewards2.accept_military(), "nothing on the site could be zoned")
+	check_eq(rewards2.military_kind(), &"army", "the city still said yes")
+	check(Tools.is_available(tool, c2, ctx2.stats), "so the base waits to be placed by hand")
+	var restored := RewardSystem.new()
+	ctx2.systems.erase(rewards2.key)
+	restored.setup(ctx2)
+	restored.load(rewards2.save())
+	check(Tools.is_available(tool, c2, ctx2.stats), "and still waits after a reload")
+	var builder := Builder.new(c2, ctx2.stats)
+	check(not builder.preview(tool, Vector2i(60, 60), Vector2i(60 + RewardParams.MILITARY_SITE_SIZE, 60)).ok, "a base is no wider than the site the military asks for")
+	var last := RewardParams.MILITARY_SITE_SIZE - 1
+	var placed := builder.apply(tool, Vector2i(60, 60), Vector2i(60 + last, 60 + last))
+	check(placed.ok, String(placed.get("reason", "")))
+	check_eq(_count_zone(c2, Zones.MILITARY), RewardParams.MILITARY_SITE_SIZE * RewardParams.MILITARY_SITE_SIZE)
+	restored.mark_built(RewardParams.MILITARY_KEY)
+	check(not Tools.is_available(tool, c2, ctx2.stats), "one placement, then the tool locks")
+	check(not ctx2.stats.rewards_offered.has(Tools.MILITARY_PLACEMENT_KEY))

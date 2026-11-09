@@ -310,3 +310,17 @@ func test_a_declined_base_says_the_council_turned_it_down() -> void:
 	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city", DeclinedBase.new()),
 		"the council turned down the base")
 	check(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city").contains("25,000"))
+	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city", PendingBase.new()),
+		"the council has not answered the proposal yet")
+	check_eq(Toolbar.reward_lock_reason(Tools.Kind.REWARD_MILITARY_BASE, "not yet offered to the city", NoSiteBase.new()),
+		"the military found no site for a base")
+
+
+class PendingBase extends SimSystem:
+	func military_offer() -> Dictionary:
+		return {"kind": &"army", "pending": true, "answered": false, "accepted": false}
+
+
+class NoSiteBase extends SimSystem:
+	func military_offer() -> Dictionary:
+		return {"kind": &"none", "pending": false, "answered": true, "accepted": false}

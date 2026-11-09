@@ -116,6 +116,10 @@ func answer_military_offer(accept: bool) -> bool:
 		if ok:
 			_host.sim.networks_changed()
 		_host.refresh_toolbar()
+		# Accepted, but nothing on the proposed site could be zoned: say where
+		# the base now waits instead of leaving the answer without a result.
+		if not ok and bool(_host.sim.stats.rewards_offered.get(Tools.MILITARY_PLACEMENT_KEY, false)):
+			_host.show_message("The proposed site is no longer free. Place the base with the Military Base tool.")
 		return ok
 	if rewards.has_method("decline_military"):
 		rewards.call("decline_military")

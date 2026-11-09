@@ -305,6 +305,11 @@ static func available_year(tool: int, stats: CityStats) -> int:
 	return int(EconomyParams.TECHNOLOGIES.get(tech, 0))
 
 
+## `stats.rewards_offered` entry kept by the rewards system while an accepted
+## military base is still waiting for the player to place it.
+const MILITARY_PLACEMENT_KEY := &"military_base_placement"
+
+
 ## Why the tool cannot be used right now, or an empty string when it can.
 ## Covers rewards, inventions and the Nuclear Free Zone ordinance.
 static func locked_reason(tool: int, city: City, stats: CityStats) -> String:
@@ -316,6 +321,9 @@ static func locked_reason(tool: int, city: City, stats: CityStats) -> String:
 			return "not yet offered to the city"
 		if bool(stats.rewards_built.get(key, false)):
 			return "already built"
+		# The base is zoned by hand only while an accepted base has no site.
+		if tool == Kind.REWARD_MILITARY_BASE and not bool(stats.rewards_offered.get(MILITARY_PLACEMENT_KEY, false)):
+			return "not yet offered to the city"
 		return ""
 	var year := available_year(tool, stats)
 	if year > 0 and city != null and city.current_year() < year:

@@ -103,6 +103,7 @@ func mark_built(gift_key: StringName) -> void:
 	if _ctx == null:
 		return
 	_ctx.stats.rewards_built[gift_key] = true
+	if gift_key == RewardParams.MILITARY_KEY: _sync_military_tool(_ctx)
 
 
 func _check_milestone(ctx: SimContext) -> void:
@@ -145,6 +146,7 @@ func _reconcile_rewards(ctx: SimContext) -> void:
 				ctx.stats.rewards_offered[k] = true
 				ctx.stats.rewards_built[k] = true
 				_military.answered = true
+			_sync_military_tool(ctx)
 			continue
 		var id := Buildings.id_of(k)
 		var standing := ctx.city.building.count(id) > 0
@@ -155,6 +157,18 @@ func _reconcile_rewards(ctx: SimContext) -> void:
 		elif _seen_standing.get(k, false):
 			ctx.stats.rewards_built.erase(k)
 			_seen_standing.erase(k)
+
+
+## The Military Base tool opens only while an accepted base has nowhere to
+## stand (its proposed site could not be zoned); a declined, unanswered or
+## standing base keeps it locked. Derived, so older saves need no migration.
+func _sync_military_tool(ctx: SimContext) -> void:
+	var waiting: bool = _military.answered and _military.accepted \
+			and not ctx.stats.rewards_built.get(RewardParams.MILITARY_KEY, false)
+	if waiting:
+		ctx.stats.rewards_offered[Tools.MILITARY_PLACEMENT_KEY] = true
+	else:
+		ctx.stats.rewards_offered.erase(Tools.MILITARY_PLACEMENT_KEY)
 
 
 ## Shared airport/seaport pieces alone do not identify a military base.
@@ -211,7 +225,8 @@ func military_kind() -> StringName:
 
 
 ## Zone the base. An empty rect uses the proposed site(s). Returns false when
-## there is no pending offer or nothing could be zoned.
+## there is no pending offer or nothing could be zoned; in the second case the
+## base is still accepted and the Military Base tool places it.
 func accept_military(rect: Rect2i = Rect2i()) -> bool:
 	if _ctx == null or _military.answered or _military.kind == KIND_NONE:
 		return false
@@ -233,10 +248,15 @@ func accept_military(rect: Rect2i = Rect2i()) -> bool:
 					city.zone.put(x, y, Zones.make(Zones.MILITARY))
 					zoned += 1
 		_pending_dirty.append(r)
+	# The city said yes either way; with no usable ground left on the site the
+	# base waits for the player to zone it with the Military Base tool.
 	_military.answered = true
-	_military.accepted = zoned > 0
-	_pending_news.append({"kind": &"military_base", "args": {"kind": _military.kind, "accepted": _military.accepted}})
-	return _military.accepted
+	_military.accepted = true
+	if zoned > 0:
+		_ctx.stats.rewards_built[RewardParams.MILITARY_KEY] = true
+	_sync_military_tool(_ctx)
+	_pending_news.append({"kind": &"military_base", "args": {"kind": _military.kind, "accepted": true}})
+	return zoned > 0
 
 
 ## Refuse the base for good.
@@ -245,6 +265,7 @@ func decline_military() -> void:
 		return
 	_military.answered = true
 	_military.accepted = false
+	if _ctx != null: _sync_military_tool(_ctx)
 	_pending_news.append({"kind": &"military_base", "args": {"kind": _military.kind, "accepted": false}})
 
 

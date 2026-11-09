@@ -1251,6 +1251,8 @@ func _plan_zone(kind: int, price: int, from: Vector2i, to: Vector2i) -> Dictiona
 	var tiles: Array[Vector2i] = []
 	var ops: Array = []
 	var shore := false
+	if kind == Zones.MILITARY and maxi(absi(to.x - from.x), absi(to.y - from.y)) >= RewardParams.MILITARY_SITE_SIZE:
+		return _fail("a base is at most %d tiles on a side" % RewardParams.MILITARY_SITE_SIZE, [from])
 	for p in _rect_tiles(from, to):
 		if not _zone_eligible(p) or city.zone_kind_at(p.x, p.y) == kind:
 			continue

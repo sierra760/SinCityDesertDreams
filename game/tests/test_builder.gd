@@ -129,6 +129,8 @@ func test_seaport_needs_shore_and_military_is_a_reward() -> void:
 	var locked := b.preview(Tools.Kind.REWARD_MILITARY_BASE, Vector2i(40, 40), Vector2i(43, 43))
 	check(not locked["ok"])
 	b.stats.rewards_offered[&"military_base"] = true
+	check(not b.preview(Tools.Kind.REWARD_MILITARY_BASE, Vector2i(40, 40), Vector2i(43, 43)).ok, "an offer alone does not open the tool")
+	b.stats.rewards_offered[Tools.MILITARY_PLACEMENT_KEY] = true
 	var base := b.apply(Tools.Kind.REWARD_MILITARY_BASE, Vector2i(40, 40), Vector2i(43, 43))
 	check(base["ok"], base["reason"])
 	check_eq(base["cost"], 0)

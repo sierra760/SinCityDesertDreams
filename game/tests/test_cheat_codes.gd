@@ -25,7 +25,11 @@ func test_highroller_unlocks_without_building_or_changing_time() -> void:
 	check_eq(sim.city.funds, 520000)
 	check_eq(sim.city.day, day)
 	for kind in Tools.all():
+		# The base is proposed, not handed over: its tool waits for the answer.
+		if kind == Tools.Kind.REWARD_MILITARY_BASE: continue
 		check(Tools.is_available(kind, sim.city, sim.stats), "all tools unlocked: %s" % kind)
+	check(sim.get_system(&"rewards").call("military_offer").pending, "the base is still a proposal to answer")
+	check(not Tools.is_available(Tools.Kind.REWARD_MILITARY_BASE, sim.city, sim.stats), "no zoning a base before the answer")
 	check_eq(sim.stats.population, 0)
 	var after := SaveFormat.encode_city(sim.city).duplicate(true)
 	after["funds"] = before["funds"]
@@ -99,7 +103,8 @@ func test_cheat_effects_survive_native_roundtrip() -> void:
 		for index in sim.stats.bonds.size():
 			for key in ["principal", "rate", "age", "issued_year"]:
 				check_eq(int(other.stats.bonds[index][key]), int(sim.stats.bonds[index][key]))
-		for kind in Tools.all(): check(Tools.is_available(kind,other.city,other.stats))
+		for kind in Tools.all(): check(Tools.is_available(kind,other.city,other.stats) or kind == Tools.Kind.REWARD_MILITARY_BASE)
+		check(other.get_system(&"rewards").call("military_offer").pending, "the base proposal survives the round trip")
 		other.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
