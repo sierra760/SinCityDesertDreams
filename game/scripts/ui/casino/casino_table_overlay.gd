@@ -1186,7 +1186,7 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 			lines.append("Player pays 1 to 1, Banker 1 to 1 less a 5% commission, Tie 8 to 1. Player and Banker bets come back on a tie.")
 		&"trajectory":
 			lines.append("Launch and watch the multiplier climb. Cash out" + (" (Enter or Space)" if keyboard else "") + " before the engine burns out to collect the stake times the multiplier; a burn-out loses the stake.")
-			lines.append("One launch in %d fails on the pad. Set an automatic cash-out%s before launch to let the flight decide." % [CasinoParams.TRAJECTORY_FAIL_ONE_IN, " (A)" if keyboard else ""])
+			lines.append("About one launch in %d fails on the pad. Set an automatic cash-out%s before launch to let the flight decide." % [TrajectoryGame.instant_loss_one_in(), " (A)" if keyboard else ""])
 	lines.append("Table limits %s to %s per round; the treasury caps the maximum. Every bet comes from the city treasury and every win goes back to it." % [
 		CasinoLines.money(int(limits.get("minimum", table["minimum"]))), CasinoLines.money(int(table["maximum"]))])
 	lines.append("A round that stakes more than half of the treasury asks first: %s the button again to confirm." % ("press Enter or" if keyboard else "tap"))

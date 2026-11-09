@@ -24,7 +24,7 @@ const RESORTS := {
 		"voice": &"assayer", "signature": &"velvet_encore", "font": "fontdiner", "body_font": "biorhyme",
 		"games": {&"blackjack": "Encore Twenty-One", &"roulette": "Scarlet Roulette", &"slots": "After Hours", &"money_wheel": "Curtain Call Wheel", &"video_poker": "Backstage Draw", &"velvet_encore": "Encore"},
 		"palette": {"stone": Color("a34a42ff"), "metal": Color("ba8a4eff"), "wood": Color("271b21ff"), "glass": Color("39766dff"), "lamp": Color("ffd899ff"), "carpet": Color("521728ff"), "felt": Color("6c2943ff"), "accent": Color("9c2546ff"), "ink": Color("24131eff"), "paper": Color("f5e5c9ff")},
-		"reels": ["Keyhole", "Fan", "Spotlight", "Rose", "Velvet Curtain", "Keyhole"],
+		"reels": ["Brass Keyhole", "Fan", "Spotlight", "Rose", "Velvet Curtain", "Ruby Keyhole"],
 		"wheel_emblems": ["The Scarlet Salon", "Velvet Wardrobe"]},
 	&"arcology_afterglow": {
 		"building": 259, "name": "The Afterglow", "floor": "The Observation Lounge",

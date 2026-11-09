@@ -68,6 +68,19 @@ static func burn_out_for(u: float) -> float:
 	return clampf(raw, 1.0, CasinoParams.TRAJECTORY_MAX_MULTIPLIER)
 
 
+## Chance that a launch ends at once at 1.00x: the pad failure, plus every
+## curve draw whose burn-out multiplier comes to 1.00.
+static func instant_loss_chance() -> float:
+	var pad := 1.0 / float(CasinoParams.TRAJECTORY_FAIL_ONE_IN)
+	var curve := clampf(1.0 - 100.0 * CasinoParams.TRAJECTORY_EDGE / 101.0, 0.0, 1.0)
+	return pad + (1.0 - pad) * curve
+
+
+## The same chance as "one launch in N", to the nearest whole launch.
+static func instant_loss_one_in() -> int:
+	return maxi(1, roundi(1.0 / instant_loss_chance()))
+
+
 ## Whole dollars returned for cashing `stake` out at `multiplier`.
 static func payout(stake: int, multiplier: float) -> int:
 	@warning_ignore("integer_division")

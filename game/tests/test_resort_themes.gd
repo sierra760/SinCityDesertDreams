@@ -79,6 +79,9 @@ func test_palettes_voices_fonts_reels() -> void:
 		check(ResourceLoader.exists(ResortThemes.font_path(key)), ResortThemes.font_path(key))
 		check(ResourceLoader.exists(ResortThemes.font_path(key, true)))
 		check_eq(ResortThemes.reel_names(key).size(), 6)
+		var distinct := {}
+		for reel_name in ResortThemes.reel_names(key): distinct[reel_name] = true
+		check_eq(distinct.size(), 6, "%s names each reel symbol differently" % key)
 		check_eq(ResortThemes.wheel_emblems(key).size(), 2)
 		check_eq(ResortThemes.reel_name(key, "B"), ResortThemes.reel_names(key)[5])
 	check_eq(voices.size(), 4)

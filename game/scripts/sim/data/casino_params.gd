@@ -141,9 +141,13 @@ const BACCARAT_TIE_RETURN := 9
 
 # ── Trajectory ───────────────────────────────────────────────────────────
 
-## One launch in this many fails on the pad at 1.00x.
+## One launch in this many fails on the pad at 1.00x before the curve is
+## drawn. The curve also burns out at 1.00x for its lowest draws; see
+## TrajectoryGame.instant_loss_one_in for the combined rate.
 const TRAJECTORY_FAIL_ONE_IN := 33
-## Share of the stake returned in the long run by the burn-out curve.
+## Scale of the burn-out curve: a launch that leaves the pad climbs past
+## multiplier m with a chance of about EDGE / m. Pad failures come on top, so
+## the long-run return is about EDGE x (1 - 1 / TRAJECTORY_FAIL_ONE_IN), near 94%.
 const TRAJECTORY_EDGE := 0.97
 ## The displayed multiplier climbs as exp(rate x seconds).
 const TRAJECTORY_RATE := 0.12

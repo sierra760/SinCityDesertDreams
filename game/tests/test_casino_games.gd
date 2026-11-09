@@ -540,6 +540,33 @@ func launch(burn_out: float, payload: Dictionary = {}, bet: int = 100) -> Trajec
 	return game
 
 
+func test_trajectory_instant_loss_rate_matches_the_draws() -> void:
+	# Every draw below this point clamps to a 1.00x burn-out.
+	var curve := 1.0 - 100.0 * CasinoParams.TRAJECTORY_EDGE / 101.0
+	check_eq(TrajectoryGame.burn_out_for(curve - 0.0005), 1.0)
+	check_gt(TrajectoryGame.burn_out_for(curve + 0.0005), 1.0)
+	var pad := 1.0 / float(CasinoParams.TRAJECTORY_FAIL_ONE_IN)
+	check(absf(TrajectoryGame.instant_loss_chance() - (pad + (1.0 - pad) * curve)) < 0.000001)
+	var game := TrajectoryGame.new()
+	game.begin(CasinoRng.new(11), {"minimum": 1, "maximum": 100})
+	var rounds := 20000
+	var instant := 0
+	for _i in rounds:
+		game.place_bet(TrajectoryGame.STAKE, 1)
+		game.act(TrajectoryGame.LAUNCH)
+		if game.state == CasinoGame.SETTLED:
+			instant += 1
+		else:
+			game.act(TrajectoryGame.CASH_OUT, {"multiplier": 1.0})
+		game.next_round()
+	var observed := float(instant) / float(rounds)
+	check(absf(observed - TrajectoryGame.instant_loss_chance()) < 0.006, "observed %f" % observed)
+	check_eq(TrajectoryGame.instant_loss_one_in(), 15)
+	var rules := CasinoTableOverlay.rules_text(&"trajectory", &"arcology_orbit", {"minimum": 100, "maximum": 1000})
+	check(rules.contains("About one launch in 15 fails on the pad"), rules)
+	check(not rules.contains("in %d " % CasinoParams.TRAJECTORY_FAIL_ONE_IN), "the pad-only figure understates the loss")
+
+
 func test_trajectory_curve_and_formula() -> void:
 	check_eq(TrajectoryGame.multiplier_at(0.0), 1.0)
 	check(absf(TrajectoryGame.seconds_for(2.0) - log(2.0) / 0.12) < 0.0001)
