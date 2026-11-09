@@ -199,6 +199,28 @@ func front() -> Control:
 	return open_windows.back() if not open_windows.is_empty() else null
 
 
+## The on-screen rectangle of a window's visible panel. Windows that ask for
+## the whole layer are transparent roots that ignore the pointer; their framed
+## panel is what the player sees and touches.
+static func panel_rect(w: Control) -> Rect2:
+	if w.mouse_filter != Control.MOUSE_FILTER_IGNORE: return w.get_global_rect()
+	var panel := w.get("_root") as Control
+	if panel != null and panel.is_visible_in_tree(): return panel.get_global_rect()
+	var rect := Rect2()
+	for child in w.get_children():
+		var control := child as Control
+		if control == null or not control.is_visible_in_tree() or control.mouse_filter == Control.MOUSE_FILTER_IGNORE: continue
+		rect = control.get_global_rect() if rect.size == Vector2.ZERO else rect.merge(control.get_global_rect())
+	return rect
+
+
+## True when a point lies on the visible panel of an open window.
+func owns_point(point: Vector2) -> bool:
+	for w: Control in open_windows:
+		if w.is_visible_in_tree() and panel_rect(w).has_point(point): return true
+	return false
+
+
 ## Point every created window at the simulation of a newly bound city.
 func bind_all(sim: Simulation) -> void:
 	for w: Control in windows.values():

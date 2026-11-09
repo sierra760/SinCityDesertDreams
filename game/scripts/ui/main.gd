@@ -480,16 +480,24 @@ func can_quit_application() -> bool:
 
 ## Save a recovery copy while a mobile OS still allows background execution.
 ## Named and annual saves, and the unsaved-changes state, are left untouched.
-func suspend_for_background(recovery_path: String = "") -> Error:
+##
+## `resolve_round` is false for a brief loss of focus (Control Center, a
+## banner, an iPad window switch): a casino round in play is held as it is.
+## Only a real move to the background, where the process may be ended, plays
+## the round out; that call may follow a focus loss that already suspended.
+func suspend_for_background(recovery_path: String = "", resolve_round: bool = true) -> Error:
 	if sim.is_mayor_dismissed(): return ERR_UNAVAILABLE
 	if _help_sources_open(): (windows.help as HelpWindow).sources_dialog.close()
 	if is_instance_valid(new_city_dialog) and new_city_dialog.is_open(): new_city_dialog.cancel_online_work()
-	if _application_suspended: return _background_save_error
+	var round_in_play := is_casino_open() and casino_overlay.round_in_progress()
+	if _application_suspended and not (resolve_round and round_in_play): return _background_save_error
 	_application_suspended = true
 	# A round in play is played out as it stands (not refunded, so leaving
 	# the app never undoes a bad hand) and the table closes; the recovery
-	# copy never holds a stake.
-	if is_casino_open() and casino_overlay.round_in_progress(): casino_overlay.resolve_round_now()
+	# copy written on the way to the background never holds a stake.
+	if round_in_play:
+		if resolve_round: casino_overlay.resolve_round_now()
+		else: casino_overlay.set_round_held(true)
 	acquire_sim_process_hold(&"background")
 	interrupt_map_input()
 	speed_before_modal = GameClock.Speed.PAUSED
@@ -525,6 +533,7 @@ func resume_from_background() -> void:
 	if is_instance_valid(new_city_dialog) and new_city_dialog.is_open(): new_city_dialog.resume_online_work()
 	if not _application_suspended: return
 	_application_suspended = false
+	if is_instance_valid(casino_overlay): casino_overlay.set_round_held(false)
 	release_sim_process_hold(&"background")
 	cancel_map_gesture()
 	speed_before_modal = GameClock.Speed.PAUSED
@@ -578,7 +587,7 @@ func _notification(what: int) -> void:
 			if is_instance_valid(audio): audio.set_background(false)
 		return
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
-		if is_instance_valid(presentation): suspend_for_background()
+		if is_instance_valid(presentation): suspend_for_background("", what == NOTIFICATION_APPLICATION_PAUSED)
 	elif what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if is_instance_valid(presentation): resume_from_background()
 
@@ -1225,9 +1234,7 @@ func touch_ui_owned(point: Vector2) -> bool:
 	if is_exploring() and explore_hud.navigation.owns_touch(point): return true
 	if mini_map.visible and mini_map.frame_rect().has_point(point): return true
 	if street_names != null and street_names.is_active() and street_names.panel.get_global_rect().has_point(point): return true
-	for control: Control in window_manager.open_windows:
-		if control.is_visible_in_tree() and control.get_global_rect().has_point(point): return true
-	return false
+	return window_manager.owns_point(point)
 
 
 ## Open a modal: interrupts map input and pauses the city on the first one.

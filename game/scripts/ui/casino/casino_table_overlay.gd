@@ -339,6 +339,7 @@ func force_close() -> void:
 ## no round was in play; the summary is also kept for
 ## `take_background_summary`.
 func resolve_round_now() -> String:
+	set_round_held(false)
 	if not visible:
 		return ""
 	var summary := ""
@@ -396,6 +397,12 @@ func take_background_summary() -> String:
 func say(text: String) -> void:
 	if visible:
 		_say_message(text)
+
+
+## Freeze the table while the app is briefly out of focus: no input, no
+## animation and no climb, with the round left exactly as it is.
+func set_round_held(held: bool) -> void:
+	process_mode = Node.PROCESS_MODE_DISABLED if held else Node.PROCESS_MODE_INHERIT
 
 
 ## Hold or release a live launch's climb (the window lost or regained focus).

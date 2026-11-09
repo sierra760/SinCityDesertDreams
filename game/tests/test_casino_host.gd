@@ -271,3 +271,42 @@ func test_despicables_is_available_before_resort_budget_and_keeps_low_limits() -
 	check_eq(int(host.sim.casino().ledger(store).staked),1)
 	host.escape()
 	check_eq(host.modal_depth,0)
+
+
+func test_focus_loss_holds_the_round_and_real_backgrounding_plays_it_out() -> void:
+	found()
+	check(host.open_casino_table(COMSTOCK, &"blackjack", CasinoRng.new(4)), "fixture: the table opens")
+	var overlay := host.casino_overlay
+	# Player 10+5 = 15 against the dealer's 9+8 = 17: standing loses.
+	overlay.game.rig([CasinoDeck.card(10, 0), CasinoDeck.card(9, 1), CasinoDeck.card(5, 2), CasinoDeck.card(8, 3)])
+	overlay.press_chip(0)
+	overlay.perform_action(&"deal")
+	check_eq(overlay.game.state, CasinoGame.PLAYING, "fixture: a round is in play")
+	var view: Dictionary = overlay.game.view_state().duplicate(true)
+	var recovery := "user://casino-host-recovery.sc2d"
+	host.suspend_for_background(recovery, false)
+	check(host.is_casino_open(), "a brief focus loss keeps the table")
+	check_eq(overlay.game.state, CasinoGame.PLAYING, "and leaves the round in play")
+	check_eq(overlay.game.view_state(), view, "with the hand as it was")
+	check_eq(overlay.process_mode, Node.PROCESS_MODE_DISABLED, "the table is frozen while focus is away")
+	check(host.is_input_blocked())
+	host.resume_from_background()
+	check(host.is_casino_open())
+	check_eq(overlay.game.state, CasinoGame.PLAYING, "the round is still the player's on return")
+	check_eq(overlay.process_mode, Node.PROCESS_MODE_INHERIT, "the table runs again")
+	check(not host.status_bar.message_label.text.contains("played out"), host.status_bar.message_label.text)
+	# Focus loss followed by the real move to the background.
+	host.suspend_for_background(recovery, false)
+	host.suspend_for_background(recovery)
+	check(not host.is_casino_open(), "backgrounding closes the table")
+	check_eq(host.sim.city.funds, 200000 - 100, "the hand is stood, not refunded")
+	var saved := SaveFormat.load(recovery)
+	check(saved.ok, "the recovery copy is rewritten after the round settles")
+	if saved.ok: check_eq((saved.city as City).funds, 200000 - 100, "and holds no stake")
+	host.resume_from_background()
+	if FileAccess.file_exists(recovery):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(recovery))
+	while host.notice_dialog.is_open():
+		host.notice_dialog.dismiss()
+	for _i in 4:
+		await physics_frame

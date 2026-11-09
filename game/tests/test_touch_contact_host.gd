@@ -68,3 +68,22 @@ func test_cancelled_contact_keeps_city_unchanged() -> void:
 	contact(false,Vector2i(66,64),true)
 	contact(false,Vector2i(66,64))
 	check_eq(SaveFormat.encode_city(host.sim.city),before,"OS cancellation and trailing release cannot build")
+
+
+func test_open_report_owns_only_its_panel() -> void:
+	root.size = Vector2i(2388,1668)
+	host.display_layout.refresh_with_mobile_metrics(root.size,2.0,Rect2i(Vector2i(0,48),root.size-Vector2i(0,88)))
+	for name: String in ["budget","options","help"]:
+		var window := host.window_manager.open(name)
+		check(window != null,"fixture: %s opens" % name)
+		for frame in 4: await process_frame
+		var panel := WindowManager.panel_rect(window)
+		check(panel.has_area(),"%s has a visible panel" % name)
+		check(panel.size.x < window.get_global_rect().size.x,"fixture: the %s panel is narrower than its full-screen root" % name)
+		check(host.touch_ui_owned(panel.get_center()),"a touch on the %s panel stays with the window" % name)
+		var beside := Vector2(panel.end.x + (host.display_layout.logical_rect().end.x - panel.end.x) * .5,panel.get_center().y)
+		for control: Control in [host.status_bar,host.toolbar,host.query_panel]:
+			if control.is_visible_in_tree() and control.get_global_rect().has_point(beside): beside.x = panel.position.x * .5
+		check(not host.window_manager.owns_point(beside),"the city beside the %s panel is not the window's" % name)
+		window.call("close")
+		await process_frame
