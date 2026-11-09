@@ -314,6 +314,13 @@ func _return_to_load_list() -> void:
 
 func quit_game() -> void:
 	raise_window_for_prompt()
+	# The recall notice returns whenever it is dismissed, so a close that waited
+	# for it would wait for ever. The removed mayor's city cannot be saved;
+	# quit now unless a load or file picker is still at work.
+	if _host.in_game and _host.sim.is_mayor_dismissed() and not picker_modal and not _host.loading_screen.visible \
+			and not _host.load_dialog.is_open():
+		_quit_now()
+		return
 	# A native close (Cmd+Q, the window's close button) can arrive while a
 	# dialog, file picker or covered save owns input. Do not nest another
 	# prompt or interrupt that work; resume the normal close flow when it ends.
@@ -464,7 +471,9 @@ func reset() -> void:
 ## Leave the current city (New, Load, Import, Regenerate or Quit), first
 ## offering to save unsaved changes.
 func request_city_action(action: StringName) -> void:
-	if _host.sim.is_mayor_dismissed():
+	# A removed mayor can only quit or answer the recall notice. Once back at
+	# the title that city is closed, and the title's actions work as usual.
+	if _host.in_game and _host.sim.is_mayor_dismissed():
 		if action == &"quit": _quit_now()
 		return
 	# A dialog already open is handling the decision; don't nest another.

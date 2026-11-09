@@ -122,6 +122,9 @@ func test_no_save_explains_new_city_and_return_to_title() -> void:
 	check(host.title_screen.visible)
 	check(not host.in_game)
 	check_eq(host.stage, GameHost.Stage.NONE)
+	# The removed mayor's city is closed: the title's actions must work again.
+	host.title_screen.new_city_requested.emit()
+	check(host.new_city_dialog.is_open(), "New City opens from the title after a recall")
 
 func test_restored_dismissal_still_blocks_and_reopens_result() -> void:
 	found(20000)
