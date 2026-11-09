@@ -158,3 +158,93 @@ func test_tunnel_side_and_roof_remain_solid() -> void:
 
 func test_walk_below_water() -> void: await journey(false,false,false,&"car",true)
 func test_drive_below_water() -> void: await journey(false,true,true,&"car",true)
+
+## Steering must carry the driver's eye with the vehicle while retaining a
+## deliberate look offset. A fixed world-space eye makes the car slide sideways
+## across the view and never returns to looking down the road.
+func camera_drive(vertical: bool, reverse: bool, kind: StringName = &"car") -> void:
+	fixture = Fixture.attach(self,TunnelFixture.city(vertical))
+	var world := fixture.get_node("traversal") as CityTraversalWorld3D
+	var road := ExploreCar.new()
+	check(road.configure_kind(kind),"selected camera journey vehicle")
+	fixture.add_child(road)
+	road.bind(world)
+	road.recovery_requested.connect(func(reason: String) -> void: reports.append(reason))
+	var heading := (0.0 if reverse else PI) if vertical else (PI/2 if reverse else -PI/2)
+	var start := Vector3(20.5,2.49148974,23.5) if vertical else Vector3(23.5,2.49148974,20.5)
+	road.apply_safe_pose(Transform3D(Basis(Vector3.UP,heading),start))
+	var rig := CityExploreCamera3D.new()
+	fixture.add_child(rig)
+	rig.configure_target(road,1)
+	rig.recovery_requested.connect(func() -> void: reports.append("camera"))
+	var controller := CityExplorationController.new()
+	fixture.add_child(controller)
+	controller.occupied = road
+	controller.car = road
+	controller.mode = 1
+	controller.traversal = world
+	controller.camera_rig = rig
+	await physics_frame
+	controller._update_camera_space({})
+	rig.update_follow(0)
+	# About seven degrees of intentional mouse look, held through steering.
+	rig.orbit(Vector2(-40,0),1.0,false)
+	var offset := wrapf(rig.yaw-road.rotation.y,-PI,PI)
+	var frame := ExploreInputFrame.idle()
+	frame.move = Vector2(.3,-1)
+	var initial := road.global_position
+	var initial_heading := road.rotation.y
+	for tick: int in 30:
+		frame.move.x = .3 if tick<15 else -.3
+		road.step(frame,rig.yaw,1.0/60.0)
+		controller._update_camera_space({})
+		rig.update_follow(1.0/60.0)
+		var look_error := wrapf(rig.yaw-road.rotation.y-offset,-PI,PI)
+		check(absf(look_error)<.001,"driver eye follows steering without losing the manual look offset")
+		check(world.inside_road_tunnel(rig.camera.global_position),"moving eye stays within the bore")
+		await physics_frame
+		if tick==14: check(absf(wrapf(road.rotation.y-initial_heading,-PI,PI))>.05,"actual input turns the vehicle")
+	check(road.global_position.distance_to(initial)>.04,"actual throttle moves the vehicle")
+	frame.move.x = 0
+	for tick: int in 90:
+		road.step(frame,rig.yaw,1.0/60.0)
+		controller._update_camera_space({})
+		rig.update_follow(1.0/60.0)
+		await physics_frame
+	check(absf(wrapf(rig.yaw-road.rotation.y,-PI,PI))<.025,"idle look recenters toward the road while driving inside")
+	check(rig.cabin_first_person and not road._visual.visible,"vehicle cannot surround the driver's eye")
+	check(road.landed() and reports.is_empty(),"steering journey keeps support without vehicle/camera recovery: "+str(reports))
+	# Leave at the far road, as in the real session's space update.
+	road.position = Vector3(20.5,2.49148974,19.5 if reverse else 27.5) if vertical else Vector3(19.5 if reverse else 27.5,2.49148974,20.5)
+	controller._update_camera_space({})
+	rig.update_follow(0)
+	check(not rig.interior_active and not rig.cabin_first_person and road._visual.visible,"outdoor follow and vehicle return after leaving")
+	controller.occupied = null
+	controller.car = null
+	controller.traversal = null
+	controller.camera_rig = null
+
+func test_driving_eye_turns_east() -> void: await camera_drive(false,false)
+func test_driving_eye_turns_west() -> void: await camera_drive(false,true)
+func test_driving_eye_turns_south() -> void: await camera_drive(true,false)
+func test_driving_eye_turns_north() -> void: await camera_drive(true,true)
+func test_mayormobile_driving_eye_turns() -> void: await camera_drive(false,false,&"mayormobile")
+func test_mayormobile_crosses_both_mouths() -> void: await journey(false,false,true,&"mayormobile")
+
+func test_driving_eye_recenter_consumes_the_current_turn() -> void:
+	fixture = Fixture.attach(self,TunnelFixture.city())
+	var road := ExploreCar.new()
+	fixture.add_child(road)
+	road.bind(fixture.get_node("traversal"))
+	road.apply_safe_pose(Transform3D(Basis(Vector3.UP,-PI/2),Vector3(23.5,2.49148974,20.5)))
+	var rig := CityExploreCamera3D.new()
+	fixture.add_child(rig)
+	rig.configure_target(road,1)
+	rig.set_interior(true)
+	await physics_frame
+	rig.update_follow(0)
+	road.rotate_y(.2)
+	rig.recenter()
+	rig.update_follow(0)
+	var view_heading := atan2(rig.camera.global_basis.z.x,rig.camera.global_basis.z.z)
+	check(absf(wrapf(view_heading-road.rotation.y,-PI,PI))<.001,"recenter looks along the current vehicle heading without applying its turn twice")

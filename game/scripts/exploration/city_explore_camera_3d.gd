@@ -31,6 +31,7 @@ var _target: Node3D
 var _mode := 0
 var _since_orbit := 0.0
 var _previous_target_position := Vector3.ZERO
+var _previous_target_yaw := 0.0
 var _has_position := false
 var _recovery_notified := false
 var _withheld := false
@@ -82,6 +83,7 @@ func configure_target(target: Node3D, mode: int) -> void:
 	camera.fov = FOLLOW_FOV[_mode]
 	if is_instance_valid(target):
 		_previous_target_position = target.global_position
+		_previous_target_yaw = target.global_rotation.y
 		if not _has_position:
 			yaw = target.global_rotation.y
 	_recovery_notified = false
@@ -110,6 +112,7 @@ func orbit(relative_drawable: Vector2, sensitivity: float, invert_y: bool) -> vo
 func recenter() -> void:
 	if is_instance_valid(_target):
 		yaw = _target.global_rotation.y
+		_previous_target_yaw = yaw
 	pitch = 0.12
 	_since_orbit = 0.0
 
@@ -135,12 +138,20 @@ func update_follow(delta: float) -> void:
 	_since_orbit += dt
 	var travel := _target.global_position.distance_to(_previous_target_position)
 	_previous_target_position = _target.global_position
+	var target_yaw := _target.global_rotation.y
+	var turn := wrapf(target_yaw-_previous_target_yaw,-PI,PI)
+	_previous_target_yaw = target_yaw
+	# A tunnel's driver eye rides with the steering, as a passenger eye rides
+	# with its carriage. Keep manual look relative to the vehicle, rather than
+	# leaving the hidden car turning beneath a fixed world-space view.
+	if _mode == 1 and interior_active and not cabin_active:
+		yaw = wrapf(yaw+turn,-PI,PI)
 	# Only road and water vehicles bring the view round behind them. The
 	# helicopter flies relative to the camera, as walking does, and its nose
 	# turns toward its travel; following that nose turned held sideways or
 	# backward input into endless circles.
-	if _mode == 1 and not interior_active and not cabin_active and _since_orbit > 1.0 and travel > .0001:
-		yaw = lerp_angle(yaw, _target.global_rotation.y, 1.0 - exp(-2.5 * dt))
+	if _mode == 1 and not cabin_active and _since_orbit > 1.0 and travel > .0001:
+		yaw = lerp_angle(yaw, target_yaw, 1.0 - exp(-2.5 * dt))
 	if (interior_active and _mode!=2) or cabin_active:
 		# Stations use an eye view deliberately. A long outside follow arm
 		# otherwise alternates between opposite walls and squeezed body views.
