@@ -28,6 +28,10 @@ var _has_supply_state := false
 var _shortage := false
 var _consumed := 0
 var _conservation := false
+## Rain and wind the last scheduled pass generated with; -1 until one has run
+## (a loaded city), when the weather system's current values stand in.
+var _rain := -1
+var _wind := -1
 
 ## Scratch buffers reused by every pass.
 ## Tiles supplied by the plant anchored at each tile, 0 elsewhere.
@@ -121,9 +125,13 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_distribute(ctx)
 
 
+## Construction or destruction changed the map. Connectivity and service are
+## recomputed from the generation this month's scheduled pass established:
+## no weather is redrawn and the city's random stream is left alone. A plant
+## built since then generates at once, at this month's typical output.
 func networks_changed(ctx: SimContext, rect: Rect2i) -> void:
 	_refresh_conduction(ctx.city, rect)
-	_distribute(ctx)
+	_distribute(ctx, false, true)
 
 
 ## Redistribute existing generation after private development. No weather or RNG.
@@ -222,19 +230,21 @@ func _refresh_conduction(city: City, rect: Rect2i) -> void:
 # ── Facility records ─────────────────────────────────────────────────────
 
 ## Rule 9: every plant anchor has a record. Called for each anchor in scan order.
-func _register_plant(city: City, a: Vector2i, id: int) -> void:
+## Returns true when the record is new.
+func _register_plant(city: City, a: Vector2i, id: int) -> bool:
 	var k := Buildings.key(id)
 	var rec: Dictionary = city.facility(a)
 	if rec.is_empty() or rec.get("key", &"") != k:
 		city.add_facility(a, {"key": k, "built_day": city.day, "age_years": 0,
 			"capacity": 0, "warned": false})
-		return
+		return true
 	if not rec.has("age_years"):
 		rec["age_years"] = 0
 	if not rec.has("built_day"):
 		rec["built_day"] = city.day
 	if not rec.has("warned"):
 		rec["warned"] = false
+	return false
 
 
 ## Rule 9: stale plant records are dropped.
@@ -273,9 +283,36 @@ func _generation_of(ctx: SimContext, anchor: Vector2i, id: int, rain: int, wind:
 	return 0
 
 
+## Generation of a plant between scheduled passes, with no random draw. A
+## weather-driven plant keeps what the month's pass gave it; one built since
+## gets the month's typical output until the next pass draws its own.
+func _generation_between_passes(ctx: SimContext, anchor: Vector2i, id: int, rec: Dictionary, fresh: bool) -> int:
+	match id:
+		Buildings.WIND_PLANT:
+			if not fresh:
+				return maxi(0, int(rec.get("capacity", 0)))
+			var wind := _wind if _wind >= 0 else Params.weather(ctx, &"wind_speed", Params.DEFAULT_WIND)
+			@warning_ignore("integer_division")
+			var gust := wind / Params.WIND_DIVISOR / 2
+			@warning_ignore("integer_division")
+			return (ctx.city.ground_height(anchor.x, anchor.y) + gust) / 2
+		Buildings.SOLAR_PLANT:
+			if not fresh:
+				return maxi(0, int(rec.get("capacity", 0)))
+			var rain := _rain if _rain >= 0 else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
+			@warning_ignore("integer_division")
+			var spread := (100 - rain) / Params.SOLAR_RAIN_DIVISOR
+			@warning_ignore("integer_division")
+			return Params.SOLAR_TILES * Params.SOLAR_BASE + Params.SOLAR_TILES * maxi(0, spread - 1) / 2
+	return _generation_of(ctx, anchor, id, 0, 0)
+
+
 # ── Distribution ─────────────────────────────────────────────────────────
 
-func _distribute(ctx: SimContext, established: bool = false) -> void:
+## `established` reallocates recorded generation and touches no record.
+## `edit` is the pass after a map change: records follow the map, but nothing
+## is drawn from the weather or the random stream.
+func _distribute(ctx: SimContext, established: bool = false, edit: bool = false) -> void:
 	_refresh_visitors(ctx)
 	_has_supply_state = true
 	var city := ctx.city
@@ -286,10 +323,14 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 	var draws := Params.draws_power_table()
 	var multi := Params.multi_tile_table()
 	var loads := Params.power_load_table()
-	var rain := Params.DEFAULT_RAIN if established else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
-	var wind := Params.DEFAULT_WIND if established else Params.weather(ctx, &"wind_speed", Params.DEFAULT_WIND)
-	if not established:
+	var scheduled := not established and not edit
+	var rain := Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN) if scheduled else Params.DEFAULT_RAIN
+	var wind := Params.weather(ctx, &"wind_speed", Params.DEFAULT_WIND) if scheduled else Params.DEFAULT_WIND
+	if scheduled:
 		_conservation = bool(ctx.stats.ordinances.get(Params.CONSERVATION_ORDINANCE, false))
+		_rain = rain
+		_wind = wind
+	var fresh := {}
 
 	# One pass over the map: drop last month's supply, total the load (rule 2)
 	# and collect plant tiles, plant anchors and consumer anchors.
@@ -313,7 +354,8 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 					_plant_tiles.append(x * H + y)
 					if multi[id] == 0 or Params.is_anchor_tile(bld, zn, i):
 						_plant_anchors.append(x * H + y)
-						if not established: _register_plant(city, Vector2i(x, y), id)
+						if not established and _register_plant(city, Vector2i(x, y), id):
+							fresh[x * H + y] = true
 			i += 1
 	if not established: _drop_stale_plants(city)
 
@@ -331,6 +373,8 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 		if established:
 			if rec.get("key", &"") == Buildings.key(bld[ai]):
 				g = maxi(0, int(rec.get("capacity", 0)))
+		elif edit:
+			g = _generation_between_passes(ctx, a, bld[ai], rec, fresh.has(k))
 		else:
 			g = _generation_of(ctx, a, bld[ai], rain, wind)
 		_generation[ai] = g
@@ -461,6 +505,7 @@ func _count_unserved(city: City, bld: PackedInt32Array, flags: PackedByteArray) 
 
 func _age_plants(ctx: SimContext) -> void:
 	var city := ctx.city
+	var retired := false
 	for a in city.facilities.keys():
 		var rec: Dictionary = city.facilities[a]
 		var k: StringName = rec.get("key", &"")
@@ -474,9 +519,16 @@ func _age_plants(ctx: SimContext) -> void:
 		var args := {"key": k, "name": Buildings.display_name(id), "anchor": a, "age_years": age}
 		if age > Params.PLANT_LIFETIME_YEARS:
 			_retire(ctx, a, id, rec, args)
+			retired = retired or city.building_at(a.x, a.y) != id
 		elif age > Params.PLANT_WARNING_YEARS and not bool(rec.get("warned", false)):
 			rec["warned"] = true
 			ctx.events.report(&"plant_aging", args)
+	if retired:
+		# What the lost plant fed goes dark now, not at the next scheduled pass.
+		var everywhere := Rect2i(0, 0, W, H)
+		networks_changed(ctx, everywhere)
+		var water := ctx.system(&"water")
+		if water != null: water.networks_changed(ctx, everywhere)
 	# Keep the UI summary current until the next distribution.
 	var plants: Array = _summary.get("plants", [])
 	for p in plants:

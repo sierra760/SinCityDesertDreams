@@ -54,9 +54,17 @@ the construction tools follow when they lay pipes and subways.
   stats, so it reads exactly what was saved. (Distributing at load would also
   run before the weather is restored.)
 - Monthly, day 3: rebuild conduction flags, register records, distribute.
-- `networks_changed(rect)`: rebuild conduction flags inside `rect`, register
-  records, distribute over the whole map. Towers charge or discharge on this
-  pass exactly as on the monthly one.
+- `networks_changed(rect)` (construction, and destruction by disaster, wear or
+  plant retirement): rebuild conduction flags inside `rect`, register
+  records, and redistribute over the whole map with the rain the month's
+  scheduled pass used. Pumps and desalination plants are recomputed, so one
+  built, removed, powered or cut off changes capacity at once. Towers are
+  storage over time: a full tower still supplies its network, but no tower
+  drains or refills on this pass, however many edits the player makes in a
+  month. Only the scheduled pass moves tower contents. A shortage that the
+  change itself starts or ends is reported. In a city just loaded the month's
+  rain is not known until the next scheduled pass; until then a working pump
+  keeps its recorded output.
 - Nothing runs daily or yearly.
 
 ## Rules

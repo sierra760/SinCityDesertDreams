@@ -27,6 +27,8 @@ var _has_supply_state := false
 var _shortage := false
 var _consumed := 0
 var _treatment_adequate := true
+## Rain the last scheduled pass pumped with; -1 until one has run (a loaded city).
+var _rain := -1
 
 ## Scratch buffers reused by every pass.
 ## Units produced by the source anchored at each tile, 0 elsewhere.
@@ -72,13 +74,17 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_distribute(ctx)
 
 
+## Construction or destruction changed the map. Connectivity and service are
+## recomputed with this month's established rain and the towers' current
+## contents: nothing is drawn from the weather, and towers neither drain nor
+## refill. A pump built or powered since the scheduled pass yields at once.
 func networks_changed(ctx: SimContext, rect: Rect2i) -> void:
 	_refresh_conduction(ctx.city, rect)
-	_distribute(ctx)
+	_distribute(ctx, false, true)
 
 
 ## Reallocate established sources and current storage without another storage
-## tick. Only normal monthly/construction distribution drains/refills towers.
+## tick. Only the scheduled monthly distribution drains/refills towers.
 func reallocate_established(ctx: SimContext, rect: Rect2i) -> void:
 	_refresh_conduction(ctx.city, rect)
 	_distribute(ctx, true)
@@ -235,7 +241,10 @@ func _desalination_output(city: City, anchor: Vector2i, id: int) -> int:
 
 # ── Distribution ─────────────────────────────────────────────────────────
 
-func _distribute(ctx: SimContext, established: bool = false) -> void:
+## `established` reallocates recorded output and touches no record. `edit` is
+## the pass after a map change: records and outputs follow the map, but the
+## month's rain is kept and tower contents stay where they are.
+func _distribute(ctx: SimContext, established: bool = false, edit: bool = false) -> void:
 	_refresh_visitors(ctx)
 	_has_supply_state = true
 	var city := ctx.city
@@ -246,7 +255,13 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 	var facility_tbl := Params.water_facility_table()
 	var multi := Params.multi_tile_table()
 	var loads := Params.water_load_table()
-	var rain := Params.DEFAULT_RAIN if established else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
+	var scheduled := not established and not edit
+	var rain := Params.DEFAULT_RAIN
+	if scheduled:
+		rain = Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN)
+		_rain = rain
+	elif edit:
+		rain = _rain
 
 	# One pass over the map: drop last month's service (tower tiles keep their
 	# WATERED bit, it is their contents), total the load, record facilities and
@@ -285,8 +300,13 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 							if established:
 								if rec.get("key", &"") == Buildings.key(id):
 									units = maxi(0, int(rec.get("output", 0)))
+							elif id == Buildings.DESALINATION:
+								units = _desalination_output(city, a, id)
+							elif rain < 0 and int(rec.get("output", 0)) > 0:
+								# A loaded city: the month's rain is unknown, the pump's yield is not.
+								units = int(rec.get("output", 0))
 							else:
-								units = _pump_output(city, a, rain) if id == Buildings.WATER_PUMP else _desalination_output(city, a, id)
+								units = _pump_output(city, a, rain if rain >= 0 else Params.weather(ctx, &"precipitation", Params.DEFAULT_RAIN))
 						_output[i] = units
 						if not established: rec["output"] = units
 						_seeds.append(x * H + y)
@@ -325,7 +345,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 				storage += Params.TOWER_UNITS_PER_TILE
 				if (flags[t] & TileFlags.WATERED) != 0:
 					capacity += Params.TOWER_UNITS_PER_TILE
-					if not established: flags[t] &= ~TileFlags.WATERED
+					if scheduled: flags[t] &= ~TileFlags.WATERED
 			elif facility_tbl[id] != 0:
 				capacity += _output[t]
 			elif draws[id] != 0:
@@ -343,7 +363,7 @@ func _distribute(ctx: SimContext, established: bool = false) -> void:
 			var t := _queue[q]
 			var id := bld[t]
 			if id == Buildings.WATER_TOWER:
-				if not established and refill > 0 and (flags[t] & TileFlags.POWERED) != 0:
+				if scheduled and refill > 0 and (flags[t] & TileFlags.POWERED) != 0:
 					flags[t] |= TileFlags.WATERED
 					refill -= 1
 			elif facility_tbl[id] != 0:

@@ -54,8 +54,16 @@ and the facility records of power plants.
   then run a distribution so a loaded city starts with correct service bits.
 - Monthly, day 1: rebuild conduction flags for the whole map, register plant
   records, distribute.
-- `networks_changed(rect)`: rebuild conduction flags inside `rect`, register
-  plant records, distribute over the whole map.
+- `networks_changed(rect)` (construction, and destruction by disaster, wear or
+  retirement): rebuild conduction flags inside `rect`, register plant records,
+  and redistribute over the whole map from the generation the month's
+  scheduled pass established. No weather is read and nothing is drawn from
+  `ctx.rng`: a wind turbine or solar farm keeps the output the scheduled pass
+  drew for it, and one built since generates at the month's typical output
+  (the middle of its random range) until the next scheduled pass draws its
+  own. Fixed-output and hydro plants are recomputed as usual, so a plant built
+  or removed changes capacity at once. A shortage that the change itself
+  starts or ends is reported.
 - Yearly (last day of December): every plant ages one year; warnings,
   retirements and replacements happen here and only here. Loading a city or
   redistributing never ages a plant.
@@ -132,7 +140,8 @@ still apply. Zoned line tiles can develop into buildings through normal growth.
    - Otherwise the footprint is cleared: rubble on flat tiles, bare ground on
      slopes, power and water service bits cleared, underground pipes kept, the
      record removed, `plant_retired` reported and noticed, and the rect marked
-     dirty.
+     dirty. Power and then water are redistributed at once as for
+     `networks_changed`, so what the plant fed goes dark that day.
 9. **Records.** A plant record is created the first time the system sees a
    plant anchor without one (`age_years` 0, `built_day` = current day). Records
    whose anchor no longer holds that plant are removed. Other systems' records

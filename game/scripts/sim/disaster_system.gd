@@ -43,6 +43,8 @@ var _advice: Array[StringName] = []
 var _reported_need := &""
 var _need_months := 0
 var _outbreak_reported := false
+## Destruction removed a served or conducting tile since utilities last ran.
+var _utilities_stale := false
 
 
 func _init() -> void:
@@ -68,6 +70,7 @@ func daily(ctx: SimContext) -> void:
 	_finish_if_done(ctx)
 	if not is_emergency():
 		_crews.clear()
+	_refresh_utilities(ctx)
 	_sync_stats(ctx)
 
 
@@ -81,6 +84,7 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 		_need_months = 0
 	_reported_need = need
 	_natural_roll(ctx)
+	_refresh_utilities(ctx)
 	_sync_stats(ctx)
 
 
@@ -124,7 +128,9 @@ func request(ctx: SimContext, kind: StringName, at: Vector2i = Vector2i(-1, -1))
 	var survey := _survey(ctx.city)
 	if not _precondition(ctx.stats, survey, kind, false):
 		return false
-	return _start(ctx, kind, at, survey)
+	var started := _start(ctx, kind, at, survey)
+	_refresh_utilities(ctx)
+	return started
 
 
 ## Why `request` refused `kind` in `city`, as a short sentence for the player.
@@ -1319,12 +1325,6 @@ func _step_flood(ctx: SimContext) -> void:
 func _flood_tile(ctx: SimContext, t: Vector2i) -> void:
 	if _flooded.has(t):
 		return
-	_flooded[t] = 1
-	ctx.city.flood_overlay[t] = 1
-	_fires.erase(t)
-	_flood_total += 1
-	ctx.events.mark_tile(t.x, t.y)
-
 	# Farm parcels must stand on dry ground. Cut a flooded cell from its parcel
 	# in the same step, so the city never holds (or tries to save) a parcel
 	# with a member under water. A cell that cannot be cut stays dry.
@@ -1332,12 +1332,18 @@ func _flood_tile(ctx: SimContext, t: Vector2i) -> void:
 	var owned := ctx.city.agricultural_parcels.id_at(t) != 0
 	if owned and not _preflight_agriculture(ctx, cells):
 		return
-
-func _drain_tile(ctx: SimContext, t: Vector2i) -> void:
+	_flooded[t] = 1
+	ctx.city.flood_overlay[t] = 1
 	if owned and not _repair_agriculture(ctx, cells).get("ok", false):
 		_flooded.erase(t)
 		ctx.city.flood_overlay.erase(t)
 		return
+	_fires.erase(t)
+	_flood_total += 1
+	ctx.events.mark_tile(t.x, t.y)
+
+
+func _drain_tile(ctx: SimContext, t: Vector2i) -> void:
 	_flooded.erase(t)
 	ctx.city.flood_overlay.erase(t)
 	ctx.events.mark_tile(t.x, t.y)
@@ -1369,6 +1375,7 @@ func _wreck(ctx: SimContext, x: int, y: int, rubble: bool = true, reconcile: boo
 		for tx in range(rect.position.x,rect.end.x):
 			if not city.in_bounds(tx,ty): continue
 			n += 1
+			if (city.flags.at(tx,ty) & SERVICE_BITS) != 0: _utilities_stale = true
 			city.set_flag(tx,ty,SERVICE_BITS,false)
 			if owned:
 				city.building.put(tx,ty,Buildings.NONE)
@@ -1390,6 +1397,17 @@ func _wreck(ctx: SimContext, x: int, y: int, rubble: bool = true, reconcile: boo
 	if reconcile: ctx.events.mark_dirty(rect)
 	if not _active.is_empty(): _active["wrecked"] = int(_active["wrecked"])+n
 	return n
+
+
+## Recompute who is served after tiles were destroyed, from the month's
+## established supply: no weather, no random draw, towers left as they are.
+func _refresh_utilities(ctx: SimContext) -> void:
+	if not _utilities_stale: return
+	_utilities_stale = false
+	var everywhere := Rect2i(0, 0, City.WIDTH, City.HEIGHT)
+	for system_key: StringName in [&"power", &"water"]:
+		var utility := ctx.system(system_key)
+		if utility != null: utility.networks_changed(ctx, everywhere)
 
 
 func _preflight_agriculture(ctx: SimContext, cells: PackedInt32Array, candidate: City = null) -> bool:

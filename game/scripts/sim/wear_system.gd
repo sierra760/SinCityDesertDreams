@@ -34,6 +34,8 @@ var _losses := PackedInt32Array()
 var _counts := PackedInt32Array()
 var _candidates: Array[Array] = []
 var _scan_valid := false
+## A loss removed a conducting tile since utilities last ran.
+var _utilities_stale := false
 ## Content hashes of the building and underground layers at the last scan.
 ## Disasters, ports, rewards and growth edit the map without a networks
 ## change; a differing hash makes the cached scan stale.
@@ -99,6 +101,7 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 				continue
 			_wear[cat] -= threshold
 			_lose(ctx, cat, tile)
+	_refresh_utilities(ctx)
 
 
 # ── Getters ──────────────────────────────────────────────────────────────
@@ -259,10 +262,22 @@ func _lose(ctx: SimContext, cat: int, tile: int) -> void:
 				ctx.events.report(&"bridge_collapse", {"x": x, "y": y, "tiles": lost}, 3)
 		TransportParams.SUBWAY:
 			_city.underground.put(x, y, UtilityParams.UNDERGROUND_NONE)
+			_utilities_stale = true
 			ctx.events.mark_tile(x, y)
 			_losses[cat] += 1
 			ctx.events.report(&"rail_decay", {"x": x, "y": y, "category": name}, 1)
 	_scan_valid = false
+
+
+## Recompute who is served after tiles were destroyed, from the month's
+## established supply: no weather, no random draw, towers left as they are.
+func _refresh_utilities(ctx: SimContext) -> void:
+	if not _utilities_stale: return
+	_utilities_stale = false
+	var everywhere := Rect2i(0, 0, City.WIDTH, City.HEIGHT)
+	for system_key: StringName in [&"power", &"water"]:
+		var utility := ctx.system(system_key)
+		if utility != null: utility.networks_changed(ctx, everywhere)
 
 
 func _to_rubble(ctx: SimContext, x: int, y: int) -> bool:
@@ -277,6 +292,7 @@ func _to_rubble(ctx: SimContext, x: int, y: int) -> bool:
 	if _city.is_water(x,y): _city.building.put(x,y,Buildings.NONE)
 	else: _city.building.put(x,y,Buildings.RUBBLE_1+ctx.rng.below(Buildings.RUBBLE_4-Buildings.RUBBLE_1+1))
 	_city.flags.set_bits(x,y,TileFlags.CONDUCTS_POWER|TileFlags.POWERED,false)
+	if (flags & (TileFlags.CONDUCTS_POWER | TileFlags.CONDUCTS_WATER)) != 0: _utilities_stale = true
 	var change := ag.repair_parcels(cells) if ag != null else _city.agricultural_parcels.repair_changed_cells(_city,cells)
 	if not change.get("ok",false):
 		_city.building.put(x,y,building);_city.flags.put(x,y,flags)
@@ -317,6 +333,7 @@ func _collapse_bridge(ctx: SimContext, x: int, y: int) -> int:
 			continue
 		_city.building.put(tx, ty, Buildings.NONE)
 		_city.flags.set_bits(tx, ty, TileFlags.CONDUCTS_POWER | TileFlags.POWERED, false)
+		_utilities_stale = true
 		ctx.events.mark_tile(tx, ty)
 		lost += 1
 		for d in 4:

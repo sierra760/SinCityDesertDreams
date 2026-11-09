@@ -107,7 +107,10 @@ costs to maintain and how many tiles it has.
 6. **Aftermath.** Every lost tile is reported through `mark_dirty`, the
    cached counts are dropped, and a story is queued (`road_decay`,
    `rail_decay` or `bridge_collapse`). Lost tiles stay lost until the player
-   rebuilds them.
+   rebuilds them. When a lost tile carried power (a crossing, a bridge), power
+   and water are redistributed once at the end of the pass, as after
+   construction (no weather, no random draw), so what lay beyond it loses
+   service that day.
 
 ## Parameters
 

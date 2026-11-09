@@ -127,7 +127,11 @@ kind is major, when the ingredient is missing, or when no place can be found
 bits, and leaves rubble (`RUBBLE_1..RUBBLE_4`, chosen by rng) on every dry
 tile of the footprint. Trees wrecked by wind are cleared to open ground rather
 than rubble. Rubble, contaminated ground, water and open ground cannot be
-wrecked again. Fires on wrecked tiles go out.
+wrecked again. Fires on wrecked tiles go out. When anything that carried or
+received power or water was wrecked, power and water are redistributed once
+at the end of that day's step (or of the request that started the disaster),
+as after construction: no weather and no random draw, so a destroyed plant or
+line cuts service the same day.
 
 *Igniting* a tile starts a fire if the tile's spread odds are above zero and it
 is not already burning.
