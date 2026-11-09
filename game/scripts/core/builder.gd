@@ -296,6 +296,10 @@ func _parcel_edit_refusal(plan: Dictionary) -> String:
 		if city.agricultural_parcels.id_at(p) != 0: has_owner = true;break
 	if not has_owner: return ""
 	var detached := city.duplicate_city()
+	# The copy shares the live terrain lattice; a trial commit of a water or
+	# land operation must edit its own, or a mere preview reshapes the city.
+	if detached.terrain_surface is TerrainSurface:
+		detached.terrain_surface = (detached.terrain_surface as TerrainSurface).duplicate_surface()
 	var builder := Builder.new(detached,CityStats.new())
 	var touched := builder._commit(plan.ops)
 	var cells := PackedInt32Array()

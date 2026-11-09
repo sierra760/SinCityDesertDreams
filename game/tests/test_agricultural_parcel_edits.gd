@@ -461,3 +461,27 @@ func test_real_adapter_constrained_cut_revalidates_survivors_and_competing_consu
 	check(final_city.is_watered(11,10) and final_city.is_powered(11,10),"unrelated consumer retains its allocation")
 	check_eq(var_to_bytes([c.facilities,power.save(),water.save(),source.ctx.rng.state()]),policy,"cut validation does not change source policy or live utility state")
 	source.ctx.systems.clear()
+
+func test_preview_over_farmland_leaves_the_live_terrain_lattice_alone() -> void:
+	var c := flat_city(1000000)
+	farm(c,F.mask([[20,20],[21,20],[22,20],[23,20],[24,20]]))
+	TerrainEditor.new(c)
+	var surface := c.terrain_surface as TerrainSurface
+	surface.set_water(26,20,5)
+	surface.project(c)
+	check(c.is_water(26,20) and surface.has_water(26,20),"fresh water beside the field")
+	var b := Builder.new(c,CityStats.new())
+	var before := var_to_bytes([surface.vertices,surface.water,surface.salt,surface.feature])
+	var layers := var_to_bytes([c.terrain.data,c.altitude.data])
+	# One drag covering a parcel-owned tile and the water: the plan trial-commits
+	# its operations on a detached copy before anything is charged.
+	b.preview(Tools.Kind.BULLDOZE,Vector2i(24,20),Vector2i(26,20))
+	check(var_to_bytes([surface.vertices,surface.water,surface.salt,surface.feature])==before,"a preview never edits the live lattice")
+	check(var_to_bytes([c.terrain.data,c.altitude.data])==layers,"a preview never edits the terrain layers")
+	var funds := c.funds
+	var result := b.apply(Tools.Kind.BULLDOZE,Vector2i(24,20),Vector2i(26,20))
+	if result.get("applied",false):
+		check(not c.is_water(26,20) and not surface.has_water(26,20),"the paid drain removes the water from layers and lattice together")
+	else:
+		check_eq(c.funds,funds,"a refused edit charges nothing")
+		check(c.is_water(26,20) == surface.has_water(26,20),"layers and lattice agree")

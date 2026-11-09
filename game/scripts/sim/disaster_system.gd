@@ -1325,8 +1325,19 @@ func _flood_tile(ctx: SimContext, t: Vector2i) -> void:
 	_flood_total += 1
 	ctx.events.mark_tile(t.x, t.y)
 
+	# Farm parcels must stand on dry ground. Cut a flooded cell from its parcel
+	# in the same step, so the city never holds (or tries to save) a parcel
+	# with a member under water. A cell that cannot be cut stays dry.
+	var cells := PackedInt32Array([AgriculturalParcels.cell(t)])
+	var owned := ctx.city.agricultural_parcels.id_at(t) != 0
+	if owned and not _preflight_agriculture(ctx, cells):
+		return
 
 func _drain_tile(ctx: SimContext, t: Vector2i) -> void:
+	if owned and not _repair_agriculture(ctx, cells).get("ok", false):
+		_flooded.erase(t)
+		ctx.city.flood_overlay.erase(t)
+		return
 	_flooded.erase(t)
 	ctx.city.flood_overlay.erase(t)
 	ctx.events.mark_tile(t.x, t.y)
