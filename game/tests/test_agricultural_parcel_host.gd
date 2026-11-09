@@ -23,7 +23,7 @@ func paint(tool: int, a: Vector2i, b := Vector2i(-1,-1)) -> void:
 	var result := host.handle_drag(a,a if b.x < 0 else b)
 	check(result.get("applied",false),"real toolbar tool %d: %s" % [tool,result])
 
-func build_serviced_land() -> void:
+func build_serviced_land(farmland := true) -> void:
 	paint(Tools.Kind.COAL_PLANT,Vector2i(32,36))
 	paint(Tools.Kind.POWER_LINE,Vector2i(36,37),Vector2i(62,37))
 	paint(Tools.Kind.WATER_PUMP,Vector2i(38,38))
@@ -33,6 +33,7 @@ func build_serviced_land() -> void:
 		paint(Tools.Kind.POWER_LINE,Vector2i(x,38),Vector2i(x,39))
 	paint(Tools.Kind.ROAD,Vector2i(39,39),Vector2i(62,39))
 	paint(Tools.Kind.ROAD,Vector2i(39,40),Vector2i(39,50))
+	if not farmland: return
 	paint(Tools.Kind.ZONE_AGR_LOW,Vector2i(40,40),Vector2i(60,42))
 	paint(Tools.Kind.ZONE_AGR_LOW,Vector2i(40,43),Vector2i(44,49))
 
@@ -101,9 +102,14 @@ func test_natural_nonrectangular_farms_service_tax_cuts_and_replacement() -> voi
 
 func test_natural_host_accrued_agricultural_tax_settles_at_year_boundary() -> void:
 	reset(5821)
-	build_serviced_land()
+	# A city with no residents supports TARGET_BASE_JOBS of farm work. Zone no
+	# more land than that employs: a larger sector outruns its demand and lies
+	# dormant before the year ends, which is not what this test is about.
+	build_serviced_land(false)
+	paint(Tools.Kind.ZONE_AGR_LOW,Vector2i(40,40),Vector2i(43,42))
 	var ag := host.sim.get_system(&"agriculture") as AgricultureSystem
 	host.sim.advance_days(GameClock.DAYS_PER_YEAR - 1)
+	check_lt(ag.jobs(),AgricultureParams.TARGET_BASE_JOBS + 1,"the fixture stays within an empty city's farm demand")
 	check_eq(host.sim.clock.day,299,"normal clock reaches the final day before settlement")
 	check(not host.sim.budget_review_pending,"annual review has not happened early")
 	check_gt(ag.jobs(),0,"naturally formed serviced farms employ workers before settlement")

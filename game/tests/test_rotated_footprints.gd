@@ -212,7 +212,7 @@ func test_anchor_of_matches_reference_on_bundled_and_broken_cities() -> void:
 				if UtilityParams.is_anchor_tile(c.building.data, c.zone.data, y * City.WIDTH + x):
 					plant_anchors += area
 		check_eq(plant_anchors, plant_tiles, "%s plant anchors cover each plant once" % f)
-	check_eq(imported, 8)
+	check_eq(imported, 9)
 	# Broken, abutting and corner-less footprints exercise the fallback walk.
 	for turn in 4:
 		var c: City = _rotated_city(turn)["city"]
