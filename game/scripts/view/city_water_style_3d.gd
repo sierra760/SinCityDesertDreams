@@ -9,6 +9,12 @@ var elapsed := 0.0
 var enabled := true
 var image: Image
 var texture: ImageTexture
+## The same metadata in half floats, for the one sampler that filters it:
+## 32-bit float textures cannot be filtered on every mobile GPU. Seabed
+## heights stay within a fiftieth of a tile even on the highest ground, far
+## less than one colour step of the depth tint. Exact per-cell reads stay on the full-precision `texture`.
+var depth_image: Image
+var depth_texture: ImageTexture
 var material: ShaderMaterial
 var _city: City
 var _state: Array = []
@@ -63,9 +69,13 @@ func update_city(city: City) -> void:
 						var lower := CityGeometry3D.water_surface_height(city,neighbor) if city.is_water(neighbor.x,neighbor.y) else CityGeometry3D.ground_height(city,neighbor)
 						bottom = minf(bottom,lower)
 			image.set_pixel(x,y,Color(level,ground,float(shelf),bottom))
+	depth_image = image.duplicate()
+	depth_image.convert(Image.FORMAT_RGBAH)
 	if texture == null:
 		texture = ImageTexture.create_from_image(image)
+		depth_texture = ImageTexture.create_from_image(depth_image)
 		material.set_shader_parameter("water_geometry",texture)
-		material.set_shader_parameter("water_depth",texture)
+		material.set_shader_parameter("water_depth",depth_texture)
 	else:
 		texture.update(image)
+		depth_texture.update(depth_image)

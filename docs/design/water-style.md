@@ -15,7 +15,9 @@ The water material shares world coordinates across terrain chunks. A reusable
 128×128 floating-point texture records visible water levels, seabed heights,
 bank shelves (only at corners that touch land; one-tile channels have none) and
 waterfall bottoms. Bank masks use nearest sampling;
-depth uses linear sampling. Terrain or flood changes refresh the metadata;
+depth uses linear sampling of a half-float copy of the same data, because
+32-bit float textures cannot be filtered on every mobile GPU (seabed heights
+stay within a fiftieth of a tile, well under one colour step of the tint). Terrain or flood changes refresh the metadata;
 building-only and utility-only changes leave it alone. Fine detail fades with pixel
 size, and foam smoothing uses the pixel footprint rather than derivatives of
 the bounded bank search.

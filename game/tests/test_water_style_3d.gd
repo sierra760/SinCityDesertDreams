@@ -71,6 +71,41 @@ func test_shore_metadata_is_live_across_chunks_and_city_replacement() -> void:
 	city.set_heights(16,16,2,5)
 	check_eq(SaveFormat.encode_city(city),encoded,"metadata never writes to the city")
 
+## 32-bit float textures are not filterable on every mobile GPU; the filtered
+## seabed lookup reads half floats, the exact per-cell lookups keep full floats.
+func test_filtered_depth_lookup_uses_a_filterable_format() -> void:
+	var style: RefCounted = load("res://scripts/view/city_water_style_3d.gd").new()
+	var city := flat_city(20000, 31)
+	for x: int in range(10,40):
+		city.terrain.put(x,16,Terrain.SURFACE)
+		city.set_heights(x,16,x-10,31)
+	style.call("update_city",city)
+	var material: ShaderMaterial = style.get("material")
+	var depth: ImageTexture = material.get_shader_parameter("water_depth")
+	var geometry: ImageTexture = material.get_shader_parameter("water_geometry")
+	check_eq(depth.get_format(),Image.FORMAT_RGBAH,"the filtered sampler gets half floats")
+	check_eq(geometry.get_format(),Image.FORMAT_RGBAF,"exact per-cell reads keep full floats")
+	check_eq(geometry.get_rid(),(style.get("texture") as Texture2D).get_rid())
+	var exact: Image = style.get("image")
+	var half: Image = style.get("depth_image")
+	var worst := 0.0
+	var highest := 0.0
+	for y: int in City.HEIGHT:
+		for x: int in City.WIDTH:
+			worst = maxf(worst,absf(half.get_pixel(x,y).g-exact.get_pixel(x,y).g))
+			highest = maxf(highest,exact.get_pixel(x,y).g)
+	check_gt(highest,10.0,"the test city reaches the tallest ground")
+	# The depth tint spans two tiles of depth and 0.3 of the colour mix: 0.02
+	# of a tile moves a colour channel by under a tenth of one 8-bit step.
+	check_lt(worst,0.02,"seabed heights survive half floats to a fiftieth of a tile at the highest ground")
+	var rid := depth.get_rid()
+	city.set_heights(16,16,2,7)
+	style.call("update_city",city)
+	check_eq((material.get_shader_parameter("water_depth") as Texture2D).get_rid(),rid,"edits reuse the depth texture")
+	check(is_equal_approx((style.get("depth_image") as Image).get_pixel(16,16).g,(style.get("image") as Image).get_pixel(16,16).g) \
+		or absf((style.get("depth_image") as Image).get_pixel(16,16).g-(style.get("image") as Image).get_pixel(16,16).g) < 0.01,"edited seabed reaches the depth texture")
+
+
 func test_main_applies_and_reloads_animation_preference() -> void:
 	var path := "user://water-style-display.cfg"
 	check_eq(ViewPreferences.write({"water_animation":false},path),OK)
