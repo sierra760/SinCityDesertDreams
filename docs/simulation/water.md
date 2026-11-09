@@ -66,7 +66,10 @@ the construction tools follow when they lay pipes and subways.
    building, construction site, abandoned building, plant, civic, utility,
    transit, port, military, reward or arcology). Power lines, roads, rail,
    trees, parks and rubble do not conduct. The flag is derived from the two
-   layers whenever the system runs.
+   layers whenever the system runs. Water pipes can be laid beneath water,
+   including open water, at the ordinary per-tile pipe cost. They preserve
+   the water surface and terrain and connect the banks through the same
+   network as pipes on land.
 2. **Consumers.** Every tile of a developed lot draws `LOAD_PER_TILE` units,
    except the four water facilities (pump, tower, treatment, desalination),
    which draw nothing. Agriculture uses its archetype load (see Agricultural

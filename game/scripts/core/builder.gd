@@ -818,7 +818,7 @@ func _plan_underground(family: int, price: int, from: Vector2i, to: Vector2i, op
 		if path.size() == 1:
 			axis = _single_tile_axis(p)
 		var code := city.underground.at(p.x, p.y)
-		if city.is_open_water(p.x, p.y):
+		if family == NetworkShapes.Family.SUBWAY and city.is_open_water(p.x, p.y):
 			stop_reason = "cannot dig under open water"
 			break
 		if NetworkShapes.underground_in_family(code, family):
