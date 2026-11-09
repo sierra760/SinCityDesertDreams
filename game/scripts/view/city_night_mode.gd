@@ -13,6 +13,7 @@ extends Node
 
 const Globals := preload("res://scripts/view/city_night_globals.gd")
 const Signatures := preload("res://scripts/view/casino_night_signatures.gd")
+const SpheroidShow := preload("res://scripts/view/spheroid_night_show.gd")
 const FADE_SECONDS := 1.5
 
 ## Material roles, found by material name in the authored models.
@@ -69,6 +70,7 @@ var _applied_explore: Environment
 var _applied_amount := -1.0
 ## Neon, ground wash and searchlights on casinos while it is night.
 var casinos: CityCasinoLights3D
+var spheroid: Node3D
 var _casinos_dirty := false
 
 static var _window_texture: ImageTexture
@@ -113,6 +115,7 @@ func _process(delta: float) -> void:
 	if _casinos_dirty and amount > 0.0:
 		_casinos_dirty = false
 		_ensure_casinos().rebuild()
+		_ensure_spheroid().rebuild()
 	# Mods and Explore entry replace the camera environment; restate night.
 	var explore := _explore_environment()
 	if explore != null and explore != _applied_explore and (amount > 0.0 or _applied_explore != null):
@@ -130,12 +133,15 @@ func _set_amount(value: float) -> void:
 	Globals.set_night(amount)
 	_apply_environment()
 	for record: Dictionary in _prepared.values(): _apply_material(record)
-	if entering: _ensure_casinos().rebuild()
+	if entering:
+		_ensure_casinos().rebuild()
+		_ensure_spheroid().rebuild()
 	if amount == 0.0:
 		_restore_all()
 		_watch(false)
 		_casinos_dirty = false
 		if casinos != null and is_instance_valid(casinos): casinos.clear()
+		if is_instance_valid(spheroid): spheroid.clear()
 	_applied_amount = amount
 
 ## Night-related lighting factors for RenderQuality.
@@ -155,6 +161,15 @@ func _mark_casinos() -> void:
 	if amount <= 0.0: return
 	_casinos_dirty = true
 	set_process(true)
+
+func _ensure_spheroid() -> Node3D:
+	if not is_instance_valid(spheroid):
+		spheroid = SpheroidShow.new()
+		spheroid.name = "SpheroidNightShow"
+		spheroid.bind(_view)
+		var world := _world()
+		if world != null: world.add_child(spheroid)
+	return spheroid
 
 func _world() -> Node:
 	return _view.world if _view != null and "world" in _view else null
@@ -255,7 +270,7 @@ func _watch(on: bool) -> void:
 
 func _node_added(node: Node) -> void:
 	if node is GeometryInstance3D: _pending.append(node)
-	elif node.has_meta("code") and Signatures.has(int(node.get_meta("code"))): _mark_casinos()
+	elif node.has_meta("code") and (Signatures.has(int(node.get_meta("code"))) or int(node.get_meta("code"))==Buildings.NEON_DOME): _mark_casinos()
 	set_process(true)
 
 func _prepare_pending() -> void:

@@ -789,6 +789,7 @@ func set_exploration_camera(value: Camera3D) -> void:
 	camera.current = false
 	value.current = true
 	RenderQuality.apply(self, render_quality)
+	if night != null and is_instance_valid(night.spheroid): night.spheroid.sync_exploration()
 
 
 func clear_exploration_camera() -> void:
@@ -800,6 +801,7 @@ func clear_exploration_camera() -> void:
 	aerial_controls_enabled = true
 	camera.current = true
 	RenderQuality.apply(self, render_quality)
+	if night != null and is_instance_valid(night.spheroid): night.spheroid.sync_exploration()
 	_labels.show()
 	_update_camera()
 
@@ -1315,6 +1317,8 @@ func set_underground(on: bool) -> void:
 	refresh_analytics()
 
 func refresh_analytics() -> void:
+	if night != null and is_instance_valid(night.spheroid):
+		night.spheroid.queue_calendar_sync()
 	if overlay != null:
 		overlay.refresh()
 	if underground != null and _underground:
