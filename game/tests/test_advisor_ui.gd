@@ -93,17 +93,17 @@ func test_populated_advice_fits_phone_landscape_and_desktop_and_remains_current_
 		await Fixture.settle(self,6)
 		var directory := OS.get_environment("ADVISOR_CAPTURE_DIR")
 		if not directory.is_empty():
-			for position in ["top", "advice", "last"]:
-				if position == "top": scroll.scroll_vertical = 0
-				elif position == "advice": scroll.ensure_control_visible(window._advice_box.get_child(mini(1,window._advice_box.get_child_count()-1)))
-				else: scroll.ensure_control_visible(window._advice_box.get_child(window._advice_box.get_child_count()-1))
-				await Fixture.settle(self,4)
+			for department in ["utilities","finance","transport","safety","community","planning"]:
+				window.select_department(department)
+				scroll.scroll_vertical = 0
+				await Fixture.settle(self,5)
 				RenderingServer.force_draw(false)
 				RenderingServer.force_sync()
 				await Fixture.settle(self,3)
 				RenderingServer.force_draw(false)
-				var image := root.get_texture().get_image()
-				check_eq(image.save_png(directory.path_join("advisors-%dx%d-%s.png" % [size.x,size.y,position])),OK)
+				check_eq(root.get_texture().get_image().save_png(directory.path_join("advisors-%dx%d-%s.png" % [size.x,size.y,department])),OK)
+			window.select_department("utilities")
+
 			window.close()
 			paper = host.open_window("newspaper") as NewspaperWindow
 			paper.show_issue(paper.issue_count()-1)
@@ -115,3 +115,96 @@ func test_populated_advice_fits_phone_landscape_and_desktop_and_remains_current_
 			check_eq(root.get_texture().get_image().save_png(directory.path_join("newspaper-%dx%d.png" % [size.x,size.y])),OK)
 
 		host.window_manager.close_all()
+
+# Missing portraits or replacing the diagnosis with a joke must fail through the real window.
+func test_personalities_keep_current_evidence_and_show_readable_portraits() -> void:
+	host.sim.stats.power_capacity = 100
+	host.sim.stats.power_demand = 101
+	var paper := host.sim.get_system(&"newspaper")
+	var before: Array = paper.advice().duplicate(true)
+	var rng_before := host.sim._ctx.rng.state()
+	var window := host.open_window("advisors") as AdvisorsWindow
+	await Fixture.settle(self,8)
+	var portraits := window._advice_box.find_children("AdvisorPortrait", "TextureRect", true, false)
+	check_eq(portraits.size(), 1, "one portrait for the selected department")
+	check_gt(portraits.size(), 0)
+	check(text_of(window).contains("Ray Navarro"), "utility advisor identifies himself")
+	for entry: Dictionary in before:
+		check(text_of(window).contains(String(entry.text)), "complete factual diagnosis remains visible")
+	for portrait: TextureRect in portraits:
+		check(portrait.texture != null)
+		check_ge(portrait.size.x, 64.0)
+		check_ge(portrait.size.y, 64.0)
+	check_eq(paper.advice(), before)
+	check_eq(host.sim._ctx.rng.state(), rng_before)
+
+# Switching departments must expose their original findings, never duplicate advisors.
+func test_six_department_navigation_retains_focus_and_selection_on_refresh() -> void:
+	root.size = Vector2i(1280,800)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(Vector2i.ZERO,root.size),0,"macOS")
+	var window := host.open_window("advisors") as AdvisorsWindow
+	await Fixture.settle(self,8)
+	check(window.has_method("select_department"), "department navigation exists")
+	if not window.has_method("select_department"): return
+	var buttons: Dictionary = window.get("_buttons")
+	check_eq(buttons.size(), 6)
+	var button := buttons["community"] as Button
+	button.pressed.emit()
+	button.grab_focus()
+	await Fixture.settle(self,4)
+	check(text_of(window).contains("Elaine Park"))
+	window.refresh()
+	await Fixture.settle(self,4)
+	check(text_of(window).contains("Elaine Park"), "refresh retains the chosen advisor")
+	check_eq(root.gui_get_focus_owner(),button,"monthly refresh keeps navigation focus")
+	window.select_department("unknown_department")
+	check(text_of(window).contains("Elaine Park"), "invalid selection preserves the briefing")
+
+func test_narrow_picker_switches_advisors_and_mood_portrait_recovers_with_service() -> void:
+	root.min_size = Vector2i.ONE
+	root.size = Vector2i(320,568)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(Vector2i.ZERO,root.size),0,"iOS")
+	host.sim.stats.power_capacity = 100
+	host.sim.stats.power_demand = 101
+	var window := host.open_window("advisors") as AdvisorsWindow
+	await Fixture.settle(self,10)
+	check(window.has_method("select_department"), "department navigation exists")
+	if not window.has_method("select_department"): return
+	var picker := window.get("_picker") as OptionButton
+	check(picker.is_visible_in_tree())
+	check_eq(picker.item_count,6)
+	check(not (window.get("_roster") as Control).is_visible_in_tree())
+	window.select_department("utilities")
+	await Fixture.settle(self,4)
+	var portrait := window._advice_box.find_child("AdvisorPortrait",true,false) as TextureRect
+	check(portrait.texture.resource_path.ends_with("utilities-critical.png"))
+	host.sim.stats.power_capacity = 150
+	window.refresh()
+	await Fixture.settle(self,4)
+	portrait = window._advice_box.find_child("AdvisorPortrait",true,false) as TextureRect
+	check(portrait.texture.resource_path.ends_with("utilities-pleased.png"), "resolved supply immediately changes the face")
+	for i in picker.item_count:
+		if picker.get_item_metadata(i) == "finance":
+			picker.item_selected.emit(i)
+			break
+	await Fixture.settle(self,4)
+	check(text_of(window).contains("Dana Mercer"), "compact department picker is wired")
+
+func test_layout_changes_move_navigation_focus_to_the_visible_control() -> void:
+	root.min_size = Vector2i.ONE
+	root.size = Vector2i(1280,800)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(Vector2i.ZERO,root.size),0,"macOS")
+	var window := host.open_window("advisors") as AdvisorsWindow
+	await Fixture.settle(self,10)
+	window.select_department("transport")
+	var buttons: Dictionary = window.get("_buttons")
+	(buttons["transport"] as Button).grab_focus()
+	root.size = Vector2i(320,568)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(Vector2i.ZERO,root.size),0,"iOS")
+	await Fixture.settle(self,12)
+	check_eq(root.gui_get_focus_owner(),window.get("_picker"),"narrow navigation stays focused")
+	check(text_of(window).contains("Marcus Reed"))
+	root.size = Vector2i(1280,800)
+	host.display_layout.refresh_with_mobile_metrics(root.size,1,Rect2i(Vector2i.ZERO,root.size),0,"macOS")
+	await Fixture.settle(self,12)
+	check_eq(root.gui_get_focus_owner(),buttons["transport"],"wide navigation restores selected advisor focus")

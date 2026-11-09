@@ -1,0 +1,428 @@
+{
+  "date": "2026-11-08",
+  "method": "OpenAI built-in image_gen: six neutral originals and four facial-expression edits per advisor, each using its neutral portrait as the identity reference.",
+  "copyright": "2026 Bristlecone Artists LLC",
+  "license": "CC-BY-NC-SA-4.0",
+  "images": [
+    {
+      "id": "finance",
+      "name": "Dana Mercer, Finance",
+      "mood": "delighted",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dana Mercer, Finance. Change ONLY the facial expression to this exact mood: DELIGHTED: unmistakably thrilled with excellent city results, a broad natural toothy grin, raised cheeks, bright eyes slightly crinkled with genuine joy, brows lifted with proud amusement. Slightly campy civic triumph, still recognizably the same official. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "finance-neutral",
+      "path": "game/assets/advisors/finance-delighted.png",
+      "sha256": "645d124b69d35cab69fb9f6e71ee31c7f33d4e904a51ba5b18541fce816e93d6",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "c18b3c9108f06f7a5b055420e7e9513f050077dde9cc8f3d4791d29becd2d5ef"
+    },
+    {
+      "id": "finance",
+      "name": "Dana Mercer, Finance",
+      "mood": "pleased",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dana Mercer, Finance. Change ONLY the facial expression to this exact mood: PLEASED: a restrained closed-mouth smile, relaxed brow and warm approving eyes, composed professional satisfaction. Clearly more positive than the neutral reference, clearly less exuberant than a broad delighted toothy grin. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "finance-neutral",
+      "path": "game/assets/advisors/finance-pleased.png",
+      "sha256": "08f9b16a3f7f5e3a27b9b325ca0c6b0680253ef5a22161e136b751310a11bd59",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "c18b3c9108f06f7a5b055420e7e9513f050077dde9cc8f3d4791d29becd2d5ef"
+    },
+    {
+      "id": "finance",
+      "name": "Dana Mercer, Finance",
+      "mood": "neutral",
+      "prompt": "Original finished advisor portrait for Sin City: Desert Dreams. Visual era and medium: high-quality 1997\u20132002 PC city-building strategy-game character portrait, expressive semi-realistic digital painting with softly modeled almost pre-rendered forms, precise facial features, clean subtly exaggerated proportions, smooth airbrushed light and dimensional shadows, no heavy ink outlines, NO paper grain, no distressed texture, no midcentury gouache poster or postcard styling. Period-correct late-1990s public-sector office wardrobe and hair, grounded and believable with restrained camp. Square chest-up portrait, head and upper torso fully inside image with 8% margin above hair, three-quarter body angle but eyes toward player. Single character, no letters, words, numbers, insignia text, logos, signature, border or watermark. Uncluttered muted slate-blue office background with a soft geometric suggestion of vertical blinds, softly out of focus, no scenery or extra people. Soft warm key light from upper left and cool fill; detailed face readable as a small game UI portrait. Modest accessories, hands mostly out of view. Mood: NEUTRAL, calm attentive expression, relaxed mouth, alert eyes; no smile, no frown, no raised fists. Keep the character visually distinct from the other officials. Character identity: A sharp city finance director, white woman about 48 with a chin-length straight chestnut bob and side part, narrow rectangular rimless spectacles, grey-green eyes, lightly angular face, plum business blazer over a cream crew-neck blouse, small silver stud earrings. Professional late-1990s municipal office clothes. Dry wit and composure; no pencils in hair or fantastical props.",
+      "reference": null,
+      "path": "game/assets/advisors/finance-neutral.png",
+      "sha256": "c18b3c9108f06f7a5b055420e7e9513f050077dde9cc8f3d4791d29becd2d5ef",
+      "dimensions": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "id": "finance",
+      "name": "Dana Mercer, Finance",
+      "mood": "concerned",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dana Mercer, Finance. Change ONLY the facial expression to this exact mood: CONCERNED: clearly worried and dissatisfied, brows drawn together and slightly lifted at the inner ends, tense eyes, lips closed with corners turned down, small forehead crease. A firm 'we need to address this' briefing, not an exaggerated scream. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "finance-neutral",
+      "path": "game/assets/advisors/finance-concerned.png",
+      "sha256": "9948b8a7458219e8689660bbe02b2247bcdd172f5df9cc5d20774915b3d63992",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "c18b3c9108f06f7a5b055420e7e9513f050077dde9cc8f3d4791d29becd2d5ef"
+    },
+    {
+      "id": "finance",
+      "name": "Dana Mercer, Finance",
+      "mood": "critical",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dana Mercer, Finance. Change ONLY the facial expression to this exact mood: CRITICAL: a very strong alarmed and exasperated reaction to serious city problems; deeply furrowed brows, intense widened eyes, mouth open mid urgent emphatic briefing, pronounced facial tension. Unmistakably the worst of the five moods and much stronger than merely concerned. A touch of late-1990s strategy-game camp; no horror or monstrous distortion. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "finance-neutral",
+      "path": "game/assets/advisors/finance-critical.png",
+      "sha256": "62b5a9ed99d60046c78573471d65eaee889f29941593dd8338932408315cdb64",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "c18b3c9108f06f7a5b055420e7e9513f050077dde9cc8f3d4791d29becd2d5ef"
+    },
+    {
+      "id": "utilities",
+      "name": "Ray Navarro, Utilities",
+      "mood": "delighted",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Ray Navarro, Utilities. Change ONLY the facial expression to this exact mood: DELIGHTED: unmistakably thrilled with excellent city results, a broad natural toothy grin, raised cheeks, bright eyes slightly crinkled with genuine joy, brows lifted with proud amusement. Slightly campy civic triumph, still recognizably the same official. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "utilities-neutral",
+      "path": "game/assets/advisors/utilities-delighted.png",
+      "sha256": "8265c06690b589cbca574626eb14593589b361315bd849d192cf37f1cfd99f85",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "537a7ec95cccaef4effc6abe3f15049e2e11f538fe9f0cf72ad35a16e264c1f7"
+    },
+    {
+      "id": "utilities",
+      "name": "Ray Navarro, Utilities",
+      "mood": "pleased",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Ray Navarro, Utilities. Change ONLY the facial expression to this exact mood: PLEASED: a restrained closed-mouth smile, relaxed brow and warm approving eyes, composed professional satisfaction. Clearly more positive than the neutral reference, clearly less exuberant than a broad delighted toothy grin. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "utilities-neutral",
+      "path": "game/assets/advisors/utilities-pleased.png",
+      "sha256": "a98e0b98f7b13653f9e155c99e0158979fc478fb49bc4716a2df5cf946c5d953",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "537a7ec95cccaef4effc6abe3f15049e2e11f538fe9f0cf72ad35a16e264c1f7"
+    },
+    {
+      "id": "utilities",
+      "name": "Ray Navarro, Utilities",
+      "mood": "neutral",
+      "prompt": "Original finished advisor portrait for Sin City: Desert Dreams. Visual era and medium: high-quality 1997\u20132002 PC city-building strategy-game character portrait, expressive semi-realistic digital painting with softly modeled almost pre-rendered forms, precise facial features, clean subtly exaggerated proportions, smooth airbrushed light and dimensional shadows, no heavy ink outlines, NO paper grain, no distressed texture, no midcentury gouache poster or postcard styling. Period-correct late-1990s public-sector office wardrobe and hair, grounded and believable with restrained camp. Square chest-up portrait, head and upper torso fully inside image with 8% margin above hair, three-quarter body angle but eyes toward player. Single character, no letters, words, numbers, insignia text, logos, signature, border or watermark. Uncluttered muted slate-blue office background with a soft geometric suggestion of vertical blinds, softly out of focus, no scenery or extra people. Soft warm key light from upper left and cool fill; detailed face readable as a small game UI portrait. Modest accessories, hands mostly out of view. Mood: NEUTRAL, calm attentive expression, relaxed mouth, alert eyes; no smile, no frown, no raised fists. Keep the character visually distinct from the other officials. Character identity: A practical utilities chief, Mexican-American man about 54 with medium tan skin, short salt-and-pepper hair with a receding hairline, a broad trimmed salt-and-pepper moustache, deep-set brown eyes, sturdy rectangular face, faded light-blue chambray work shirt with collar open and a dark navy utility vest with two restrained reflective yellow strips. No hat, goggles, giant hair or tools.",
+      "reference": null,
+      "path": "game/assets/advisors/utilities-neutral.png",
+      "sha256": "537a7ec95cccaef4effc6abe3f15049e2e11f538fe9f0cf72ad35a16e264c1f7",
+      "dimensions": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "id": "utilities",
+      "name": "Ray Navarro, Utilities",
+      "mood": "concerned",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Ray Navarro, Utilities. Change ONLY the facial expression to this exact mood: CONCERNED: clearly worried and dissatisfied, brows drawn together and slightly lifted at the inner ends, tense eyes, lips closed with corners turned down, small forehead crease. A firm 'we need to address this' briefing, not an exaggerated scream. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "utilities-neutral",
+      "path": "game/assets/advisors/utilities-concerned.png",
+      "sha256": "c214677435dd6d47bd9a4abc8e604c5389b32daacb2204055097a85010f1ddc3",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "537a7ec95cccaef4effc6abe3f15049e2e11f538fe9f0cf72ad35a16e264c1f7"
+    },
+    {
+      "id": "utilities",
+      "name": "Ray Navarro, Utilities",
+      "mood": "critical",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Ray Navarro, Utilities. Change ONLY the facial expression to this exact mood: CRITICAL: a very strong alarmed and exasperated reaction to serious city problems; deeply furrowed brows, intense widened eyes, mouth open mid urgent emphatic briefing, pronounced facial tension. Unmistakably the worst of the five moods and much stronger than merely concerned. A touch of late-1990s strategy-game camp; no horror or monstrous distortion. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "utilities-neutral",
+      "path": "game/assets/advisors/utilities-critical.png",
+      "sha256": "807637865db68e06b21a9ac5a60a797dcffb31afeeca454a8313cc798c1a5e00",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "537a7ec95cccaef4effc6abe3f15049e2e11f538fe9f0cf72ad35a16e264c1f7"
+    },
+    {
+      "id": "transport",
+      "name": "Marcus Reed, Transport",
+      "mood": "delighted",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Marcus Reed, Transport. Change ONLY the facial expression to this exact mood: DELIGHTED: unmistakably thrilled with excellent city results, a broad natural toothy grin, raised cheeks, bright eyes slightly crinkled with genuine joy, brows lifted with proud amusement. Slightly campy civic triumph, still recognizably the same official. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "transport-neutral",
+      "path": "game/assets/advisors/transport-delighted.png",
+      "sha256": "f536a072bcd2e6f6c6ba34279d838945a40f72be738072abde31612a8a992fe3",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "466f9364ccb18d41f9e500d6f0a482d02d1f31b1005f534fcb14ef8941905144"
+    },
+    {
+      "id": "transport",
+      "name": "Marcus Reed, Transport",
+      "mood": "pleased",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Marcus Reed, Transport. Change ONLY the facial expression to this exact mood: PLEASED: a restrained closed-mouth smile, relaxed brow and warm approving eyes, composed professional satisfaction. Clearly more positive than the neutral reference, clearly less exuberant than a broad delighted toothy grin. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "transport-neutral",
+      "path": "game/assets/advisors/transport-pleased.png",
+      "sha256": "2eebd24d6ad232cdd603fc0c75cdf8d2d56be2a01da7fd56cea0e0ad969c0b4b",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "466f9364ccb18d41f9e500d6f0a482d02d1f31b1005f534fcb14ef8941905144"
+    },
+    {
+      "id": "transport",
+      "name": "Marcus Reed, Transport",
+      "mood": "neutral",
+      "prompt": "Original finished advisor portrait for Sin City: Desert Dreams. Visual era and medium: high-quality 1997\u20132002 PC city-building strategy-game character portrait, expressive semi-realistic digital painting with softly modeled almost pre-rendered forms, precise facial features, clean subtly exaggerated proportions, smooth airbrushed light and dimensional shadows, no heavy ink outlines, NO paper grain, no distressed texture, no midcentury gouache poster or postcard styling. Period-correct late-1990s public-sector office wardrobe and hair, grounded and believable with restrained camp. Square chest-up portrait, head and upper torso fully inside image with 8% margin above hair, three-quarter body angle but eyes toward player. Single character, no letters, words, numbers, insignia text, logos, signature, border or watermark. Uncluttered muted slate-blue office background with a soft geometric suggestion of vertical blinds, softly out of focus, no scenery or extra people. Soft warm key light from upper left and cool fill; detailed face readable as a small game UI portrait. Modest accessories, hands mostly out of view. Mood: NEUTRAL, calm attentive expression, relaxed mouth, alert eyes; no smile, no frown, no raised fists. Keep the character visually distinct from the other officials. Character identity: A transportation director, Black man about 39 with dark brown skin, neatly shaped short flat-top haircut, clean-shaven long face with expressive strongly arched brows and thin oval metal-framed glasses, navy long-sleeve collared office shirt and a loosened muted burgundy tie with a tiny late-1990s geometric pattern. Smart but slightly rumpled; passionate about transit, no conductor costume, no hat or map.",
+      "reference": null,
+      "path": "game/assets/advisors/transport-neutral.png",
+      "sha256": "466f9364ccb18d41f9e500d6f0a482d02d1f31b1005f534fcb14ef8941905144",
+      "dimensions": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "id": "transport",
+      "name": "Marcus Reed, Transport",
+      "mood": "concerned",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Marcus Reed, Transport. Change ONLY the facial expression to this exact mood: CONCERNED: clearly worried and dissatisfied, brows drawn together and slightly lifted at the inner ends, tense eyes, lips closed with corners turned down, small forehead crease. A firm 'we need to address this' briefing, not an exaggerated scream. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "transport-neutral",
+      "path": "game/assets/advisors/transport-concerned.png",
+      "sha256": "697dba9d2a4f5791355f29dfef101e42cb46f1419748c88e27cf8c4f6327cdb5",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "466f9364ccb18d41f9e500d6f0a482d02d1f31b1005f534fcb14ef8941905144"
+    },
+    {
+      "id": "transport",
+      "name": "Marcus Reed, Transport",
+      "mood": "critical",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Marcus Reed, Transport. Change ONLY the facial expression to this exact mood: CRITICAL: a very strong alarmed and exasperated reaction to serious city problems; deeply furrowed brows, intense widened eyes, mouth open mid urgent emphatic briefing, pronounced facial tension. Unmistakably the worst of the five moods and much stronger than merely concerned. A touch of late-1990s strategy-game camp; no horror or monstrous distortion. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "transport-neutral",
+      "path": "game/assets/advisors/transport-critical.png",
+      "sha256": "14529bbb1d2a3cf9125142869dc98cbe5674848b1d2096b860d98a3dcb7b047e",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "466f9364ccb18d41f9e500d6f0a482d02d1f31b1005f534fcb14ef8941905144"
+    },
+    {
+      "id": "safety",
+      "name": "Denise Holt, Public Safety",
+      "mood": "delighted",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Denise Holt, Public Safety. Change ONLY the facial expression to this exact mood: DELIGHTED: unmistakably thrilled with excellent city results, a broad natural toothy grin, raised cheeks, bright eyes slightly crinkled with genuine joy, brows lifted with proud amusement. Slightly campy civic triumph, still recognizably the same official. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "safety-neutral",
+      "path": "game/assets/advisors/safety-delighted.png",
+      "sha256": "4ffcb2155609f19878e5991bea31d4e44236bc89ee4c39b835149982b88ea3d4",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "79cec00db82e9697658ecc7a3c1ed24b836548de8889c040af42d2160b04f7da"
+    },
+    {
+      "id": "safety",
+      "name": "Denise Holt, Public Safety",
+      "mood": "pleased",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Denise Holt, Public Safety. Change ONLY the facial expression to this exact mood: PLEASED: a restrained closed-mouth smile, relaxed brow and warm approving eyes, composed professional satisfaction. Clearly more positive than the neutral reference, clearly less exuberant than a broad delighted toothy grin. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "safety-neutral",
+      "path": "game/assets/advisors/safety-pleased.png",
+      "sha256": "3633f371b123f53f45c0041eba297ff6dd40814547ad90ab4a86bac61f1d5744",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "79cec00db82e9697658ecc7a3c1ed24b836548de8889c040af42d2160b04f7da"
+    },
+    {
+      "id": "safety",
+      "name": "Denise Holt, Public Safety",
+      "mood": "neutral",
+      "prompt": "Original finished advisor portrait for Sin City: Desert Dreams. Visual era and medium: high-quality 1997\u20132002 PC city-building strategy-game character portrait, expressive semi-realistic digital painting with softly modeled almost pre-rendered forms, precise facial features, clean subtly exaggerated proportions, smooth airbrushed light and dimensional shadows, no heavy ink outlines, NO paper grain, no distressed texture, no midcentury gouache poster or postcard styling. Period-correct late-1990s public-sector office wardrobe and hair, grounded and believable with restrained camp. Square chest-up portrait, head and upper torso fully inside image with 8% margin above hair, three-quarter body angle but eyes toward player. Single character, no letters, words, numbers, insignia text, logos, signature, border or watermark. Uncluttered muted slate-blue office background with a soft geometric suggestion of vertical blinds, softly out of focus, no scenery or extra people. Soft warm key light from upper left and cool fill; detailed face readable as a small game UI portrait. Modest accessories, hands mostly out of view. Mood: NEUTRAL, calm attentive expression, relaxed mouth, alert eyes; no smile, no frown, no raised fists. Keep the character visually distinct from the other officials. Character identity: A public safety director, Black woman about 52 with medium-dark brown skin, short closely cropped natural black hair with subtle silver at the temples, broad cheekbones, dark brown eyes and a sturdy calm face, practical deep navy late-1990s emergency-services uniform shirt with shoulder epaulettes and a small plain silver shield badge without lettering, no hat. Reassuring authority, realistic working official, no firefighter costume or equipment.",
+      "reference": null,
+      "path": "game/assets/advisors/safety-neutral.png",
+      "sha256": "79cec00db82e9697658ecc7a3c1ed24b836548de8889c040af42d2160b04f7da",
+      "dimensions": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "id": "safety",
+      "name": "Denise Holt, Public Safety",
+      "mood": "concerned",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Denise Holt, Public Safety. Change ONLY the facial expression to this exact mood: CONCERNED: clearly worried and dissatisfied, brows drawn together and slightly lifted at the inner ends, tense eyes, lips closed with corners turned down, small forehead crease. A firm 'we need to address this' briefing, not an exaggerated scream. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "safety-neutral",
+      "path": "game/assets/advisors/safety-concerned.png",
+      "sha256": "635a39c49fd982ae5206761b9a98609305d5f91a488fa62028c653d1bb2edc93",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "79cec00db82e9697658ecc7a3c1ed24b836548de8889c040af42d2160b04f7da"
+    },
+    {
+      "id": "safety",
+      "name": "Denise Holt, Public Safety",
+      "mood": "critical",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Denise Holt, Public Safety. Change ONLY the facial expression to this exact mood: CRITICAL: a very strong alarmed and exasperated reaction to serious city problems; deeply furrowed brows, intense widened eyes, mouth open mid urgent emphatic briefing, pronounced facial tension. Unmistakably the worst of the five moods and much stronger than merely concerned. A touch of late-1990s strategy-game camp; no horror or monstrous distortion. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "safety-neutral",
+      "path": "game/assets/advisors/safety-critical.png",
+      "sha256": "c514c59d44e3a6a15b741e35830e09767bafa9e0afe9bf7446cac17df85e91da",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "79cec00db82e9697658ecc7a3c1ed24b836548de8889c040af42d2160b04f7da"
+    },
+    {
+      "id": "community",
+      "name": "Dr. Elaine Park, Community Services",
+      "mood": "delighted",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dr. Elaine Park, Community Services. Change ONLY the facial expression to this exact mood: DELIGHTED: unmistakably thrilled with excellent city results, a broad natural toothy grin, raised cheeks, bright eyes slightly crinkled with genuine joy, brows lifted with proud amusement. Slightly campy civic triumph, still recognizably the same official. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "community-neutral",
+      "path": "game/assets/advisors/community-delighted.png",
+      "sha256": "ae798ce3adc3fc65600082ed93a9d7f745b40766a3f2eed999b85d4e6d992650",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "5dc730621001fe05981bc0b73f79b0d57350feec6403ebf587636329b06225a9"
+    },
+    {
+      "id": "community",
+      "name": "Dr. Elaine Park, Community Services",
+      "mood": "pleased",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dr. Elaine Park, Community Services. Change ONLY the facial expression to this exact mood: PLEASED: a restrained closed-mouth smile, relaxed brow and warm approving eyes, composed professional satisfaction. Clearly more positive than the neutral reference, clearly less exuberant than a broad delighted toothy grin. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "community-neutral",
+      "path": "game/assets/advisors/community-pleased.png",
+      "sha256": "21fc16e1314be7cbacc026298a8f680071a2ee5011152da013021046d13cfd09",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "5dc730621001fe05981bc0b73f79b0d57350feec6403ebf587636329b06225a9"
+    },
+    {
+      "id": "community",
+      "name": "Dr. Elaine Park, Community Services",
+      "mood": "neutral",
+      "prompt": "Original finished advisor portrait for Sin City: Desert Dreams. Visual era and medium: high-quality 1997\u20132002 PC city-building strategy-game character portrait, expressive semi-realistic digital painting with softly modeled almost pre-rendered forms, precise facial features, clean subtly exaggerated proportions, smooth airbrushed light and dimensional shadows, no heavy ink outlines, NO paper grain, no distressed texture, no midcentury gouache poster or postcard styling. Period-correct late-1990s public-sector office wardrobe and hair, grounded and believable with restrained camp. Square chest-up portrait, head and upper torso fully inside image with 8% margin above hair, three-quarter body angle but eyes toward player. Single character, no letters, words, numbers, insignia text, logos, signature, border or watermark. Uncluttered muted slate-blue office background with a soft geometric suggestion of vertical blinds, softly out of focus, no scenery or extra people. Soft warm key light from upper left and cool fill; detailed face readable as a small game UI portrait. Modest accessories, hands mostly out of view. Mood: NEUTRAL, calm attentive expression, relaxed mouth, alert eyes; no smile, no frown, no raised fists. Keep the character visually distinct from the other officials. Character identity: A director of health, education and parks, East Asian woman about 43 with warm light-medium skin, shoulder-length straight dark brown hair half tucked behind her ears, soft round face, dark almond-shaped eyes and fine round silver wire-frame glasses, loose late-1990s beige linen blazer over a sage-green blouse, small ceramic blue brooch. Approachable and energetic, no doctor's coat, stethoscope, books, apples or novelty props.",
+      "reference": null,
+      "path": "game/assets/advisors/community-neutral.png",
+      "sha256": "5dc730621001fe05981bc0b73f79b0d57350feec6403ebf587636329b06225a9",
+      "dimensions": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "id": "community",
+      "name": "Dr. Elaine Park, Community Services",
+      "mood": "concerned",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dr. Elaine Park, Community Services. Change ONLY the facial expression to this exact mood: CONCERNED: clearly worried and dissatisfied, brows drawn together and slightly lifted at the inner ends, tense eyes, lips closed with corners turned down, small forehead crease. A firm 'we need to address this' briefing, not an exaggerated scream. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "community-neutral",
+      "path": "game/assets/advisors/community-concerned.png",
+      "sha256": "a59842d42d4512e41e8e44c396933e92c76f85c59b7b0cd63b8e9bc80882a335",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "5dc730621001fe05981bc0b73f79b0d57350feec6403ebf587636329b06225a9"
+    },
+    {
+      "id": "community",
+      "name": "Dr. Elaine Park, Community Services",
+      "mood": "critical",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Dr. Elaine Park, Community Services. Change ONLY the facial expression to this exact mood: CRITICAL: a very strong alarmed and exasperated reaction to serious city problems; deeply furrowed brows, intense widened eyes, mouth open mid urgent emphatic briefing, pronounced facial tension. Unmistakably the worst of the five moods and much stronger than merely concerned. A touch of late-1990s strategy-game camp; no horror or monstrous distortion. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "community-neutral",
+      "path": "game/assets/advisors/community-critical.png",
+      "sha256": "80b7254518765c6ad6132358a259a903760236effb88d646c6c08c03d2221ac9",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "5dc730621001fe05981bc0b73f79b0d57350feec6403ebf587636329b06225a9"
+    },
+    {
+      "id": "planning",
+      "name": "Tony Delgado, Planning and Tourism",
+      "mood": "delighted",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Tony Delgado, Planning and Tourism. Change ONLY the facial expression to this exact mood: DELIGHTED: unmistakably thrilled with excellent city results, a broad natural toothy grin, raised cheeks, bright eyes slightly crinkled with genuine joy, brows lifted with proud amusement. Slightly campy civic triumph, still recognizably the same official. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "planning-neutral",
+      "path": "game/assets/advisors/planning-delighted.png",
+      "sha256": "fc87e0165df2462b7d397e6547296df701b01bb2a931bce809bda5a4fe607465",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "721510a307b2a89369cc645a29506a743fa11c9aa2bee0c8e5f8ac13f8a799d0"
+    },
+    {
+      "id": "planning",
+      "name": "Tony Delgado, Planning and Tourism",
+      "mood": "pleased",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Tony Delgado, Planning and Tourism. Change ONLY the facial expression to this exact mood: PLEASED: a restrained closed-mouth smile, relaxed brow and warm approving eyes, composed professional satisfaction. Clearly more positive than the neutral reference, clearly less exuberant than a broad delighted toothy grin. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "planning-neutral",
+      "path": "game/assets/advisors/planning-pleased.png",
+      "sha256": "3acb76de4031791798945d70e12d979657610a35b109d78ffa6d93d9e1684cde",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "721510a307b2a89369cc645a29506a743fa11c9aa2bee0c8e5f8ac13f8a799d0"
+    },
+    {
+      "id": "planning",
+      "name": "Tony Delgado, Planning and Tourism",
+      "mood": "neutral",
+      "prompt": "Original finished advisor portrait for Sin City: Desert Dreams. Visual era and medium: high-quality 1997\u20132002 PC city-building strategy-game character portrait, expressive semi-realistic digital painting with softly modeled almost pre-rendered forms, precise facial features, clean subtly exaggerated proportions, smooth airbrushed light and dimensional shadows, no heavy ink outlines, NO paper grain, no distressed texture, no midcentury gouache poster or postcard styling. Period-correct late-1990s public-sector office wardrobe and hair, grounded and believable with restrained camp. Square chest-up portrait, head and upper torso fully inside image with 8% margin above hair, three-quarter body angle but eyes toward player. Single character, no letters, words, numbers, insignia text, logos, signature, border or watermark. Uncluttered muted slate-blue office background with a soft geometric suggestion of vertical blinds, softly out of focus, no scenery or extra people. Soft warm key light from upper left and cool fill; detailed face readable as a small game UI portrait. Modest accessories, hands mostly out of view. Mood: NEUTRAL, calm attentive expression, relaxed mouth, alert eyes; no smile, no frown, no raised fists. Keep the character visually distinct from the other officials. Character identity: A planning and tourism director, Latino man about 44 with light olive skin, thick black hair swept back with a modest early-2000s wave, subtle sideburns and a narrow neatly trimmed goatee, hazel eyes, slightly long broad-nosed face, forest-green tailored blazer over a pale lilac open-collar shirt, no tie, plain silver watch barely visible. Charming civic booster, polished but a little overconfident. No velvet jacket, giant pompadour, bowtie, medals or novelty props.",
+      "reference": null,
+      "path": "game/assets/advisors/planning-neutral.png",
+      "sha256": "721510a307b2a89369cc645a29506a743fa11c9aa2bee0c8e5f8ac13f8a799d0",
+      "dimensions": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "id": "planning",
+      "name": "Tony Delgado, Planning and Tourism",
+      "mood": "concerned",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Tony Delgado, Planning and Tourism. Change ONLY the facial expression to this exact mood: CONCERNED: clearly worried and dissatisfied, brows drawn together and slightly lifted at the inner ends, tense eyes, lips closed with corners turned down, small forehead crease. A firm 'we need to address this' briefing, not an exaggerated scream. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "planning-neutral",
+      "path": "game/assets/advisors/planning-concerned.png",
+      "sha256": "b92dcb7716844d5f21cf70bc2fc73b5e05b4b02adcc825cc934e3442c99bf86a",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "721510a307b2a89369cc645a29506a743fa11c9aa2bee0c8e5f8ac13f8a799d0"
+    },
+    {
+      "id": "planning",
+      "name": "Tony Delgado, Planning and Tourism",
+      "mood": "critical",
+      "prompt": "Use case: identity-preserve. Edit target: the provided neutral game advisor portrait of Tony Delgado, Planning and Tourism. Change ONLY the facial expression to this exact mood: CRITICAL: a very strong alarmed and exasperated reaction to serious city problems; deeply furrowed brows, intense widened eyes, mouth open mid urgent emphatic briefing, pronounced facial tension. Unmistakably the worst of the five moods and much stronger than merely concerned. A touch of late-1990s strategy-game camp; no horror or monstrous distortion. Preserve the same person's identity, age, skin tone, head shape, facial features, haircut, facial hair, eyewear, clothing, accessories, lighting, background, image style, square framing, head scale and chest-up pose. Only small natural facial/head movement is allowed; keep the hair and shoulders in the same locations. No extra objects, hand gestures, text, numbers, symbols, borders or graphic effects. The expressions must be strongly readable as a small game portrait. Produce one finished portrait, not a sheet or comparison.",
+      "reference": "planning-neutral",
+      "path": "game/assets/advisors/planning-critical.png",
+      "sha256": "4879ee980b7ae1c751d3776a586d6c67f1383b0ca70c9da7c7cb74d23a0ad465",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "reference_sha256": "721510a307b2a89369cc645a29506a743fa11c9aa2bee0c8e5f8ac13f8a799d0"
+    }
+  ],
+  "runtime_import": {
+    "maximum_dimension": 512,
+    "mipmaps": true,
+    "filter": "linear with mipmaps",
+    "loading": "Only current department moods are loaded at runtime; all 30 images are not preloaded."
+  }
+}
