@@ -32,6 +32,9 @@ var _stats: CityStats
 ## The aggregate industrial rate last published to `stats.tax_industrial`; a
 ## different value there means someone set the rate directly (-1: unknown).
 var _published_industrial := -1
+## Points the published rate moved at the last monthly pass because sector
+## shares shifted, not yet collected by the budget. Nobody set that change.
+var _share_drift := 0
 ## The player's own sector rates before the Budget's shift, unclamped, and
 ## that shift in points: the sector rates are base + offset clamped to
 ## 0..SECTOR_TAX_MAX. Empty until the first sync.
@@ -100,7 +103,9 @@ func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_sync_industrial_rate(ctx.stats)
 	_advance_nation(ctx)
 	_advance_sectors(ctx)
+	var player_rate := ctx.stats.tax_industrial
 	_publish_industrial_rate(ctx.stats)
+	_share_drift += ctx.stats.tax_industrial - player_rate
 	_assess_city(ctx)
 	_announce_inventions(ctx)
 
@@ -219,6 +224,15 @@ func _shifted(offset: int) -> PackedInt32Array:
 	for i in _sector_base.size():
 		out[i] = clampi(_sector_base[i] + offset, 0, EconomyParams.SECTOR_TAX_MAX)
 	return out
+
+
+## Points the industrial rate has moved through shifting sector shares since
+## this was last asked. The budget's tax-change story leaves them out: the
+## player changed no rate.
+func take_industrial_share_drift() -> int:
+	var drift := _share_drift
+	_share_drift = 0
+	return drift
 
 
 func _publish_industrial_rate(stats: CityStats) -> void:
@@ -568,6 +582,8 @@ func save() -> Dictionary:
 		# simply the rates themselves, so ordinary saves are unchanged).
 		data["sector_base"] = Array(_sector_base)
 		data["sector_offset"] = _sector_offset
+	if _share_drift != 0:
+		data["share_drift"] = _share_drift
 	return data
 
 
@@ -584,6 +600,7 @@ func load(data: Dictionary) -> void:
 	# A city saved before sector rates fed the industrial rate lines them up
 	# with the player's rate at the next sync.
 	_published_industrial = int(data.get("published_industrial", -1))
+	_share_drift = int(data.get("share_drift", 0))
 	_sector_base = PackedInt32Array()
 	_sector_offset = 0
 	var base: Array = data.get("sector_base", [])

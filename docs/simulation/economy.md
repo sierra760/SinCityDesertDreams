@@ -129,6 +129,10 @@ Getters for other systems and the UI:
    `sector_taxes_changed()` after the player edits a sector so the aggregate
    follows at once. A save from before this rule has no published aggregate,
    so its sector rates line up with the player's industrial rate on load.
+   With uneven sector rates the aggregate moves as shares move. That movement
+   is the rate the city's industry really pays and is charged, but it is not
+   a tax change: the points moved at each monthly publication are kept
+   (`share_drift`, saved only while nonzero) until the budget collects them.
 
 ### 5. City value
 

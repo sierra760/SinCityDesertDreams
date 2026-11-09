@@ -390,8 +390,14 @@ static func _player_rates(stats: CityStats) -> Vector3i:
 
 
 ## The newspaper reports the first rate the player changed since last month.
+## The industrial rate is the share-weighted mean of the sector rates, so it
+## also moves when shares shift; that movement is not the player's and is
+## folded into the rate already reported.
 func _report_tax_change(ctx: SimContext) -> void:
 	var rates := _player_rates(ctx.stats)
+	var economy := ctx.system(&"economy")
+	if economy != null and economy.has_method("take_industrial_share_drift"):
+		_reported_rates.z += int(economy.call("take_industrial_share_drift"))
 	if rates == _reported_rates:
 		return
 	var families := ["residential", "commercial", "industrial"]

@@ -45,6 +45,10 @@ prime rate, and decides when the city is in fiscal crisis or bankrupt.
   `&"bond_issued"` `{amount, rate}` for every bond issued, and news
   `&"tax_change"` `{count, family, previous}` on the first booking day after
   the player changes a tax rate (the first changed family, residential first).
+  The industrial rate is the share-weighted mean of the sector rates
+  (economy rule 4.6) and so also moves when sector shares shift; the economy
+  hands those points over (`take_industrial_share_drift`) and they are folded
+  into the rate last reported, never reported as a change.
   The rates last reported are saved, so a reload repeats nothing.
 
 ## Timing
