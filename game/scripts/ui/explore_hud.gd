@@ -344,7 +344,9 @@ func _build() -> void:
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	picker.fit_to_longest_item = false
 	picker.theme = UITheme.control_theme()
-	for kind: StringName in CityTrafficCatalog.vehicle_kinds():
+	var choices := CityTrafficCatalog.vehicle_kinds()
+	choices.push_front(&"mayormobile")
+	for kind: StringName in choices:
 		if not CityTrafficCatalog.is_drivable(kind): continue
 		picker.add_item(CityTrafficCatalog.display_name(kind))
 		picker.set_item_metadata(picker.item_count-1,kind)

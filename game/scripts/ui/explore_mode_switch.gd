@@ -51,7 +51,7 @@ func _request_start(loading: bool) -> bool:
 	if house.is_empty(): return _start(false,loading)
 	_choice_city = city
 	_choice_token += 1
-	_host.notices.queue("Start Exploring","Where would you like to start? The Mayor’s House has a Desert Cruiser, police cruiser, fire truck and helicopter waiting at ground level.",
+	_host.notices.queue("Start Exploring","Where would you like to start? The Mayor’s House has the all-terrain Mayormobile, police cruiser, fire truck and helicopter waiting at ground level.",
 		[["Current View",&"center"],["Mayor’s House",&"house"],["Cancel",&"cancel"]],_answer_start.bind(city,_choice_token,loading))
 	return true
 

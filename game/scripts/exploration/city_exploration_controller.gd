@@ -816,7 +816,7 @@ func _reset_recovered_input() -> void:
 	if _touch_enabled: cancel_touch_input()
 
 func _recover_actor(actor: CharacterBody3D) -> bool:
-	if actor is ExploreCar and actor.route_graph != null:
+	if actor is ExploreCar and actor.kind != &"mayormobile" and actor.route_graph != null:
 		var traffic: Node3D = view.get("traffic")
 		if traffic == null: return false
 		var route: Dictionary = traffic.get_drive_route(actor.kind,actor.global_position)
@@ -854,21 +854,25 @@ func _recover_actor(actor: CharacterBody3D) -> bool:
 			return true
 	var actor_mode := _actor_mode(actor)
 	var origin: Vector3 = actor.global_position
+	var minimum_normal_y := cos(actor.floor_max_angle) if actor is ExploreCar else CityTraversalWorld3D.MIN_NORMAL_Y
 	var saved: Variant = _last_safe.get(actor.get_instance_id())
 	if saved is Transform3D:
 		var point: Vector3 = saved.origin
-		var support: Dictionary = traversal.support_near(point,.045,.08,[actor.get_rid()])
+		var support: Dictionary = traversal.support_near(point,.045,.08,[actor.get_rid()],minimum_normal_y)
 		if not support.is_empty():
 			# Revalidate the current floor height, including a lowered support.
 			var supported_pose: Transform3D = saved
 			if actor is ExploreCar: supported_pose.basis = Basis(Vector3.UP,supported_pose.basis.get_euler().y)
 			supported_pose.origin.y = support.position.y+.002
-			if not traversal.touches_water(supported_pose.origin) and traversal.has_clearance(_actor_shape_pose(actor,supported_pose),_actor_shape(actor),[actor.get_rid()]):
+			var dry := not traversal.touches_water(supported_pose.origin)
+			if actor is ExploreCar and actor.kind == &"mayormobile":
+				dry = dry and not traversal.touches_water_footprint(_actor_shape_pose(actor,supported_pose),actor.vehicle_size())
+			if dry and traversal.has_clearance(_actor_shape_pose(actor,supported_pose),_actor_shape(actor),[actor.get_rid()]):
 				_apply_safe_actor_pose(actor,supported_pose)
 				if actor is ExploreHelicopter: _helicopter_in_flight = false
 				_last_safe[actor.get_instance_id()] = supported_pose
 				return true
-	var pose: Dictionary = traversal.safe_pose(origin,actor_mode,[actor.get_rid()])
+	var pose: Dictionary = traversal.safe_pose(origin,actor_mode,[actor.get_rid()],_actor_shape(actor),minimum_normal_y)
 	if pose.is_empty(): return false
 	if not traversal.has_clearance(_actor_shape_pose(actor,pose.transform),_actor_shape(actor),[actor.get_rid()]): return false
 	_apply_safe_actor_pose(actor,pose.transform)
@@ -1148,7 +1152,7 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 		if not marina.is_empty(): prompt="F to board a boat at the marina"
 	if transit_status.is_empty() and is_instance_valid(transit_service): transit_status=transit_service.status()
 	if mode==0 and not inside_resort and vehicle.is_empty() and not String(transit_status.get("elevator_prompt","")).is_empty(): prompt=String(transit_status.elevator_prompt)
-	var status := {"vehicle":str(occupied.get("kind")) if occupied == selected_vehicle else "","mode":mode,"speed":occupied.velocity.length(),"altitude":float(occupied.altitude()) if mode == 2 else 0.0,"prompt":prompt,"message":_message}
+	var status := {"vehicle":str(occupied.get("kind")) if occupied == selected_vehicle or occupied is ExploreCar else "","mode":mode,"speed":occupied.velocity.length(),"altitude":float(occupied.altitude()) if mode == 2 else 0.0,"prompt":prompt,"message":_message}
 	if is_instance_valid(resort_service):
 		status["resort"] = resort_service.status()
 		if not _casino_table.is_empty(): status["table_camera"] = casino_table_pose(_casino_table)
@@ -1253,6 +1257,11 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 		if kind == &"helicopter" and is_instance_valid(helicopter):
 			_occupy(helicopter)
 			return true
+	# A menu selection or synthetic claim can never create a second mayoral SUV.
+	if kind == &"mayormobile":
+		_message = "The Mayormobile is parked at the Mayor's House. Walk to it to get in."
+		_publish_status()
+		return false
 	if kind == &"helicopter":
 		if claim.is_empty():
 			_message = "No helicopter is available here. Walk to the Mayor's House or board a nearby helicopter."
@@ -1557,10 +1566,11 @@ func _create_house_vehicles() -> void:
 	if _house.is_empty(): return
 	var skipped := 0
 	for slot: Dictionary in ExploreMayorsHouse.layout().slots:
-		var kind := StringName(slot.kind)
+		# Retain the house model's car bay marker; replace only its occupant.
+		var kind := &"mayormobile" if slot.kind == "car" else StringName(slot.kind)
 		var actor_mode := 2 if kind == &"helicopter" else 1
 		var shape := ExploreActorProfile.shape(actor_mode)
-		if kind in [&"police",&"fire_engine"]:
+		if kind in [&"mayormobile",&"police",&"fire_engine"]:
 			var box := BoxShape3D.new()
 			box.size = CityTrafficCatalog.dimensions(kind)
 			shape = box
@@ -1575,7 +1585,7 @@ func _create_house_vehicles() -> void:
 			if kind != &"car": actor.configure_kind(kind)
 			actor.route_graph = view.traffic.graph
 			actor.driveway = _house
-			if kind == &"car": car = actor
+			if kind == &"mayormobile": car = actor
 		else: helicopter = actor
 		owned_vehicles.append(actor)
 		# Native renderer distance culling; parked actors never tick a visual.
@@ -1583,4 +1593,4 @@ func _create_house_vehicles() -> void:
 			mesh.visibility_range_end = 16.0
 			mesh.visibility_range_end_margin = 2.0
 	if skipped > 0: _message = "Some Mayor's House parking spaces are obstructed."
-	elif not bool(_house.road_access): _message = "The Mayor's House has no adjacent ground-level road. Its vehicles can use the motor court."
+	elif not bool(_house.road_access): _message = "The Mayor's House has no adjacent ground-level road. The Mayormobile can cross dry terrain; the other vehicles can use the motor court."

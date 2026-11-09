@@ -36,6 +36,7 @@ var _grounded := false
 var _reported := false
 var _reported_pose := Vector3.ZERO
 var _edge_contact := 0
+var _minimum_normal_y := CityTraversalWorld3D.MIN_NORMAL_Y
 
 func _init() -> void:
 	collision_layer = ExploreActorProfile.ACTOR
@@ -58,6 +59,14 @@ func _collider_setup() -> void:
 func configure_kind(value: StringName) -> bool:
 	if not CityTrafficCatalog.is_drivable(value) or CityTrafficCatalog.domain(value) != &"road": return false
 	kind = value
+	# Terrain's full height lattice can produce very steep dry slopes. Only
+	# the mayor's SUV treats these as floors; ordinary cars keep 55 degrees.
+	_minimum_normal_y = cos(deg_to_rad(89.0)) if kind == &"mayormobile" else CityTraversalWorld3D.MIN_NORMAL_Y
+	floor_max_angle = deg_to_rad(89.0 if kind == &"mayormobile" else 55.0)
+	# Tilting the long SUV at a steep slope transition can lift every bottom
+	# corner just beyond the road car's snap. Keep contact within its half-body
+	# diagonal, without granting the larger curb step to walls/obstacles.
+	floor_snap_length = .20 if kind == &"mayormobile" else STEP
 	var shape := BoxShape3D.new()
 	shape.size = CityTrafficCatalog.dimensions(kind)
 	_collider.shape = shape
@@ -118,7 +127,7 @@ func _inside() -> bool:
 	return bounds.position.x>=0.0 and bounds.position.z>=0.0 and bounds.end.x<=City.WIDTH and bounds.end.z<=City.HEIGHT
 
 func _support(at: Vector3, rise := .045, drop := .06) -> Dictionary:
-	return _world.support_near(at,rise,drop,[get_rid()])
+	return _world.support_near(at,rise,drop,[get_rid()],_minimum_normal_y)
 
 func _ground_support() -> Dictionary:
 	# Query the actual tilted box bottom, not yaw-only projections at root Y.
@@ -135,7 +144,7 @@ func _ground_support() -> Dictionary:
 	# full current box with a bounded downward sweep, then validate its contact
 	# against current environmental geometry rather than any cached floor flag.
 	var contact := KinematicCollision3D.new()
-	if test_move(global_transform,Vector3.DOWN*STEP,contact,.001,true) and contact.get_normal().y>=CityTraversalWorld3D.MIN_NORMAL_Y:
+	if test_move(global_transform,Vector3.DOWN*STEP,contact,.001,true) and contact.get_normal().y>=_minimum_normal_y:
 		var floor_hit := _support(contact.get_position(),.003,STEP)
 		if not floor_hit.is_empty(): return floor_hit
 	return {}
@@ -306,7 +315,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	# with gravity every tick continually drives a long pitched box into the
 	# inner ramp facet instead of advancing along its validated floor.
 	var normal: Vector3 = support.normal
-	if is_on_floor() and get_floor_normal().y>=CityTraversalWorld3D.MIN_NORMAL_Y:
+	if is_on_floor() and get_floor_normal().y>=_minimum_normal_y:
 		normal = get_floor_normal()
 	velocity = direction.slide(normal).normalized()*_speed
 	velocity.y -= .613*dt
@@ -316,13 +325,18 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	velocity *= factor
 	_clear_lateral_rest_recovery()
 	move_and_slide()
-	# Explicit snap remains bounded by STEP even when projected uphill velocity
-	# is positive at the crest of a convex facet.
+	# Explicit snap remains bounded by this vehicle's floor_snap_length even
+	# when projected uphill velocity is positive at the crest of a convex facet.
 	apply_floor_snap()
 	velocity /= factor
 	_absorb_actor_contacts()
 	if not on_drivable_ground():
-		_deflect_from_edge(before)
+		if kind == &"mayormobile":
+			# A shoreline is a barrier, not a recovery/teleport. Restore the last
+			# dry physical pose and allow the driver to steer or reverse away.
+			global_transform = before
+			stop_input()
+		else: _deflect_from_edge(before)
 	_grounded = not _ground_support().is_empty()
 	if not global_position.is_finite(): _request("nonfinite")
 	elif not _inside(): _request("bounds")
@@ -331,8 +345,11 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	_visual.set_motion(_speed,steering,false)
 	_visual.advance_visual(dt)
 
-## The existing road rule plus the single bounded ground-level motor court.
+## The mayor's unique SUV can use every dry terrain surface. Other vehicles
+## retain the road rule plus the bounded ground-level motor court.
 func on_drivable_ground() -> bool:
+	if kind == &"mayormobile":
+		return is_instance_valid(_world) and not _world.touches_water_footprint(_collider.global_transform,vehicle_size())
 	if route_graph == null or route_graph.has_cell(Vector2i(floori(global_position.x),floori(global_position.z)),&"road"): return true
 	if is_instance_valid(_world) and _world.inside_road_tunnel(global_position): return true
 	return ExploreMayorsHouse.allows(driveway,global_transform,vehicle_size())

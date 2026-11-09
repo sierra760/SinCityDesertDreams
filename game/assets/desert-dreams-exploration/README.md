@@ -26,4 +26,13 @@ authored .24 meter radius, and helicopter rotors turn about Y and X respectively
 `explore_actor_visual.gd` owns presentation only. Physics bodies, collisions,
 movement, saved city data and session lifecycle remain separate runtime owners.
 
+The Mayormobile (November 8, 2026) is a separate original luxury trail SUV used
+only by the Mayor's House fleet. Its editable source and five studio previews
+are in `assets/mayormobile/`; its builder and exact hashes are recorded in
+`docs/art/mayormobile.json`. The `mayormobile.tscn` wrapper uses the same 1/16
+conversion with a 2.30 × 2.20 × 5.10 m physical envelope. Four 0.42 m tires
+use motion metadata; the tailgate spare stays fixed. Ordinary traffic retains
+the Desert Cruiser. See `docs/design/explore-spawns.md` for unique spawning and
+dry-terrain driving rules.
+
 These sources are separate from the 144 building masters and their export pairs.

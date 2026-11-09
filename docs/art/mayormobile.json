@@ -1,0 +1,59 @@
+{
+  "tool": "tools/blender_exploration/build_mayormobile.py",
+  "description": "Original juniper-green four-door luxury trail SUV, ivory roof, brass mayoral sun seal, rear spare and four articulated all-terrain wheels.",
+  "runtime": "game/assets/desert-dreams-exploration/mayormobile.glb",
+  "runtime_sha256": "184e95c1f5c9ad904bafdc7cc0386db049cd1a38789b6b2aa439daf773b9e632",
+  "master": "assets/mayormobile/mayormobile.blend",
+  "master_sha256": "6de652c042c8bc0b27dbb17e551332799991ed73055ec816885f8ed5a90e94e3",
+  "triangles": 10484,
+  "units": "meters",
+  "runtime_scale": 0.0625,
+  "bounds_blender": [
+    [
+      -1.0989999771118164,
+      -2.419750213623047,
+      0.0
+    ],
+    [
+      1.0989999771118164,
+      2.419750213623047,
+      2.1575000286102295
+    ]
+  ],
+  "envelope_godot_m": [
+    2.3,
+    2.2,
+    5.1
+  ],
+  "owned_geometry": true,
+  "external_textures": false,
+  "animation": {
+    "wheel_radius_m": 0.42,
+    "wheels": [
+      {
+        "node": "WheelFrontLeft",
+        "radius_m": 0.42,
+        "axis": "X",
+        "steer": true
+      },
+      {
+        "node": "WheelFrontRight",
+        "radius_m": 0.42,
+        "axis": "X",
+        "steer": true
+      },
+      {
+        "node": "WheelRearLeft",
+        "radius_m": 0.42,
+        "axis": "X",
+        "steer": false
+      },
+      {
+        "node": "WheelRearRight",
+        "radius_m": 0.42,
+        "axis": "X",
+        "steer": false
+      }
+    ]
+  }
+}

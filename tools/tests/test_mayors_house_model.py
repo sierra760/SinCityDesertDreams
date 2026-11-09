@@ -35,7 +35,7 @@ class MayorClearanceTests(unittest.TestCase):
         doc, binary = read_glb((ROOT/'game/assets/desert-dreams-3d/243-blender.glb').read_bytes())
         obstacles=[p for p in parts_of(doc,binary) if p['collision'] and p['hi'][1]>.5]
         # Literal measured envelopes, independent of the layout builder.
-        slots=[((2.2,4.8),(2.041,1.509,4.752)),((6.6,4.8),(2.139,1.734,4.955)),
+        slots=[((2.2,4.8),(2.30,2.20,5.10)),((6.6,4.8),(2.139,1.734,4.955)),
                ((11.4,4.8),(2.679,3.179,8.206)),((-7.5,6),(8,100,8.77))]
         for (x,z),(w,h,d) in slots:
             lo=np.array([x-w/2,.21,z-d/2]);hi=lo+np.array([w,h,d])

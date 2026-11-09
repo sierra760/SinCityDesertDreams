@@ -28,7 +28,7 @@ static func vehicle_kind_index(kind: StringName) -> int:
 	return KINDS.find(kind)
 
 static func is_drivable(kind: StringName) -> bool:
-	return kind in KINDS and kind != &"plane"
+	return kind == &"mayormobile" or (kind in KINDS and kind != &"plane")
 
 static func domain(kind: StringName) -> StringName:
 	if kind in [&"train", &"subway"]:
@@ -43,9 +43,12 @@ static func pedestrian_variants() -> int:
 	return 16
 
 static func display_name(kind: StringName) -> String:
+	if kind == &"mayormobile": return "Mayormobile"
 	return NAMES.get(kind, String(kind).capitalize())
 
 static func dimensions(kind: StringName) -> Vector3:
+	# Unique house vehicle: deliberately excluded from ambient and mod kinds.
+	if kind == &"mayormobile": return Vector3(2.30,2.20,5.10)/METRES_PER_TILE
 	if _metadata.is_empty():
 		var file := FileAccess.open(ASSET_ROOT + "catalog.json", FileAccess.READ)
 		if file != null:
@@ -166,7 +169,14 @@ static func make_visual(kind: StringName, variant: int = 0) -> Node3D:
 static func make_detailed_visual(kind: StringName, variant: int = 0) -> ExploreActorVisual:
 	var path := "res://assets/desert-dreams-exploration/" + String(kind) + ".tscn"
 	if kind != &"pedestrian" and ResourceLoader.exists(path):
-		return (load(path) as PackedScene).instantiate() as ExploreActorVisual
+		var visual := (load(path) as PackedScene).instantiate() as ExploreActorVisual
+		if kind == &"mayormobile":
+			visual.configure_animation({"wheel_radius_m":.42,"wheels":[
+				{"node":"WheelFrontLeft","radius_m":.42,"axis":"X","steer":true},
+				{"node":"WheelFrontRight","radius_m":.42,"axis":"X","steer":true},
+				{"node":"WheelRearLeft","radius_m":.42,"axis":"X","steer":false},
+				{"node":"WheelRearRight","radius_m":.42,"axis":"X","steer":false}]})
+		return visual
 	var fallback := TrafficActorVisual.new()
 	fallback.name = String(kind).to_pascal_case()
 	fallback.configure(kind,variant)

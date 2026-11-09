@@ -191,7 +191,7 @@ func max_flight_y() -> float:
 func _inside(point: Vector3) -> bool:
 	return point.is_finite() and point.x>=0.0 and point.z>=0.0 and point.x<float(City.WIDTH) and point.z<float(City.HEIGHT)
 
-func support_near(feet: Vector3, rise: float, drop: float, exclude: Array[RID]) -> Dictionary:
+func support_near(feet: Vector3, rise: float, drop: float, exclude: Array[RID], minimum_normal_y: float = MIN_NORMAL_Y) -> Dictionary:
 	if not _ready_revision or not is_inside_tree() or not _inside(feet): return {}
 	if not is_finite(rise) or not is_finite(drop) or rise<0.0 or drop<0.0 or rise+drop<=0.0: return {}
 	# Godot's short segment/triangle predicate misses tiny curved-deck facets.
@@ -201,7 +201,7 @@ func support_near(feet: Vector3, rise: float, drop: float, exclude: Array[RID]) 
 	var query := PhysicsRayQueryParameters3D.create(feet+Vector3.UP*rise,feet-Vector3.UP*cast_drop,ExploreActorProfile.WORLD,exclude)
 	query.hit_back_faces = true
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty() or not hit.position.is_finite() or hit.normal.y<MIN_NORMAL_Y: return {}
+	if hit.is_empty() or not hit.position.is_finite() or hit.normal.y<minimum_normal_y: return {}
 	if hit.position.y<feet.y-drop-.000002 or hit.position.y>feet.y+rise+.000002: return {}
 	return {"position":hit.position,"normal":hit.normal,"rid":hit.rid}
 
@@ -229,32 +229,55 @@ func touches_water(feet: Vector3) -> bool:
 		if feet.y<=float(region.top)+SKIN and Geometry2D.is_point_in_polygon(Vector2(feet.x,feet.z),region.polygon): return true
 	return false
 
-func _candidate(point: Vector3, mode: int, exclude: Array[RID], broad: bool = false) -> Dictionary:
+## Full ground footprint, including oblique shoreline contact between corners.
+## Only the few covered cells are queried; bridges and dry bores retain their
+## own physical height above/below the surface water column.
+func touches_water_footprint(body: Transform3D, size: Vector3) -> bool:
+	var polygon := PackedVector2Array()
+	var bottom := INF
+	for corner: Vector2 in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
+		var at := body*Vector3(corner.x*size.x*.5,-size.y*.5,corner.y*size.z*.5)
+		polygon.append(Vector2(at.x,at.z))
+		bottom = minf(bottom,at.y)
+	var bounds := Rect2(polygon[0],Vector2.ZERO)
+	for point: Vector2 in polygon: bounds = bounds.expand(point)
+	for y in range(floori(bounds.position.y),floori(bounds.end.y)+1):
+		for x in range(floori(bounds.position.x),floori(bounds.end.x)+1):
+			for region: Dictionary in _water.get(Vector2i(x,y),[]):
+				if bottom > float(region.top)+SKIN*2.0: continue
+				for overlap: PackedVector2Array in Geometry2D.intersect_polygons(polygon,region.polygon):
+					for point: Vector2 in overlap:
+						if not inside_road_tunnel(Vector3(point.x,bottom,point.y)): return true
+	return false
+
+func _candidate(point: Vector3, mode: int, exclude: Array[RID], broad: bool = false, vehicle_shape: Shape3D = null, minimum_normal_y: float = MIN_NORMAL_Y) -> Dictionary:
 	if not _inside(point): return {}
-	var support := support_near(point,.045,8.0,exclude) if not broad else support_near(Vector3(point.x,_ceiling,point.z),0.0,_ceiling+64.0,exclude)
+	var support := support_near(point,.045,8.0,exclude,minimum_normal_y) if not broad else support_near(Vector3(point.x,_ceiling,point.z),0.0,_ceiling+64.0,exclude,minimum_normal_y)
 	if support.is_empty(): return {}
 	var feet: Vector3 = support.position+Vector3.UP*SKIN
 	if touches_water(feet) or feet.y>_ceiling: return {}
-	var at := Transform3D(Basis.IDENTITY,feet+Vector3.UP*float(ExploreActorProfile.geometry(mode).foot_offset))
-	if not has_clearance(at,ExploreActorProfile.shape(mode),exclude): return {}
+	var shape := vehicle_shape if vehicle_shape != null else ExploreActorProfile.shape(mode)
+	var at := Transform3D(Basis.IDENTITY,feet+Vector3.UP*shape.get_debug_mesh().get_aabb().size.y*.5)
+	if vehicle_shape is BoxShape3D and touches_water_footprint(at,vehicle_shape.size): return {}
+	if not has_clearance(at,shape,exclude): return {}
 	return {"transform":Transform3D(Basis.IDENTITY,feet)}
 
-func safe_pose(origin: Vector3, mode: int, exclude: Array[RID]) -> Dictionary:
+func safe_pose(origin: Vector3, mode: int, exclude: Array[RID], vehicle_shape: Shape3D = null, minimum_normal_y: float = MIN_NORMAL_Y) -> Dictionary:
 	if not _ready_revision or not _inside(origin) or mode<ExploreActorProfile.Mode.WALK or mode>ExploreActorProfile.Mode.FLY: return {}
-	var result := _candidate(origin,mode,exclude)
+	var result := _candidate(origin,mode,exclude,false,vehicle_shape,minimum_normal_y)
 	if not result.is_empty(): return result
 	# Fixed concentric order avoids RNG and limits nearby recovery to eight tiles.
 	for radius: int in range(1,9):
 		for index: int in 16:
 			var angle := TAU*float(index)/16.0
 			var point := origin+Vector3(cos(angle),0,sin(angle))*float(radius)
-			result = _candidate(point,mode,exclude)
+			result = _candidate(point,mode,exclude,false,vehicle_shape,minimum_normal_y)
 			if not result.is_empty(): return result
 	# Finite city-centre grid fallback; every result still has physical support,
 	# dry feet and clearance. No unchecked origin/height-map fallback exists.
 	for z: int in City.HEIGHT:
 		for x: int in City.WIDTH:
-			result = _candidate(Vector3(x+.5,0,z+.5),mode,exclude,true)
+			result = _candidate(Vector3(x+.5,0,z+.5),mode,exclude,true,vehicle_shape,minimum_normal_y)
 			if not result.is_empty(): return result
 	return {}
 
