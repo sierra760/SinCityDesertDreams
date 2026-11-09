@@ -299,7 +299,8 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	_grounded = true
 	var throttle := clampf(-frame.move.y,-1,1)
 	var opposing := _speed*throttle<0
-	var target := 0.0 if opposing else 1.2*maxf(throttle,0)-.3*maxf(-throttle,0)
+	var forward_speed := 25.0/ExploreActorProfile.METRES_PER_TILE if kind == &"mayormobile" else 1.2
+	var target := 0.0 if opposing else forward_speed*maxf(throttle,0)-.3*maxf(-throttle,0)
 	var cap := _ramp_speed_cap()
 	target = clampf(target,-cap,cap)
 	_speed = move_toward(_speed,target,(1.1 if opposing else .55)*dt)

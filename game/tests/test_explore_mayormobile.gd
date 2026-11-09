@@ -81,6 +81,35 @@ func test_only_mayormobile_drives_across_dry_offroad_ground() -> void:
 	check_eq(CityTrafficCatalog.display_name(suv.kind),"Mayormobile")
 	check(reports.is_empty(),"dry terrain does not request recovery")
 
+func test_mayormobile_reaches_25_metres_per_second_and_brakes() -> void:
+	if not _setup(): return
+	await physics_frame
+	check(session.enter(city,Vector3(22.5,GROUND,20.5)))
+	session.set_physics_process(false)
+	var suv := _vehicle(&"mayormobile",Vector3(24.5,GROUND+.002,30.5))
+	var ordinary := _vehicle(&"car",Vector3(26.5,GROUND+.002,30.5))
+	ordinary.route_graph = null
+	await physics_frame
+	var forward := ExploreInputFrame.idle()
+	forward.move = Vector2(0,-1)
+	var cruise_start := Vector3.ZERO
+	for tick in 240:
+		suv.step(forward,0,1.0/60.0)
+		ordinary.step(forward,0,1.0/60.0)
+		await physics_frame
+		check_lt(suv.speed()*16.0,25.001,"forward speed never exceeds the requested cap")
+		if tick==179: cruise_start = suv.global_position
+	check_between(suv.speed()*16.0,24.999,25.001,"full throttle reaches 25 m/s")
+	check_between((cruise_start.z-suv.global_position.z)*16.0,24.9,25.1,"body actually travels 25 metres during a second at full speed")
+	check_between(ordinary.speed()*16.0,19.199,19.201,"ordinary traffic cars retain their own top speed")
+	var brake := ExploreInputFrame.idle()
+	brake.brake = true
+	for tick in 90:
+		suv.step(brake,0,1.0/60.0)
+		await physics_frame
+	check(absf(suv.speed())<.00001,"handbrake stops the faster SUV")
+	check(reports.is_empty(),"full-speed drive and braking retain physical support")
+
 func test_shoreline_stops_full_vehicle_before_water_in_forward_and_reverse() -> void:
 	var value := flat_city()
 	value.building.put(22,20,30)
@@ -91,9 +120,16 @@ func test_shoreline_stops_full_vehicle_before_water_in_forward_and_reverse() -> 
 	await physics_frame
 	check(session.enter(city,Vector3(22.5,GROUND,20.5)))
 	session.set_physics_process(false)
-	var suv := _vehicle(&"mayormobile",Vector3(24.5,GROUND+.002,25.1))
+	var suv := _vehicle(&"mayormobile",Vector3(24.5,GROUND+.002,30.5))
 	await physics_frame
-	await _drive(suv,240)
+	var forward := ExploreInputFrame.idle()
+	forward.move = Vector2(0,-1)
+	var peak := 0.0
+	for tick in 420:
+		suv.step(forward,0,1.0/60.0)
+		peak = maxf(peak,suv.speed()*16.0)
+		await physics_frame
+	check_between(peak,24.999,25.001,"shoreline approach reaches the new full speed")
 	check_between(suv.global_position.z,24.14,24.45,"front bumper stops at dry shore")
 	check(suv.on_drivable_ground() and suv.has_support())
 	check(reports.is_empty(),"shoreline stops driving without relocating the player")
