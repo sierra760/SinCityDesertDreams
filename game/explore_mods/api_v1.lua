@@ -119,10 +119,14 @@ return {}
 -- Reply timing contains bounded numeric validation/context-copy/Lua-copy,
 -- payload-copy/invocation and thread CPU microseconds. Time limits: the host's
 -- 1.5 ms tick window only decides whether a callback starts (>=400 us left;
--- otherwise it waits for the next tick). A started callback faults with
--- deadline after 1.5 ms of its own thread CPU time or 50 ms of wall time, so
--- OS preemption alone cannot fault it. Windows enforces only the wall backstop
--- (its thread CPU clock is too coarse). A faulted callback is never retried.
+-- otherwise it waits for the next tick). A started callback is limited by its
+-- 20,000-instruction allowance, to which native work is charged: 10 per
+-- string/table/tostring/tonumber call, 40 per api call, 1 per 8 bytes a call
+-- validates or copies (state.set: the whole progress table) and 1 per 512
+-- bytes the VM allocates. Time is a safety net only: deadline after 10 ms of
+-- the callback's own thread CPU time; preemption or suspension alone cannot
+-- fault it (50 ms of wall time where no thread CPU clock exists). A faulted
+-- callback is never retried.
 -- Environment presets: daylight day/dawn/dusk/night; haze clear/desert/fog;
 -- wind calm/breeze/gust; precipitation none/dust/rain. Parameters accepts only
 -- intensity (finite 0..1, default 1). Highest manifest priority wins each channel;

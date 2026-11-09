@@ -142,15 +142,21 @@ backgrounding freeze script timers and callbacks. Scripts run at 10 Hz with at
 most 32 callbacks/64 commands per session tick, 20,000 instructions per callback
 and 100,000 instructions per tick. Each tick has a 1.5 ms window for starting
 callbacks: a callback starts only while at least 400 µs of it remain, and the
-rest waits for the next tick. Once started, a callback is limited by its own
-thread CPU time (1.5 ms), not by the window, so time the operating system
-spends elsewhere (preemption, a loaded machine) never faults a healthy pack. A
-50 ms wall-time backstop still ends any callback that stalls. Limits are checked
-every 200 instructions and at each API call; exceeding a time limit faults with
-`deadline`. On Windows, per-thread CPU time is too coarse to enforce, so only the
-instruction limits and the wall backstop apply there. Each VM has 8 MiB. There
-are at most eight live VMs, including candidate validation; no temporary ninth
-VM is allowed.
+rest waits for the next tick. Once started, a callback is limited by counted
+work, which is the same on every machine, not by the window or by how fast the
+device is. Native work is charged to the same 20,000-instruction allowance as
+Lua code: 10 instructions for each `string`/`table`/`tostring`/`tonumber` call
+and 40 for each `api` call, one more for every 8 bytes a call validates or
+copies (arguments, results, a value read with `state.get`, and the whole
+progress table on each `state.set`), and one for every 512 bytes the VM
+allocates, so long strings built with `..` are not free. The bundled packs use
+under a tenth of the allowance per callback. Time is only a safety net: a
+callback that has used 10 ms of its own thread CPU time faults with `deadline`.
+Time the operating system spends elsewhere (preemption, a loaded machine, a
+suspended app) is never charged. Limits are checked every 200 instructions and
+at each native call. Where no per-thread CPU clock is available, a 50 ms
+wall-time backstop applies instead. Each VM has 8 MiB. There are at most eight
+live VMs, including candidate validation; no temporary ninth VM is allowed.
 
 Per pack: 16 actors/timers/interactions/markers, 8 objectives, 32 pending commands,
 128 queued events, 64 KiB progress. Globally: 64 script actors within the existing

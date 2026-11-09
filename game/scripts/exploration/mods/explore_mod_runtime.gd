@@ -91,12 +91,12 @@ func start_pack(pack: Dictionary) -> bool:
 		if String(path).ends_with(".lua"): modules[String(path)] = pack.sources[path]
 	var context := _context(owner,{"delta":0.0})
 	var opened := vm.start(pack.sources[manifest.entry],modules,context,owner.hash())
-	if not _accept(owner,opened,{"stage":"start","remaining_usec":1500,"context":context}): return false
+	if not _accept(owner,opened,{"stage":"start","remaining_usec":ExploreLuaBridge.CALLBACK_CPU_USEC,"context":context}): return false
 	session["handlers"] = opened.get("handlers",[]).duplicate()
 	# Entry/configuration owns initialization. Relative budgets cannot return
 	# the bridge's absolute-deadline deferral, so on_start never runs later.
 	if not session.handlers.has("on_start"): return true
-	_accept(owner,vm.dispatch("on_start",{},context,{"instructions":20000,"remaining_usec":1500}),{"stage":"on_start","remaining_usec":1500,"context":context})
+	_accept(owner,vm.dispatch("on_start",{},context,{"instructions":20000,"remaining_usec":ExploreLuaBridge.CALLBACK_CPU_USEC}),{"stage":"on_start","remaining_usec":ExploreLuaBridge.CALLBACK_CPU_USEC,"context":context})
 	return _sessions.has(owner)
 
 func _context(owner: String, extra: Dictionary) -> Dictionary:
@@ -320,7 +320,7 @@ func disable(owner: String, reason: String) -> void:
 	if _sessions.has(owner):
 		var session: Dictionary = _sessions[owner]
 		if session.handlers.has("on_stop"):
-			var reply: Dictionary = session.vm.dispatch("on_stop",{},_context(owner,{"reason":reason,"delta":0.0}),{"instructions":20000,"remaining_usec":1500})
+			var reply: Dictionary = session.vm.dispatch("on_stop",{},_context(owner,{"reason":reason,"delta":0.0}),{"instructions":20000,"remaining_usec":ExploreLuaBridge.CALLBACK_CPU_USEC})
 			if reply.ok and not reply.get("deferred",false): _progress.commit(owner,int(session.manifest.state_version),String(session.manifest.version),reply.progress_writes)
 	_fault(owner,reason)
 

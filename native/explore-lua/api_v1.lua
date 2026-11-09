@@ -101,8 +101,9 @@ return {}
 -- invalid_argument results in a rolling second of active Explore time; >32
 -- disables the owner. Resource/no-route/unavailable-wave refusals are not misuse.
 -- Reply timing contains bounded numeric validation/context-copy/Lua-copy,
--- payload-copy/invocation and thread CPU microseconds. Deadlines always use wall
--- time; these diagnostics never authorize retries or deadline exemptions.
+-- payload-copy/invocation and thread CPU microseconds; these diagnostics never
+-- authorize retries or deadline exemptions. Limits: see README.md (counted
+-- instructions including native-work charges; 10 ms thread CPU safety net).
 -- Environment presets: daylight day/dawn/dusk/night; haze clear/desert/fog;
 -- wind calm/breeze/gust; precipitation none/dust/rain. Parameters accepts only
 -- intensity (finite 0..1, default 1). Highest manifest priority wins each channel;

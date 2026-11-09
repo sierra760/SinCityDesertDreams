@@ -66,26 +66,58 @@ on_event, on_resume, on_stop). The host schedules only that fixed inventory;
 adding a handler later does not subscribe it. **It does not call on_start.** The host initializes
 only while loading or a suspended Mods panel owns input, then separately
 `dispatch("on_start", {}, context, budget)`. Top-level execution receives the
-same 20,000 instruction limit and per-callback time limits described below. Compilation has source
-and memory bounds and occurs outside tick scheduling; its time is not claimed
-as instruction-counted execution. `require` uses precompiled closures only.
+same 20,000 instruction limit, native-work charges and time safety net described
+below. Compilation has source and memory bounds and occurs outside tick
+scheduling; neither its time nor its allocations are charged as execution. `require` uses precompiled closures only.
 
 Native `dispatch(handler, payload, context, budget)` accepts `budget.instructions`
-(default 20,000, clamped 0–20,000) and `budget.remaining_usec` (default 1,500,
-clamped 0–1,500). `remaining_usec` is the callback's own **thread CPU** budget,
-measured from native method entry (so input validation and copying count). A
-**50 ms wall-time backstop**, also from method entry, ends any callback that
-stalls. Hooks check both at most every 200 instructions (and at the exact
-remaining allowance); API entry, `require`, handler entry after argument copying
-and successful callback exit also check them. Exhaustion of either faults with
-`deadline`; the diagnostic names which limit ran out. Wall time lost to OS
-preemption is therefore never charged against the CPU budget, while a genuinely
-busy callback is still stopped. CPU enforcement uses Mach `thread_info` on
-macOS (Rosetta 2 under-reports `CLOCK_THREAD_CPUTIME_ID` for translated x86_64
-code) and `CLOCK_THREAD_CPUTIME_ID` on other POSIX systems. On Windows `GetThreadTimes` advances in whole scheduler-tick quanta, so it stays
-diagnostic only and the instruction limits plus the wall backstop bound callbacks
-there. Wherever the thread CPU clock is unavailable the same fallback applies.
-An explicit `remaining_usec: 0` always faults with `deadline` before Lua runs.
+(default 20,000, clamped 0–20,000) and `budget.remaining_usec` (default 10,000,
+clamped 0–10,000).
+
+**Counted work is the limit.** It is identical on every machine, so a pack
+that runs on one device runs on all of them. The instruction allowance counts
+VM instructions (hooked at most every 200, and at the exact remaining
+allowance) and is also charged for native work a few VM instructions can cause:
+
+- 10 instructions per sandboxed `string`/`table`/`tostring`/`tonumber` call and
+  40 per `api` call;
+- 1 instruction per 8 bytes of bounded payload a native call validates or
+  copies: library arguments and results, API arguments, a matched query-cache
+  result, the value `state.get` returns, and the whole candidate progress table
+  (up to 64 KiB) each `state.set` validates;
+- 1 instruction per 512 bytes the VM allocates while the entry chunk or a
+  handler runs. A concatenation is one VM instruction whatever its length; this
+  bounds a callback to about 10 MiB of allocation. The allocation that
+  exhausts the allowance is refused and the callback faults with
+  `instruction_limit` (diagnostic `allocation allowance exhausted`). Host
+  copies of the context and payload into the VM are not charged.
+
+All of these fault with `instruction_limit`, reported with `instructions`
+equal to the allowance. On an M4 Max the costliest runaway
+callbacks found (API spam, 4 KiB string calls, megabyte concatenation,
+`state.set`/`state.get` against a 60 KiB progress table) end in 0.1–1.4 ms of
+thread CPU time; the bundled packs peak near 1,600 instructions per callback
+and 2,000 for an entry chunk.
+
+**Time is a safety net.** `remaining_usec` is the callback's own **thread
+CPU** budget, measured from native method entry (so input validation and
+copying count). A callback faults with `deadline` only when it has used that
+much CPU time; the wall clock is read first, and the CPU clock only once at
+least the budget has also passed in wall time, since a thread cannot use more
+CPU than wall time. Wall time lost to preemption, a loaded machine, a
+hypervisor or a suspended app is therefore never a fault on its own, and 10 ms
+leaves a healthy callback (0.2 ms on a fast Mac) room for much slower
+hardware. Hooks, native-call entry, `require`, handler entry after argument
+copying and successful callback exit check it. CPU time comes from Mach
+`thread_info` on Apple systems (microsecond steps; Rosetta 2 under-reports
+`CLOCK_THREAD_CPUTIME_ID` for translated x86_64 code),
+`CLOCK_THREAD_CPUTIME_ID` on other POSIX systems and `QueryThreadCycleTime`
+on Windows, converted with a cycles-per-microsecond rate measured once
+against the performance counter (the highest of four 1 ms spins;
+`GetThreadTimes` advances in whole scheduler ticks and is not used). Only
+where the thread CPU clock is unavailable does a **50 ms wall-time backstop**
+from method entry apply instead. An explicit `remaining_usec: 0` always faults
+with `deadline` before Lua runs.
 
 The GDScript bridge accepts an **absolute Godot** `budget.deadline_usec` from
 `Time.get_ticks_usec()`. It is the scheduler's admission window, not a running
@@ -95,7 +127,7 @@ the VM. Native retains the absolute deadline and rechecks it with the same
 engine Time singleton after validated host-side copying, immediately before
 protected callback entry, deferring the same way when the relative budget is
 positive. Once Lua callback execution begins the absolute deadline is no longer
-consulted; the shared window never shrinks a started callback's CPU budget.
+consulted; the shared window never shrinks a started callback's limits.
 Native deferral reports actual VM memory/native elapsed; bridge-only
 `bytes_used: 0` means no native sample was taken. The host keeps the callback
 queued and performs no output/progress commit. Explicit relative
@@ -108,12 +140,13 @@ ownership; on_start cannot take the absolute pre-entry deferral path.
 The host scheduler owns the 1.5 ms tick admission window: it starts a callback
 only while at least 400 µs of it remain, passes the session's remaining
 instructions and the window as `deadline_usec`, sums native instruction counts
-and owns the 100,000-instruction aggregate tick limit. Because the window only
-admits, one tick can run past it by at most the last admitted callback. Successful
+and owns the 100,000-instruction aggregate tick limit (native-work charges
+included). Because the window only admits, one tick can run past it by at most
+the last admitted callback. Successful
 callbacks conservatively charge the unfinished hook quantum (at most 200
 instructions), so short callbacks cannot evade aggregate accounting. The native
 budget never extends a smaller allowance. Native-only tests use relative budgets;
-preemption tests stop and resume the test process from a helper shell process.
+preemption tests stop and resume the test process from a helper process.
 
 `dispatch` calls lifecycle handlers with `(api, copied_context, copied_context)`;
 `on_event` receives `(api, copied_event, copied_context)`. Authors need only the
@@ -171,8 +204,7 @@ or resource-limited requests do not count as malformed commands.
 
 Host-only numeric timing fields split boundary validation, context copy, Lua
 argument copy, payload copy and invocation. `thread_cpu_usec` uses the same
-clock as CPU enforcement (Mach `thread_info` on macOS) and `GetThreadTimes` on
-Windows (which can report zero for short intervals); -1 denotes unavailable
+clock as CPU enforcement on every platform; -1 denotes unavailable
 measurement. Timing fields are diagnostic, never an admission exemption or
 fault retry.
 

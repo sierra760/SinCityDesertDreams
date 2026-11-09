@@ -15,7 +15,8 @@ class SCDDExploreLua : public RefCounted {
  GDCLASS(SCDDExploreLua, RefCounted)
  lua_State *vm = nullptr;
  size_t memory = 0;
- bool memory_fault = false, stopping = false;
+ bool memory_fault = false, stopping = false, metered = false, allocation_limit = false;
+ size_t allocation_debt = 0;
  int handlers = LUA_NOREF, api = LUA_NOREF;
  Array handler_names;
  int invalid_calls = 0;
@@ -23,7 +24,7 @@ class SCDDExploreLua : public RefCounted {
  int instructions = 0, allowance = 20000, hook_interval = 200;
  uint64_t random_state = 1, serial = 0;
  std::chrono::steady_clock::time_point begun;
- int64_t cpu_begun = -1, cpu_budget_usec = 1500;
+ int64_t cpu_begun = -1, cpu_budget_usec = 10000;
  bool has_absolute_deadline = false;
  int64_t absolute_deadline_usec = 0;
  std::map<std::string, int> compiled, cached;
@@ -53,6 +54,7 @@ class SCDDExploreLua : public RefCounted {
  void restart_clock();
  const char *time_fault() const;
  void check_deadline();
+ void charge(lua_State *, size_t copied, int call = 0);
 protected:
  static void _bind_methods();
 public:

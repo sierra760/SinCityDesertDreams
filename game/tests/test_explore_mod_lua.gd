@@ -1,6 +1,6 @@
 extends "res://tests/test_case.gd"
 const Bridge = preload("res://scripts/exploration/mods/explore_lua_bridge.gd")
-const WALL_BACKSTOP_USEC := 50000 # WALL_BACKSTOP_USEC in native/explore-lua/lua_vm.cpp
+const CALLBACK_CPU_USEC := Bridge.CALLBACK_CPU_USEC # also in native/explore-lua/lua_vm.cpp
 func context() -> Dictionary:
 	return {"owner":"test.mod", "generation":3, "progress":{}, "queries":{}}
 func test_native_instruction_and_memory_limits() -> void:
@@ -317,7 +317,7 @@ func test_native_absolute_zero_relative_precedence_and_budget_types() -> void:
 # so callbacks lose wall time while their thread CPU time stays small.
 # The resume gap is generous: Rosetta can take several ms to resume a process.
 # The helper spins through each stop rather than sleeping: macOS coalesces a
-# background process's short timers, which held 6 ms stops for 50-60 ms on CI.
+# background process's short timers, which held short stops for 50-60 ms on CI.
 func _preempt_self(pause: String, cycles: int) -> int:
 	var pid := OS.get_process_id()
 	var script := "use Time::HiRes qw(time sleep); END { kill 'CONT', %d } for (1..%d) { kill 'STOP', %d; my $t = time; 1 while time - $t < %s; kill 'CONT', %d; sleep 0.02 }" % [pid, cycles, pid, pause, pid]
@@ -327,65 +327,127 @@ func _wait_for(helper: int) -> void:
 	while OS.is_process_running(helper): OS.delay_msec(1)
 
 func test_preempted_callbacks_are_not_charged_for_lost_wall_time() -> void:
-	# Windows has no stop/resume helper and enforces only the wall backstop there.
+	# Windows has no stop/resume helper.
 	if OS.get_name() == "Windows": return
+	# Each stop outlasts the whole time budget, so wall time alone would fault.
+	var vm = Bridge.new()
+	check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end; api.state.set('n',n) end}", {}, context(), 7).ok)
+	var helper := _preempt_self("0.015", 12)
+	check(helper > 0)
 	var stalled := 0
 	var calls := 0
 	var failure := {}
-	var vm = null
-	for attempt in 5:
-		vm = Bridge.new()
-		check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end; api.state.set('n',n) end}", {}, context(), 7).ok)
-		var helper := _preempt_self("0.006", 25)
-		check(helper > 0)
-		stalled = 0
-		calls = 0
-		failure = {}
-		while OS.is_process_running(helper):
-			var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
-			calls += 1
-			if not result.ok:
-				failure = result
-				break
-			var cpu := int(result.get("timing", {}).get("thread_cpu_usec", -1))
-			if int(result.elapsed_usec) > 1500 and cpu >= 0 and cpu < 1500: stalled += 1
-		_wait_for(helper)
-		# A stop the OS itself held past the backstop rightly faults; try again.
-		if failure.is_empty() or int(failure.get("elapsed_usec", 0)) < WALL_BACKSTOP_USEC: break
-		vm.close()
-	check(failure.is_empty(), "a 6 ms stall with low CPU must not fault: " + str(failure))
+	while OS.is_process_running(helper):
+		var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
+		calls += 1
+		if not result.ok:
+			failure = result
+			break
+		var cpu := int(result.get("timing", {}).get("thread_cpu_usec", -1))
+		if int(result.elapsed_usec) > CALLBACK_CPU_USEC and cpu >= 0 and cpu < CALLBACK_CPU_USEC: stalled += 1
+	_wait_for(helper)
+	check(failure.is_empty(), "a 15 ms stall with low CPU must not fault: " + str(failure))
 	check(stalled > 0, "a stop landed inside a callback (" + str(calls) + " calls)")
 	check_eq(vm.dispatch("on_tick", {}, context(), {}).progress_writes, {"n":4501500})
 	vm.close()
 
-func test_wall_backstop_still_ends_a_stalled_callback() -> void:
+func test_a_long_stall_alone_never_closes_a_pack() -> void:
+	# A stopped or suspended process (a backgrounded phone app, a busy machine)
+	# used no CPU. Where the thread CPU clock works, wall time alone is not a
+	# fault, however long; the same VM is still stopped once it runs away.
 	if OS.get_name() == "Windows": return
-	var faulted := {}
-	for attempt in 10:
-		faulted = {}
-		var vm = Bridge.new()
-		check(vm.start("return {on_tick=function(api) local n=0; for i=1,3000 do n=n+i end end}", {}, context(), 7).ok)
-		var helper := _preempt_self("0.08", 1)
-		while OS.is_process_running(helper):
-			var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
-			if not result.ok:
-				faulted = result
-				break
-		_wait_for(helper)
-		vm.close()
-		# A busy runner can spend the CPU budget before the stop lands; that
-		# callback was busy, not stalled, so try again.
-		if String(faulted.get("diagnostic", "")).contains("wall-time backstop"): break
-	check_eq(faulted.get("fault", ""), "deadline")
-	check(String(faulted.get("diagnostic", "")).contains("wall-time backstop"), str(faulted))
-	check(int(faulted.get("timing", {}).get("thread_cpu_usec", 99999)) < 1500, "stalled, not busy: " + str(faulted.get("timing", {})))
+	var vm = Bridge.new()
+	check(vm.start("return {on_tick=function(api, context) local n=0; for i=1,3000 do n=n+i end; if context.runaway then while true do n=n+1 end end end}", {}, context(), 7).ok)
+	var helper := _preempt_self("0.08", 3)
+	check(helper > 0)
+	var longest := 0
+	var failure := {}
+	while OS.is_process_running(helper):
+		var result: Dictionary = vm.dispatch("on_tick", {}, context(), {})
+		if not result.ok:
+			failure = result
+			break
+		if int(result.get("timing", {}).get("thread_cpu_usec", CALLBACK_CPU_USEC)) < CALLBACK_CPU_USEC: longest = maxi(longest, int(result.elapsed_usec))
+	_wait_for(helper)
+	check(failure.is_empty(), "an 80 ms stall with low CPU must not fault: " + str(failure))
+	check(longest >= 50000, "a callback sat through a long stop (" + str(longest) + " us)")
+	var busy := context()
+	busy["runaway"] = true
+	check_eq(vm.dispatch("on_tick", {}, busy, {}).get("fault", ""), "instruction_limit")
+	vm.close()
 
-func test_thread_cpu_budget_still_ends_busy_callbacks() -> void:
-	if OS.get_name() == "Windows": return
-	# Each bounded 4 KiB string call costs far more CPU than its few counted
-	# instructions, so the CPU budget ends this before the instruction limit.
-	var result := run_callback("local s=string.char(97); for i=1,12 do s=s..s end; for i=1,3000 do s=string.lower(string.upper(s)) end")
+func test_time_budget_still_ends_busy_callbacks() -> void:
+	# The time safety net needs both clocks to agree the budget is spent. A
+	# 1 us budget is spent by any callback that reaches its first check.
+	var code := "local s=string.char(97); for i=1,12 do s=s..s end; for i=1,3000 do s=string.lower(string.upper(s)) end"
+	var result := run_callback(code, {}, {"remaining_usec":1})
 	check_eq(result.fault, "deadline")
-	check(String(result.get("diagnostic", "")).contains("thread CPU budget"), str(result))
+	check(String(result.get("diagnostic", "")).contains("thread CPU budget") or String(result.get("diagnostic", "")).contains("wall-time backstop"), str(result))
 	check(int(result.instructions) < 20000, str(result))
-	check(int(result.get("timing", {}).get("thread_cpu_usec", 0)) >= 1500, str(result.get("timing", {})))
+	# With the whole budget the same work is ended by its instruction charge
+	# long before the clock matters: 4 KiB string calls cost what they copy.
+	result = run_callback(code)
+	check_eq(result.fault, "instruction_limit")
+	_check_prompt(result)
+
+# A faulted runaway used the whole allowance and nowhere near the time budget.
+func _check_prompt(result: Dictionary) -> void:
+	check_eq(int(result.get("instructions", 0)), 20000, str(result))
+	var cpu := int(result.get("timing", {}).get("thread_cpu_usec", -1))
+	check(cpu < CALLBACK_CPU_USEC, "ended by instructions before the time budget: " + str(result.get("timing", {})))
+
+func test_native_work_is_charged_to_the_instruction_allowance() -> void:
+	# Every one of these loops runs few VM instructions per pass; the native
+	# work they cause is what ends them, at the same point on every machine.
+	var runaways := {
+		"small string calls":"local s='abc'; while true do s=string.lower(string.upper(s)) end",
+		"tostring":"local s=string.char(97); for i=1,12 do s=s..s end; while true do local x=tostring(s) end",
+		"table library":"local t={}; for i=1,200 do t[i]='abcdef' end; while true do local s=table.concat(t) end",
+		"random":"while true do api.utility.random() end",
+		"state.get":"while true do api.state.get('k', 1) end",
+		"rejected calls":"while true do api.utility.log(1) end",
+		"queries":"while true do api.world.route({x=1,y=2},{x=3,y=4}) end",
+	}
+	for label: String in runaways:
+		var result := run_callback(runaways[label])
+		check_eq(result.get("fault", ""), "instruction_limit", label + ": " + str(result))
+		_check_prompt(result)
+	# The charge is counted work, not measured time: it repeats exactly.
+	var counted := "local s='abc'; for i=1,50 do s=string.lower(string.upper(s)); api.state.get('k', i) end; api.state.set('s', s)"
+	var first := run_callback(counted)
+	check(first.ok, str(first))
+	check_eq(run_callback(counted).instructions, first.instructions)
+	# 100 library calls and 51 API calls: well above the VM's own count, far below the allowance.
+	check(int(first.instructions) > 3000 and int(first.instructions) < 6000, str(first.instructions))
+
+func test_huge_string_work_is_charged_by_allocation() -> void:
+	# One concatenation is one VM instruction whatever it copies. A megabyte
+	# string appended to for ever is ended by its allocation charge.
+	for size in [18, 20]:
+		var result := run_callback("local a='abc'; for i=1,%d do a=a..a end; while true do local b=a..'x' end" % size)
+		check_eq(result.get("fault", ""), "instruction_limit", str(result))
+		check(String(result.get("diagnostic", "")).contains("allocation allowance"), str(result))
+		_check_prompt(result)
+	var growing := run_callback("local t={}; while true do t[#t+1]={1,2,3} end")
+	check_eq(growing.get("fault", ""), "instruction_limit", str(growing))
+	_check_prompt(growing)
+	# Doubling to the memory cap still reports the memory limit first.
+	check_eq(run_callback("local a='abcd'; for i=1,22 do a=a..a end").fault, "memory_limit")
+
+func test_progress_writes_cost_the_table_they_validate() -> void:
+	var big := {}
+	for i in 15: big["k%d" % i] = "x".repeat(4000)
+	# Copying the host's context into the VM is the host's work, not the pack's.
+	var idle := run_callback("local n=0", {"progress":big})
+	check(idle.ok, str(idle))
+	check(int(idle.instructions) <= 400, str(idle.instructions))
+	# One write against a 60 KiB table is affordable; rewriting it in a loop is not.
+	var once := run_callback("api.state.set('a', 1)", {"progress":big})
+	check(once.ok, str(once))
+	check(int(once.instructions) > 7000 and int(once.instructions) < 9000, str(once.instructions))
+	var looping := run_callback("while true do api.state.set('a', 1) end", {"progress":big})
+	check_eq(looping.get("fault", ""), "instruction_limit", str(looping))
+	_check_prompt(looping)
+	var reading := run_callback("while true do local v=api.state.get('k1') end", {"progress":big})
+	check_eq(reading.get("fault", ""), "instruction_limit", str(reading))
+	_check_prompt(reading)

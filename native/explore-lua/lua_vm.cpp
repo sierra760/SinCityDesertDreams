@@ -19,17 +19,50 @@
 using namespace godot;
 namespace {
 constexpr size_t MEMORY = 8 * 1024 * 1024;
-// One started callback may use this much of its own thread CPU time. Wall time
-// lost to preemption is not charged; the backstop below still ends a stall.
-constexpr int64_t CALLBACK_CPU_USEC = 1500;
+// The deterministic limits are primary and identical on every machine: the
+// instruction allowance, to which native work is charged below, and the
+// memory cap. Time is only a safety net. A callback faults on time when it has
+// used this much of its own thread CPU time and at least as much wall time has
+// passed, so neither a slow device, a coarse or inflated CPU clock, nor time
+// lost to preemption or suspension can close a pack that did little work.
+constexpr int64_t CALLBACK_CPU_USEC = 10000;
+// Used only where no per-thread CPU clock is available.
 constexpr int64_t WALL_BACKSTOP_USEC = 50000;
+// Native work costs instructions: every sandboxed library or API call, the
+// bounded bytes it validates and copies, and every byte the VM allocates
+// (string concatenation costs one VM instruction whatever its length).
+constexpr int LIBRARY_CALL_INSTRUCTIONS = 10;
+constexpr int API_CALL_INSTRUCTIONS = 40;
+constexpr size_t COPY_BYTES_PER_INSTRUCTION = 8;
+constexpr size_t ALLOCATION_BYTES_PER_INSTRUCTION = 512;
 int active_vms = 0;
+#ifdef _WIN32
+// QueryThreadCycleTime is exact per thread (GetThreadTimes advances in whole
+// scheduler ticks). Cycles are converted with a rate measured once against
+// the performance counter; the highest of several short spins is the one
+// least disturbed by preemption. Failure leaves only the wall backstop.
+double cycles_per_usec() {
+ static double rate=-1;static bool measured=false;
+ if(measured)return rate;measured=true;
+ LARGE_INTEGER frequency;if(!QueryPerformanceFrequency(&frequency) || frequency.QuadPart<=0)return rate;
+ const HANDLE thread=GetCurrentThread();
+ for(int i=0;i<4;i++){
+  ULONG64 c0=0,c1=0;LARGE_INTEGER q0,q1;
+  if(!QueryThreadCycleTime(thread,&c0) || !QueryPerformanceCounter(&q0))return rate=-1;
+  double usec=0;
+  do{if(!QueryPerformanceCounter(&q1))return rate=-1;usec=double(q1.QuadPart-q0.QuadPart)*1000000.0/double(frequency.QuadPart);}while(usec<1000);
+  if(!QueryThreadCycleTime(thread,&c1))return rate=-1;
+  rate=std::max(rate,double(c1-c0)/usec);
+ }
+ if(!(rate>=1))rate=-1;
+ return rate;
+}
+#endif
 int64_t thread_cpu_usec() {
 #ifdef _WIN32
- FILETIME created, exited, kernel, user;
- if(!GetThreadTimes(GetCurrentThread(), &created, &exited, &kernel, &user))return -1;
- ULARGE_INTEGER k,u;k.LowPart=kernel.dwLowDateTime;k.HighPart=kernel.dwHighDateTime;u.LowPart=user.dwLowDateTime;u.HighPart=user.dwHighDateTime;
- return (k.QuadPart+u.QuadPart)/10;
+ const double rate=cycles_per_usec();ULONG64 cycles=0;
+ if(rate<=0 || !QueryThreadCycleTime(GetCurrentThread(),&cycles))return -1;
+ return int64_t(double(cycles)/rate);
 #elif defined(__APPLE__)
  // Rosetta 2 under-reports CLOCK_THREAD_CPUTIME_ID for translated x86_64 code
  // (about 0.5 ms per 20 ms busy); Mach thread accounting is exact on both.
@@ -39,16 +72,6 @@ int64_t thread_cpu_usec() {
 #else
  timespec t{};if(clock_gettime(CLOCK_THREAD_CPUTIME_ID,&t)!=0)return -1;
  return int64_t(t.tv_sec)*1000000+t.tv_nsec/1000;
-#endif
-}
-// Enforcement needs a precise per-thread clock. Windows GetThreadTimes advances
-// in whole scheduler-tick quanta, so a short callback could be charged ~15 ms;
-// there it stays diagnostic only and the wall backstop alone bounds time.
-int64_t enforced_cpu_usec() {
-#ifdef _WIN32
- return -1;
-#else
- return thread_cpu_usec();
 #endif
 }
 struct Bounds { size_t bytes = 0, entries = 0, cap = 8192, entry_cap = 1024; std::set<const void *> seen; };
@@ -169,6 +192,12 @@ void *SCDDExploreLua::allocate(void *ud,void *ptr,size_t old,size_t n){
  auto*s=static_cast<SCDDExploreLua*>(ud);if(!ptr)old=0;
  if(!n){std::free(ptr);s->memory-=old;return nullptr;}
  if(n>MEMORY || s->memory-old>MEMORY-n){s->memory_fault=true;return nullptr;}
+ if(s->metered && n>old){
+  // Lua frees and shrinks without failing; only growth is charged or refused.
+  if(s->allocation_limit)return nullptr;
+  s->allocation_debt+=n-old;s->instructions+=int(s->allocation_debt/ALLOCATION_BYTES_PER_INSTRUCTION);s->allocation_debt%=ALLOCATION_BYTES_PER_INSTRUCTION;
+  if(s->instructions>=s->allowance && s->fault.is_empty()){s->fault="instruction_limit";s->allocation_limit=true;return nullptr;}
+ }
  void*p=realloc(ptr,n);if(p)s->memory=s->memory-old+n;else s->memory_fault=true;return p;
 }
 void SCDDExploreLua::hook(lua_State *L,lua_Debug*){
@@ -177,42 +206,53 @@ void SCDDExploreLua::hook(lua_State *L,lua_Debug*){
  s->check_deadline();
  s->hook_interval=std::min(200,s->allowance-s->instructions);lua_sethook(L,hook,LUA_MASKCOUNT,s->hook_interval);
 }
+void SCDDExploreLua::charge(lua_State *L,size_t copied,int call){
+ instructions+=call+int(std::min(copied,size_t(1)<<24)/COPY_BYTES_PER_INSTRUCTION);
+ if(instructions>=allowance){fault="instruction_limit";luaL_error(L,"instruction_limit");}
+}
 bool SCDDExploreLua::absolute_deadline_expired() const {
  if(!has_absolute_deadline)return false;
  // This is the engine Time singleton used by GDScript, not steady_clock's epoch.
  return absolute_deadline_usec<=0 || Time::get_singleton()->get_ticks_usec()>=static_cast<uint64_t>(absolute_deadline_usec);
 }
-void SCDDExploreLua::restart_clock(){begun=std::chrono::steady_clock::now();cpu_begun=enforced_cpu_usec();}
+void SCDDExploreLua::restart_clock(){begun=std::chrono::steady_clock::now();cpu_begun=thread_cpu_usec();}
 // The absolute host deadline only admits a callback; once entered it is judged
-// by its own CPU budget and the wall backstop, never by shared-window wall time.
+// by its own budget, never by shared-window wall time. A thread cannot use more
+// CPU time than the wall time that passed, so the cheap wall clock is read
+// first and the CPU clock only once the budget could have been spent.
 const char *SCDDExploreLua::time_fault() const {
  if(cpu_budget_usec<=0)return "deadline: callback budget is zero";
- if(std::chrono::steady_clock::now()-begun>=std::chrono::microseconds(WALL_BACKSTOP_USEC))return "deadline: wall-time backstop exhausted";
- if(cpu_begun<0)return nullptr;
- const int64_t cpu=enforced_cpu_usec();
- return cpu>=0 && cpu-cpu_begun>=cpu_budget_usec ? "deadline: thread CPU budget exhausted" : nullptr;
+ const int64_t wall=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begun).count();
+ if(wall<cpu_budget_usec)return nullptr;
+ const int64_t cpu=cpu_begun<0 ? -1 : thread_cpu_usec();
+ if(cpu<0)return wall>=WALL_BACKSTOP_USEC ? "deadline: wall-time backstop exhausted" : nullptr;
+ return cpu-cpu_begun>=cpu_budget_usec ? "deadline: thread CPU budget exhausted" : nullptr;
 }
 void SCDDExploreLua::check_deadline(){if(const char*why=time_fault()){fault="deadline";luaL_error(vm,"%s",why);}}
 void SCDDExploreLua::begin(const Dictionary &budget){
- commands.clear();writes.clear();logs.clear();fault="";instructions=0;invalid_calls=0;context_copy_usec=0;lua_copy_usec=0;memory_fault=false;
+ commands.clear();writes.clear();logs.clear();fault="";instructions=0;invalid_calls=0;context_copy_usec=0;lua_copy_usec=0;memory_fault=false;metered=false;allocation_limit=false;allocation_debt=0;
  allowance=std::clamp((int64_t)budget.get("instructions",20000),(int64_t)0,(int64_t)20000);
  restart_clock();cpu_budget_usec=std::clamp((int64_t)budget.get("remaining_usec",CALLBACK_CPU_USEC),(int64_t)0,CALLBACK_CPU_USEC);
  has_absolute_deadline=budget.has("deadline_usec");
  absolute_deadline_usec=has_absolute_deadline ? int64_t(budget["deadline_usec"]) : 0;
  hook_interval=std::max(1,std::min(200,allowance));if(vm)lua_sethook(vm,hook,LUA_MASKCOUNT,hook_interval);
 }
-void SCDDExploreLua::close(){if(vm){lua_close(vm);vm=nullptr;--active_vms;}memory=0;handlers=api=LUA_NOREF;handler_names.clear();compiled.clear();cached.clear();loading.clear();context.clear();payload.clear();modules.clear();source="";}
+void SCDDExploreLua::close(){metered=false;if(vm){lua_close(vm);vm=nullptr;--active_vms;}memory=0;handlers=api=LUA_NOREF;handler_names.clear();compiled.clear();cached.clear();loading.clear();context.clear();payload.clear();modules.clear();source="";}
 Dictionary SCDDExploreLua::fail(const String &code,const String &detail){
- Dictionary r;r["ok"]=false;r["fault"]=code;r["diagnostic"]=detail;r["commands"]=Array();r["progress_writes"]=Dictionary();r["logs"]=Array();r["instructions"]=instructions;r["invalid_calls"]=invalid_calls;r["active_vms"]=active_vms;
+ Dictionary r;r["ok"]=false;r["fault"]=code;r["diagnostic"]=detail;r["commands"]=Array();r["progress_writes"]=Dictionary();r["logs"]=Array();r["instructions"]=std::min(allowance,instructions);r["invalid_calls"]=invalid_calls;r["active_vms"]=active_vms;
  r["elapsed_usec"]=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begun).count();r["bytes_used"]=(int64_t)memory;close();return r;
 }
 Dictionary SCDDExploreLua::finish(int status){
+ metered=false;
  if(status==LUA_OK && memory_fault)return fail("memory_limit");
  if(status!=LUA_OK){
   String detail="Lua callback failed";if(lua_type(vm,-1)==LUA_TSTRING){size_t n;const char*s=lua_tolstring(vm,-1,&n);if(utf8(s,n)){size_t cut=std::min(n,(size_t)4096);while(cut && !utf8(s,cut))--cut;detail=String::utf8(s,cut);}}
   String code=fault.is_empty()?(status==LUA_ERRMEM || memory_fault ? String("memory_limit"):String("script_error")):fault;
+  if(allocation_limit)detail="instruction_limit: allocation allowance exhausted";
   return fail(code,detail);
  }
+ // The VM tolerates a few refused allocations; the callback is still over.
+ if(allocation_limit)return fail("instruction_limit","instruction_limit: allocation allowance exhausted");
  // Charge the unfinished hook quantum conservatively; short callbacks must
  // not appear free to the aggregate tick scheduler. Never exceed allowance.
  instructions=std::min(allowance,instructions+hook_interval);
@@ -232,18 +272,20 @@ bool SCDDExploreLua::copy_context(const Dictionary &input){
 }
 int SCDDExploreLua::safe_tostring(lua_State *L){
  int t=lua_type(L,1);if(t!=LUA_TSTRING && t!=LUA_TNUMBER && t!=LUA_TBOOLEAN && t!=LUA_TNIL)return luaL_error(L,"invalid_data");
- Bounds b;read(L,1,b);luaL_tolstring(L,1,nullptr);return 1;
+ Bounds b;read(L,1,b);self(L)->charge(L,b.bytes,LIBRARY_CALL_INSTRUCTIONS);luaL_tolstring(L,1,nullptr);return 1;
 }
 int SCDDExploreLua::bounded_string(lua_State *L){
  // Original C function is private in upvalue; all inputs and outputs bounded.
  int n=lua_gettop(L);Bounds b;for(int i=1;i<=n;i++){int t=lua_type(L,i);if(t!=LUA_TSTRING && t!=LUA_TNUMBER)return luaL_error(L,"invalid_argument");read(L,i,b);}
+ self(L)->charge(L,b.bytes,LIBRARY_CALL_INSTRUCTIONS);
  lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,n,LUA_MULTRET);
- Bounds out;for(int i=1;i<=lua_gettop(L);i++)read(L,i,out);return lua_gettop(L);
+ Bounds out;for(int i=1;i<=lua_gettop(L);i++)read(L,i,out);self(L)->charge(L,out.bytes);return lua_gettop(L);
 }
 int SCDDExploreLua::bounded_table(lua_State *L){
  int n=lua_gettop(L);Bounds b;for(int i=1;i<=n;i++)read(L,i,b);
+ self(L)->charge(L,b.bytes,LIBRARY_CALL_INSTRUCTIONS);
  lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,n,LUA_MULTRET);
- Bounds out;for(int i=1;i<=lua_gettop(L);i++)read(L,i,out);return lua_gettop(L);
+ Bounds out;for(int i=1;i<=lua_gettop(L);i++)read(L,i,out);self(L)->charge(L,out.bytes);return lua_gettop(L);
 }
 void SCDDExploreLua::make_api(){
  lua_newtable(vm);
@@ -284,7 +326,7 @@ int SCDDExploreLua::initialize(lua_State *L){
  }
  auto text=s->source.utf8();if(luaL_loadbufferx(L,text.get_data(),text.length(),"@main.lua","t")!=LUA_OK)return lua_error(L);
  // Compilation is memory bounded, not instruction/deadline metered; entry is.
- s->restart_clock();s->check_deadline();
+ s->restart_clock();s->check_deadline();s->metered=true;
  lua_call(L,0,1);
  if(!lua_istable(L,-1))return luaL_error(L,"entry must return a handler table");
  lua_pushnil(L);while(lua_next(L,-2)){
@@ -313,7 +355,7 @@ int SCDDExploreLua::invoke(lua_State *L){
  push(L,s->handler=="on_event"?s->payload:s->context);push(L,s->context);
  s->lua_copy_usec=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-copying).count();
  // Both independent snapshots are complete; do not enter a handler after expiry.
- s->check_deadline();
+ s->check_deadline();s->metered=true;
  lua_call(L,3,1);if(!lua_isnil(L,-1))return luaL_error(L,"handlers must return no value");lua_pop(L,1);s->check_deadline();return 0;
 }
 Dictionary SCDDExploreLua::start(const String &entry,const Dictionary &sources,const Dictionary &input,int64_t seed){
@@ -354,7 +396,7 @@ Dictionary SCDDExploreLua::dispatch(const String &name,const Dictionary &event,c
  // Validate all inputs first. No Lua callback has executed: retain queued work
  // if the absolute host window expired during transport or host-side copying.
  // An explicitly exhausted relative budget still takes the terminal path.
- if((int64_t)budget.get("remaining_usec",1500)>0 && absolute_deadline_expired()){
+ if((int64_t)budget.get("remaining_usec",CALLBACK_CPU_USEC)>0 && absolute_deadline_expired()){
   Dictionary deferred;deferred["ok"]=true;deferred["deferred"]=true;deferred["fault"]="";
   deferred["commands"]=Array();deferred["progress_writes"]=Dictionary();deferred["logs"]=Array();
   deferred["instructions"]=0;deferred["invalid_calls"]=0;deferred["active_vms"]=active_vms;
@@ -378,6 +420,7 @@ int SCDDExploreLua::binding(lua_State *L){
  auto*s=self(L);s->check_deadline();const Method&m=methods[lua_tointeger(L,lua_upvalueindex(1))];std::string name=m.name;
  int n=lua_gettop(L);if(n<m.min || n>m.max){s->invalid_calls=std::min(33,s->invalid_calls+1);push(L,reply(false,"invalid_argument"));return 1;}
  Bounds b;Array positional;Dictionary args;for(int i=1;i<=n;i++){Variant v=read(L,i,b);positional.append(v);args[m.fields[i-1]]=v;}
+ s->charge(L,b.bytes,API_CALL_INSTRUCTIONS);
  Bounds argument_bounds;if(!valid(args,argument_bounds))return luaL_error(L,"payload_limit");
  if(s->stopping && name!="utility.log" && name!="state.set" && name!="state.get"){push(L,reply(false,"unavailable"));return 1;}
  if(name=="utility.random"){
@@ -392,9 +435,15 @@ int SCDDExploreLua::binding(lua_State *L){
  if(name=="state.get" || name=="state.set"){
   if(positional[0].get_type()!=Variant::STRING || String(positional[0]).is_empty()){s->invalid_calls=std::min(33,s->invalid_calls+1);push(L,reply(false,"invalid_argument"));return 1;}
   String key=positional[0];Dictionary progress=s->context.get("progress",Dictionary());
-  if(name=="state.get"){push(L,s->writes.get(key,progress.get(key,n==2?positional[1]:Variant())));return 1;}
+  if(name=="state.get"){
+   Variant value=s->writes.get(key,progress.get(key,n==2?positional[1]:Variant()));Bounds vb;vb.cap=65536;vb.entry_cap=16384;
+   if(!valid(value,vb))return luaL_error(L,"payload_limit");
+   s->charge(L,vb.bytes);push(L,value);return 1;
+  }
   Dictionary candidate=progress.duplicate(true);Array keys=s->writes.keys();for(int i=0;i<keys.size();i++)candidate[keys[i]]=s->writes[keys[i]];candidate[key]=positional[1];
-  Bounds pb;pb.cap=65536;pb.entry_cap=16384;if(!valid(candidate,pb) || s->writes.size()>=32 && !s->writes.has(key)){push(L,reply(false,"quota_exceeded"));return 1;}
+  // Each write validates a copy of the whole progress table.
+  Bounds pb;pb.cap=65536;pb.entry_cap=16384;const bool fits=valid(candidate,pb);s->charge(L,pb.bytes);
+  if(!fits || s->writes.size()>=32 && !s->writes.has(key)){push(L,reply(false,"quota_exceeded"));return 1;}
   s->writes[key]=positional[1];push(L,reply(true,"ok"));return 1;
  }
  if(name=="timer.after"){
@@ -409,6 +458,7 @@ int SCDDExploreLua::binding(lua_State *L){
   if(cache.get_type()==Variant::ARRAY){Array entries=cache;for(int i=0;i<std::min((int)entries.size(),64);i++){
    if(entries[i].get_type()!=Variant::DICTIONARY)continue;Dictionary e=entries[i];if(e.get("args",Variant())==Variant(positional)){
     Variant result=e.get("result",Variant());Bounds rb;if(result.get_type()!=Variant::DICTIONARY || !valid(result,rb))return luaL_error(L,"invalid_query_cache");
+    s->charge(L,rb.bytes);
     Dictionary d=result;Variant data=d.get("data",Variant());if(data.get_type()==Variant::ARRAY && Array(data).size()>64)return luaL_error(L,"query_result_limit");push(L,result);return 1;
    }
   }}
