@@ -677,7 +677,9 @@ static func recovery_destination(recovery_path: String) -> String:
 	var note: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	if not note is Dictionary or note.get("version") != 1.0 or not note.get("manual") is String or not note.get("sha256") is String: return ""
-	if note.get("recovery") != ProjectSettings.globalize_path(recovery_path).simplify_path(): return ""
+	# The app's data folder can move (an iOS update or restore, a migrated
+	# home folder); the note still names the same recovery file by its tail.
+	if not note.get("recovery") is String or not CloudSaveStore._same_recovery_file(note.recovery, ProjectSettings.globalize_path(recovery_path).simplify_path()): return ""
 	var manual: String = note.manual
 	if not valid_recovery_destination(manual): return ""
 	return manual if FileAccess.get_sha256(recovery_path) == note.sha256 else ""

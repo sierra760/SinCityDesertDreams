@@ -323,6 +323,7 @@ static func sync_text(status: Dictionary) -> String:
 		"permission": return "iCloud unavailable — check iCloud access in your device settings."
 		"zone_deleted": return "iCloud saves were deleted in Settings. Turn iCloud saves off and on again to upload this device's cities."
 		"local_only": return "A local save is available in Load City; it has not synced."
+		"unreadable": return "Up to date, except one city this version of the game cannot open."
 		"local_io": return "iCloud sync pending — check free space on this device."
 	return "iCloud unavailable. Your local cities can still be loaded."
 

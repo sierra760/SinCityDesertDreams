@@ -33,6 +33,12 @@ const EXTENSION := "sc2d"
 const STAGING_PREFIX := ".sc2d-save-"
 ## File in a staging folder naming the save it replaces.
 const STAGING_TARGET := "target"
+## An abandoned staging folder is removed only after this long untouched, so a
+## save another running copy of the game is still writing is never disturbed.
+const STAGING_STALE_SECONDS := 600
+## Largest document opened. The biggest included city is about 0.55 MB; this is
+## the cloud asset limit and leaves more than a hundredfold headroom.
+const MAX_DOCUMENT_BYTES := 64 * 1024 * 1024
 ## A save of a founded, running city.
 const STAGE_PLAY := "play"
 ## A save of a map still being shaped; loading it returns to the editing stage.
@@ -227,28 +233,57 @@ static func _publish_staged_save(staging: String, absolute: String, preserve_bac
 ## dir. Windows removes a save before moving its replacement into place, so a
 ## save stopped between the two leaves the previous city in its staging folder
 ## and nothing at its path. Restores each such city whose path is still empty
-## and returns how many were restored.
-static func recover_interrupted_saves(dir: String) -> int:
+## and returns how many were restored. In the saves folder it also clears
+## staging folders abandoned by a save that stopped before publishing.
+static func recover_interrupted_saves(dir: String, stale_seconds: int = STAGING_STALE_SECONDS) -> int:
 	var absolute := ProjectSettings.globalize_path(dir)
 	var directory := DirAccess.open(absolute)
 	if directory == null:
 		return 0
 	directory.include_hidden = true
+	var sweep := absolute.simplify_path() == ProjectSettings.globalize_path(default_dir()).simplify_path()
 	var restored := 0
 	for name: String in directory.get_directories():
 		if not name.begins_with(STAGING_PREFIX):
 			continue
 		var staging := absolute.path_join(name)
 		var marker := staging.path_join(STAGING_TARGET)
-		if not FileAccess.file_exists(marker) or not FileAccess.file_exists(staging.path_join("previous.sc2d")):
+		var stale := sweep and _stale_staging(staging, name, stale_seconds)
+		if not FileAccess.file_exists(staging.path_join("previous.sc2d")):
+			if stale:
+				_discard_staged_save(staging)
 			continue
-		var target := FileAccess.get_file_as_string(marker).strip_edges()
-		# The marker names a file beside the staging folder, never another path.
-		if target.is_empty() or target.get_file() != target or target.begins_with("."):
-			continue
-		if _restore_previous_save(staging, absolute.path_join(target)) == OK:
-			restored += 1
+		if FileAccess.file_exists(marker):
+			var target := FileAccess.get_file_as_string(marker).strip_edges()
+			# The marker names a file beside the staging folder, never another path.
+			if not target.is_empty() and target.get_file() == target and not target.begins_with("."):
+				if _restore_previous_save(staging, absolute.path_join(target)) == OK:
+					restored += 1
+					continue
+		# The previous city stays as a recovery copy; only the document that was
+		# never published (its save already reported failure) is dropped.
+		if stale and FileAccess.file_exists(staging.path_join("document")):
+			DirAccess.remove_absolute(staging.path_join("document"))
 	return restored
+
+
+## True for a staging folder this code named, written by another process and
+## untouched for stale_seconds. This process's own folders are never stale: a
+## save may be publishing from one right now.
+static func _stale_staging(staging: String, name: String, stale_seconds: int) -> bool:
+	var parts := name.trim_prefix(STAGING_PREFIX).split("-")
+	if parts.size() != 3:
+		return false
+	for part: String in parts:
+		if part.is_empty() or not part.is_valid_int() or part.begins_with("+") or part.begins_with("-"):
+			return false
+	if int(parts[0]) == OS.get_process_id():
+		return false
+	var newest := FileAccess.get_modified_time(staging)
+	for file: String in ["document", STAGING_TARGET, "previous.sc2d"]:
+		if FileAccess.file_exists(staging.path_join(file)):
+			newest = maxi(newest, FileAccess.get_modified_time(staging.path_join(file)))
+	return int(Time.get_unix_time_from_system()) - newest >= stale_seconds
 
 
 static func _restore_previous_save(staging: String, absolute: String) -> Error:
@@ -289,6 +324,11 @@ static func load(path: String) -> Dictionary:
 		result["error"] = MESSAGE_UNREADABLE
 		result["detail"] = "Cannot open file (error %d)." % FileAccess.get_open_error()
 		return result
+	if file.get_length() > MAX_DOCUMENT_BYTES:
+		file.close()
+		result["error"] = MESSAGE_NOT_A_CITY
+		result["detail"] = "File is larger than any city save."
+		return result
 	var text := file.get_as_text()
 	file.close()
 	var parsed: Variant = JSON.parse_string(text)
@@ -296,7 +336,8 @@ static func load(path: String) -> Dictionary:
 		result["error"] = MESSAGE_NOT_A_CITY
 		return result
 	var doc: Dictionary = parsed
-	if String(doc.get("format", "")) != FORMAT:
+	# A shared file is untrusted: check each value's type before converting it.
+	if typeof(doc.get("format", "")) != TYPE_STRING or doc.get("format", "") != FORMAT or not _is_whole(doc.get("version", 0)):
 		result["error"] = MESSAGE_NOT_A_CITY
 		return result
 	var version := int(doc.get("version", 0))
@@ -466,6 +507,23 @@ static func _shapes() -> Dictionary:
 
 static func _is_number(v: Variant) -> bool:
 	return typeof(v) in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL]
+
+
+## A finite number that int() can convert; JSON reads every number as a float.
+static func _is_whole(v: Variant) -> bool:
+	return typeof(v) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(v))
+
+
+## Why document fields cannot be converted, or "": `texts` must hold text and
+## `numbers` finite numbers when present. Absent fields take their defaults.
+static func _field_problem(doc: Dictionary, texts: Array, numbers: Array) -> String:
+	for field: String in texts:
+		if doc.has(field) and typeof(doc[field]) != TYPE_STRING:
+			return "Save field '%s' is not text." % field
+	for field: String in numbers:
+		if doc.has(field) and not _is_whole(doc[field]):
+			return "Save field '%s' is not a number." % field
+	return ""
 
 
 static func _is_list(v: Variant) -> bool:
@@ -675,6 +733,10 @@ static func read_header(path: String) -> Dictionary:
 	if file == null:
 		_forget_header(path)
 		return {}
+	if file.get_length() > MAX_DOCUMENT_BYTES:
+		file.close()
+		_forget_header(path)
+		return {}
 	var text := file.get_as_text()
 	file.close()
 	var modified_time := FileAccess.get_modified_time(path)
@@ -689,12 +751,15 @@ static func read_header(path: String) -> Dictionary:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return {}
 	var doc: Dictionary = parsed
-	if String(doc.get("format", "")) != FORMAT:
+	if typeof(doc.get("format", "")) != TYPE_STRING or doc.get("format", "") != FORMAT:
 		return {}
 	var header: Variant = doc.get("header", {})
 	if typeof(header) != TYPE_DICTIONARY:
 		return {}
 	var h: Dictionary = header
+	# Wrong-typed fields make this not a save, like any other unreadable header.
+	if _field_problem(h, ["name", "stage"], ["saved_at", "population", "year", "day", "funds"]) != "":
+		return {}
 	var saved_at := int(h.get("saved_at", modified_time))
 	var result := {
 		"path": path,
@@ -840,6 +905,10 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 			return {"city": null, "error": "Save has conflicting terrain ownership."}
 	elif not doc.has("terrain_vertices"):
 		return {"city": null, "error": "Save has no terrain."}
+	var problem := _field_problem(doc, ["name", "mayor", "terrain_vertices"],
+		["founded_year", "day", "funds", "difficulty", "rotation", "sea_level", "status"])
+	if problem != "":
+		return {"city": null, "error": problem}
 	var city := City.new()
 	city.terrain_origin = RealWorldManifest.sanitize_origin(doc.get("terrain_origin"))
 	city.vegetation = VegetationZones.sanitize(doc.get("vegetation"))
@@ -869,6 +938,8 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 		var expected_size := int(LAYER_SIZES[layer_name])
 		if layer_name == "building" and version == 1:
 			expected_size /= 2
+		if typeof(layers[layer_name]) != TYPE_STRING:
+			return {"city": null, "error": "Layer '%s' is damaged." % layer_name}
 		var bytes := decode_bytes(String(layers[layer_name]), expected_size)
 		if bytes.size() != expected_size:
 			return {"city": null, "error": "Layer '%s' is damaged." % layer_name}
@@ -919,6 +990,8 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 				if String(field) == "tourism_instance" and not TourismState._integer(value, 1, TourismState.MAX_INSTANCE - 1):
 					return {"city": null, "error": "Invalid facility tourism identity."}
 				if String(field) == "key":
+					if typeof(value) != TYPE_STRING:
+						return {"city": null, "error": "Invalid facility kind."}
 					restored["key"] = StringName(String(value))
 				elif typeof(value) == TYPE_FLOAT and is_equal_approx(value, floorf(value)):
 					restored[String(field)] = int(value)
@@ -929,7 +1002,7 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 	if typeof(signs) == TYPE_DICTIONARY:
 		for k in signs:
 			var tile := SimSystem.parse_tile_key(String(k))
-			if tile.x >= 0:
+			if tile.x >= 0 and typeof(signs[k]) == TYPE_STRING:
 				city.signs[tile] = String(signs[k])
 	if doc.has("terrain_vertices"):
 		var verts := decode_bytes(String(doc["terrain_vertices"]), VERTEX_BYTES)

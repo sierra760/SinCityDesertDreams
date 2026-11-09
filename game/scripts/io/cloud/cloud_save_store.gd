@@ -32,6 +32,11 @@ static var _payload_headers: Dictionary = {}
 static var _case_insensitive_files := -1
 ## Headers of payloads copied by this instance, reused by its slot publication.
 var _copied_headers: Dictionary = {}
+## Opening only: collects descriptors whose file is missing or altered, so just
+## their slots are set aside. Null keeps validation strict; publication must
+## never accept a payload it has not verified.
+var _absent: Variant = null
+var _set_aside := false
 
 func _init(root: String) -> void:
 	_root = ProjectSettings.globalize_path(root).simplify_path()
@@ -240,8 +245,18 @@ func _recovery_pointer(path: String) -> Dictionary:
 	if bytes.size() != size or _digest(bytes.slice(64)) != bytes.slice(0, 64).get_string_from_ascii(): return {}
 	var value: Variant = bytes_to_var(bytes.slice(64))
 	if not value is Dictionary or not CloudSaveTypes.valid_id(value.get("receipt_id")) or not CloudSaveTypes.valid_id(value.get("owner"), true) or not CloudSaveTypes.valid_id(value.get("slot_id")): return {}
-	if value.get("path") != ProjectSettings.globalize_path(path).simplify_path() or not CloudSaveTypes.valid_hash(value.get("sha256")): return {}
+	if not value.get("path") is String or not CloudSaveTypes.valid_hash(value.get("sha256")): return {}
+	var current := ProjectSettings.globalize_path(path).simplify_path()
+	if not _same_recovery_file(value.path, current): return {}
+	value.path = current
 	return value if FileAccess.get_sha256(path) == value.sha256 else {}
+
+## The app container (or a renamed home folder) moves the recovery file without
+## changing its place inside the user folder; its bytes are bound by digest.
+static func _same_recovery_file(stored: String, current: String) -> bool:
+	if stored == current: return true
+	var tail := "/" + current.get_base_dir().get_file().path_join(current.get_file())
+	return stored.ends_with(tail)
 
 func _valid_recovery(value: Variant, directory: String, owner: String, verified: Dictionary = {}) -> bool:
 	if not value is Dictionary or not CloudSaveTypes.valid_id(value.get("receipt_id")) or value.get("owner") != owner: return false
@@ -290,7 +305,7 @@ func _read_recovery_library(owner: String) -> CloudSaveStore:
 	var library := CloudSaveStore.new(_root)
 	library._owner = owner
 	library._directory = library._account_directory(owner)
-	library._state = library._read_journal(library.journal_path(), library._directory, owner)
+	library._state = library._read_journal(library.journal_path(), library._directory, owner, {}, true)
 	return library
 
 func record_application_recovery(slot_id: String, path: String) -> Error:
@@ -474,11 +489,13 @@ func open_library(owner: String) -> Error:
 	var directory := _account_directory(owner)
 	var made := DirAccess.make_dir_recursive_absolute(directory.path_join("payloads"))
 	if made != OK: return made
-	var committed := _read_journal(directory.path_join("journal.bin"), directory, owner)
-	var staged := _read_journal(directory.path_join("journal.bin.pending"), directory, owner)
+	var committed := _read_journal(directory.path_join("journal.bin"), directory, owner, {}, true)
+	var repaired := _set_aside
+	var staged := _read_journal(directory.path_join("journal.bin.pending"), directory, owner, {}, true)
 	var chosen: Dictionary = committed
 	if not staged.is_empty() and (chosen.is_empty() or staged.revision > chosen.revision):
 		chosen = staged
+		repaired = _set_aside
 		var recovered := DirAccess.rename_absolute(directory.path_join("journal.bin.pending"), directory.path_join("journal.bin"))
 		if recovered != OK: return recovered
 	if chosen.is_empty() and (FileAccess.file_exists(directory.path_join("journal.bin")) or FileAccess.file_exists(directory.path_join("journal.bin.pending"))):
@@ -495,7 +512,9 @@ func open_library(owner: String) -> Error:
 		var claim := path_claim(slot.manual_path)
 		if not claim.is_empty() and claim.owner != owner: slot.manual_path = ""
 	_compact_history(compacted)
-	if compacted != _state: return _commit(compacted)
+	# Slots set aside while reading are published at once, so later launches and
+	# the pruning below see the same repaired library.
+	if repaired or compacted != _state: return _commit(compacted)
 	_prune_payloads()
 	return OK
 
@@ -878,6 +897,8 @@ func repair_adoptions() -> Error:
 	for key in claims.claims:
 		var proof: Dictionary = claims.claims[key]
 		if key.begins_with("local:") and proof.owner == _owner and not _has_slot(proof.slot_id):
+			# A slot set aside for a damaged payload is not an interrupted adoption.
+			if _is_set_aside(proof.slot_id) or (not local._has_slot(proof.slot_id) and local._is_set_aside(proof.slot_id)): continue
 			error = local.adopt_local(proof.slot_id, _owner)
 			if error != OK: return error
 	return open_library(_owner)
@@ -1010,6 +1031,19 @@ func _new_slot(id: String, manual_path: String) -> Dictionary:
 
 func _has_slot(id: String) -> bool:
 	return CloudSaveTypes.valid_id(id) and _state.get("slots", {}).has(id)
+
+func _is_set_aside(id: String) -> bool:
+	for key: Variant in _state.get("quarantined", {}):
+		if key is String and key.begins_with(id + ":"): return true
+	return false
+
+## Slot ids set aside because a payload file was missing or altered. Their
+## journal entries and remaining files are kept; nothing is deleted.
+func quarantined_slots() -> Array[String]:
+	var result: Array[String] = []
+	for key: Variant in _state.get("quarantined", {}):
+		if key is String and not key.begins_with("recovery:") and not key.get_slice(":", 0) in result: result.append(key.get_slice(":", 0))
+	return result
 
 func _account_directory(owner: String) -> String:
 	return _root.path_join("local" if owner.is_empty() else "accounts/" + owner.sha256_text())
@@ -1189,7 +1223,87 @@ func _write_journal(bytes: PackedByteArray) -> Error:
 ## Only publication supplies descriptors from its already validated prior state.
 ## Startup/recovery supplies none and checks every referenced asset's size and
 ## digest; format validation happened before the descriptor first existed.
-func _read_journal(path: String, directory: String, owner: String, verified: Dictionary = {}) -> Dictionary:
+## With `tolerant`, one missing or altered payload sets only its own slot aside
+## (see _quarantine) instead of making the whole library unreadable.
+func _read_journal(path: String, directory: String, owner: String, verified: Dictionary = {}, tolerant: bool = false) -> Dictionary:
+	_absent = {} if tolerant else null
+	var state := _parse_journal(path, directory, owner, verified)
+	var absent: Dictionary = _absent if tolerant else {}
+	_absent = null
+	_set_aside = not state.is_empty() and not absent.is_empty()
+	if _set_aside: _quarantine(state, absent)
+	return state
+
+## Move every slot that names an absent payload out of the live library. Its
+## entry stays in the journal and its other files stay on disk. Clearing the
+## cursor makes the next inventory list every record again, so a copy the
+## server still holds is downloaded like any slot this device lacks.
+func _quarantine(state: Dictionary, absent: Dictionary) -> void:
+	var parked: Dictionary = state.get("quarantined", {})
+	var recovery: Dictionary = state.get("application_recovery", {})
+	if not recovery.is_empty() and _names_absent(recovery.work, absent):
+		parked["recovery:%d" % state.revision] = recovery
+		recovery = {}
+	for id: String in state.slots.keys():
+		var slot: Dictionary = state.slots[id]
+		var entries: Array = [slot]
+		entries.append_array(slot.history.values())
+		entries.append_array(slot.uploads.values())
+		if not slot.pending.is_empty(): entries.append(slot.pending)
+		var damaged := false
+		for entry: Dictionary in entries: damaged = damaged or _names_absent(entry, absent)
+		if not damaged: continue
+		# A recovery of this slot cannot resume without it; keep it with the slot.
+		if not recovery.is_empty() and recovery.work.slot_id == id:
+			slot.application_recovery = recovery
+			recovery = {}
+		parked["%s:%d" % [id, state.revision]] = slot
+		state.slots.erase(id)
+	for slot: Dictionary in state.slots.values():
+		for generation: String in slot.forks.keys():
+			if not state.slots.has(slot.forks[generation].slot_id): slot.forks.erase(generation)
+	if state.has("application_recovery"): state.application_recovery = recovery
+	state.quarantined = parked
+	state.change_token = PackedByteArray()
+
+func _names_absent(entry: Dictionary, absent: Dictionary) -> bool:
+	for field in ["continuation", "manual"]:
+		var payload: Dictionary = entry[field]
+		if not payload.is_empty() and absent.has(payload.path): return true
+	return false
+
+## The store root moves when the system relocates the app container or a home
+## folder is renamed. A stored path that names this namespace's own
+## payloads/<id>.sc2d layout under another root is read as the file here; its
+## bytes are still verified against the descriptor's digest.
+func _reroot_payload(payload: Variant, directory: String) -> void:
+	if not payload is Dictionary or not payload.get("path") is String: return
+	var path: String = payload.path
+	var wanted := directory.path_join("payloads").path_join(path.get_file())
+	if path == wanted or not wanted.begins_with(_root + "/"): return
+	if path.ends_with("/" + wanted.trim_prefix(_root + "/")): payload.path = wanted
+
+func _reroot_work(work: Variant, directory: String) -> void:
+	if not work is Dictionary: return
+	for field in ["continuation", "manual"]: _reroot_payload(work.get(field), directory)
+
+func _reroot_slot(slot: Variant, directory: String) -> void:
+	if not slot is Dictionary: return
+	_reroot_work(slot, directory)
+	_reroot_work(slot.get("pending"), directory)
+	for field in ["history", "uploads"]:
+		var works: Variant = slot.get(field)
+		if works is Dictionary:
+			for work: Variant in works.values(): _reroot_work(work, directory)
+	_reroot_recovery(slot.get("application_recovery"), directory)
+
+func _reroot_recovery(receipt: Variant, directory: String) -> void:
+	if not receipt is Dictionary: return
+	_reroot_work(receipt.get("work"), directory)
+	var current := ProjectSettings.globalize_path(CityFileFlow.application_recovery_path()).simplify_path()
+	if receipt.get("path") is String and _same_recovery_file(receipt.path, current): receipt.path = current
+
+func _parse_journal(path: String, directory: String, owner: String, verified: Dictionary) -> Dictionary:
 	if not FileAccess.file_exists(path): return {}
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null: return {}
@@ -1208,6 +1322,12 @@ func _read_journal(path: String, directory: String, owner: String, verified: Dic
 	if not state.has("change_token"): state.change_token = PackedByteArray()
 	if not state.change_token is PackedByteArray or state.change_token.size() > MAX_CHANGE_TOKEN_BYTES: return {}
 	if state.has("application_recovery") and not state.application_recovery is Dictionary: return {}
+	if state.has("quarantined") and not state.quarantined is Dictionary: return {}
+	for slot: Variant in state.slots.values(): _reroot_slot(slot, directory)
+	for parked: Variant in state.get("quarantined", {}).values():
+		_reroot_slot(parked, directory)
+		_reroot_recovery(parked, directory)
+	_reroot_recovery(state.get("application_recovery"), directory)
 	if state.has("application_recovery") and not state.application_recovery.is_empty():
 		if not _valid_recovery(state.application_recovery, directory, owner, verified): return {}
 	for id in state.slots:
@@ -1257,7 +1377,10 @@ func _valid_stored_payload(payload: Dictionary, directory: String, verified: Dic
 	if verified.get(path, {}) == payload: return true
 	# Payloads are immutable and fully validated before any descriptor can be
 	# published; reopening checks that the referenced bytes are still those.
-	if not payload_intact(payload): return false
+	if not payload_intact(payload):
+		if _absent == null: return false
+		_absent[path] = true
+		return true
 	verified[path] = payload.duplicate(true)
 	return true
 
@@ -1306,7 +1429,14 @@ func _collect_payload_paths(state: Dictionary) -> Dictionary:
 	if not recovery.is_empty():
 		for field in ["continuation", "manual"]:
 			if not recovery.work[field].is_empty(): paths[recovery.work[field].path] = true
+	# Files of slots set aside are kept: only the damaged one is unusable.
+	for parked: Variant in state.get("quarantined", {}).values(): _collect_parked(parked, paths)
 	return paths
+
+func _collect_parked(value: Variant, paths: Dictionary) -> void:
+	if not value is Dictionary: return
+	if value.get("path") is String and value.has("sha256"): paths[value.path] = true
+	for item: Variant in value.values(): _collect_parked(item, paths)
 
 func _prune_payloads() -> void:
 	# Called only after a verified journal has been published/recovered. A crash

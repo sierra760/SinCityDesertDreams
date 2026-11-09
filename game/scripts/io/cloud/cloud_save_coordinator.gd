@@ -20,6 +20,10 @@ const RETRY_CAP_MS := 60000
 const LONG_RETRY_CAP_MS := 900000
 const LONG_WAIT_CODES := ["signed_out", "quota", "permission"]
 const ACTIVITY_RETRY_MS := 60000
+## A download whose bytes fail validation is tried this many times in all; the
+## same record cannot improve after that, and one such record must not hold
+## back every later one.
+const INVALID_DOWNLOAD_ATTEMPTS := 3
 ## Optional main-thread session guard, called only before verified publication.
 ## It may durably stage the active ancestor; normal policy then reconciles it.
 ## ERR_BUSY parks the page, never retains a native temporary asset path.
@@ -48,6 +52,11 @@ var _last_status: Dictionary = {}
 var _initial_inventory_complete := false
 var _capture_errors: Dictionary = {}
 var _download_errors: Dictionary = {}
+## Remote records this build cannot read: slot id -> "commit|change tag". They
+## stay untouched on the server and are not fetched again until they change.
+var _unreadable: Dictionary = {}
+## Failed validations of the record now being tried: slot id -> {mark, count}.
+var _invalid_downloads: Dictionary = {}
 var _server_retry_at := 0
 var _failed_at := 0
 ## Personal files already migrated in this verified epoch: path key -> stamp.
@@ -120,6 +129,8 @@ func status() -> Dictionary:
 		elif not _error.is_empty(): state = _error
 		elif not _active.is_empty() or not _page.is_empty(): state = "syncing"
 		elif pending > 0 or _store.has_inflight(): state = "pending"
+		# Everything readable is in step; some record could not be opened here.
+		elif not _unreadable.is_empty(): state = "unreadable"
 		else: state = "synced"
 	return {"state": state, "enabled": _enabled, "owner": _owner, "epoch": _epoch,
 		"supported": supported(), "pending": pending,
@@ -142,6 +153,8 @@ func _invalidate() -> void:
 	_page.clear()
 	_fetched_remotes.clear()
 	_download_errors.clear()
+	_unreadable.clear()
+	_invalid_downloads.clear()
 	_selected_download = ""
 	_zone = false
 	_initial_inventory_complete = false
@@ -194,6 +207,8 @@ func _schedule() -> void:
 		if not pins.is_empty(): _send("fetch_record", {"slot_id": pins[0].slot_id}, {"work": pins[0], "slot_id": pins[0].slot_id})
 		else:
 			for slot_id in _store.unresolved_remote_slots():
+				# Its server record cannot be read here; asking again changes nothing.
+				if _unreadable.has(slot_id): continue
 				var waiting := _page_has(slot_id)
 				for remote in _fetched_remotes:
 					if remote.slot_id == slot_id: waiting = true
@@ -336,7 +351,15 @@ func _complete(value: Dictionary) -> void:
 				# Cheap digest first; only the requested bytes are fully decoded.
 				# Identical manual/continuation bytes reuse that one validation.
 				if FileAccess.get_sha256(path) != expected or _store.readable_header(path).is_empty():
-					_fail("invalid", 0)
+					if _invalid_attempt(remote) < INVALID_DOWNLOAD_ATTEMPTS or _page.items[0].get("slot_id", "") != remote.slot_id:
+						_fail("invalid", 0)
+						return
+					# Further tries fetch the same bytes. Set the record aside so
+					# the rest of the page, and its cursor, can go through.
+					_skip_unreadable(remote, "invalid")
+					_error = ""
+					_failures = 0
+					library_changed.emit()
 					return
 			if not _guard_remote_update(remote.slot_id, remote): return
 			if not _reconcile(remote.slot_id, remote): return
@@ -524,6 +547,30 @@ func _accept_removal_check(slot_id: String, remote: Dictionary) -> void:
 	_page.items[0] = {"deleted": true, "slot_id": slot_id} if remote.is_empty() else remote.duplicate(true)
 	_page["removal_verified"] = slot_id
 
+static func _record_mark(remote: Dictionary) -> String:
+	return "%s|%s" % [remote.commit_id, remote.change_tag]
+
+## A record written by a later version of the game is not downloaded at all.
+static func _newer_version(remote: Dictionary) -> bool:
+	var version: Variant = remote.metadata.get("application_save_version", 0)
+	return (version is int or version is float) and version > SaveFormat.VERSION
+
+## How many downloads of exactly this record revision have failed validation.
+func _invalid_attempt(remote: Dictionary) -> int:
+	var mark := _record_mark(remote)
+	var known: Dictionary = _invalid_downloads.get(remote.slot_id, {})
+	var count: int = known.count + 1 if known.get("mark", "") == mark else 1
+	_invalid_downloads[remote.slot_id] = {"mark": mark, "count": count}
+	return count
+
+## Leave the server record and any local copy exactly as they are; only this
+## page item is consumed. The reason stays in the download diagnostics.
+func _skip_unreadable(remote: Dictionary, reason: String) -> void:
+	_unreadable[remote.slot_id] = _record_mark(remote)
+	_invalid_downloads.erase(remote.slot_id)
+	_download_errors[remote.slot_id] = reason
+	_pop_page_item()
+
 func _pop_page_item() -> void:
 	_page.items.pop_front()
 	_page.erase("removal_verified")
@@ -588,6 +635,12 @@ func _process_page() -> void:
 			slot_removed.emit(remote.slot_id)
 			library_changed.emit()
 			continue
+		var newer := _newer_version(remote)
+		if newer or _unreadable.get(remote.slot_id, "") == _record_mark(remote):
+			_skip_unreadable(remote, "newer_version" if newer else "invalid")
+			library_changed.emit()
+			continue
+		_unreadable.erase(remote.slot_id)
 		_download_errors.erase(remote.slot_id)
 		_send("download", {"remote": remote, "max_bytes": CloudSaveTypes.MAX_ASSET_BYTES}, {"remote": remote})
 		return

@@ -21,6 +21,9 @@ extends RefCounted
 const CONTAINER_MAGIC := "FORM"
 const CONTAINER_KIND := "SCDH"
 const HEADER_BYTES := 12
+## Largest file read. Every known chunk stored unpacked totals under 0.2 MB and
+## the biggest included city is 0.11 MB; this leaves twentyfold headroom.
+const MAX_FILE_BYTES := 4 * 1024 * 1024
 
 const TILES := City.WIDTH * City.HEIGHT
 const HALF_TILES := City.HALF * City.HALF
@@ -101,6 +104,9 @@ static func load(path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return _fail("The file couldn't be read. Check that it is still available.")
+	if file.get_length() > MAX_FILE_BYTES:
+		file.close()
+		return _fail("This file isn't a classic city (.sc2) file.")
 	var raw := file.get_buffer(file.get_length())
 	file.close()
 	return load_bytes(raw, path.get_file().get_basename())
@@ -137,19 +143,27 @@ static func parse_container(raw: PackedByteArray) -> Dictionary:
 			return {"ok": false, "chunks": chunks, "error": "Chunk %s runs past the end of the file." % tag}
 		var data := raw.slice(start, start + size)
 		if CHUNK_SIZES.has(tag) and size != int(CHUNK_SIZES[tag]):
-			data = rle_decode(data)
+			# A packed chunk never legitimately unpacks past its layer's size.
+			var limit := int(CHUNK_SIZES[tag])
+			data = rle_decode(data, limit)
+			if data.size() > limit:
+				return {"ok": false, "chunks": chunks, "error": "Chunk %s unpacks past its size." % tag}
 		chunks[tag] = data
 		offset = start + size
 	return {"ok": true, "chunks": chunks, "error": ""}
 
 
 ## Unpack run-length data: a control byte of 0..127 copies that many literal
-## bytes; 128..255 repeats the following byte (control - 127) times.
-static func rle_decode(data: PackedByteArray) -> PackedByteArray:
+## bytes; 128..255 repeats the following byte (control - 127) times. With a
+## limit, unpacking stops as soon as the output passes it, so hostile runs
+## cannot grow without bound; the caller sees the oversize result and refuses it.
+static func rle_decode(data: PackedByteArray, limit: int = -1) -> PackedByteArray:
 	var out := PackedByteArray()
 	var pos := 0
 	var n := data.size()
 	while pos < n:
+		if limit >= 0 and out.size() > limit:
+			break
 		var control := data[pos]
 		pos += 1
 		if control <= 127:

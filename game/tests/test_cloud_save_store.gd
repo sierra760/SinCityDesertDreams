@@ -177,7 +177,13 @@ func test_corrupt_journal_and_corrupt_payload_are_not_published() -> void:
 	file = FileAccess.open(queued.continuation.path, FileAccess.WRITE)
 	file.store_string("damaged payload")
 	file.close()
-	check_ne(CloudSaveStore.new(root.path_join("store")).open_library(""), OK)
+	# The damaged payload is never published: its slot is set aside while the
+	# library itself stays open for every other city.
+	var damaged := CloudSaveStore.new(root.path_join("store"))
+	check_eq(damaged.open_library(""), OK)
+	check_eq(damaged.slots().size(), 0)
+	check_eq(damaged.pending().size(), 0)
+	check_eq(damaged.quarantined_slots(), [id] as Array[String])
 
 func test_bounded_metadata_and_invalid_source_do_not_replace_library() -> void:
 	var root := _root()
@@ -507,5 +513,9 @@ func test_changed_descriptor_and_actual_use_cannot_inherit_prior_payload_trust()
 	next.slots[id].continuation.sha256 = "0".repeat(64)
 	check_eq(library._commit(next), ERR_FILE_CORRUPT, "changed descriptor is deeply verified")
 	var reopened := CloudSaveStore.new(directory.path_join("store"))
-	check_eq(reopened.open_library("account-a"), ERR_FILE_CORRUPT, "startup fully revalidates prior references")
+	# Startup still verifies every reference; the slot whose bytes changed is
+	# set aside rather than closing the whole library.
+	check_eq(reopened.open_library("account-a"), OK)
+	check_eq(reopened.slots().size(), 0, "startup fully revalidates prior references")
+	check_eq(reopened.quarantined_slots(), [id] as Array[String])
 	service.shutdown()

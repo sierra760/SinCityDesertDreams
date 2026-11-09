@@ -115,7 +115,13 @@ func test_reopening_a_library_never_decodes_payloads_and_still_rejects_changed_b
 	for entry in service.library_entries([]):
 		if entry.get("slot_id", "") == row.slot_id: listed = true
 	check(not listed, "changed bytes are not offered by Load")
-	check_eq(CloudSaveStore.new(root.path_join("store")).open_library("account-a"), ERR_FILE_CORRUPT, "reopen rejects changed bytes")
+	# Reopening refuses the changed bytes by setting that one slot aside; the
+	# other eleven cities stay available.
+	var reopened := CloudSaveStore.new(root.path_join("store"))
+	check_eq(reopened.open_library("account-a"), OK)
+	check_eq(reopened.quarantined_slots(), [row.slot_id] as Array[String], "reopen rejects changed bytes")
+	check_eq(reopened.slots().size(), 11)
+	for entry in reopened.slots(): check(entry.slot_id != row.slot_id, "reopen never offers changed bytes")
 	service.shutdown()
 
 func test_load_listing_reads_headers_only_and_keeps_damaged_personal_saves() -> void:
