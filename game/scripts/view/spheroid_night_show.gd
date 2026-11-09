@@ -36,6 +36,8 @@ var _calendar := GameClock.new()
 var _month := 0
 var _screens: Array[ShaderMaterial] = []
 var _calendar_queued := false
+## What the show was last built from; see CityCasinoLights3D.lot_signature.
+var _built_from: Array = []
 
 func bind(view: Node) -> void:
 	_view = view
@@ -58,13 +60,32 @@ func sync_exploration() -> void:
 
 func rebuild() -> void:
 	clear()
+	_built_from = _signature()
 	if _view == null or not ("buildings" in _view) or _view.buildings == null: return
 	for lot: Node in _view.buildings.get_children():
 		if lot is Node3D and int(lot.get_meta("code",-1)) == Buildings.NEON_DOME:
 			_add_lot(lot)
 	_sync_visibility()
 
+## Rebuild only if a landmark lot was added, removed, moved, turned or given
+## another model since the show was built. Returns true when it rebuilt.
+func refresh() -> bool:
+	if _signature() == _built_from:
+		_sync_visibility()
+		return false
+	rebuild()
+	return true
+
+func _signature() -> Array:
+	var out: Array = []
+	if _view == null or not ("buildings" in _view) or _view.buildings == null: return out
+	for lot: Node in _view.buildings.get_children():
+		if lot is Node3D and int(lot.get_meta("code",-1)) == Buildings.NEON_DOME:
+			CityCasinoLights3D.lot_signature(lot,out)
+	return out
+
 func clear() -> void:
+	_built_from = []
 	for child: Node in get_children(): child.free()
 	_screens.clear()
 	_month = 0

@@ -63,6 +63,10 @@ var amount := 0.0
 var _view: Node
 ## Material instance id -> {"material", "role", "saved"}.
 var _prepared: Dictionary = {}
+## Instance ids of casino glass materials. The batcher draws the same material
+## from a node outside the casino's lot, where it must not be taken for
+## ordinary glass.
+var _casino_glass: Dictionary = {}
 var _pending: Array[Node] = []
 var _watching := false
 var _night_sky: Sky
@@ -114,8 +118,10 @@ func _process(delta: float) -> void:
 		_prepare_pending()
 	if _casinos_dirty and amount > 0.0:
 		_casinos_dirty = false
-		_ensure_casinos().rebuild()
-		_ensure_spheroid().rebuild()
+		# Geometry changes all the time while the city grows; only a change to
+		# a casino or landmark lot itself rebuilds its lights.
+		_ensure_casinos().refresh()
+		_ensure_spheroid().refresh()
 	# Mods and Explore entry replace the camera environment; restate night.
 	var explore := _explore_environment()
 	if explore != null and explore != _applied_explore and (amount > 0.0 or _applied_explore != null):
@@ -313,9 +319,11 @@ func _consider(material: Material, code: int = -1) -> void:
 	var base := material as BaseMaterial3D
 	if base == null: return
 	var casino := Signatures.has(code)
+	if _casino_glass.has(base.get_instance_id()): return
 	var existing: Dictionary = _prepared.get(base.get_instance_id(),{})
 	# Casino glass is lit pane by pane by CityCasinoLights3D, not by material.
 	if casino and role_for(base.resource_name) in [Role.WINDOW, Role.WINDOW_DIM]:
+		_casino_glass[base.get_instance_id()] = true
 		if not existing.is_empty():
 			for key: String in existing.saved: base.set(key,existing.saved[key])
 			_prepared.erase(base.get_instance_id())
@@ -409,6 +417,7 @@ func _restore_all() -> void:
 		for key: String in record.saved: material.set(key,record.saved[key])
 	_modified_count -= _prepared.size()
 	_prepared.clear()
+	_casino_glass.clear()
 	_pending.clear()
 
 # --- textures -------------------------------------------------------------

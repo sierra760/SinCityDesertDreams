@@ -52,7 +52,11 @@ check. Deferral is necessary because `day_advanced` is emitted before the
 simulation advances its saved day. An unchanged month writes nothing; a new
 month changes three palette uniforms per display, without rebuilding geometry.
 One-time cell-height calculations occur during show geometry construction,
-and shader animation has a small per-vertex cost.
+and shader animation has a small per-vertex cost. While it is night, a city
+geometry change rebuilds the show (and the casinos' night lights) only when a
+landmark or casino lot itself was added, removed, moved, turned or given
+another model; a house developing elsewhere keeps the existing meshes, which
+equal a full rebuild (`game/tests/test_night_lights_reuse.gd`).
 
 Source meshes, materials, collisions and compiled cache entries remain
 unchanged. Night fade, exact day restoration, elevation and facing, construction,

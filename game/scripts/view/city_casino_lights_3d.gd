@@ -59,6 +59,8 @@ var _view: Node
 var _image: Image
 var _texture: ImageTexture
 var _time := 0.0
+## What the lights were last built from; see `lot_signature`.
+var _built_from: Array = []
 
 func bind(view: Node) -> void:
 	_view = view
@@ -80,6 +82,7 @@ func _publish_wash() -> void:
 ## the city's buildings change while it is night.
 func rebuild() -> void:
 	clear()
+	_built_from = _signature()
 	if _view == null or not ("buildings" in _view) or _view.buildings == null: return
 	for node: Node in _view.buildings.get_children():
 		if not node.has_meta("code") or not Signatures.has(int(node.get_meta("code"))): continue
@@ -98,7 +101,38 @@ func rebuild() -> void:
 	_paint_wash()
 	set_process(not _beams.is_empty())
 
+## Rebuild only if a casino lot was added, removed, moved, turned or given
+## another model since the lights were built. Most geometry changes are a
+## house somewhere else, and leave every casino light exactly as a rebuild
+## would make it. Returns true when it rebuilt.
+func refresh() -> bool:
+	if _signature() == _built_from: return false
+	rebuild()
+	return true
+
+func _signature() -> Array:
+	var out: Array = []
+	if _view == null or not ("buildings" in _view) or _view.buildings == null: return out
+	for node: Node in _view.buildings.get_children():
+		if not node.has_meta("code") or not Signatures.has(int(node.get_meta("code"))): continue
+		var code := int(node.get_meta("code"))
+		var cell: Vector2i = node.get_meta("cell",Vector2i.ZERO)
+		out.append_array([code,cell,_door(code,cell)])
+		lot_signature(node,out)
+	return out
+
+## Everything the lights read from a lot node: the node, where it stands and
+## each mesh in its model. Appended to `out`.
+static func lot_signature(lot: Node, out: Array) -> void:
+	out.append(lot.get_instance_id())
+	if lot is Node3D: out.append((lot as Node3D).global_transform)
+	for child: Node in lot.find_children("*","MeshInstance3D",true,false):
+		var source := child as MeshInstance3D
+		out.append_array([source.get_instance_id(),source.mesh.get_instance_id() if source.mesh != null else 0,
+			source.global_transform,source.cast_shadow])
+
 func clear() -> void:
+	_built_from = []
 	for beam: Dictionary in _beams:
 		if is_instance_valid(beam.pivot): beam.pivot.free()
 	_beams.clear()
