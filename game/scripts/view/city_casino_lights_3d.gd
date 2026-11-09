@@ -62,6 +62,19 @@ var _time := 0.0
 
 func bind(view: Node) -> void:
 	_view = view
+	if "buildings" in view and view.buildings != null:
+		view.buildings.visibility_changed.connect(_sync_visibility)
+	visibility_changed.connect(_publish_wash)
+	_sync_visibility()
+
+## Effects live outside the batched buildings, so follow their surface filter.
+func _sync_visibility() -> void:
+	visible = _view != null and "buildings" in _view and _view.buildings != null and _view.buildings.visible
+	_publish_wash()
+
+## Hiding geometry alone does not remove the colour sampled by terrain.
+func _publish_wash() -> void:
+	Globals.set_wash(_texture if is_visible_in_tree() and not lots.is_empty() else null)
 
 ## Find every casino lot and light it. Called on entering night and whenever
 ## the city's buildings change while it is night.
@@ -613,4 +626,4 @@ func _paint_wash() -> void:
 				_image.set_pixel(x,y,Color(colour.r,colour.g,colour.b,strength))
 	if _texture == null: _texture = ImageTexture.create_from_image(_image)
 	else: _texture.update(_image)
-	Globals.set_wash(_texture)
+	_publish_wash()

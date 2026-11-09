@@ -35,6 +35,7 @@ var _texture: ImageTexture
 
 func _ready() -> void:
 	Globals.ensure()
+	visibility_changed.connect(_publish_pools)
 	_metadata = JSON.parse_string(FileAccess.get_file_as_string(ROOT+"street-lamps.json")) if FileAccess.file_exists(ROOT+"street-lamps.json") else {}
 	for kind: String in ["street_lamp","street_lamp_double"]:
 		var mesh := _load_mesh(ROOT+kind+".glb")
@@ -52,6 +53,10 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	if _texture != null: Globals.set_lamps(null)
+
+## The terrain must lose the light pools whenever the lamp meshes are hidden.
+func _publish_pools() -> void:
+	Globals.set_lamps(_texture if is_visible_in_tree() else null)
 
 static func _load_mesh(path: String) -> Mesh:
 	if not ResourceLoader.exists(path): return null
@@ -242,4 +247,4 @@ func _publish(records: Array[Dictionary]) -> void:
 			_image.set_pixelv(tile,Color(lens.x-tile.x,lens.z-tile.y,lens.y,POOL_STRENGTH))
 	if _texture == null: _texture = ImageTexture.create_from_image(_image)
 	else: _texture.update(_image)
-	Globals.set_lamps(_texture)
+	_publish_pools()
