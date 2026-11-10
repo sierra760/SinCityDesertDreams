@@ -277,6 +277,33 @@ func corner_points(key: Vector3i, first: Vector3i = Vector3i(-1,-1,-1)) -> Packe
 		points.append(pivot-arms[1]*cos(angle)*.5-arms[0]*sin(angle)*.5)
 	return points
 
+## Reconstruct the drawn route for both service trains and driven trains.
+## Corner nodes refer to the midpoint of their curve, not the tile centre.
+func project_nodes(path: Array) -> Dictionary:
+	for index: int in path.size():
+		var key: Vector3i = path[index]
+		if not nodes.has(key): return {}
+		if index>0:
+			var previous: Vector3i = path[index-1]
+			if not nodes[previous].links.has(key) or not nodes[key].links.has(previous): return {}
+	var points := PackedVector3Array()
+	var node_point_indices := PackedInt32Array()
+	for index: int in path.size():
+		var key: Vector3i = path[index]
+		if index>0:
+			var edge := edge_points(path[index-1],key)
+			for middle: int in range(1,edge.size()-1):
+				if points.is_empty() or edge[middle].distance_to(points[-1])>.00001: points.append(edge[middle])
+		var corner := corner_points(key,path[index-1]) if index>0 and index<path.size()-1 else PackedVector3Array()
+		var first_index := points.size()
+		if not corner.is_empty() and not points.is_empty() and corner[0].distance_to(points[-1])<.00001: first_index-=1
+		node_point_indices.append(first_index+corner.size()/2 if not corner.is_empty() else first_index)
+		if corner.is_empty(): points.append(nodes[key].point)
+		else:
+			for point: Vector3 in corner:
+				if points.is_empty() or point.distance_to(points[-1])>.00001: points.append(point)
+	return {"points":points,"node_point_indices":node_point_indices}
+
 func _route_between(from: Dictionary, to: Dictionary) -> Dictionary:
 	var start: Vector3i = from.node
 	var goal: Vector3i = to.node
@@ -308,25 +335,10 @@ func _route_between(from: Dictionary, to: Dictionary) -> Dictionary:
 		var a: Vector3 = nodes[path[pair[1]]].point
 		var b: Vector3 = nodes[path[pair[2]]].point
 		if absf((b-a).normalized().dot(station_data.forward))<.95: return {}
-	var points := PackedVector3Array()
-	# Cell centres alone cut through the convex half of a ground grade.
-	# Cardinal centre-to-edge spans stay on one terrain triangle, and graph
-	# sampling also preserves the authored bridge axis and deck lift.
-	var node_point_indices := PackedInt32Array()
-	for index: int in path.size():
-		var key: Vector3i = path[index]
-		if index>0:
-			var edge := edge_points(path[index-1],key)
-			for middle: int in range(1,edge.size()-1):
-				if points.is_empty() or edge[middle].distance_to(points[-1])>.00001: points.append(edge[middle])
-		var corner := corner_points(key,path[index-1]) if index>0 and index<path.size()-1 else PackedVector3Array()
-		var first_index := points.size()
-		if not corner.is_empty() and not points.is_empty() and corner[0].distance_to(points[-1])<.00001: first_index-=1
-		node_point_indices.append(first_index+corner.size()/2 if not corner.is_empty() else first_index)
-		if corner.is_empty(): points.append(nodes[key].point)
-		else:
-			for point: Vector3 in corner:
-				if points.is_empty() or point.distance_to(points[-1])>.00001: points.append(point)
+	var projected := project_nodes(path)
+	if projected.is_empty(): return {}
+	var points: PackedVector3Array = projected.points
+	var node_point_indices: PackedInt32Array = projected.node_point_indices
 	for i: int in range(1,points.size()):
 		# Reject malformed/imported grades that cannot carry the upright rider
 		# safely. The authored subway entrance descends about 32 degrees.
