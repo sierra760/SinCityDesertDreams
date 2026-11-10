@@ -93,7 +93,9 @@ func sync(graph: CityTrafficGraph) -> void:
 	_publish(_ordered())
 
 ## Replan the cells an incremental graph refresh can have changed. A road lamp
-## reads its own cell's code, deck, points and route membership; membership
+## reads its own code, deck, points and route membership; diagonal junctions
+## also read authored bends up to three cardinal steps away. Graph dirty cells
+## include one ring, so the two extra rings below cover that dependency. Membership
 ## also changes one ring outside the graph's dirty cells, and a median lamp
 ## reads the neighbouring carriageway, so two rings around them are replanned.
 func _replan(graph: CityTrafficGraph) -> void:
@@ -161,6 +163,8 @@ func _road_lamp(graph: CityTrafficGraph, city: City, cell: Vector2i) -> Dictiona
 	if bits >= 3:
 		# Junctions: one lamp in the far corner, leaning over the crossing.
 		uv = Vector2(1.0-INSET,1.0-INSET)
+		if CityNetworks3D.road_diagonal_mask(city,cell,mask) == 6:
+			uv = Vector2(INSET,INSET) # The southeast corner is now a travel lane.
 	elif mask in [NetworkShapes.NORTH,NetworkShapes.SOUTH,NetworkShapes.NORTH|NetworkShapes.SOUTH]:
 		# Every second tile, alternating sides: about 32 m apart, staggered.
 		if posmod(cell.y,2) != 0: return {}

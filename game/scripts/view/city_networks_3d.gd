@@ -698,35 +698,108 @@ func _draw_network(city: City, cell: Vector2i, family: int, mask: int, elevation
 	# Ground-level road cells carry a full-width sand verge.
 	if family == NetworkShapes.Family.ROAD and elevation < 0.1 and not _drawing_tunnel:
 		_rect(city, cell, Rect2(0, 0, 1, 1), Color(0.77, 0.63, 0.47), elevation - 0.016, PhysicalRole.VERGE)
+	var diagonal := road_diagonal_mask(city,cell,mask) if family==NetworkShapes.Family.ROAD and not _deck_profiles.has(cell) and not _drawing_tunnel else 0
 	var width := 0.92 if family == NetworkShapes.Family.HIGHWAY else ROAD_WIDTH
-	_draw_path(city, cell, mask, width + 0.075, Color(0.74, 0.72, 0.65), elevation - 0.008, PhysicalRole.SHOULDER)
-	_draw_path(city, cell, mask, width, Color(0.34, 0.38, 0.40), elevation, PhysicalRole.FLOOR)
+	if diagonal != 0:
+		_road_junction_surface(city,cell,mask,diagonal,width+.075,Color(.74,.72,.65),elevation-.008,PhysicalRole.SHOULDER)
+		_road_junction_surface(city,cell,mask,diagonal,width,Color(.34,.38,.40),elevation,PhysicalRole.FLOOR)
+	else:
+		_draw_path(city, cell, mask, width + 0.075, Color(0.74, 0.72, 0.65), elevation - 0.008, PhysicalRole.SHOULDER)
+		_draw_path(city, cell, mask, width, Color(0.34, 0.38, 0.40), elevation, PhysicalRole.FLOOR)
 	if family == NetworkShapes.Family.ROAD and not _deck_profiles.has(cell) and not _drawing_tunnel:
 		# Close each raised layer down to the terrain without moving its travel
 		# height; top-only sheets would expose daylight at street level. Upper
 		# layers stop at the layer below: full-height skirts would share one
 		# plane at an exposed tile end (beside a ramp mouth) and z-fight.
 		_grounded_outline(city,cell,_rect_polygon(Rect2(0,0,1,1)),Color(.77,.63,.47),elevation-.016)
-		_grounded_path(city,cell,mask,width+.075,Color(.74,.72,.65),elevation-.008,elevation-.016)
-		_grounded_path(city,cell,mask,width,Color(.34,.38,.40),elevation,elevation-.008)
+		if diagonal != 0:
+			_grounded_outline(city,cell,road_junction_outline(mask,diagonal,width+.075),Color(.74,.72,.65),elevation-.008,elevation-.016)
+			_grounded_outline(city,cell,road_junction_outline(mask,diagonal,width),Color(.34,.38,.40),elevation,elevation-.008)
+		else:
+			_grounded_path(city,cell,mask,width+.075,Color(.74,.72,.65),elevation-.008,elevation-.016)
+			_grounded_path(city,cell,mask,width,Color(.34,.38,.40),elevation,elevation-.008)
 	# A highway tile is one two-lane, one-way carriageway. White separates
 	# those same-direction lanes; two-way local roads use yellow centers.
 	var stripe := HIGHWAY_LANE_DIVIDER if family == NetworkShapes.Family.HIGHWAY else Color(0.86, 0.72, 0.36)
-	if bend:
+	if bend or diagonal != 0:
 		for i: int in range(0, 12, 3):
-			_surface_polygon(city, cell, diagonal_strip(mask, .022, float(i)/12.0, float(i+1)/12.0), stripe, elevation+.006)
-	elif mask == 5 or mask == 10:
+			_surface_polygon(city, cell, diagonal_strip(diagonal if diagonal != 0 else mask, .022, float(i)/12.0, float(i+1)/12.0), stripe, elevation+.006)
+	if mask == 5 or mask == 10:
 		for i: int in 4:
 			var start := 0.06 + i * 0.25
 			var dash := Rect2(0.489, start, 0.022, 0.125) if mask == 5 else Rect2(start, 0.489, 0.125, 0.022)
 			_rect(city, cell, dash, stripe, elevation + 0.006)
-	else:
-		# Keep the center of a junction clear of lane-marking overlap.
+	elif not bend:
+		# Side arms keep their short approach dashes; the diagonal continues.
 		for direction: int in 4:
-			if mask & (1 << direction):
+			if mask & (1 << direction) and not (diagonal & (1 << direction)):
 				var dash: Rect2 = [Rect2(0.489, 0.045, 0.022, 0.13), Rect2(0.825, 0.489, 0.13, 0.022),
 					Rect2(0.489, 0.825, 0.022, 0.13), Rect2(0.045, 0.489, 0.13, 0.022)][direction]
 				_rect(city, cell, dash, stripe, elevation + 0.006)
+
+
+## A junction inherits a diagonal only when authored bends confirm it in both
+## directions. Walk at most three cells through consecutive junctions: this
+## stays inside the region input halo and never guesses from an ordinary grid.
+static func road_diagonal_mask(city: City, cell: Vector2i, mask: int) -> int:
+	if mask not in [7,11,13,14,15] or not NetworkShapes.is_plain_road(city.building.atv(cell)): return 0
+	var result := 0
+	for bend: int in [3,6,12,9]:
+		if (mask & bend) != bend: continue
+		var confirmed := true
+		for direction: int in 4:
+			if bend & (1<<direction) and not _road_diagonal_continues(city,cell,bend,direction):
+				confirmed = false
+		if confirmed:
+			if result != 0: return 0 # Ambiguous intersections keep their authored shape.
+			result = bend
+	return result
+
+
+static func _road_diagonal_continues(city: City, cell: Vector2i, bend: int, direction: int) -> bool:
+	for step: int in 3:
+		cell += NetworkShapes.DIRECTIONS[direction]
+		if not city.in_bounds(cell.x,cell.y): return false
+		var code := city.building.atv(cell)
+		if not NetworkShapes.is_plain_road(code): return false
+		bend = 15 ^ bend
+		var mask := network_mask(code,NetworkShapes.Family.ROAD)
+		if mask == bend: return true
+		if mask not in [7,11,13,14,15] or (mask & bend) != bend: return false
+		var exit := bend & ~(1<<((direction+2)%4))
+		direction = NetworkShapes.DIRECTION_BITS.find(exit)
+	return false
+
+
+static var _road_junction_outlines: Dictionary = {}
+## Union the diagonal ribbon with every saved street arm. Using one outline
+## for the top and its skirt leaves no internal wall in the newly paved lane.
+static func road_junction_outline(mask: int, diagonal: int, width: float) -> Array[Vector2]:
+	var key := Vector3i(mask,diagonal,roundi(width*1000000))
+	if not _road_junction_outlines.has(key):
+		var outline := _rail_berm_outline(mask,(1-width)*.5,(1+width)*.5)
+		var merged := Geometry2D.merge_polygons(PackedVector2Array(outline),PackedVector2Array(diagonal_strip(diagonal,width)))
+		var points: Array[Vector2] = []
+		points.assign(merged[0])
+		_road_junction_outlines[key] = points
+	return _road_junction_outlines[key]
+
+
+static var _road_junction_triangles: Dictionary = {}
+func _road_junction_surface(city: City, cell: Vector2i, mask: int, diagonal: int, width: float, color: Color, elevation: float, role: int) -> void:
+	var key := Vector3i(mask,diagonal,roundi(width*1000000))
+	if not _road_junction_triangles.has(key):
+		var outline := road_junction_outline(mask,diagonal,width)
+		var indices := Geometry2D.triangulate_polygon(PackedVector2Array(outline))
+		var triangles: Array[Array] = []
+		for i: int in range(0,indices.size(),3):
+			var triangle: Array[Vector2] = [outline[indices[i]],outline[indices[i+1]],outline[indices[i+2]]]
+			triangles.append(triangle)
+		_road_junction_triangles[key] = triangles
+	# Each convex triangle is clipped to the terrain facets (or approach grid)
+	# separately. A fan of the concave whole would pave over the other verges.
+	for triangle: Array[Vector2] in _road_junction_triangles[key]:
+		_surface_polygon(city,cell,triangle,color,elevation,role)
 
 
 func _grounded_path(city: City, cell: Vector2i, mask: int, width: float, color: Color, elevation: float, floor_elevation: float = NAN) -> void:
@@ -793,7 +866,7 @@ func _rail_berm(city: City, cell: Vector2i, mask: int, elevation: float) -> void
 		_rail_berm_band(city,cell,upper[i],upper[next],lower[i],lower[next],elevation)
 
 
-func _rail_berm_outline(mask: int, low: float, high: float) -> Array[Vector2]:
+static func _rail_berm_outline(mask: int, low: float, high: float) -> Array[Vector2]:
 	var points: Array[Vector2] = [Vector2(low,low)]
 	if mask & NetworkShapes.NORTH: points.append_array([Vector2(low,0),Vector2(high,0)])
 	points.append(Vector2(high,low))

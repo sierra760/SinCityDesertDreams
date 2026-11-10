@@ -42,7 +42,11 @@ static func intersection(city: City, junction: Dictionary, faces: Array[Dictiona
 	var verge := graph!=null and city.in_bounds(cell.x,cell.y) and graph.has_cell(cell,&"road") and not graph._decks.has(cell) \
 		and NetworkShapes.in_road_family(city.building.atv(cell)) and not city.is_water(cell.x,cell.y)
 	if verge:
+		var diagonal := CityNetworks3D.road_diagonal_mask(city,cell,CityNetworks3D.network_mask(city.building.atv(cell),NetworkShapes.Family.ROAD))
 		for corner: Vector2 in [Vector2(0,0),Vector2(1,0),Vector2(1,1),Vector2(0,1)]:
+			# The filled diagonal owns this former sand corner, including its
+			# sign blades and post: choose another corner of the same junction.
+			if diagonal != 0 and corner == CityNetworks3D.PIVOTS[diagonal]: continue
 			var inward:=Vector2.ONE-corner*2
 			var uv:=corner+inward*POST_INSET
 			var center:=graph.walk_point(cell,uv)

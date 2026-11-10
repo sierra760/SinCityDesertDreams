@@ -406,13 +406,16 @@ func walk_point(cell: Vector2i, offset: Vector2) -> Vector3:
 	var at := point(cell,&"road",offset)
 	if _decks.has(cell): return at
 	var mask := CityNetworks3D.network_mask(city.building.atv(cell),NetworkShapes.Family.ROAD)
+	var diagonal := CityNetworks3D.road_diagonal_mask(city,cell,mask)
 	var lift := .024
 	for width: float in [.675,.60]:
-		var key := Vector2i(mask,roundi(width*1000))
+		var key := Vector2i(mask | (diagonal<<4),roundi(width*1000))
 		if not _walk_polygons.has(key):
 			var polygons: Array[PackedVector2Array] = []
 			var lo := (1-width)*.5
-			if mask in [3,6,9,12]:
+			if diagonal != 0:
+				polygons.append(PackedVector2Array(CityNetworks3D.road_junction_outline(mask,diagonal,width)))
+			elif mask in [3,6,9,12]:
 				polygons.append(PackedVector2Array(CityNetworks3D.diagonal_strip(mask,width)))
 			else:
 				var rectangles: Array[Rect2]=[Rect2(lo,lo,width,width)]

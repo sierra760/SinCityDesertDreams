@@ -61,3 +61,30 @@ func test_alternating_diagonal_pieces_have_continuous_floor_across_tile_joins() 
 			var hit := world.support_near(at,.004,.006,exclusions)
 			check(not hit.is_empty(),"alternating diagonal tiles meet along one straight physical corridor")
 		fixture.free();await physics_frame
+
+func test_diagonal_junction_lane_has_real_floor_contacts_on_flat_and_sloped_ground() -> void:
+	const Junctions := preload("res://tests/test_diagonal_road_junctions.gd")
+	var contacts := 0
+	for quarter: int in 4:
+		for terrain: int in [Terrain.FLAT,Terrain.CORNER_NE,1,3]:
+			var city := Junctions.fixture(quarter)
+			city.terrain.putv(Junctions.CENTER,terrain)
+			fixture=Node3D.new();root.add_child(fixture)
+			var layer := CityNetworks3D.new();fixture.add_child(layer)
+			layer._build_region(city,Rect2i(Junctions.CENTER,Vector2i.ONE))
+			var world := CityTraversalWorld3D.new();fixture.add_child(world)
+			var chunks: Array[Dictionary] = [CityGeometry3D.build_chunk(city,Rect2i(Junctions.CENTER,Vector2i.ONE))]
+			world.rebuild(city,chunks,layer.physical_data(),1)
+			var graph := CityTrafficGraph.new();graph.bind_city(city)
+			await physics_frame
+			for sample: Vector2 in [Vector2(.89,.11),Vector2(.94,.16),Vector2(.84,.06)]:
+				var p := Junctions.rotated(sample,quarter)
+				var at := graph.point(Junctions.CENTER,&"road",p)
+				var exclusions: Array[RID] = []
+				var hit := world.support_near(at,.004,.006,exclusions)
+				check(not hit.is_empty(),"continuous junction lane has real collision over the old notch")
+				if not hit.is_empty():
+					check(absf(hit.position.y-at.y)<.0001,"diagonal junction collision matches road height")
+					contacts+=1
+			fixture.free();await physics_frame
+	check_eq(contacts,48,"all filled-junction floor contacts retained")
