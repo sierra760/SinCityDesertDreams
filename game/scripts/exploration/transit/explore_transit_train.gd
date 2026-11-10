@@ -16,12 +16,13 @@ static var _finish_materials: Dictionary = {}
 var door_side := 1
 var doors := "closed"
 var door_fraction := 0.0
-var _body: AnimatableBody3D
-var _door_bodies: Array[AnimatableBody3D] = []
+## The session carries passengers explicitly. Kinematic bodies buffer their
+## target transform until the next physics tick, leaving a stale sloped floor.
+var _body: StaticBody3D
+var _door_bodies: Array[StaticBody3D] = []
 
 func _ready() -> void:
-	_body = AnimatableBody3D.new()
-	_body.sync_to_physics = false
+	_body = StaticBody3D.new()
 	_body.collision_layer = ExploreActorProfile.FLOOR | ExploreActorProfile.OBSTACLE
 	_body.collision_mask = 0
 	add_child(_body)
@@ -40,8 +41,7 @@ func _ready() -> void:
 				_collision(_body,Vector3(side*.119,.153,z+end),Vector3(.012,.11,.015))
 			# Invisible glass collision prevents escape through a window.
 			_collision(_body,Vector3(side*.119,.154,z),Vector3(.012,.09,.225))
-		var door := AnimatableBody3D.new()
-		door.sync_to_physics = false
+		var door := StaticBody3D.new()
 		door.collision_layer = ExploreActorProfile.OBSTACLE
 		door.collision_mask = 0
 		add_child(door)
@@ -103,6 +103,7 @@ func set_doors(fraction: float, platform_normal: Vector3) -> void:
 		var side := -1 if i==0 else 1
 		var amount := door_fraction if side==door_side else 0.0
 		_door_bodies[i].position.z = amount*.17
+		_door_bodies[i].force_update_transform()
 		# The sliding physical panel moves aside; only fully open doorway is
 		# admitted as a support bridge by support_for below.
 
@@ -125,3 +126,36 @@ func support_for(feet: Vector3) -> Dictionary:
 
 func cabin_transform() -> Transform3D:
 	return global_transform
+
+## Flush the parent transform before the passenger/camera query the cabin.
+## Static bodies teleport immediately; explicit support motion carries riders.
+func sync_physics() -> void:
+	if is_instance_valid(_body): _body.force_update_transform()
+	for door: StaticBody3D in _door_bodies: door.force_update_transform()
+
+## A rigid carriage spans both sides of a grade break. A point tangent lets
+## the uphill track enter its floor at an end; use the full span for pitch,
+## then keep the running surface below the floor across the whole car.
+static func route_pose(path: Dictionary, distance: float) -> Transform3D:
+	var pose := ExploreTransitNetwork.sample(path,distance)
+	var half_length := .3125
+	var behind := ExploreTransitNetwork.sample(path,distance-half_length).origin
+	var ahead := ExploreTransitNetwork.sample(path,distance+half_length).origin
+	var horizontal := Vector3(ahead.x-behind.x,0,ahead.z-behind.z).length()
+	if horizontal<.00001: return pose
+	var forward := -pose.basis.z
+	var heading := Vector3(forward.x,0,forward.z).normalized()
+	heading.y = (ahead.y-behind.y)/horizontal
+	pose.basis = Basis.looking_at(heading,Vector3.UP)
+	var inverse := pose.affine_inverse()
+	var lift := maxf(0.0,maxf((inverse*behind).y,(inverse*ahead).y))
+	var points: PackedVector3Array = path.get("points",PackedVector3Array())
+	var lengths: PackedFloat32Array = path.get("distances",PackedFloat32Array())
+	# The height difference is linear on each segment, so its maximum lies
+	# at an endpoint or a polyline vertex, including short portal facets.
+	for index: int in points.size():
+		if lengths[index]<distance-half_length: continue
+		if lengths[index]>distance+half_length: break
+		lift = maxf(lift,(inverse*points[index]).y)
+	pose.origin.y += lift/pose.basis.y.y
+	return pose

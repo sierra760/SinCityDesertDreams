@@ -3,6 +3,10 @@ extends "res://tests/exploration/async_test_case.gd"
 class CountingTraffic:
 	extends CityTraffic3D
 	var pose_calls := 0
+	var ramp_calls := 0
+	func _ramp(cell: Vector2i) -> bool:
+		ramp_calls += 1
+		return super._ramp(cell)
 	func actor_pose(actor: Dictionary) -> Transform3D:
 		pose_calls += 1
 		return super.actor_pose(actor)
@@ -67,3 +71,52 @@ func test_owner_sampling_is_selected_only_but_far_clocks_and_fresh_queries_survi
 	check_eq(states.size(),81,"public query preserves every actor")
 	check_eq(states[80].position,after.origin,"public query uses fresh offscreen pose")
 	check(absf(float(states[80].visual_time)-.1)<.000001,"public query retains unselected clock history")
+
+func test_render_samples_nearby_visible_actor_pose_once() -> void:
+	var f:=fixture()
+	var traffic: CountingTraffic=f.traffic
+	var camera: Camera3D=f.camera
+	# Every body is both visible and eligible for detailed preparation. Public
+	# actor records stay mutable; this reuse is bounded to one render call.
+	for i: int in traffic.actors.size():
+		var a: Dictionary=traffic.actors[i]
+		a.cell=Vector2i(20+i%4,20)
+		a.previous=a.cell-Vector2i(1,0)
+		a.next=a.cell+Vector2i(1,0)
+	camera.position=Vector3(21.5,3.2,25)
+	camera.look_at(Vector3(21.5,2.5,20))
+	traffic.pose_calls=0
+	traffic._render(camera)
+	check_eq(traffic.statistics.visible,traffic.actors.size(),"every fixture body reaches the render pass")
+	check(traffic.pose_calls<=traffic.actors.size(),"a visible detail candidate must not request its target pose twice: "+str(traffic.pose_calls))
+	var before:=traffic.actor_pose(traffic.actors[0])
+	traffic.actors[0].t=.8
+	traffic._render(camera)
+	check(traffic.actors[0]._render_target.origin.distance_to(before.origin)>.1,"a new render observes raw actor edits immediately")
+
+func test_motion_reuses_route_geometry_until_an_input_changes() -> void:
+	var f:=fixture()
+	var traffic: CountingTraffic=f.traffic
+	var a: Dictionary=traffic.actors[0]
+	a.t=.2
+	traffic.actor_pose(a)
+	traffic.ramp_calls=0
+	a.t=.8
+	traffic.actor_pose(a)
+	check_eq(traffic.ramp_calls,0,"moving within one tile must not re-query unchanged route geometry")
+	for field: String in ["side","previous","next","cell","type","domain","lane","reversed"]:
+		var changed:=a.duplicate(true)
+		match field:
+			"side": changed.side=-1.0
+			"previous": changed.previous=changed.cell+Vector2i(0,1)
+			"next": changed.next=changed.cell+Vector2i(0,-1)
+			"cell": changed.cell+=Vector2i(1,0)
+			"type": changed.type=&"pedestrian";changed.kind=&"pedestrian"
+			"domain": changed.domain=&"rail"
+			"lane": changed.lane=1
+			"reversed": changed.reversed=true
+		var fresh:=changed.duplicate(true)
+		fresh.id = -int(fresh.id)
+		for key: Variant in fresh.keys():
+			if String(key).begins_with("_pose"):fresh.erase(key)
+		check_eq(traffic.actor_pose(changed),traffic.actor_pose(fresh),"fresh geometry after raw "+field+" edit")

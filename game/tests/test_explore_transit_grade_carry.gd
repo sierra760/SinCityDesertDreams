@@ -176,3 +176,48 @@ func test_route_finds_safe_detour_before_rejecting_unsafe_shortcut() -> void:
 		check_eq(path.nodes.size(),7,"connected longer flat route is selected")
 	network.nodes[Vector3i(1,1,0)].links.erase(Vector3i(5,1,0))
 	check(network._route_between(a,b).is_empty(),"no service when only unsafe shortcut remains")
+
+func test_carriage_ends_keep_passenger_and_camera_clear_on_grades() -> void:
+	var city := grade_city()
+	var network := _network(city)
+	fixture = Fixture.attach(self,city)
+	var support := SupportOwner.new(); fixture.add_child(support)
+	support.train = ExploreTransitTrain.new(); fixture.add_child(support.train)
+	var walker := ExplorePedestrian.new(); fixture.add_child(walker)
+	walker.bind(fixture.get_node("traversal"))
+	walker.transit_support = support
+	var camera := CityExploreCamera3D.new(); fixture.add_child(camera)
+	camera.configure_target(walker,0)
+	var service := ExploreTransitService.new(); fixture.add_child(service)
+	service.walker=walker; service.network=network; service.train=support.train
+	service.world=ExploreTransitWorld3D.new(); service.add_child(service.world)
+	service._station_scan_at=INF
+	var reports: Array[String] = []
+	walker.recovery_requested.connect(func(reason): reports.append("walker:"+reason))
+	camera.recovery_requested.connect(func(): reports.append("camera"))
+	for reverse: bool in [false,true]:
+		var path := network.route(1,0) if reverse else network.route(0,1)
+		for end: float in [-.24,.24]:
+			reports.clear()
+			walker.clear_support_frame(); walker.stop_input()
+			service.route_data=path; service.distance=.1; service.stop_index=1; service.state="departing"
+			service._advance_service(0)
+			walker.global_transform = support.train.global_transform*Transform3D(Basis.IDENTITY,Vector3(0,.027,end))
+			await physics_frame
+			for i: int in 15:
+				walker.step(ExploreInputFrame.idle(),0,1.0/60.0)
+				await physics_frame
+			var worst := 0.0
+			var before := support.train.to_local(walker.global_position)
+			for i: int in 360:
+				service.distance=.1+(float(path.length)-.2)*float(i+1)/360
+				service._advance_service(0)
+				walker.step(ExploreInputFrame.idle(),0,1.0/60.0)
+				camera.set_cabin(ExploreTransitTrain.CABIN,support.train.global_transform,support.train.contains(walker.global_position))
+				camera.update_follow(1.0/60.0)
+				await physics_frame
+				worst=maxf(worst,(support.train.to_local(walker.global_position)-before).length())
+			check(reports.is_empty(),"grade end="+str(end)+" reverse="+str(reverse)+" recoveries="+str(reports))
+			check(worst<.025,"passenger end drift="+str(worst))
+
+	service.clear()

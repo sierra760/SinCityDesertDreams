@@ -63,6 +63,10 @@ var _route_neighbors: Array = []
 var _claims: Dictionary = {}
 var detail_manager: ExploreActorDetailManager
 var _detail_clocks: Dictionary = {}
+## Read-only per-tile curve data stays out of public actor/history records.
+## Cap cold IDs as well, including arbitrary direct pose queries.
+var _pose_paths: Dictionary = {}
+const POSE_PATH_LIMIT := 2 * (MAX_VEHICLES + MAX_PEDESTRIANS)
 var _external: Array[Dictionary] = []
 var _external_states: Dictionary = {}
 ## Port planes and helicopters fly continuous paths through their daily points.
@@ -92,6 +96,7 @@ func bind_city(city: City) -> void:
 	if graph.city == city: return
 	if detail_manager != null: detail_manager.clear()
 	_detail_clocks.clear()
+	_pose_paths.clear()
 	_paused_render_state.clear()
 	_paused_camera_ready = false
 	_paused_camera_state.clear()
@@ -628,6 +633,14 @@ func actor_pose(a: Dictionary) -> Transform3D:
 	var style := hash([a.type,a.domain,a.get(&"lane",0),a.side,a.get(&"reversed",false)])
 	if a.get(&"_pose_t",-1.0) == a.t and a.get(&"_pose_revision",-1) == graph.revision and a.get(&"_pose_cell") == a.cell and a.get(&"_pose_previous") == a.previous and a.get(&"_pose_next") == a.next and a.get(&"_pose_style") == style:
 		return a._pose
+	# A new interpolation phase does not change the tile's route geometry.
+	# Retain the curve and its classification until a raw route/style input or
+	# graph revision changes; heights are still sampled at the current phase.
+	var pose_id: Variant = a.get("id")
+	var saved_path: Variant = _pose_paths.get(pose_id) if pose_id != null else null
+	if saved_path != null and saved_path.graph_id == graph.get_instance_id() and saved_path.revision == graph.revision and saved_path.style == style \
+			and saved_path.cell == a.cell and saved_path.previous == a.previous and saved_path.next == a.next:
+		return _sample_pose_path(a,saved_path,style)
 	var segment := graph.highway_segment(a.cell,a.previous,a.next,int(a.get(&"lane",0))) if a.domain==&"highway" else {}
 	if segment.has("radius"):
 		var angle := lerpf(segment.start,segment.end,float(a.t))
@@ -680,6 +693,19 @@ func actor_pose(a: Dictionary) -> Transform3D:
 	if _ramp(a.previous): start = Vector2(.5,.5)-incoming*.5
 	if _ramp(a.next): end = Vector2(.5,.5)+outgoing*.5
 	var pivot := Vector2(.5,.5)+(Vector2(-incoming.y,incoming.x)+Vector2(-outgoing.y,outgoing.x))*lane*side*.5
+	var path := {"graph_id":graph.get_instance_id(),"revision":graph.revision,"style":style,"cell":a.cell,"previous":a.previous,"next":a.next,
+		"start":start,"end":end,"pivot":pivot,"diagonal":diagonal,"outgoing":outgoing}
+	if pose_id != null:
+		if not _pose_paths.has(pose_id) and _pose_paths.size() >= POSE_PATH_LIMIT: _pose_paths.clear()
+		_pose_paths[pose_id] = path
+	return _sample_pose_path(a,path,style)
+
+func _sample_pose_path(a: Dictionary, path: Dictionary, style: int) -> Transform3D:
+	var start: Vector2 = path.start
+	var end: Vector2 = path.end
+	var pivot: Vector2 = path.pivot
+	var diagonal: bool = path.diagonal
+	var outgoing: Vector2 = path.outgoing
 	var t := float(a.t)
 	var offset := start.lerp(end,t) if diagonal else start.lerp(pivot,t).lerp(pivot.lerp(end,t),t)
 	var direction := end-start if diagonal else (pivot-start).lerp(end-pivot,t)
@@ -721,7 +747,10 @@ func _render(camera: Camera3D) -> void:
 			if _render_state(camera) == _paused_render_state:
 				statistics["render_cache_hits"] = int(statistics.get("render_cache_hits",0))+1
 				return
-	var promoted: Dictionary = detail_manager.update(_detail_visual_states(camera),camera) if detail_manager != null else {}
+	# Share exact target poses between detail preparation and batch rendering.
+	# This table lives only for this invocation; raw edits stay live next frame.
+	var prepared: Dictionary = {}
+	var promoted: Dictionary = detail_manager.update(_detail_visual_states(camera,false,-1,prepared),camera) if detail_manager != null else {}
 	var groups: Dictionary = {}
 	var visible_count := 0
 	# Camera/display ownership may change between renders. Capture only for this
@@ -740,7 +769,7 @@ func _render(camera: Camera3D) -> void:
 	for a: Dictionary in actors:
 		if _claims.has(a.id): continue
 		if _camera_scope and _coarse_culled_cell(a.cell,a.domain,camera): continue
-		var target := actor_pose(a)
+		var target: Transform3D = prepared[a.id] if prepared.has(a.id) else actor_pose(a)
 		var previous: Variant = a.get(&"_render_previous")
 		var previous_current: bool = previous != null and previous.get(&"_recorded_revision",-1) == revision
 		var prior := target
@@ -1435,7 +1464,7 @@ func visual_states(owner_filter: int = -1) -> Array[Dictionary]:
 
 ## State sampling for the bounded detail pool only. Public visual_states remains
 ## exhaustive; owner clocks/distance still advance for every live actor.
-func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_filter: int = -1) -> Array[Dictionary]:
+func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_filter: int = -1, prepared: Variant = null) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if selected_only and (detail_manager == null or detail_manager.is_empty()): return result
 	if not selected_only and (not is_instance_valid(camera) or not is_visible_in_tree()): return result
@@ -1450,7 +1479,12 @@ func _detail_visual_states(camera: Camera3D, selected_only: bool = false, owner_
 		else:
 			if not radii.has(actor.kind): radii[actor.kind] = ExploreActorDetailManager.detail_radius(actor.kind,camera,true,true)
 			if not _detail_may_be_near(actor,camera_position,radii[actor.kind]): continue
-		result.append(_visual_state(actor))
+		if prepared == null:
+			result.append(_visual_state(actor))
+		else:
+			var pose := actor_pose(actor)
+			prepared[actor.id] = pose
+			result.append(_visual_state(actor,pose))
 	if not selected_only:
 		for record: Dictionary in _external:
 			if _claims.has(record.presentation_id): continue
@@ -1477,8 +1511,8 @@ func _detail_may_be_near(actor: Dictionary, camera_position: Vector3, radius: fl
 	var camera_xz := Vector2(camera_position.x,camera_position.z)
 	return absf(center.x-camera_xz.x)<=margin and absf(center.y-camera_xz.y)<=margin
 
-func _visual_state(actor: Dictionary) -> Dictionary:
-	var pose := actor_pose(actor)
+func _visual_state(actor: Dictionary, prepared_pose: Variant = null) -> Dictionary:
+	var pose: Transform3D = actor_pose(actor) if prepared_pose == null else prepared_pose
 	return {"id":String(actor.get("mod_handle","ambient:"+str(actor.id))),"kind":String(actor.kind),"variant":int(actor.variant),"position":pose.origin,"yaw":pose.basis.get_euler().y,"speed":0.0 if actor.stopped else float(actor.speed),"steering":0.0,"airborne":actor.domain==&"air","phase":float(actor.get("mod_phase",_elapsed*float(actor.speed)*16.0+float(actor.id)*.173)),"visual_time":float(_detail_clocks.get(actor.id,{}).get("time",0.0)),"distance":float(_detail_clocks.get(actor.id,{}).get("distance",0.0)),"gesture":String(actor.get("visual_gesture","")),"gesture_time":float(actor.get("visual_gesture_time",0.0))}
 
 ## Ambient pedestrians within `radius` (horizontally) of `center` that

@@ -168,12 +168,12 @@ func _advance_service(dt: float) -> void:
 			speed = move_toward(speed,desired,.45*dt)
 			var motion := minf(remaining,speed*dt)
 			distance += motion*direction
-			train.global_transform = ExploreTransitNetwork.sample(route_data,distance)
+			train.global_transform = ExploreTransitTrain.route_pose(route_data,distance)
 			if remaining<.3: state = "braking"
 			if remaining<=.002 and desired>0 or remaining<.00001:
 				distance = target
 				speed = 0
-				train.global_transform = ExploreTransitNetwork.sample(route_data,distance)
+				train.global_transform = ExploreTransitTrain.route_pose(route_data,distance)
 				state = "opening"
 				_timer = 0
 				_station_id = int(route_data.stops[stop_index].station)
@@ -181,6 +181,7 @@ func _advance_service(dt: float) -> void:
 				_apply_stop_destination()
 	current_station = network.station_for_route(route_data,int(route_data.stops[stop_index].station))
 	train.set_doors(_door_fraction,current_station.normal)
+	train.sync_physics()
 	train.doors = state if state in ["opening","boarding","closing"] else "closed"
 
 func _step_riders(dt: float) -> void:
@@ -247,7 +248,8 @@ func _apply_stop_destination() -> void:
 	distance = 0
 	speed = 0
 	_timer = 0
-	train.global_transform = ExploreTransitNetwork.sample(path,0)
+	train.global_transform = ExploreTransitTrain.route_pose(path,0)
+	train.sync_physics()
 	_reserve_path(path)
 
 ## Test the nearby rail corridor itself. A rectangular look-ahead box rotates
@@ -276,9 +278,9 @@ func _prepare(path: Dictionary) -> void:
 		spawn_distance = -1.0
 		for i: int in range(2,29):
 			var candidate := minf(float(i)*.5,float(path.length))
-			var point := ExploreTransitNetwork.sample(path,candidate).origin
+			var point := ExploreTransitTrain.route_pose(path,candidate).origin
 			if point.distance_to(walker.global_position)<.8: continue
-			if not _spawn_visible(ExploreTransitNetwork.sample(path,candidate)):
+			if not _spawn_visible(ExploreTransitTrain.route_pose(path,candidate)):
 				spawn_distance = candidate
 				break
 		if spawn_distance<0:
@@ -294,7 +296,8 @@ func _prepare(path: Dictionary) -> void:
 	distance = spawn_distance
 	direction = -1
 	stop_index = 0
-	train.global_transform = ExploreTransitNetwork.sample(path,distance)
+	train.global_transform = ExploreTransitTrain.route_pose(path,distance)
+	train.sync_physics()
 	_door_fraction = 0
 	state = "approaching"
 	speed = 0
