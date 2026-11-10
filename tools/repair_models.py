@@ -75,7 +75,19 @@ def comstock_canopy_letters(part: dict) -> bool:
         and part['lo'][2] > 26.98 and part['hi'][2] < 27.0 and 2.4 < part['lo'][0] and part['hi'][0] < 5.6
 
 
+def police_display_car(part: dict) -> bool:
+    """Two complete decorative patrol cars, including their solid collision."""
+    return any(np.all(part['lo'] >= [x - 2.05, .21, 11.4])
+               and np.all(part['hi'] <= [x + 2.05, 4.1, 19.0]) for x in [-9, 10])
+
+
 REPAIRS = {
+    210: {
+        'name': 'Police Station',
+        'why': 'Replace the two baked decorative patrol cars with shared, claimable service vehicles.',
+        'drop': [('decorative patrol cars', police_display_car, 64)],
+        'drop_collision': [('decorative patrol car collision', police_display_car, 12)],
+    },
     251: {
         'name': 'Comstock Grand',
         'why': 'Punched windows overlapped the ribbon glass on the middle tiers; the entrance '
@@ -122,7 +134,8 @@ def record() -> dict:
 def repair(code: int, data: bytes) -> tuple[bytes, dict]:
     spec = REPAIRS[code]
     doc, binary = read_glb(data)
-    parts = [p for p in parts_of(doc, bytes(binary)) if not p['collision']]
+    all_parts = parts_of(doc, bytes(binary))
+    parts = [p for p in all_parts if not p['collision']]
     summary = {'drop': {}, 'move': {}}
     moves = []
     for label, test, expected, offset in spec.get('move', []):
@@ -133,6 +146,11 @@ def repair(code: int, data: bytes) -> tuple[bytes, dict]:
     dropped = []
     for label, test, expected in spec.get('drop', []):
         chosen = [p for p in parts if test(p)]
+        assert len(chosen) == expected, f'{code}: {label}: found {len(chosen)} parts, expected {expected}'
+        dropped.extend(chosen)
+        summary['drop'][label] = {'parts': len(chosen), 'triangles': int(sum(len(p['tris']) for p in chosen))}
+    for label, test, expected in spec.get('drop_collision', []):
+        chosen = [p for p in all_parts if p['collision'] and test(p)]
         assert len(chosen) == expected, f'{code}: {label}: found {len(chosen)} parts, expected {expected}'
         dropped.extend(chosen)
         summary['drop'][label] = {'parts': len(chosen), 'triangles': int(sum(len(p['tris']) for p in chosen))}

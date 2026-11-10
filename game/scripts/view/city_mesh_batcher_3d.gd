@@ -94,7 +94,7 @@ func _restore_sources() -> void:
 	for reference: WeakRef in _hidden.values():
 		var source: Variant = reference.get_ref()
 		if is_instance_valid(source):
-			source.visible = true
+			source.visible = not source.get_meta("batch_suppressed",false)
 	_hidden.clear()
 
 
@@ -394,7 +394,7 @@ func _leave_member(record: Dictionary, dirty: Dictionary, restore: bool) -> void
 		_hidden.erase(record.id)
 		if restore:
 			var source: Variant = record.ref.get_ref()
-			if is_instance_valid(source): source.visible = true
+			if is_instance_valid(source): source.visible = not source.get_meta("batch_suppressed",false)
 
 
 ## Members compare as the full depth-first collection orders them: root order,
@@ -444,7 +444,8 @@ func _remake_groups(dirty: Dictionary) -> void:
 			for record: Dictionary in live:
 				if _hidden.has(record.id):
 					_hidden.erase(record.id)
-					record.ref.get_ref().visible = true
+					var source: MeshInstance3D = record.ref.get_ref()
+					source.visible = not source.get_meta("batch_suppressed",false)
 			continue
 		# Members usually join in collection order; an already strictly ascending
 		# packed order is the sorted order, so the sort is skipped only then.
@@ -487,7 +488,9 @@ func _source_region(source: MeshInstance3D) -> Rect2i:
 
 func _eligible(source: MeshInstance3D) -> bool:
 	if source.get_meta("mutable_station_name",false): return false
-	if source.mesh == null or not source.is_visible_in_tree():
+	var suppressed: bool = source.get_meta("batch_suppressed",false)
+	var suppressed_visible: bool = suppressed and source.get_parent() is Node3D and source.get_parent().is_visible_in_tree()
+	if source.mesh == null or (not source.is_visible_in_tree() and not suppressed_visible):
 		return false
 	if source.skin != null or not source.skeleton.is_empty() or source.get_blend_shape_count() > 0:
 		return false
@@ -630,7 +633,8 @@ func _make_member_batch(live: Array, key: Array, existing: MultiMeshInstance3D) 
 			joined.append(i)
 			var source: MeshInstance3D = reference.get_ref()
 			transform = relative * source.global_transform
-		batch.set_instance_transform(i, transform)
+		var source: MeshInstance3D = reference.get_ref()
+		batch.set_instance_transform(i, _suppressed_transform() if source.get_meta("batch_suppressed",false) else transform)
 		uploaded_transforms[i] = transform
 		var instance_bounds: AABB = transform * mesh_bounds
 		bounds = instance_bounds if i == 0 else bounds.merge(instance_bounds)
@@ -673,6 +677,24 @@ func _make_member_batch(live: Array, key: Array, existing: MultiMeshInstance3D) 
 	statistics.batched_instances += count
 	statistics.batches += 1
 
+## A claimed static vehicle keeps its batch membership and original bounds.
+## This is an interaction-time upload of one row, with no frame-time work.
+func set_source_visible(source: MeshInstance3D, on: bool) -> void:
+	source.set_meta("batch_suppressed",not on)
+	var id := source.get_instance_id()
+	for batch: MultiMeshInstance3D in _batches.values():
+		var ids: PackedInt64Array = batch.get_meta("source_ids")
+		var index := ids.find(id)
+		if index < 0: continue
+		var transforms: Array = batch.get_meta("uploaded_transforms")
+		batch.multimesh.set_instance_transform(index,transforms[index] if on else _suppressed_transform())
+		source.visible = false
+		return
+	source.visible = on
+
+static func _suppressed_transform() -> Transform3D:
+	return Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO),Vector3.ZERO)
+
 
 func _make_batch(sources: Array, chunk: Vector2i, domain: StringName, key: Array = [], regions: Array = [], existing: MultiMeshInstance3D = null) -> void:
 	var first := sources[0] as MeshInstance3D
@@ -700,7 +722,7 @@ func _make_batch(sources: Array, chunk: Vector2i, domain: StringName, key: Array
 	for i: int in sources.size():
 		var source := sources[i] as MeshInstance3D
 		var transform := relative * source.global_transform
-		batch.set_instance_transform(i, transform)
+		batch.set_instance_transform(i, _suppressed_transform() if source.get_meta("batch_suppressed",false) else transform)
 		uploaded_transforms.append(transform)
 		var instance_bounds: AABB = transform * mesh_bounds
 		bounds = instance_bounds if i == 0 else bounds.merge(instance_bounds)

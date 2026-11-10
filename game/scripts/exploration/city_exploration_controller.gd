@@ -43,9 +43,10 @@ var pedestrian: CharacterBody3D
 var pedestrian_character := "woman"
 var car: CharacterBody3D
 var helicopter: CharacterBody3D
-## Session-owned house fleet; parked actors have no ticking clock.
+## House fleet and service vehicles acquired during this visit; no parked clock.
 var owned_vehicles: Array[CharacterBody3D] = []
 var _house: Dictionary = {}
+var _service_claims: Array[Dictionary] = []
 var selected_vehicle: CharacterBody3D
 var transit_service: Node3D
 var mod_service: ExploreModService
@@ -531,6 +532,7 @@ func _clear_actors() -> void:
 	# world is brought up to date by the next entry's rebuild, before any query.
 	if is_instance_valid(transit_service): transit_service.clear(false)
 	if is_instance_valid(resort_service): resort_service.clear()
+	if is_instance_valid(view): CityServiceParking.release(_service_claims,view.mesh_batches)
 	_casino_table = {}
 	for actor: CharacterBody3D in _actors():
 		if is_instance_valid(actor): actor.free()
@@ -696,6 +698,7 @@ func _reconcile_revision() -> bool:
 	_house = ExploreMayorsHouse.find(view.city)
 	for vehicle: CharacterBody3D in _vehicles():
 		if vehicle is ExploreCar: vehicle.driveway = _house
+	CityServiceParking.rebind(_service_claims,view.buildings,view.mesh_batches)
 	var snapshot := view.traversal_snapshot()
 	if is_instance_valid(transit_service):
 		transit_service.refresh_geometry()
@@ -1005,6 +1008,10 @@ func _vehicle_in_reach() -> Dictionary:
 	if own != null:
 		gap = _body_gap(own,feet)
 		best = {"actor":own,"gap":gap}
+	var service := CityServiceParking.nearest(view.buildings,feet,gap)
+	if not service.is_empty() and (best.is_empty() or float(service.gap) < gap):
+		best = service
+		gap = float(service.gap)
 	var traffic: Node3D = view.get("traffic") if is_instance_valid(view) else null
 	if traffic != null and traffic.has_method("nearest_vehicle_by_body"):
 		var ambient: Dictionary = traffic.nearest_vehicle_by_body(feet,gap)
@@ -1017,6 +1024,7 @@ func _mod_interaction_nearby() -> bool:
 
 func _enter_vehicle(target: Dictionary) -> bool:
 	if target.has("traffic"): return _board_traffic(target.traffic)
+	if target.has("service"): return _board_service(target.service)
 	var nearest: CharacterBody3D = target.actor
 	pedestrian.stop_input()
 	pedestrian.clear_support_frame()
@@ -1031,6 +1039,28 @@ func _enter_vehicle(target: Dictionary) -> bool:
 	camera_rig.configure_target(occupied,mode)
 	_sync_traffic_collision()
 	_publish_status()
+	return true
+
+func _board_service(slot: Node3D) -> bool:
+	if not is_instance_valid(slot) or slot.get_meta("claimed",false): return false
+	var at := slot.global_transform
+	# The static body must leave before the normal support/clearance query.
+	CityServiceParking.set_claimed(slot,view.mesh_batches,true)
+	var shape := BoxShape3D.new()
+	shape.size = CityTrafficCatalog.dimensions(slot.get_meta("kind"))
+	var pose := _house_pose(at,shape)
+	if pose.is_empty():
+		CityServiceParking.set_claimed(slot,view.mesh_batches,false)
+		_message = "This parking space is obstructed."
+		_publish_status()
+		return false
+	var actor := _make_actor(1,at) as ExploreCar
+	actor.configure_kind(slot.get_meta("kind"))
+	actor.route_graph = view.traffic.graph
+	actor.driveway = _house
+	owned_vehicles.append(actor)
+	_service_claims.append(CityServiceParking.claim(slot,actor,view.mesh_batches))
+	_occupy(actor)
 	return true
 
 ## Claim one ambient or mod vehicle and drive it from its own pose. On refusal
@@ -1146,6 +1176,7 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 	if inside_resort: prompt = resort_service.prompt(pedestrian.global_position)
 	elif vehicle.has("actor") or bool(vehicle.get("traffic",{}).get("mod",false)): prompt = "F to enter nearby vehicle"
 	elif vehicle.has("traffic"): prompt = "F to enter "+CityTrafficCatalog.display_name(StringName(vehicle.traffic.kind))
+	elif vehicle.has("service"): prompt = "F to enter "+CityTrafficCatalog.display_name(vehicle.service.get_meta("kind"))
 	elif not resort_door.is_empty(): prompt = CasinoLines.enter_prompt(ResortThemes.resort_name(resort_door.key))
 	elif mode == 0:
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
@@ -1197,6 +1228,10 @@ func select_vehicle(kind: StringName) -> bool:
 		return false
 	var ok := false
 	var boarded := false
+	var nearby := _vehicle_in_reach()
+	if nearby.has("service") and nearby.service.get_meta("kind") == kind:
+		ok = _board_service(nearby.service)
+		boarded = true
 	if occupied == pedestrian and CityTrafficCatalog.domain(kind)==&"water":
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty():
@@ -1242,16 +1277,25 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 		_publish_status()
 		return false
 	if claim.is_empty():
+		var nearest: CharacterBody3D
+		var gap := ExploreActorProfile.VEHICLE_REACH
+		var matching := false
 		for vehicle: CharacterBody3D in owned_vehicles:
 			if not is_instance_valid(vehicle): continue
 			var matches: bool = vehicle is ExploreHelicopter if kind == &"helicopter" else vehicle is ExploreCar and vehicle.kind == kind
 			if not matches: continue
-			if _body_gap(vehicle,pedestrian.global_position) > ExploreActorProfile.VEHICLE_REACH:
-				_message = "Walk to the parked %s to get in." % CityTrafficCatalog.display_name(kind).to_lower()
-				_publish_status()
-				return false
-			_occupy(vehicle)
+			matching = true
+			var distance := _body_gap(vehicle,pedestrian.global_position)
+			if distance <= gap:
+				gap = distance
+				nearest = vehicle
+		if nearest != null:
+			_occupy(nearest)
 			return true
+		if matching:
+			_message = "Walk to the parked %s to get in." % CityTrafficCatalog.display_name(kind).to_lower()
+			_publish_status()
+			return false
 		# Explicit test/legacy actors still use proximity, without materializing a
 		# new aircraft when there is no house or actual traffic claim.
 		if kind == &"helicopter" and is_instance_valid(helicopter):

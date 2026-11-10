@@ -890,9 +890,9 @@
       "name": "sandstone-police-station-two-patrol-cars",
       "master_blend_sha256": "69ec290e923901ed8180930be78d338cf4b6ece723ac31464c06cdf793d43371",
       "standalone_glb_sha256": "127820c9d4b6a857a380310edb4cca33a66cf44f12b55105f01ace7d64e2ab51",
-      "runtime_glb_sha256": "f44dff77588d0b13db6ac7ebec7901bb846839bdd9ed17f58e7dd3fd4ab10353",
+      "runtime_glb_sha256": "1eb87faa7eb171369718210223e3114f49579a2bcce015ca8ea82d0d446e9af8",
       "textured_materials": 5,
-      "runtime_bytes": 256360
+      "runtime_bytes": 148644
     },
     {
       "code": 211,

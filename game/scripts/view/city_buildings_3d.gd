@@ -25,6 +25,8 @@ var _vegetation_levels := PackedByteArray()
 ## still applied. The index is used only while it accounts for every child.
 const LOT_BUCKET := 16
 var _lot_buckets: Dictionary = {}
+## Static service slots by map cell; interaction never scans ordinary lots.
+var _parking_cells: Dictionary = {}
 var _lot_count := 0
 var _missing_lots := 0
 
@@ -124,6 +126,7 @@ func clear() -> void:
 	_names_city = null
 	last_updated_lots = 0
 	_lot_buckets.clear()
+	_parking_cells.clear()
 	_lot_count = 0
 	_missing_lots = 0
 	for child: Node in get_children():
@@ -221,6 +224,7 @@ func _lot_buckets_of(rect: Rect2i) -> Array[Vector2i]:
 
 
 func _register_lot(model: Node3D) -> void:
+	CityServiceParking.index_lot(model,_parking_cells,true)
 	var id := model.get_instance_id()
 	for bucket: Vector2i in _lot_buckets_of(model.get_meta("batch_region")):
 		if not _lot_buckets.has(bucket): _lot_buckets[bucket] = {}
@@ -230,6 +234,7 @@ func _register_lot(model: Node3D) -> void:
 
 
 func _unregister_lot(model: Node) -> void:
+	CityServiceParking.index_lot(model,_parking_cells,false)
 	var id := model.get_instance_id()
 	var listed := false
 	for bucket: Vector2i in _lot_buckets_of(model.get_meta("batch_region")):
@@ -268,7 +273,8 @@ static func lot_vegetation_zone(city: City, rect: Rect2i, levels: PackedByteArra
 ## They are always replaced when touched.
 static func _reads_neighbors(code: int) -> bool:
 	return code in [Buildings.MARINA, Buildings.PIER, Buildings.RUNWAY, Buildings.RUNWAY_CROSS,
-		Buildings.RAIL_STATION, Buildings.SUBWAY_STATION, Buildings.MAYORS_RESIDENCE] or Buildings.is_arcology(code)
+		Buildings.RAIL_STATION, Buildings.SUBWAY_STATION, Buildings.MAYORS_RESIDENCE,
+		Buildings.HOSPITAL, Buildings.POLICE_STATION, Buildings.FIRE_STATION] or Buildings.is_arcology(code)
 
 
 ## Whether every byte an ordinary lot's model placement, base height, support
@@ -359,8 +365,9 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 		_fit_marina(city, rect, model, str(catalog.entries[code].get("glb_sha256", "")) if catalog != null and catalog.entries.has(code) else "")
 	elif code in [Buildings.RAIL_STATION, Buildings.SUBWAY_STATION]:
 		model.rotation.y = _station_yaw(city, rect, code)
-	elif Buildings.is_arcology(code) or code == Buildings.MAYORS_RESIDENCE:
+	elif Buildings.is_arcology(code) or code == Buildings.MAYORS_RESIDENCE or CityServiceParking.LAYOUTS.has(code):
 		model.rotation.y = resort_yaw(city, rect)
+	if not missing_model: CityServiceParking.add_to(model,city,rect,code)
 	if code in [Buildings.SUBWAY_STATION,Buildings.RAIL_STATION] and not missing_model:
 		StationEntrySign3D.add_to(model,StationNameResolver.display_name(city,record.anchor,code==Buildings.SUBWAY_STATION),code==Buildings.RAIL_STATION)
 	if not missing_model:

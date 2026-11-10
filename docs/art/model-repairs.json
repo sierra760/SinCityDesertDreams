@@ -38,6 +38,29 @@
       "removed_triangles": 5376,
       "triangles": 20363,
       "logo_layer": "docs/art/casino-logo-signs.json"
+    },
+    "210": {
+      "state": "repaired",
+      "name": "Police Station",
+      "why": "Replace the two baked decorative patrol cars with shared, claimable service vehicles.",
+      "original_sha256": "f44dff77588d0b13db6ac7ebec7901bb846839bdd9ed17f58e7dd3fd4ab10353",
+      "original_bytes": 256360,
+      "original_triangles": 2844,
+      "repaired_sha256": "1eb87faa7eb171369718210223e3114f49579a2bcce015ca8ea82d0d446e9af8",
+      "repaired_bytes": 148644,
+      "drop": {
+        "decorative patrol cars": {
+          "parts": 64,
+          "triangles": 1312
+        },
+        "decorative patrol car collision": {
+          "parts": 12,
+          "triangles": 400
+        }
+      },
+      "move": {},
+      "removed_triangles": 1712,
+      "triangles": 1532
     }
   }
 }

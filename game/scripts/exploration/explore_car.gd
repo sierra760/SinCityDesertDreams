@@ -28,6 +28,7 @@ var kind: StringName = &"car"
 var route_graph: RefCounted
 ## Read-only motor court, assigned by Explore; never added to traffic routes.
 var driveway: Dictionary = {}
+var service_driveway: Dictionary = {}
 var _world: CityTraversalWorld3D
 var _visual: ExploreActorVisual
 var _collider: CollisionShape3D
@@ -353,4 +354,5 @@ func on_drivable_ground() -> bool:
 		return is_instance_valid(_world) and not _world.touches_water_footprint(_collider.global_transform,vehicle_size())
 	if route_graph == null or route_graph.has_cell(Vector2i(floori(global_position.x),floori(global_position.z)),&"road"): return true
 	if is_instance_valid(_world) and _world.inside_road_tunnel(global_position): return true
+	if not service_driveway.is_empty() and CityServiceParking.allows(service_driveway,global_transform,vehicle_size()): return true
 	return ExploreMayorsHouse.allows(driveway,global_transform,vehicle_size())
