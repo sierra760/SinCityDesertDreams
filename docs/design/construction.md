@@ -155,7 +155,14 @@ What each question means for `apply`:
     limit, a building in the way or a slope running across the span refuse
     it. A bridge whose landing is refused is not built: the plan keeps only
     the tiles before the water, and fails with the landing's reason when
-    there are none.
+    there are none. Water that a bridge of the same network already spans
+    from bank to bank is not a new bridge: the walk carries on from its far
+    bank with nothing to build, price or ask. A span with a missing piece is
+    quoted for the missing tiles.
+10a. Flood water is temporary: dry land under a disaster's flood is neither
+    built on nor bridged. The walk stops there ("the land is flooded"), a
+    bridge may not land on a flooded bank, and tiles already carrying the
+    network are walked over as usual.
 11. Prices per tile: road 10, rail 25, power line 2. After placement the tile
     and its four neighbors are reshaped so bends, junctions and crossings
     match their connections.
@@ -181,8 +188,10 @@ What each question means for `apply`:
     corner, three or four an interchange.
 13. A ramp (`ONRAMP`, 25) is a single flat, dry, empty tile touching at least
     one highway tile and a road on another side; without the road it is
-    refused ("a ramp must touch a road"). The road is the ramp's approach and
-    is reshaped to meet it. The ramp id faces the highway. Visible traffic
+    refused ("a ramp must touch a road"). Like a road it stays on the
+    surface: pipes and subways beneath the tile do not block it and are
+    kept, and `onramp_sites` offers such tiles too. The road is the ramp's
+    approach and is reshaped to meet it. The ramp id faces the highway. Visible traffic
     uses each ramp one way: past the road in the carriageway's direction of
     travel it is an entrance, before the road an exit. In 3D a ramp keeps the
     road's footprint but carries a single travel lane between paved
@@ -191,7 +200,9 @@ What each question means for `apply`:
 14. A tunnel starts on a straight slope tile that is empty and dry. It bores
     into the hill along the slope axis until the ground comes back down to
     the entrance height; that tile must be the opposite slope and equally
-    empty. Every bored tile must be free of an existing tunnel. Price is 150
+    empty. Every bored tile, the exit included, must be free of an existing
+    tunnel. A water pipe may pass beneath a portal and is kept; subway track
+    there refuses it ("blocked underground"). Price is 150
     per tile including both portals; the bore may not exceed
     `TUNNEL_MAX_LENGTH` (30). Portals get the tunnel ids facing their hill,
     interior tiles get tunnel bits in the altitude layer (1 north–south,
@@ -292,9 +303,19 @@ What each question means for `apply`:
     cell and a drag clears every cell of the dragged rectangle. On a building it
     clears the whole footprint, charging per footprint tile, and leaves rubble
     on every tile of a developed building (zone buildings, plants, civic,
-    utility, transit, port, military, reward and arcology). Trees, parks,
+    utility, transit, port, military, reward and arcology). The footprint is
+    the connected tiles of the lot that hold that building
+    (`City.footprint_tiles`): a lone piece of a larger building, as some
+    imported cities contain, is cleared and charged alone and never takes the
+    roads or buildings beside it. Trees, parks,
     rubble, network tiles, bridges and crossings clear to open ground. A
-    tunnel portal removes the whole bore. A highway tile removes its block.
+    tunnel portal removes the whole tunnel, however long: both portals and
+    the bore between them (`City.tunnel_cells`), 1 per tile. A highway tile
+    removes its block; the blocks it joined are reshaped for the connection
+    they lost (an interchange becomes a corner or a straight, a corner a
+    straight, and a block left alone keeps its direction), and a hilltop row
+    stored as a plateau under a hillside block becomes level ground again at
+    its own height.
     Tiles marked as landmarks and military land refuse the bulldozer. Facility
     records and conductivity flags of removed tiles are dropped.
 24a. **Tree protest.** The plan counts the tree tiles it fells
@@ -331,7 +352,12 @@ What each question means for `apply`:
     move a shoreline or the ground over a tunnel. The target tile itself must
     be dry, open or wooded and unprotected. Raise refuses at height 31, Lower
     at 0. Level skips the refused tiles of a drag and charges only for the
-    tiles it changes; it fails only when no tile changes. A city with a
+    tiles it changes; it fails only when no tile changes. On per-tile
+    terrain a slope that already stands at the target height takes its shape
+    from the higher land beside it, so levelling it changes nothing: it is
+    skipped free of charge, and a drag of nothing else is refused ("the
+    slope here follows the higher land beside it"). Level the higher tile
+    and its slopes come down with it. A city with a
     ground lattice (generated and native cities) runs each step through
     `TerrainEditor` on a scratch copy and then on the city, so the 3D ground
     and saved vertices follow; a city kept as imported per-tile terrain

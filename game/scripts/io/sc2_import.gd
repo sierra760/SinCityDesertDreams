@@ -65,6 +65,13 @@ const META_TAX_RESIDENTIAL := 480
 const META_TAX_COMMERCIAL := 507
 const META_TAX_INDUSTRIAL := 534
 
+## Bounds for the stored calendar and treasury. The founding year and the
+## days played are kept to a four-digit calendar; funds to the range the file
+## format itself can express.
+const YEAR_MIN := 1900
+const YEAR_MAX := 9999
+const FUNDS_LIMIT := 0x7FFFFFFF
+
 ## Text slots: `XTXT` holds one slot number per tile, `XLAB` 256 slots of a
 ## length byte and 24 characters. Slots 1..50 are player signs.
 const LABEL_BYTES := 25
@@ -243,9 +250,9 @@ static func import_chunks(chunks: Dictionary, fallback_name: String) -> Dictiona
 	if chunks.has("MISC"):
 		var meta: PackedByteArray = chunks["MISC"]
 		city.rotation = _meta(meta, META_ROTATION, 0) & 3
-		city.founded_year = _meta(meta, META_FOUNDED_YEAR, 1900)
-		city.day = maxi(_meta(meta, META_DAYS, 0), 0)
-		city.funds = _meta(meta, META_FUNDS, 0)
+		city.founded_year = clampi(_meta(meta, META_FOUNDED_YEAR, YEAR_MIN), YEAR_MIN, YEAR_MAX)
+		city.day = clampi(_meta(meta, META_DAYS, 0), 0, (YEAR_MAX - city.founded_year + 1) * GameClock.DAYS_PER_YEAR - 1)
+		city.funds = clampi(_meta(meta, META_FUNDS, 0), -FUNDS_LIMIT, FUNDS_LIMIT)
 		# Six classes, 0..5. The population system re-derives the class from
 		# the imported city's residents when it first counts them.
 		city.status = clampi(_meta(meta, META_STATUS, 0), 0, PopulationParams.STATUS_NAMES.size() - 1)
@@ -300,6 +307,10 @@ static func import_chunks(chunks: Dictionary, fallback_name: String) -> Dictiona
 	city.sea_level = -1
 	city.terrain_surface = null
 
+	if _clip_edge_footprints(city) > 0:
+		warnings.append("Buildings reaching past the city limit were removed.")
+	# Tunnel marks that do not lie between two facing portals are no tunnel.
+	city.clear_orphan_tunnels()
 	_scan_facilities(city)
 	return {"ok": true, "city": city, "error": "", "tax_rates": tax, "warnings": warnings}
 
@@ -403,6 +414,28 @@ static func map_underground(code: int) -> int:
 	# display, not a pipe/subway crossing; its service flags import separately.
 	if code in [34,FILE_STATION_LINK]: return Underground.STATION_LINK
 	return UtilityParams.UNDERGROUND_NONE
+
+
+## Clear every building tile whose lot would reach past the map edge: no
+## building can stand there, and a footprint must never run off the grid.
+## Returns the number of tiles cleared.
+static func _clip_edge_footprints(city: City) -> int:
+	var cut: Array[Vector2i] = []
+	for y in City.HEIGHT:
+		for x in City.WIDTH:
+			var size := Buildings.size(city.building.at(x, y))
+			if size == Vector2i.ONE:
+				continue
+			var anchor := city.anchor_of(x, y)
+			if anchor.x + size.x > City.WIDTH or anchor.y + size.y > City.HEIGHT:
+				cut.append(Vector2i(x, y))
+	for t in cut:
+		city.building.put(t.x, t.y, Buildings.NONE)
+		var kind := city.zone_kind_at(t.x, t.y)
+		city.zone.put(t.x, t.y, Zones.make(kind, Zones.ALL_CORNERS if kind != Zones.NONE else 0))
+		city.set_flag(t.x, t.y, TileFlags.CONDUCTS_POWER | TileFlags.POWERED, false)
+		city.imported_power_links.erase(t.y * City.WIDTH + t.x)
+	return cut.size()
 
 
 ## Record a facility for every civic building anchor on the map. Records are

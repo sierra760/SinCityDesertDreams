@@ -11,6 +11,7 @@ tools/check_provenance.py
 # format notes must spell the public chunk tags of the container they read.
 game/scripts/io/sc2_import.gd
 game/tests/test_sc2_import.gd
+game/tests/test_sc2_import_bounds.gd
 game/tests/test_imported_power_links.gd
 game/tests/test_imported_rewards.gd
 docs/design/file-formats.md

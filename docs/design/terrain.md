@@ -210,7 +210,9 @@ drained by these tools.
 
 After ground moves, water settles: a tile whose water is no longer above its
 ground drains; a dry tile that dropped below neighboring standing water
-floods to that level and inherits its salt flag.
+floods to that level and inherits its salt flag. When the Builder runs such
+an edit, trees on tiles the water has just taken are removed with it, so no
+trees are left standing in open water.
 
 The sea-level tools need `city.sea_level >= 0` (generated cities and
 real-world imports with sea water have it; `-1` means the map only has

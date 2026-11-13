@@ -142,6 +142,25 @@ func test_unfunded_highway_loses_whole_blocks() -> void:
 	check_eq(_stories_of(stories, &"road_decay", "highways"), lost / 4)
 
 
+func test_worn_out_highway_block_reshapes_the_blocks_it_joined() -> void:
+	var c := flat_city()
+	# An east-west highway with a one-block stub running north from it.
+	for bx in range(10, 20, 2):
+		for dy in 2:
+			for dx in 2: c.building.put(bx + dx, 10 + dy, NetworkShapes.HIGHWAY_EW)
+	for dy in 2:
+		for dx in 2: c.building.put(14 + dx, 8 + dy, NetworkShapes.HIGHWAY_NS)
+	NetworkShapes.reshape_highway_block(c, 14, 10)
+	check_eq(c.building_at(14, 10), NetworkShapes.HIGHWAY_JUNCTION, "the stub makes a junction")
+	var ctx := _context(c)
+	var w := _wear(ctx)
+	check_eq(w._lose_highway_block(ctx, 14, 8), 4, "the stub block is lost whole")
+	for dy in 2:
+		for dx in 2:
+			check_eq(c.building_at(14 + dx, 10 + dy), NetworkShapes.HIGHWAY_EW, "the junction is a straight again")
+	check_eq(_count(c, NetworkShapes.HIGHWAY_JUNCTION, NetworkShapes.HIGHWAY_JUNCTION), 0)
+
+
 func test_unfunded_bridge_collapses_entirely() -> void:
 	var c := flat_city()
 	for x in range(20, 60):

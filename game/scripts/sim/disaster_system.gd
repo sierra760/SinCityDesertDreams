@@ -1363,6 +1363,9 @@ func _wreck(ctx: SimContext, x: int, y: int, rubble: bool = true, reconcile: boo
 	var cells := PackedInt32Array([y*City.WIDTH+x])
 	if owned and parcel.mode == &"legacy": cells = parcel.members
 	if reconcile and not _preflight_agriculture(ctx,cells): return 0
+	# A wrecked portal takes its tunnel with it: the bore closes and the far
+	# mouth falls in, as when the tunnel is demolished.
+	var far_portal := city.close_tunnel(city.tunnel_cells(x, y))
 	# Only owned damage needs rollback: ordinary structures retain their old
 	# path. The store itself publishes nothing when validation fails.
 	var old_building := city.building.data
@@ -1396,6 +1399,7 @@ func _wreck(ctx: SimContext, x: int, y: int, rubble: bool = true, reconcile: boo
 		for tx in range(removed.position.x,removed.end.x): _fires.erase(Vector2i(tx,ty))
 	if reconcile: ctx.events.mark_dirty(rect)
 	if not _active.is_empty(): _active["wrecked"] = int(_active["wrecked"])+n
+	if far_portal.x >= 0: n += _wreck(ctx, far_portal.x, far_portal.y, rubble, reconcile)
 	return n
 
 

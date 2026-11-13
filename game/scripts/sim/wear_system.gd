@@ -243,8 +243,13 @@ func _lose(ctx: SimContext, cat: int, tile: int) -> void:
 	var name := String(TransportParams.CATEGORY_KEYS[cat])
 	match cat:
 		TransportParams.ROADS, TransportParams.TUNNELS:
+			var tunnel := _city.tunnel_cells(x, y)
 			if not _to_rubble(ctx, x, y): return
 			_losses[cat] += 1
+			# A lost portal takes its tunnel with it: the bore closes and the
+			# far mouth falls in, as when the tunnel is demolished.
+			var far_portal := _city.close_tunnel(tunnel)
+			if far_portal.x >= 0 and _to_rubble(ctx, far_portal.x, far_portal.y): _losses[cat] += 1
 			ctx.events.report(&"road_decay", {"x": x, "y": y, "category": name}, 1)
 		TransportParams.RAIL:
 			if not _to_rubble(ctx, x, y): return
@@ -313,6 +318,10 @@ func _lose_highway_block(ctx: SimContext, x: int, y: int) -> int:
 			var id := _city.building.at(x + dx, y + dy)
 			if _category[id] == TransportParams.HIGHWAYS and _losable[id] != 0:
 				if _to_rubble(ctx, x + dx, y + dy): lost += 1
+	# The blocks it joined lose that connection, as after a demolition.
+	if lost > 0 and not NetworkShapes.is_highway(_city.building.at(x, y)):
+		for t in NetworkShapes.reshape_beside_cleared_block(_city, Vector2i(x, y)):
+			ctx.events.mark_tile(t.x, t.y)
 	return lost
 
 

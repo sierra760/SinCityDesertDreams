@@ -126,7 +126,11 @@ kind is major, when the ingredient is missing, or when no place can be found
 (`city.clear_footprint`), removes its facility record, clears its service
 bits, and leaves rubble (`RUBBLE_1..RUBBLE_4`, chosen by rng) on every dry
 tile of the footprint. Trees wrecked by wind are cleared to open ground rather
-than rubble. Rubble, contaminated ground, water and open ground cannot be
+than rubble. A lone piece of a larger building owns only itself
+(`City.footprint_tiles`), so wrecking it does not reach the tiles a whole
+footprint would cover. A wrecked tunnel portal takes its tunnel with it: the
+bore is unmarked and the far portal is wrecked the same way. Rubble,
+contaminated ground, water and open ground cannot be
 wrecked again. Fires on wrecked tiles go out. When anything that carried or
 received power or water was wrecked, power and water are redistributed once
 at the end of that day's step (or of the request that started the disaster),

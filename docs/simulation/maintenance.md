@@ -94,7 +94,10 @@ costs to maintain and how many tiles it has.
    but does not undo the damage or clear the accrued wear.
 5. **What a loss removes.**
    - `roads`, `rail`, `tunnels`: the chosen tile becomes rubble. Rail loss
-     never picks a subway portal.
+     never picks a subway portal. A lost tunnel entrance takes its tunnel
+     with it: the bore is unmarked (`City.close_tunnel`) and the far portal
+     becomes rubble too, counted as a second loss, so the hill can be
+     tunnelled, levelled and built on again. One story reports the collapse.
    - `highways`: the 2×2 block aligned to even coordinates that contains the
      chosen tile loses every highway tile in it; each becomes rubble, or open
      ground when it stands over water.

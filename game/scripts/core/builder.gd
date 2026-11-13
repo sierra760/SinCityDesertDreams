@@ -57,6 +57,10 @@ const REASON_BEFORE_FOUNDING := "the sea level is set before the city is founded
 ## Dispatch tools outside an emergency, or with no station of that kind.
 const REASON_NO_EMERGENCY := "crews go out only during an emergency"
 const REASON_NO_CREWS := "no crews available"
+const REASON_FLOODED := "the land is flooded"
+## Level Land on a tile already at the target height whose slope is set by
+## higher land next to it.
+const REASON_SLOPE_STAYS := "the slope here follows the higher land beside it"
 
 const _AXIS_NS := NetworkShapes.AXIS_NS
 const _AXIS_EW := NetworkShapes.AXIS_EW
@@ -393,6 +397,11 @@ func _dry(p: Vector2i) -> bool:
 	return not city.is_water(p.x, p.y)
 
 
+## Dry land standing under temporary flood water.
+func _flooded(p: Vector2i) -> bool:
+	return city.flood_overlay.has(p) and not Terrain.is_water(city.terrain.at(p.x, p.y))
+
+
 func _protected(p: Vector2i) -> bool:
 	return city.flags.has_bits(p.x, p.y, TileFlags.LANDMARK) or city.zone_kind_at(p.x, p.y) == Zones.MILITARY
 
@@ -508,7 +517,12 @@ func _plan_network(family: int, price: int, from: Vector2i, to: Vector2i, option
 		stopped_on_landing = p == landing
 		var id := city.building_at(p.x, p.y)
 		var terrain := city.terrain.at(p.x, p.y)
-		if city.is_water(p.x, p.y) and Terrain.water_kind(terrain) != Terrain.WATERFALL:
+		if _flooded(p) and not NetworkShapes.in_family(id, family):
+			# Flood water drains away: it is neither land to build on nor a
+			# river to bridge.
+			stop_reason = REASON_FLOODED
+			break
+		if Terrain.is_water(terrain) and Terrain.water_kind(terrain) != Terrain.WATERFALL:
 			if i == 0:
 				stop_reason = "start a bridge from the shore"
 				break
@@ -517,13 +531,20 @@ func _plan_network(family: int, price: int, from: Vector2i, to: Vector2i, option
 			if not bool(bridge["ok"]):
 				stop_reason = bridge["reason"]
 				break
-			spans.append(bridge)
 			var bank: Vector2i = bridge["bank"]
 			var resume := -1
 			for j in range(i, path.size()):
 				if path[j]["pos"] == bank:
 					resume = j
 					break
+			if bool(bridge["standing"]):
+				# A bridge already spans this water: the walk carries on from
+				# its far bank with nothing to build or to ask.
+				if resume < 0:
+					break
+				i = resume
+				continue
+			spans.append(bridge)
 			if resume < 0:
 				# The drag ended over the water: land on the far bank as the
 				# main walk would, or not build this bridge at all.
@@ -630,6 +651,8 @@ func _landing_refusal(family: int, bank: Vector2i, axis: int) -> String:
 		return "protected land"
 	if border_edge(bank) >= 0 and NEIGHBOR_LINK_COST.has(family):
 		return REASON_LIMIT
+	if _flooded(bank):
+		return REASON_FLOODED
 	if not _clearable(id) and not _flexible_network_cell(bank,family):
 		return "the far bank is blocked"
 	if not city.is_flat(bank.x, bank.y) and not _slope_fits(_slope(bank), axis):
@@ -695,12 +718,13 @@ func _surface_op(p: Vector2i, id: int, family: int) -> Dictionary:
 
 
 ## Survey the water from the first wet tile `p` in `direction` to the far
-## bank: the span, the bank and the styles that may cross it.
+## bank: the span, the bank, the styles that may cross it and whether a
+## bridge of this family already stands on every tile of it.
 func _plan_bridge(family: int, p: Vector2i, direction: Vector2i) -> Dictionary:
 	var near := p - direction
 	var span: Array[Vector2i] = []
 	var q := p
-	while city.in_bounds(q.x, q.y) and city.is_water(q.x, q.y):
+	while city.in_bounds(q.x, q.y) and Terrain.is_water(city.terrain.at(q.x, q.y)):
 		span.append(q)
 		if span.size() > BRIDGE_MAX_SPAN:
 			return {"ok": false, "reason": "the water is too wide to bridge"}
@@ -709,17 +733,20 @@ func _plan_bridge(family: int, p: Vector2i, direction: Vector2i) -> Dictionary:
 		return {"ok": false, "reason": "no far shore for a bridge"}
 	if city.ground_height(q.x, q.y) != city.ground_height(near.x, near.y):
 		return {"ok": false, "reason": "the banks are not level"}
+	var standing := true
 	for t in span:
 		var id := city.building_at(t.x, t.y)
 		if id != Buildings.NONE and not NetworkShapes.in_family(id, family):
 			return {"ok": false, "reason": "blocked by %s" % Buildings.display_name(id)}
+		if id == Buildings.NONE:
+			standing = false
 	var styles: Array[StringName] = []
 	for style in _BRIDGE_STYLES.get(family, []):
 		if style == &"causeway" and span.size() > CAUSEWAY_MAX_SPAN:
 			continue
 		styles.append(style)
 	var axis := NetworkShapes.AXIS_EW if direction.x != 0 else NetworkShapes.AXIS_NS
-	return {"ok": true, "reason": "", "span": span, "bank": q, "styles": styles, "axis": axis}
+	return {"ok": true, "reason": "", "span": span, "bank": q, "styles": styles, "axis": axis, "standing": standing}
 
 
 ## Price every surveyed span, offer the styles they all allow and write the
@@ -911,8 +938,10 @@ func _plan_subway_station(price: int, at: Vector2i) -> Dictionary:
 	return _ok([at], price, ops)
 
 
-## Reason a single flat, dry, open tile is unusable, or empty.
-func _single_site(at: Vector2i, replace_power_line: bool = false) -> String:
+## Reason a single flat, dry, open tile is unusable, or empty. A piece that
+## stays on the surface (`surface_only`) may stand over pipes and subways,
+## as roads and buildings do; one that digs needs the ground beneath it.
+func _single_site(at: Vector2i, replace_power_line: bool = false, surface_only: bool = false) -> String:
 	if not _dry(at):
 		return "cannot build on water"
 	if not city.is_flat(at.x, at.y):
@@ -920,7 +949,7 @@ func _single_site(at: Vector2i, replace_power_line: bool = false) -> String:
 	var id := city.building_at(at.x, at.y)
 	if not (_building_clearable(id) if replace_power_line else _clearable(id)):
 		return "blocked by %s" % Buildings.display_name(city.building_at(at.x, at.y))
-	if city.underground.at(at.x, at.y) != 0:
+	if not surface_only and city.underground.at(at.x, at.y) != 0:
 		return "blocked underground"
 	if _protected(at):
 		return "protected land"
@@ -1073,7 +1102,7 @@ func _highway_hillside(anchor: Vector2i, axis: int) -> Dictionary:
 
 
 func _plan_onramp(price: int, at: Vector2i) -> Dictionary:
-	var site := _single_site(at)
+	var site := _single_site(at, false, true)
 	if not site.is_empty():
 		return _fail(site, [at])
 	var touches_highway := false
@@ -1149,7 +1178,7 @@ func onramp_sites(near: Array, toward: Vector2i = Vector2i(-1, -1)) -> Array[Vec
 			if seen.has(site) or not city.in_bounds(site.x, site.y):
 				continue
 			seen[site] = true
-			if not _single_site(site).is_empty():
+			if not _single_site(site, false, true).is_empty():
 				continue
 			var fit := _onramp_fit(site)
 			if fit.is_empty():
@@ -1204,6 +1233,8 @@ func _plan_tunnel(price: int, at: Vector2i) -> Dictionary:
 	var opposite := Terrain.edge_shape(Terrain.edge_index(slope) + 2)
 	if _slope(p) != opposite or not _dry(p):
 		return _fail("no matching hillside for the exit", cells)
+	if city.tunnel_bits(p.x, p.y) != 0:
+		return _fail("another tunnel is in the way", cells)
 	site = _portal_site(p)
 	if not site.is_empty():
 		return _fail(site, cells)
@@ -1223,10 +1254,13 @@ func _plan_tunnel(price: int, at: Vector2i) -> Dictionary:
 	return plan
 
 
+## Reason a tunnel portal may not stand on `p`, or empty. A water pipe may
+## pass beneath a portal and is kept; subway track may not.
 func _portal_site(p: Vector2i) -> String:
 	if not _clearable(city.building_at(p.x, p.y)):
 		return "blocked by %s" % Buildings.display_name(city.building_at(p.x, p.y))
-	if city.underground.at(p.x, p.y) != 0:
+	var below := city.underground.at(p.x, p.y)
+	if below != 0 and NetworkShapes.underground_plain_family(below) != NetworkShapes.Family.PIPE:
 		return "blocked underground"
 	if _protected(p):
 		return "protected land"
@@ -1406,7 +1440,7 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i, underground: bool 
 		var footprint: Array[Vector2i] = []
 		var rubble := Buildings.is_developed(id)
 		if NetworkShapes.is_tunnel(id):
-			footprint = _tunnel_bore(p, id)
+			footprint = city.tunnel_cells(p.x, p.y)
 			ops.append({"op": "tunnel_clear", "cells": footprint})
 		elif NetworkShapes.is_highway(id):
 			var a := NetworkShapes.block_anchor(p)
@@ -1414,13 +1448,11 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i, underground: bool 
 				for dx in 2:
 					if NetworkShapes.is_highway(city.building_at(a.x + dx, a.y + dy)):
 						footprint.append(a + Vector2i(dx, dy))
-			ops.append({"op": "remove", "tiles": footprint, "rubble": false})
+			ops.append({"op": "remove", "tiles": footprint, "rubble": false, "highway": a})
 		else:
-			var anchor := city.anchor_of(p.x, p.y)
-			var size := Buildings.size(id)
-			for dy in size.y:
-				for dx in size.x:
-					footprint.append(anchor + Vector2i(dx, dy))
+			# Only the tiles this building really stands on: a lone piece of
+			# a larger building never takes its neighbours with it.
+			footprint = city.footprint_tiles(p.x, p.y)
 			ops.append({"op": "remove", "tiles": footprint, "rubble": rubble})
 		for t in footprint:
 			seen[t] = true
@@ -1461,23 +1493,6 @@ func _plan_bulldoze_underground(price: int, from: Vector2i, to: Vector2i) -> Dic
 	if tiles.is_empty():
 		return _fail(refused if not refused.is_empty() else "nothing to dig up", [from])
 	return _ok(tiles, price * tiles.size(), ops)
-
-
-## Every tile of the bore a portal belongs to, following the tunnel bits.
-func _tunnel_bore(portal: Vector2i, id: int) -> Array[Vector2i]:
-	# Portal ids follow the slope codes: the bore runs toward the raised side.
-	var facing := Terrain.edge_index(Terrain.SLOPE_W + (id - Buildings.TUNNEL_FIRST))
-	var direction: Vector2i = _DIRS[facing]
-	var cells: Array[Vector2i] = [portal]
-	var p := portal + direction
-	while city.in_bounds(p.x, p.y) and cells.size() <= TUNNEL_MAX_LENGTH:
-		cells.append(p)
-		if NetworkShapes.is_tunnel(city.building_at(p.x, p.y)):
-			break
-		if city.tunnel_bits(p.x, p.y) == 0:
-			break
-		p += direction
-	return cells
 
 
 # ── Trees and terrain ────────────────────────────────────────────────────
@@ -1605,6 +1620,10 @@ func _plan_level(from: Vector2i, to: Vector2i) -> Dictionary:
 		var altitude := scratch.altitude.data.duplicate()
 		var terrain := scratch.terrain.data.duplicate()
 		var blocked := _reshape_blocked(scratch, p, target)
+		if blocked.is_empty() and scratch.altitude.data == altitude and scratch.terrain.data == terrain:
+			# Already at the target height: its slope follows the higher
+			# land beside it, so there is nothing to change or to charge.
+			blocked = REASON_SLOPE_STAYS
 		if not blocked.is_empty():
 			scratch.altitude.data = altitude
 			scratch.terrain.data = terrain
@@ -1744,6 +1763,7 @@ func _plan_dispatch(kind: StringName, at: Vector2i) -> Dictionary:
 func _commit(ops: Array) -> Array[Vector2i]:
 	var touched: Array[Vector2i] = []
 	var blocks: Array = []
+	var cleared_blocks: Array[Vector2i] = []
 	for op in ops:
 		var kind: String = op["op"]
 		match kind:
@@ -1794,7 +1814,11 @@ func _commit(ops: Array) -> Array[Vector2i]:
 				for t in op["tiles"]:
 					var p: Vector2i = t
 					_clear_tile(p, rubble)
+					if op.has("highway"):
+						_restore_hilltop(p)
 					touched.append(p)
+				if op.has("highway"):
+					cleared_blocks.append(op["highway"])
 			"tunnel":
 				var cells: Array[Vector2i] = op["cells"]
 				var axis := int(op["axis"])
@@ -1808,11 +1832,11 @@ func _commit(ops: Array) -> Array[Vector2i]:
 				touched.append(exit)
 			"tunnel_clear":
 				var cells: Array[Vector2i] = op["cells"]
-				for c in cells:
-					city.set_tunnel_bits(c.x, c.y, 0)
-					if NetworkShapes.is_tunnel(city.building_at(c.x, c.y)):
-						_clear_tile(c, false)
-						touched.append(c)
+				var far := city.close_tunnel(cells)
+				for portal: Vector2i in [cells[0], far]:
+					if city.in_bounds(portal.x, portal.y) and NetworkShapes.is_tunnel(city.building_at(portal.x, portal.y)):
+						_clear_tile(portal, false)
+						touched.append(portal)
 			"trees":
 				var p: Vector2i = op["at"]
 				city.building.put(p.x, p.y, Buildings.TREES_1 + mini(6, _tree_neighbours(p)))
@@ -1855,7 +1879,30 @@ func _commit(ops: Array) -> Array[Vector2i]:
 	for b in blocks:
 		var anchor: Vector2i = b[0]
 		NetworkShapes.reshape_highway_block(city, anchor.x, anchor.y, int(b[1]))
+	for anchor in cleared_blocks:
+		for t in _reshape_beside_cleared_block(anchor):
+			touched.append(t)
 	return touched
+
+
+## After a highway block is demolished the blocks it joined lose that
+## connection: a junction becomes a corner or a straight, a corner a
+## straight. Returns the tiles whose piece changed.
+func _reshape_beside_cleared_block(anchor: Vector2i) -> Array[Vector2i]:
+	return NetworkShapes.reshape_beside_cleared_block(city, anchor)
+
+
+## A hillside highway stores its hilltop row as a plateau on the slope's base
+## height. With the highway gone the tile is plain level ground again, one
+## level up: the same ground, so nothing moves.
+func _restore_hilltop(p: Vector2i) -> void:
+	if city.terrain.at(p.x, p.y) != Terrain.make(Terrain.PLATEAU, Terrain.DRY):
+		return
+	var height := city.ground_height(p.x, p.y)
+	if height >= MAX_GROUND_HEIGHT:
+		return
+	city.terrain.put(p.x, p.y, Terrain.make(Terrain.FLAT, Terrain.DRY))
+	city.set_heights(p.x, p.y, height + 1)
 
 
 ## Run one lattice terrain operation on the city through TerrainEditor, the
@@ -1888,6 +1935,9 @@ func _commit_lattice(op: Dictionary) -> Array[Vector2i]:
 				continue
 			if Terrain.is_water(code) and not Terrain.is_water(terrain[i]):
 				city.zone.data[i] = 0
+				# Trees do not stand in water the ground has just let in.
+				if Buildings.is_tree(city.building.data[i]):
+					city.building.data[i] = Buildings.NONE
 			out.append(Vector2i(x, y))
 	return out
 

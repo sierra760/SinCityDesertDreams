@@ -115,6 +115,10 @@ SaveFormat.decode_city(doc, version := SaveFormat.VERSION) -> {city, error, topo
 `load()` rejects documents whose `format` is not `sc2d`, versions above
 `SaveFormat.VERSION`, damaged layers and damaged snapshots, returning a
 readable `error`.
+Tunnel marks in the `altitude` layer that no longer lie between two facing
+portals are cleared as the layers are read (`City.clear_orphan_tunnels`):
+earlier versions left the bore marked when a disaster or wear destroyed a
+portal. A surviving portal is kept for the player to clear.
 `topology` is the street topology built while validating `street_naming`;
 the caller may reuse it instead of rebuilding it from the same layers.
 `list_saves` only parses the header; unrelated files and other documents in
@@ -158,9 +162,16 @@ numbers pipes first (`UtilityParams`), so the two bands are swapped on
 import; crossings and the link keep their values and anything else becomes
 `UNDERGROUND_NONE`.
 
+The founding year is kept within 1900..9999 and the days elapsed within
+that calendar; funds within the signed 32-bit range the file can express.
+
 After the layers are filled the importer:
 
-- keeps the stored terrain and altitude words unchanged, including independent
+- clears every building tile whose lot would reach past the map edge (and
+  adds a warning), so no footprint runs off the grid;
+- clears tunnel marks that do not lie between two facing portals
+  (`City.clear_orphan_tunnels`), as loading a save does;
+- keeps the stored terrain, ground and water heights unchanged, including independent
   tile slopes and water levels; `city.sea_level` remains `-1` and the editing
   lattice remains absent until a terrain edit requires it;
 - records a facility (`{key, built_day: city.day, imported: true}`) for every

@@ -957,6 +957,8 @@ static func decode_city(doc: Dictionary, version: int = VERSION) -> Dictionary:
 			var grid: Grid8 = grids[layer_name]
 			grid.data = bytes
 		city.restored_layers[layer_name] = true
+	# A tunnel that lost a portal in an earlier version left its bore marked.
+	city.clear_orphan_tunnels()
 	var power_links: Variant = doc.get("imported_power_links", {})
 	if typeof(power_links) != TYPE_DICTIONARY:
 		return {"city": null, "error": "Save has invalid imported power links."}

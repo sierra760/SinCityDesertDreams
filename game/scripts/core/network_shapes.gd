@@ -485,6 +485,31 @@ static func _reshape_one_block(city: City, bx: int, by: int, axis_hint: int) -> 
 				city.building.put(bx + dx, by + dy, highway_id(mask, axis_hint))
 
 
+## After a highway block is removed the blocks it joined lose that
+## connection: a junction becomes a corner or a straight, a corner a
+## straight. Returns the tiles whose piece changed.
+static func reshape_beside_cleared_block(city: City, anchor: Vector2i) -> Array[Vector2i]:
+	var changed: Array[Vector2i] = []
+	for d in DIRECTIONS:
+		var n := anchor + d * 2
+		if not city.in_bounds(n.x, n.y) or not is_highway(city.building_at(n.x, n.y)):
+			continue
+		var before: Array[int] = []
+		for dy in 2:
+			for dx in 2:
+				before.append(city.building_at(n.x + dx, n.y + dy))
+		# A block left on its own keeps the direction it ran in.
+		var hint := AXIS_NS if HIGHWAY_NS in before else AXIS_EW
+		reshape_highway_block(city, n.x, n.y, hint)
+		var k := 0
+		for dy in 2:
+			for dx in 2:
+				if city.building_at(n.x + dx, n.y + dy) != before[k]:
+					changed.append(n + Vector2i(dx, dy))
+				k += 1
+	return changed
+
+
 ## Anchor of the 2×2 highway block containing a tile.
 static func block_anchor(p: Vector2i) -> Vector2i:
 	return Vector2i(p.x & ~1, p.y & ~1)

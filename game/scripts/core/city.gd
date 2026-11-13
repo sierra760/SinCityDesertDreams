@@ -129,6 +129,79 @@ func set_tunnel_bits(x: int, y: int, bits: int) -> void:
 	altitude.put(x, y, v | (bits << TUNNEL_SHIFT))
 
 
+## Every tile of the road tunnel whose portal stands at (x, y): that portal,
+## the marked bore behind it and the facing portal at the far end when one
+## still stands. Empty when (x, y) holds no portal. The bore is as long as
+## its marks run; another tunnel's portal in the way ends it.
+func tunnel_cells(x: int, y: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if not in_bounds(x, y):
+		return out
+	var id := building.at(x, y)
+	if not NetworkShapes.is_tunnel(id):
+		return out
+	# Portal ids follow the slope codes west, north, east, south: the bore
+	# runs toward the raised side.
+	var facing := id - Buildings.TUNNEL_FIRST
+	var step: Vector2i = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN][facing]
+	var far_id := Buildings.TUNNEL_FIRST + posmod(facing + 2, 4)
+	out.append(Vector2i(x, y))
+	var p := Vector2i(x, y) + step
+	while in_bounds(p.x, p.y):
+		var other := building.at(p.x, p.y)
+		if NetworkShapes.is_tunnel(other):
+			if other == far_id:
+				out.append(p)
+			break
+		if tunnel_bits(p.x, p.y) == 0:
+			break
+		out.append(p)
+		p += step
+	return out
+
+
+## Unmark the bore along `cells`, as `tunnel_cells` lists them, and return
+## the far portal standing at its end, or (-1, -1) when there is none. The
+## portals themselves are the caller's to remove.
+func close_tunnel(cells: Array[Vector2i]) -> Vector2i:
+	var far := Vector2i(-1, -1)
+	for i in cells.size():
+		var c := cells[i]
+		set_tunnel_bits(c.x, c.y, 0)
+		if i > 0 and NetworkShapes.is_tunnel(building.at(c.x, c.y)):
+			far = c
+	return far
+
+
+## Unmark every bore that no longer joins two facing portals, which is what a
+## tunnel that lost a portal used to leave behind. Returns the tiles unmarked.
+func clear_orphan_tunnels() -> int:
+	var marked := false
+	for v in altitude.data:
+		if v >> TUNNEL_SHIFT != 0:
+			marked = true
+			break
+	if not marked:
+		return 0
+	var live := {}
+	for y in HEIGHT:
+		for x in WIDTH:
+			if not NetworkShapes.is_tunnel(building.at(x, y)):
+				continue
+			var cells := tunnel_cells(x, y)
+			var last := cells[cells.size() - 1]
+			if cells.size() > 1 and NetworkShapes.is_tunnel(building.at(last.x, last.y)):
+				for c in cells:
+					live[c] = true
+	var cleared := 0
+	for y in HEIGHT:
+		for x in WIDTH:
+			if tunnel_bits(x, y) != 0 and not live.has(Vector2i(x, y)):
+				set_tunnel_bits(x, y, 0)
+				cleared += 1
+	return cleared
+
+
 # ── Terrain and water ────────────────────────────────────────────────────
 
 func is_water(x: int, y: int) -> bool:
@@ -337,16 +410,44 @@ func clear_footprint(x: int, y: int) -> Rect2i:
 		remove_agricultural_cells(selected)
 		return AgriculturalParcels.bounds(selected)
 	var a := anchor_of(x, y)
-	var id := building.at(a.x, a.y)
-	var s := Buildings.size(id)
-	for dy in s.y:
-		for dx in s.x:
-			imported_power_links.erase((a.y + dy) * WIDTH + a.x + dx)
-			building.put(a.x + dx, a.y + dy, Buildings.NONE)
-			var zk := Zones.kind(zone.at(a.x + dx, a.y + dy))
-			zone.put(a.x + dx, a.y + dy, Zones.make(zk, Zones.ALL_CORNERS if zk != Zones.NONE else 0))
+	# Only the tiles the building really stands on are cleared; the returned
+	# rectangle bounds them, so a lone piece of a larger building is one tile.
+	var rect := Rect2i(x, y, 1, 1)
+	for t in footprint_tiles(x, y):
+		rect = rect.merge(Rect2i(t, Vector2i.ONE))
+		imported_power_links.erase(t.y * WIDTH + t.x)
+		building.put(t.x, t.y, Buildings.NONE)
+		var zk := Zones.kind(zone.at(t.x, t.y))
+		zone.put(t.x, t.y, Zones.make(zk, Zones.ALL_CORNERS if zk != Zones.NONE else 0))
 	facilities.erase(a)
-	return Rect2i(a, s)
+	return rect
+
+
+## The tiles of the building standing on (x, y): the connected cells of its
+## lot that hold it. A complete building owns its whole footprint; a lone
+## piece of a larger building owns only itself, never the neighbours a full
+## footprint would cover.
+func footprint_tiles(x: int, y: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = [Vector2i(x, y)]
+	var id := building.at(x, y)
+	var s := Buildings.size(id)
+	if s == Vector2i.ONE:
+		return out
+	var box := Rect2i(anchor_of(x, y), s).intersection(Rect2i(0, 0, WIDTH, HEIGHT))
+	if not box.has_point(Vector2i(x, y)):
+		return out
+	var seen := {Vector2i(x, y): true}
+	var next := 0
+	while next < out.size():
+		var p := out[next]
+		next += 1
+		for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			var n := p + d
+			if seen.has(n) or not box.has_point(n) or building.at(n.x, n.y) != id:
+				continue
+			seen[n] = true
+			out.append(n)
+	return out
 
 
 func facility(anchor: Vector2i) -> Dictionary:
