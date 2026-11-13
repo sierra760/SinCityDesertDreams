@@ -52,8 +52,10 @@ for platform, arch, sdk in [('macos', 'universal', 'macosx'), ('ios', 'arm64', '
         ui_framework = 'UIKit'
     target.parent.mkdir(parents=True, exist_ok=True)
 
+    # Keep build-machine paths out of the libraries.
+    prefix_maps = [f'-ffile-prefix-map={source.parents[1]}=.', f'-ffile-prefix-map={cpp}=godot-cpp']
     cmd = ['xcrun', '--sdk', sdk, 'clang++', '-std=c++17', '-fobjc-arc', '-fvisibility=hidden',
-           '-dynamiclib', *architectures, '-isysroot', sdk_path, *includes,
+           *prefix_maps, '-dynamiclib', *architectures, '-isysroot', sdk_path, *includes,
            str(source / 'apple_share.mm'), str(library),
            '-framework', 'Foundation', '-framework', 'CoreGraphics', '-framework', ui_framework,
            '-o', str(target)]

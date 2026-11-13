@@ -7,7 +7,7 @@ court portraits, a card back, three paintings and six transparent payout cutouts
 (20 runtime PNGs per venue). Ranks and suits are rendered by
 the game; the pictures do not encode card identities or alter casino outcomes.
 
-Created with the built-in image_gen tool. Complete generation prompts and
+Created as original generated illustrations. Complete generation prompts and
 unaltered masters are retained locally outside the public package.
 The reproducible packaging
 script `tools/build_casino_art.py` extracts the regular 4 × 3 atlas cells without
@@ -22,7 +22,7 @@ were replaced by new resort-specific paintings. Bitmap images remain separate
 runtime materials. Cabinet faces are baked from the actual three-drum table
 renderer by `tools/qa/bake_slot_cabinets.gd`, showing multiple symbol rows.
 Measured visible-content bounds center portraits, card backs and paintings;
-transparent payout illustrations retain the alpha created by image_gen.
+transparent payout illustrations retain the alpha of the generated masters.
 The local source records retain the additional prompts.
 The six additional sets are The Fix (`fix/`, obsidian/brass/emerald),
 Six-Week Alibi (`alibi/`, blush/mint), Velvet Wardrobe (`velvet/`, oxblood/amber),

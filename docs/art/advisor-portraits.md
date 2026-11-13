@@ -22,8 +22,8 @@ labels are rendered as accessible text by the game.
 ## Assets and generation
 
 All 30 full-resolution PNGs live at `game/assets/advisors/<department>-<mood>.png`.
-The built-in OpenAI image generator produced six neutral originals and 24
-expression edits on November 8, 2026. No external artwork or real-person
+Six neutral originals and 24 expression edits were generated on
+November 8, 2026. No external artwork or real-person
 reference was supplied. Exact prompts, dimensions, SHA-256 checksums and neutral
 reference checksums are recorded in [advisor-portraits.json](advisor-portraits.json).
 The import sidecars cap runtime textures at 512 pixels and enable mipmaps.

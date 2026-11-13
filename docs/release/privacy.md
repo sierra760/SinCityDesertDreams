@@ -1,5 +1,7 @@
 # Privacy release preparation — October 14, 2026
 
+**November 12, 2026:** the offline text and its HTML copy are no longer drafts for the macOS and Windows releases. They name the project's public issue tracker as the contact, link the policy file in the repository as the online copy (`sincity/privacy/policy_url`), state that iCloud Saves is off in the current builds, and describe desktop place search and the terrain availability checks. The App Store items below (privacy answers, a monitored private contact, provider retention) are still open for an App Store submission.
+
 The app has an offline Privacy window on the title screen, in Help, and in Playing the Game, including the unfounded-city stage. Every export carries `legal/PRIVACY.txt`. A verified HTTPS address in ProjectSettings `sincity/privacy/policy_url` enables Online Policy. Browser failure retains offline reading. The draft has no invented contact or retention statement.
 
 The publisher answered “I don't know” when asked for support email, policy URL and map-host access logs. The draft **must not be submitted** until these fields are resolved. `app-store-draft/privacy.html` is a matching static publication preview, not a deployed site.

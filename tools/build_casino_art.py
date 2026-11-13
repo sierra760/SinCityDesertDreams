@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Package image_gen masters into lossless, individually addressable game sprites.
+"""Package generated masters into lossless, individually addressable game sprites.
 
 Generated content is preserved: regular atlas cells are extracted losslessly,
 and visible subject bounds are recorded for centered presentation. Original
@@ -19,7 +19,7 @@ DEST = ROOT / 'game/assets/desert-dreams-casino-art'
 ASSETS = ['symbol-s1', 'symbol-s2', 'symbol-s3', 'symbol-s4', 'symbol-s5', 'symbol-B',
           'court-jack', 'court-queen', 'court-king', 'card-back', 'mural-history', 'mural-industry']
 SETS = ['comstock', 'junction', 'boulder', 'orbit']
-# image_gen placed these subjects in a different order on three cutout sheets.
+# The masters place these subjects in a different order on three cutout sheets.
 # Bind their visually inspected positions to the unchanged payout symbol IDs.
 PAYOUT_CELLS = {'comstock': [0,1,2,5,3,4], 'junction': [0,1,2,3,4,5],
                 'boulder': [0,1,2,5,3,4], 'orbit': [0,1,2,5,3,4]}
@@ -67,7 +67,7 @@ def apply_reviewed_art(entry, source, folder, root=ROOT):
 
 def build():
     catalog = {'license': 'CC BY-NC-SA 4.0', 'generator': 'tools/build_casino_art.py',
-               'creation': 'Built-in image_gen; original fictional illustrations inspired by Nevada history',
+               'creation': 'Original generated fictional illustrations inspired by Nevada history',
                'prompts': 'assets/casino-art/prompts.json', 'grid': [4, 3], 'sets': {}}
     catalog['refinement_prompts'] = 'assets/casino-art/refinement-prompts.json'
     catalog['cabinet_creation'] = 'Actual SlotStage renderer; tools/qa/bake_slot_cabinets.gd'

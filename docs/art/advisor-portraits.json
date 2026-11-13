@@ -1,6 +1,6 @@
 {
   "date": "2026-11-08",
-  "method": "OpenAI built-in image_gen: six neutral originals and four facial-expression edits per advisor, each using its neutral portrait as the identity reference.",
+  "method": "Original generated portraits: six neutral originals and four facial-expression edits per advisor, each using its neutral portrait as the identity reference.",
   "copyright": "2026 Bristlecone Artists LLC",
   "license": "CC-BY-NC-SA-4.0",
   "images": [

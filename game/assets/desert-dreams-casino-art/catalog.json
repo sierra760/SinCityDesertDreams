@@ -1,7 +1,7 @@
 {
   "license": "CC BY-NC-SA 4.0",
   "generator": "tools/build_casino_art.py",
-  "creation": "Built-in image_gen; original fictional illustrations inspired by Nevada history",
+  "creation": "Original generated fictional illustrations inspired by Nevada history",
   "prompts": "assets/casino-art/prompts.json",
   "grid": [
     4,

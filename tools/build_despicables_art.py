@@ -9,7 +9,7 @@ import json,hashlib
 from PIL import Image
 from build_casino_art import ROOT,DEST,record
 SOURCE=ROOT/'assets/casino-art/despicables'
-# Actual image_gen compositions have unequal row spacing. These inspected
+# The generated compositions have unequal row spacing. These inspected
 # source rectangles preserve complete subjects and exclude neighboring artwork.
 SYMBOLS=['s1','s2','s3','s4','s5','B']
 CUTOUT_REGIONS=[(0,0,418,425),(418,0,836,425),(836,0,1254,425),
