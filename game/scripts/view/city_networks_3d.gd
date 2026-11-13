@@ -126,10 +126,14 @@ const RAMP_EDGE_LINE := 0.016
 const RAMP_SHOULDER := Color(0.47, 0.49, 0.50)
 ## Distribution poles at Explore scale (1 tile = 16 m): about 6.7 m to the
 ## wire over their own surface, a 0.38 m timber pole and a thin conductor.
-## Highway crossings lift the same clearance above the elevated deck.
 const POWER_WIRE_HEIGHT := 0.42
 const POWER_POLE_WIDTH := 0.024
 const POWER_WIRE_WIDTH := 0.015
+const POWER_WIRE_COLOR := Color(0.23, 0.22, 0.21)
+## Lines cross highways beneath the elevated deck: 0.56 m under the soffit,
+## still about 3.9 m over the ground. The last pole before the highway
+## carries the wire down to that height.
+const POWER_UNDERPASS_CLEARANCE := 0.035
 ## 6.08 metres at the Explore scale: clear tall traffic without cliff-like ramps.
 const HIGHWAY_ELEVATION := 0.38
 ## Bridge drawing offsets are measured relative to the resolved span profile.
@@ -693,8 +697,6 @@ func _draw_network(city: City, cell: Vector2i, family: int, mask: int, elevation
 			var angle: float = ANGLES[mask] - PI / 4.0
 			supports[0] = PIVOTS[mask] + Vector2(cos(angle), sin(angle)) * 0.5
 		var wire := elevation + POWER_WIRE_HEIGHT
-		if NetworkShapes.in_family(code, NetworkShapes.Family.HIGHWAY) and not _deck_profiles.has(cell):
-			wire = HIGHWAY_ELEVATION + POWER_WIRE_HEIGHT
 		for transport: int in [NetworkShapes.Family.ROAD, NetworkShapes.Family.RAIL, NetworkShapes.Family.HIGHWAY]:
 			if not NetworkShapes.in_family(code, transport):
 				continue
@@ -706,12 +708,29 @@ func _draw_network(city: City, cell: Vector2i, family: int, mask: int, elevation
 			else:
 				supports.assign([Vector2(0.5, margin), Vector2(0.5, 1.0 - margin)])
 			break
+		var underpass := _power_underpass(city, cell)
 		for offset: Vector2 in supports:
 			var top := _point(city, cell, offset, wire)
+			if underpass:
+				top.y = _underpass_wire_y(city, cell, offset)
 			var bottom := CityGeometry3D.point_on_ground(city, cell, offset).y
 			_box(Vector3(top.x, (bottom + top.y) / 2.0, top.z),
 				Vector3(POWER_POLE_WIDTH, maxf(0.01, top.y - bottom), POWER_POLE_WIDTH), Color(0.5, 0.43, 0.34))
-		_draw_path(city, cell, mask, POWER_WIRE_WIDTH, Color(0.23, 0.22, 0.21), wire)
+		if underpass:
+			# Strung under the deck from one edge of the carriageway to the other.
+			var line: Array[Vector2] = []
+			var heights := PackedFloat64Array()
+			for i: int in 5:
+				var point := Vector2(i / 4.0, 0.5) if mask == 10 else Vector2(0.5, i / 4.0)
+				line.append(point)
+				heights.append(_underpass_wire_y(city, cell, point))
+			_wire_ribbon(cell, line, heights)
+			return
+		var lowered := 0 if _deck_profiles.has(cell) else _underpass_sides(city, cell, mask)
+		if lowered == 0:
+			_draw_path(city, cell, mask, POWER_WIRE_WIDTH, POWER_WIRE_COLOR, wire)
+		else:
+			_lowered_wire(city, cell, mask, lowered, supports, wire)
 		return
 	var bend := mask in [3, 6, 9, 12]
 	if rail:
@@ -1039,6 +1058,120 @@ func _arc(city: City, cell: Vector2i, mask: int, width: float, color: Color, ele
 		_surface_polygon(city, cell, [pivot + d0 * (radius - width / 2.0),
 			pivot + d0 * (radius + width / 2.0), pivot + d1 * (radius + width / 2.0),
 			pivot + d1 * (radius - width / 2.0)], color, elevation, role)
+
+
+## A power line strung beneath an ordinary elevated highway carriageway.
+func _power_underpass(city: City, cell: Vector2i) -> bool:
+	if not city.in_bounds(cell.x, cell.y) or _deck_profiles.has(cell):
+		return false
+	var code := city.building.atv(cell)
+	return NetworkShapes.in_family(code, NetworkShapes.Family.POWER) and NetworkShapes.in_family(code, NetworkShapes.Family.HIGHWAY)
+
+
+## World height of the wire under highway cell `cell` at its local `offset`,
+## measured from the same surface the deck soffit is drawn on.
+func _underpass_wire_y(city: City, cell: Vector2i, offset: Vector2) -> float:
+	var group := _physical_group
+	_physical_group = NetworkShapes.Family.HIGHWAY
+	var y := _point(city, cell, offset, HIGHWAY_ELEVATION - 0.008 - DECK_DEPTH - POWER_UNDERPASS_CLEARANCE).y
+	_physical_group = group
+	return y
+
+
+## Arms of a power cell that lead into a line passing under a highway.
+func _underpass_sides(city: City, cell: Vector2i, mask: int) -> int:
+	var sides := 0
+	for direction: int in 4:
+		if not mask & (1 << direction):
+			continue
+		var neighbor := cell + NetworkShapes.DIRECTIONS[direction]
+		if _power_underpass(city, neighbor) and network_mask(city.building.atv(neighbor), NetworkShapes.Family.POWER) & (1 << ((direction + 2) % 4)):
+			sides |= 1 << direction
+	return sides
+
+
+## Underpass wire height where this cell's arm `direction` meets its edge.
+func _side_underpass_y(city: City, cell: Vector2i, direction: int, point: Vector2) -> float:
+	var step: Vector2i = NetworkShapes.DIRECTIONS[direction]
+	return _underpass_wire_y(city, cell + step, point - Vector2(step))
+
+
+## A power cell beside a highway: arms toward the highway leave the last pole
+## at full height and ease down to meet the wire under the deck at the edge.
+func _lowered_wire(city: City, cell: Vector2i, mask: int, lowered: int, supports: Array[Vector2], wire: float) -> void:
+	if mask in [3, 6, 9, 12]:
+		var pivot: Vector2 = PIVOTS[mask]
+		var angle: float = ANGLES[mask]
+		var first := pivot + Vector2(cos(angle), sin(angle)) * 0.5
+		var last := pivot + Vector2(cos(angle - PI / 2.0), sin(angle - PI / 2.0)) * 0.5
+		var first_side := _edge_direction(first)
+		var last_side := _edge_direction(last)
+		var line: Array[Vector2] = []
+		var heights := PackedFloat64Array()
+		for i: int in 17:
+			var t := i / 16.0
+			var a := angle - t * PI / 2.0
+			var point := pivot + Vector2(cos(a), sin(a)) * 0.5
+			var y := _point(city, cell, point, wire).y
+			# The bend's post stands at the arc midpoint.
+			if t < 0.5 and lowered & (1 << first_side):
+				y = lerpf(_side_underpass_y(city, cell, first_side, first), y, smoothstep(0.0, 1.0, t / 0.5))
+			elif t > 0.5 and lowered & (1 << last_side):
+				y = lerpf(y, _side_underpass_y(city, cell, last_side, last), smoothstep(0.0, 1.0, (t - 0.5) / 0.5))
+			line.append(point)
+			heights.append(y)
+		_wire_ribbon(cell, line, heights)
+		return
+	var center := Vector2(0.5, 0.5)
+	var lo := (1.0 - POWER_WIRE_WIDTH) / 2.0
+	_rect(city, cell, Rect2(lo, lo, POWER_WIRE_WIDTH, POWER_WIRE_WIDTH), POWER_WIRE_COLOR, wire)
+	var edges: Array[Vector2] = [Vector2(0.5, 0), Vector2(1, 0.5), Vector2(0.5, 1), Vector2(0, 0.5)]
+	for direction: int in 4:
+		if not mask & (1 << direction):
+			continue
+		var edge := edges[direction]
+		var arm := edge - center
+		if not lowered & (1 << direction):
+			_rect(city, cell, Rect2(center, Vector2.ZERO).expand(edge).grow(POWER_WIRE_WIDTH / 2.0).intersection(Rect2(0, 0, 1, 1)), POWER_WIRE_COLOR, wire)
+			continue
+		# Level out to the last pole on this arm (a crossing's verge pole).
+		var level := 0.0
+		for support: Vector2 in supports:
+			level = maxf(level, clampf((support - center).dot(arm) / arm.length_squared(), 0.0, 1.0))
+		var start := center + arm * level
+		if level > 0.0:
+			_rect(city, cell, Rect2(center, Vector2.ZERO).expand(start).grow(POWER_WIRE_WIDTH / 2.0), POWER_WIRE_COLOR, wire)
+		var bottom := _side_underpass_y(city, cell, direction, edge)
+		var line: Array[Vector2] = []
+		var heights := PackedFloat64Array()
+		for i: int in 9:
+			var u := i / 8.0
+			var point := start.lerp(edge, u)
+			line.append(point)
+			heights.append(lerpf(_point(city, cell, point, wire).y, bottom, smoothstep(0.0, 1.0, u)))
+		_wire_ribbon(cell, line, heights)
+
+
+static func _edge_direction(point: Vector2) -> int:
+	if point.y < 0.01: return 0
+	if point.x > 0.99: return 1
+	if point.y > 0.99: return 2
+	return 3
+
+
+## A thin flat conductor through cell-local `points` at world `heights`.
+func _wire_ribbon(cell: Vector2i, points: Array[Vector2], heights: PackedFloat64Array) -> void:
+	var count := points.size()
+	var left: Array[Vector3] = []
+	var right: Array[Vector3] = []
+	for i: int in count:
+		var tangent := (points[mini(i + 1, count - 1)] - points[maxi(i - 1, 0)]).normalized()
+		var side := Vector2(-tangent.y, tangent.x) * POWER_WIRE_WIDTH / 2.0
+		left.append(Vector3(cell.x + points[i].x + side.x, heights[i], cell.y + points[i].y + side.y))
+		right.append(Vector3(cell.x + points[i].x - side.x, heights[i], cell.y + points[i].y - side.y))
+	for i: int in count - 1:
+		_emit_triangle(cell, left[i], right[i], right[i + 1], POWER_WIRE_COLOR, PhysicalRole.DETAIL, false)
+		_emit_triangle(cell, left[i], right[i + 1], left[i + 1], POWER_WIRE_COLOR, PhysicalRole.DETAIL, false)
 
 
 func _point(city: City, cell: Vector2i, offset: Vector2, elevation: float) -> Vector3:

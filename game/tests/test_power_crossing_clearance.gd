@@ -52,13 +52,93 @@ func _assert_clearance(layer: CityNetworks3D, cell: Vector2i, fixture: Array) ->
 	var faces := layer._faces
 	if layer._region_initialized:
 		faces = layer._regions[Vector2i.ZERO]._faces
+	# Highways are elevated decks: their wire passes beneath the soffit instead.
+	var highway: bool = fixture[0] in [79, 80]
+	var ground_y: float = 4 * CityGeometry3D.HEIGHT
 	for edge: float in [0.0, 1.0]:
 		var connected := false
 		for point: Vector3 in faces:
 			var along: float = point.x - cell.x if ns else point.z - cell.y
-			if is_equal_approx(along, edge) and point.y > floor_y + .30:
+			if not is_equal_approx(along, edge): continue
+			if highway:
+				if point.y < _soffit_y() - .01 and point.y > ground_y + .21: connected = true
+			elif point.y > floor_y + .30:
 				connected = true
-		check(connected, "overhead wire reaches crossing edge %s" % edge)
+		check(connected, "%s wire reaches crossing edge %s" % ["underpass" if highway else "overhead", edge])
+	if highway:
+		for i: int in range(0, faces.size()):
+			var colors: PackedColorArray = layer._regions[Vector2i.ZERO]._colors if layer._region_initialized else layer._colors
+			if colors[i].is_equal_approx(WIRE):
+				check(faces[i].y < _soffit_y() - .01, "crossing %d wire stays under the deck at %s" % [fixture[0], faces[i]])
+
+
+const WIRE := Color(0.23, 0.22, 0.21)
+
+
+## Underside of a level elevated highway deck on the flat height-4 fixture.
+func _soffit_y() -> float:
+	return 4 * CityGeometry3D.HEIGHT + CityNetworks3D.HIGHWAY_ELEVATION - .008 - CityNetworks3D.DECK_DEPTH
+
+
+func test_power_lines_pass_under_both_highway_carriageways() -> void:
+	var ew := NetworkShapes.shape_id(NetworkShapes.Family.POWER, NetworkShapes.EAST | NetworkShapes.WEST)
+	var bend := NetworkShapes.shape_id(NetworkShapes.Family.POWER, NetworkShapes.NORTH | NetworkShapes.EAST)
+	var north_south := NetworkShapes.shape_id(NetworkShapes.Family.HIGHWAY, NetworkShapes.NORTH | NetworkShapes.SOUTH)
+	var ground_y: float = 4 * CityGeometry3D.HEIGHT
+	# West approach: a plain line, a bend, and a line crossing a local road.
+	for west: int in [ew, bend, 67]:
+		var city := flat_city()
+		for x: int in [14, 15]:
+			city.building.put(x, 15, 79)
+			for y: int in [13, 14, 16, 17]: city.building.put(x, y, north_south)
+		city.building.put(13, 15, west)
+		city.building.put(16, 15, ew)
+		city.building.put(17, 15, ew)
+		var before := var_to_bytes(SaveFormat.encode_city(city))
+		var layer := CityNetworks3D.new()
+		layer.rebuild(city)
+		_assert_underpass(layer, city, west, ground_y)
+		layer.update_regions(city, [Rect2i(0, 0, 32, 32)])
+		_assert_underpass(layer, city, west, ground_y)
+		check_eq(var_to_bytes(SaveFormat.encode_city(city)), before, "rendering leaves the city untouched")
+		layer.free()
+
+
+func _assert_underpass(layer: CityNetworks3D, city: City, west: int, ground_y: float) -> void:
+	var wire: Array[Vector3] = []
+	_collect_wire(layer, wire)
+	var under := 0
+	for point: Vector3 in wire:
+		if point.z < 14.9 or point.z > 16.1: continue
+		# Both carriageways and the two shared edges of their neighbours.
+		if point.x >= 14.0 - .0001 and point.x <= 16.0 + .0001:
+			check(point.y < _soffit_y() - .01, "west %d: wire %s stays below the highway soffit" % [west, point])
+			check(point.y > ground_y + .21, "west %d: wire %s clears a tall vehicle" % [west, point])
+			under += 1
+	check(under > 0, "west %d: wire is drawn beneath the highway" % west)
+	# The wire is continuous: no hole along either approach or under the deck.
+	for x: float in [13.95, 14.0, 14.5, 15.0, 15.5, 16.0, 16.05, 16.3, 16.5]:
+		check(not is_nan(_wire_height(layer, Vector2(x, 15.5))), "west %d: wire continues at x=%s" % [west, x])
+	var poles: Array[MeshInstance3D] = []
+	_collect_poles(layer, poles)
+	for pole: MeshInstance3D in poles:
+		var position := Vector2(pole.position.x, pole.position.z)
+		var top: float = pole.position.y + pole.mesh.size.y / 2.0
+		var wire_y := _wire_height(layer, position)
+		check(not is_nan(wire_y) and absf(top - wire_y) < .0001, "west %d: pole at %s meets its wire" % [west, position])
+		if position.x > 14.0 and position.x < 16.0:
+			check(top < _soffit_y() - .01, "west %d: underpass pole at %s stays below the deck" % [west, position])
+		elif position.x > 16.0:
+			# Lines away from the highway keep their full street-scale height.
+			check(top > ground_y + .4, "west %d: approach pole at %s keeps its height" % [west, position])
+
+
+func _collect_wire(layer: CityNetworks3D, wire: Array[Vector3]) -> void:
+	if layer._region_initialized:
+		for region: CityNetworks3D in layer._regions.values(): _collect_wire(region, wire)
+		return
+	for i: int in layer._faces.size():
+		if layer._colors[i].is_equal_approx(WIRE): wire.append(layer._faces[i])
 
 
 func _collect_poles(node: Node, poles: Array[MeshInstance3D]) -> void:
