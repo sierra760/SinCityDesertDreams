@@ -15,8 +15,11 @@ function input(request) {
   if(url.searchParams.getAll('q').length!==1 || url.searchParams.getAll('lang').length>1) return {failure:error('invalid_query','Provide one place query.',400)};
   const text=(url.searchParams.get('q')||'').trim().replace(/\s+/gu,' ');
   const lang=url.searchParams.get('lang')||'en';
-  if(text.length<3 || text.length>200 || /[\u0000-\u001f\u007f]/u.test(text) || !/^[a-z]{2}(?:-[A-Za-z]{2})?$/u.test(lang)) return {failure:error('invalid_query','Use 3–200 characters and a supported language code.',400)};
-  return {text,lang,key:JSON.stringify([text.toLowerCase(),lang.toLowerCase()])};
+  if(text.length<3 || text.length>200 || /[\u0000-\u001f\u007f]/u.test(text) || !/^[a-z]{2,3}(?:-[A-Za-z]{2})?$/u.test(lang)) return {failure:error('invalid_query','Use 3–200 characters and a language code such as en, pt-BR or haw.',400)};
+  // The provider answers in two-letter language codes only; a three-letter
+  // code (haw, fil, yue) is a valid request and is searched in English.
+  const answered=/^[a-z]{2}(?:-|$)/u.test(lang)?lang:'en';
+  return {text,lang:answered,key:JSON.stringify([text.toLowerCase(),answered.toLowerCase()])};
 }
 async function boundedJSON(response) {
   if(!response.body) throw new Error('No response body');

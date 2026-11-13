@@ -132,15 +132,37 @@ static func parse_json(text: String) -> Variant:
 	return json.data if json.parse(text)==OK else null
 
 static func _https_url(url: String) -> bool:
-	if not url.begins_with("https://") or url.length()>512: return false
-	var host := url.trim_prefix("https://").get_slice("/",0).get_slice("?",0)
-	if host.is_empty() or host.contains("@") or host.begins_with(".") or not "." in host: return false
-	for c in url:
-		if c.unicode_at(0)<=32 or c in ["\"","'","<",">","\\","`"]: return false
-	return true
+	return is_https_url(url)
 
+## True for a plain https address: a lower-case `https://`, a DNS host name
+## of two or more labels, then an optional path and query. A user name or
+## password, a port, an address literal, a trailing dot, an escape in the
+## host, a fragment, spaces and quotes are all refused.
+static func is_https_url(url: String, max_length: int = 512) -> bool:
+	if not url.begins_with("https://") or url.length()>max_length: return false
+	for c in url:
+		if c.unicode_at(0)<=32 or c.unicode_at(0)==127 or c in ["\"","'","<",">","\\","`","#"]: return false
+	var authority := url.trim_prefix("https://").get_slice("/",0).get_slice("?",0)
+	if authority.is_empty() or authority.length()>253: return false
+	var labels := authority.split(".")
+	if labels.size()<2: return false
+	for label in labels:
+		if label.is_empty() or label.length()>63 or label.begins_with("-") or label.ends_with("-"): return false
+		for c in label:
+			if not ((c>="a" and c<="z") or (c>="A" and c<="Z") or (c>="0" and c<="9") or c=="-"): return false
+	# A last label that starts with a digit belongs to an address, not a name.
+	var first := labels[labels.size()-1].left(1).to_lower()
+	return first>="a" and first<="z"
+
+## The host a URL names, normalized for comparison: lower case, without a
+## scheme, user name, port or trailing dot.
 static func host(url: String) -> String:
-	return url.trim_prefix("https://").get_slice("/",0).get_slice("?",0).get_slice(":",0).to_lower()
+	var rest := url
+	var scheme := rest.find("://")
+	if scheme>=0 and rest.left(scheme).is_valid_ascii_identifier(): rest=rest.substr(scheme+3)
+	for stop in ["/","?","#","\\"]: rest=rest.get_slice(stop,0)
+	rest=rest.get_slice("@",rest.get_slice_count("@")-1)
+	return rest.get_slice(":",0).to_lower().rstrip(".")
 
 static func _text(value: Variant, limit: int) -> String:
 	if not value is String: return ""

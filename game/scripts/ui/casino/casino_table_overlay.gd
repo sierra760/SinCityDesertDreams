@@ -55,6 +55,9 @@ const VOICE_NAMES := {
 	&"foreman": "The foreman",
 	&"flight_director": "The flight director",
 }
+## Milliseconds after a press on one action button during which a press on
+## a different button in the same place is taken for the same press.
+const PRESS_GUARD_MS := 400
 ## Keyboard shortcuts named in the action tooltips.
 const SHORTCUTS := {
 	&"deal": "Enter", &"spin": "Enter", &"pull": "Enter", &"turn": "Enter", &"roll": "Enter",
@@ -110,6 +113,12 @@ var _default_focus: Control
 ## Enter or tap: the bets and stake it was asked about (empty when none).
 var _confirm_bets: Dictionary = {}
 var _confirm_stake := 0
+## Milliseconds clock the press guard reads (tests supply their own).
+var press_clock: Callable = Time.get_ticks_msec
+## The last action button pressed, when, and where it was on screen.
+var _pressed_action: StringName = &""
+var _pressed_msec := 0
+var _pressed_rect := Rect2()
 ## What became of a round the app played out in the background; read once
 ## by the host when the app comes back (see `take_background_summary`).
 var _background_summary := ""
@@ -189,7 +198,7 @@ func _init() -> void:
 		_refresh())
 	bet_bar.chip_pressed.connect(press_chip)
 	bet_bar.step_pressed.connect(step_bet)
-	bet_bar.action_pressed.connect(func(action: StringName) -> void: perform_action(action))
+	bet_bar.action_pressed.connect(press_action)
 	bet_bar.auto_pressed.connect(cycle_auto_target)
 	_root.add_child(bet_bar)
 	_build_rules()
@@ -289,6 +298,7 @@ func open(table_sim: Simulation, resort_key: StringName, game_kind: StringName, 
 	_was_debuted = sim.casino().has_debuted()
 	_settle_signal_pending = false
 	_patter_voiced = false
+	_pressed_action = &""
 	_clear_confirmation()
 	var table_maximum := int(CasinoParams.table_limits(resort)["maximum"])
 	_patter = "Welcome to %s. Table limits %s to %s." % [ResortThemes.floor_name(resort),
@@ -445,6 +455,12 @@ func can_leave() -> bool:
 ## True while a round has been committed and not yet settled.
 func round_in_progress() -> bool:
 	return visible and game != null and game.state == CasinoGame.PLAYING
+
+
+## True while a settled round's result is still being shown on the table;
+## `round_settled` follows once it has been.
+func result_pending() -> bool:
+	return visible and _settle_signal_pending
 
 
 ## The stake debited for the round now being played.
@@ -614,6 +630,28 @@ func _begin_betting() -> bool:
 
 # ── Actions and the treasury ─────────────────────────────────────────────
 
+## A click or tap on an action button. The buttons change as soon as a round
+## starts or moves on, so a second press in the same place would otherwise
+## stand, draw, cash out or choose before the player has seen anything:
+## while the table is animating a press only finishes the animation, and a
+## press on a different button that has just taken the pressed one's place
+## is ignored. The next press plays.
+func press_action(action: StringName) -> void:
+	if is_instance_valid(stage) and stage.is_busy():
+		stage.skip()
+		return
+	var button: Button = bet_bar.action_buttons.get(action, null)
+	var rect := button.get_global_rect() if button != null else Rect2()
+	var now := int(press_clock.call())
+	# Compared as an elapsed time, so a clock that starts near zero is safe.
+	if _pressed_action != &"" and action != _pressed_action and now - _pressed_msec < PRESS_GUARD_MS and rect.intersects(_pressed_rect):
+		return
+	_pressed_action = action
+	_pressed_msec = now
+	_pressed_rect = rect
+	perform_action(action)
+
+
 ## Perform a game action through the treasury: a reported stake is debited
 ## before anything is shown; a settled round is credited once.
 func perform_action(action: StringName, payload: Dictionary = {}) -> Dictionary:
@@ -753,12 +791,13 @@ func _settle() -> void:
 		return
 	_settled = true
 	var outcome := game.outcome()
+	# The treasury is credited now; listeners hear of the result once its
+	# animation has played, so nothing outside the table reveals it early.
+	# Set before settling: a notice the settlement raises asks `result_pending`.
+	_settle_signal_pending = true
 	sim.casino_settle(resort, kind, int(outcome["staked"]), int(outcome["returned"]))
 	_committed = 0
 	_session_net += int(outcome["net"])
-	# The treasury is credited now; listeners hear of the result once its
-	# animation has played, so nothing outside the table reveals it early.
-	_settle_signal_pending = true
 
 
 func _emit_settled() -> void:
@@ -1153,6 +1192,7 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 		&"blackjack":
 			lines.append("Get closer to 21 than the dealer without going over. Number cards count their value, court cards ten, aces one or eleven. The dealer draws to 16 and stands on every 17.")
 			lines.append("A two-card 21 pays 3 to 2; other wins pay 1 to 1; a tie returns the bet. Double on any first two cards for one more card. Split a pair once; split aces take one card each.")
+			lines.append("A double or a split puts up a second stake the size of the bet, and the round's total must stay within the maximum: a bet over half the maximum cannot double or split, and after a split a hand can double only while a third bet still fits.")
 			if keyboard: lines.append("Keys: Enter deals, then stands during a hand (Enter never draws a card); H hits, S stands, D doubles, P splits.")
 		&"roulette":
 			lines.append("A single-zero wheel, 0 to 36. Bet on as many spots as you like; the table maximum applies to the total.")
@@ -1187,6 +1227,7 @@ static func rules_text(game_kind: StringName, resort_key: StringName, limits: Di
 		&"trajectory":
 			lines.append("Launch and watch the multiplier climb. Cash out" + (" (Enter or Space)" if keyboard else "") + " before the engine burns out to collect the stake times the multiplier; a burn-out loses the stake.")
 			lines.append("About one launch in %d fails on the pad. Set an automatic cash-out%s before launch to let the flight decide." % [TrajectoryGame.instant_loss_one_in(), " (A)" if keyboard else ""])
+			lines.append("No engine lasts to %sx: a launch still climbing there burns out, so the most a cash-out can pay is just under it." % CasinoLines.money(int(CasinoParams.TRAJECTORY_MAX_MULTIPLIER)).trim_prefix("$"))
 	lines.append("Table limits %s to %s per round; the treasury caps the maximum. Every bet comes from the city treasury and every win goes back to it." % [
 		CasinoLines.money(int(limits.get("minimum", table["minimum"]))), CasinoLines.money(int(table["maximum"]))])
 	lines.append("A round that stakes more than half of the treasury asks first: %s the button again to confirm." % ("press Enter or" if keyboard else "tap"))

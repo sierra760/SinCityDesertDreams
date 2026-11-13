@@ -26,6 +26,12 @@ const STATUS_ONLY: Array[StringName] = [&"tree_protest", &"approval_milestone", 
 
 ## Show the notice for something the simulation raised, if it has one.
 func raise(kind: StringName, payload: Dictionary) -> void:
+	# A warning about a casino round is raised when the round settles; it
+	# waits until the table has shown the result, so the dialog never opens
+	# over a wheel still turning or cards still face down.
+	if kind == &"recall_warning" and _host.is_casino_open() and _host.casino_overlay.result_pending():
+		_host.casino_overlay.round_settled.connect(_raise_after_round.bind(kind, payload), CONNECT_ONE_SHOT)
+		return
 	var spec := notice_for(kind, payload)
 	if spec.is_empty():
 		return
@@ -38,6 +44,10 @@ func raise(kind: StringName, payload: Dictionary) -> void:
 	# Raised notices arrive unasked, possibly mid-keystroke: no choice has focus.
 	queue(String(spec["title"]), String(spec["body"]), spec.get("choices", [["OK", &"ok"]]),
 		spec.get("handler", Callable()), false, "", true)
+
+
+func _raise_after_round(_resort: StringName, _game: StringName, _outcome: Dictionary, kind: StringName, payload: Dictionary) -> void:
+	raise(kind, payload)
 
 
 ## Title, body, choices and handler for a notice kind; empty to show nothing.

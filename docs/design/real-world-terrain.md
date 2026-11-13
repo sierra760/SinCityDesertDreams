@@ -6,7 +6,7 @@ New City can start from a square of real elevation and mapped water. Choose **Re
 
 Use latitude and longitude to choose a center. The default is Las Vegas (36.1699, −115.1398) with an 8 km square. Side length ranges from 0.5 to 128 km; bearing rotates it clockwise from 0° to 359°. The entire square must remain within latitude −60° to 82.75°. Longitude wraps across the date line.
 
-Type a place name or address in **Search for a place** and press Return or **Search**. Up to five matches appear; choosing one centers the square there, keeping its size and bearing, and frames it on the map. Search runs only when you submit it, at most once a second, and repeats a recent query from memory. A place whose square would cross latitude −60° or 82.75° is refused.
+Type a place name or address in **Search for a place** and press Return or **Search**. Up to five matches appear; choosing one centers the square there, keeping its size and bearing, and frames it on the map. With the built-in provider, search runs only when you submit it, at most once a second, and repeats a recent query from memory; a published provider that permits it may also suggest places after you pause typing (see [map-config](../release/map-config.md)). A place whose square would cross latitude −60° or 82.75° is refused.
 
 Drag the square's center to move it, or a corner to resize it. Drag the map background to pan; pinch or scroll to zoom. The arrow keys and North/South/East/West buttons pan, +/− zoom, and **Fit Selection** or F frames the square. Map zoom changes the view, not the square's physical size.
 

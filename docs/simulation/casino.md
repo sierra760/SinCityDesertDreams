@@ -121,6 +121,8 @@ baccarat (Boulder Crown) and a launch game called trajectory (Desert Orbit).
   `BLACKJACK_RESHUFFLE` cards remain. Dealer stands on every 17. A two-card 21
   returns 2½ times the stake (rounded down); a dealer two-card 21 beats every
   other hand; both is a push. Double on any first two cards (one more card).
+  A double or a split is offered only while the round's total, with the
+  second stake, stays within the maximum.
   Split once, on two cards of the same rank; split aces receive one card each.
   A 21 after a split is not a two-card 21. No insurance, no surrender. A win
   returns twice the hand's stake, a push returns it.
@@ -161,6 +163,9 @@ baccarat (Boulder Crown) and a launch game called trajectory (Desert Orbit).
   displayed multiplier climbs as e^(0.12 t). Cashing out at m < M returns
   ⌊stake × m⌋; reaching M first loses the stake. Multipliers are kept to
   hundredths. An optional automatic cash-out target can be set at launch.
+  The display stops at the cap, and a reported multiplier at or past the cap
+  is a burn-out, so every launch ends by then and the highest cash-out is
+  999.99×. The draw and the payout below the cap are unaffected.
 
 ## Parameters
 
@@ -230,7 +235,7 @@ advance tourism, draw simulation RNG or book tax. See [Tourism](tourism.md).
 
 ## Mayoral recall for gambling losses
 
-Walking into a gaming resort fixes the visit's treasury baseline. Tables share that baseline until the mayor leaves the resort or Explore. Crossing below half the positive entry treasury shows a warning, but does not call a recall while the mayor is still playing. Winnings can recover the loss; reaching half or more makes departure safe. Falling below half again shows another warning. Held stakes and refunded rounds do not count, and ordinary city expenses are excluded.
+Walking into a gaming resort fixes the visit's treasury baseline. Tables share that baseline until the mayor leaves the resort or Explore. Crossing below half the positive entry treasury shows a warning, but does not call a recall while the mayor is still playing. The warning is raised when the round settles and opens once the table has shown that round's result. Winnings can recover the loss; reaching half or more makes departure safe. Falling below half again shows another warning. Held stakes and refunded rounds do not count, and ordinary city expenses are excluded.
 
 Only departure with settled net losses greater than half the entry balance calls a recall. Exactly half is safe. Leaving a table inside the same resort keeps the visit open; leaving the hall, ejection and returning to Build finish it. A saved visit loaded into Build is finished outside the casino, so loading cannot erase an unrecovered loss by replacing its entry baseline.
 

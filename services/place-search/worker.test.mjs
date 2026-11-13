@@ -52,6 +52,18 @@ test('bad methods/query, unconfigured key and failed provider expose no secret',
  const r=await f.obj.fetch(query());assert.equal(r.status,503);assert.ok(!(await r.text()).includes('fixture-only-key'));
  const disabled=new PlaceSearchBudget({storage:new Storage()},{});assert.equal((await disabled.fetch(query())).status,503);
 });
+test('three-letter language codes are accepted and searched in the default language',async()=>{
+ const f=setup();const ask=lang=>f.obj.fetch(new Request('https://places.example.org/v1/places?q=Honolulu&lang='+lang));
+ for(const lang of ['haw','fil','yue','fil-PH']) assert.equal((await ask(lang)).status,200,lang);
+ assert.equal(f.calls.length,1,'languages the provider cannot answer in share one lookup');
+ assert.equal(new URL(f.calls[0].url).searchParams.get('lang'),'en');
+ f.advance(1001);assert.equal((await ask('fr')).status,200);assert.equal(new URL(f.calls[1].url).searchParams.get('lang'),'fr');
+ f.advance(1001);assert.equal((await ask('pt-BR')).status,200);assert.equal(new URL(f.calls[2].url).searchParams.get('lang'),'pt-BR');
+ for(const lang of ['e','engl','EN','en-USA','en_US','haw-','1a','en-U1']) assert.equal((await ask(lang)).status,400,lang);
+ assert.equal(f.calls.length,3);
+ const routed=await worker.fetch(new Request('https://places.example.org/v1/places?q=Honolulu&lang=haw'),{SEARCH_BUDGET:{idFromName:()=>'id',get:()=>({fetch:request=>f.obj.fetch(request)})}});
+ assert.equal(routed.status,200,'the public route accepts them as well');
+});
 test('public config is key-free; routes do not consume search quota',async()=>{
  const env={GEOAPIFY_API_KEY:'fixture-only-key'};const r=await worker.fetch(new Request('https://places.example.org/map-config.json'),env);
  const text=await r.text();assert.ok(!text.includes('fixture-only-key'));const cfg=JSON.parse(text);

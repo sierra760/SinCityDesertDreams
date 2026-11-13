@@ -24,23 +24,51 @@ const PRUNE_STRIDE := 64
 const MAX_BODY := 1048576
 const TIMEOUT := 15.0
 const RETRY_MS := 30000
+## Longest address a redirect may name.
+const REDIRECT_URL_MAX := 4096
+## Segments and padding bytes read while looking for a JPEG's frame header.
+const JPEG_HEADER_STEPS := 256
 
 ## Node with start(url, headers) -> Error, abort() and
 ## finished(result, code, headers, body), like an HTTPRequest wrapper.
 class NativeBackend extends Node:
 	signal finished(result: int, code: int, headers: PackedStringArray, body: PackedByteArray)
+	## Redirects followed, each only to the host that was asked (see
+	## `redirect_target`); any other redirect ends the request as a failure.
 	var max_redirects := 2
 	var http: HTTPRequest
+	var _url := ""
+	var _headers := PackedStringArray()
+	var _hops := 0
 	func start(url: String, headers: PackedStringArray) -> int:
-		http=HTTPRequest.new()
-		add_child(http)
-		http.timeout=TIMEOUT
-		http.body_size_limit=MAX_BODY
-		http.max_redirects=max_redirects
-		http.request_completed.connect(func(result: int, code: int, response_headers: PackedStringArray, body: PackedByteArray) -> void: finished.emit(result,code,response_headers,body))
-		return http.request(url,headers)
+		_url=url
+		_headers=headers
+		_hops=0
+		return _request()
 	func abort() -> void:
 		if is_instance_valid(http): http.cancel_request()
+	## A request that never follows a redirect by itself: the engine would
+	## follow one to any host.
+	static func make_request() -> HTTPRequest:
+		var request := HTTPRequest.new()
+		request.timeout=TIMEOUT
+		request.body_size_limit=MAX_BODY
+		request.max_redirects=0
+		return request
+	func _request() -> int:
+		if is_instance_valid(http): http.queue_free()
+		http=make_request()
+		add_child(http)
+		http.request_completed.connect(_completed)
+		return http.request(_url,_headers)
+	func _completed(result: int, code: int, response_headers: PackedStringArray, body: PackedByteArray) -> void:
+		if result==HTTPRequest.RESULT_REDIRECT_LIMIT_REACHED and _hops<max_redirects:
+			var next := TerrainBasemap.redirect_target(_url,response_headers)
+			if not next.is_empty():
+				_hops+=1
+				_url=next
+				if _request()==OK: return
+		finished.emit(result,code,response_headers,body)
 
 ## Tests replace this once so no suite reaches the public tile servers.
 static var default_request_factory: Callable
@@ -242,9 +270,61 @@ func _finished(result: int, code: int, _headers: PackedStringArray, body: Packed
 static func tile_url(template: String, z: int, x: int, y: int) -> String:
 	return template.replace("{z}",str(z)).replace("{x}",str(x)).replace("{y}",str(y))
 
+## Where a redirect may continue: the `Location` among `headers` as a full
+## URL when it stays on the https host that `url` asked; empty otherwise.
+static func redirect_target(url: String, headers: PackedStringArray) -> String:
+	if not TerrainMapConfig.is_https_url(url,REDIRECT_URL_MAX): return ""
+	var location := ""
+	for header in headers:
+		if header.left(9).to_lower()=="location:":
+			location=header.substr(9).strip_edges()
+			break
+	if location.begins_with("/"):
+		# "//host" and "/\host" name another host, not a path.
+		if location.length()>1 and location[1] in ["/","\\"]: return ""
+		location="https://"+url.trim_prefix("https://").get_slice("/",0).get_slice("?",0)+location
+	if not TerrainMapConfig.is_https_url(location,REDIRECT_URL_MAX) or TerrainMapConfig.host(location)!=TerrainMapConfig.host(url): return ""
+	return location
+
+static func _big_endian(body: PackedByteArray, at: int, count: int) -> int:
+	var value := 0
+	for i in count: value=(value<<8)|body[at+i]
+	return value
+
+## The width and height a PNG or JPEG says it has, read from its header
+## without decoding anything; zero when there is no well-formed header.
+static func declared_size(body: PackedByteArray) -> Vector2i:
+	var length := body.size()
+	if length>=24 and body.slice(0,8)==PackedByteArray([137,80,78,71,13,10,26,10]):
+		# The header chunk always comes first: length 13, "IHDR", width, height.
+		if body.slice(8,16)!=PackedByteArray([0,0,0,13,73,72,68,82]): return Vector2i.ZERO
+		return Vector2i(_big_endian(body,16,4),_big_endian(body,20,4))
+	if length<4 or body[0]!=255 or body[1]!=216: return Vector2i.ZERO
+	# JPEG: walk the segments before the image data to the frame header.
+	var at := 2
+	for _step in JPEG_HEADER_STEPS:
+		if at+3>=length or body[at]!=255: return Vector2i.ZERO
+		var marker := body[at+1]
+		if marker==255:
+			at+=1
+			continue
+		var segment := _big_endian(body,at+2,2)
+		if segment<2: return Vector2i.ZERO
+		# Frame headers: C0–CF except the tables C4 and CC and the reserved C8.
+		if marker>=192 and marker<=207 and marker not in [196,200,204]:
+			if segment<7 or at+9>length: return Vector2i.ZERO
+			return Vector2i(_big_endian(body,at+7,2),_big_endian(body,at+5,2))
+		# Only tables, application data and comments may come before it.
+		if not (marker in [196,204,219,221,254] or (marker>=224 and marker<=239)): return Vector2i.ZERO
+		at+=2+segment
+	return Vector2i.ZERO
+
 ## Square PNG or JPEG tiles of the expected size only; anything else is rejected.
+## The size is read from the header first: decoding is what costs memory and
+## time, and a small response can claim a very large image.
 static func decode(body: PackedByteArray, pixels: int = TILE) -> Texture2D:
 	if body.size()<33 or body.size()>MAX_BODY: return null
+	if declared_size(body)!=Vector2i(pixels,pixels): return null
 	var image := Image.new()
 	var error := ERR_FILE_UNRECOGNIZED
 	if body.slice(0,8)==PackedByteArray([137,80,78,71,13,10,26,10]): error=image.load_png_from_buffer(body)

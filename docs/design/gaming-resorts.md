@@ -138,7 +138,12 @@ and a bet bar. The resort's dealer comments on every deal and result.
 | `Escape` | Finish a result's animation; a second Escape leaves the table |
 
 On touch, tap a chip, tap a spot to place it, and tap the action buttons;
-the same buttons work with a mouse. **Rules** shows how the game plays and
+the same buttons work with a mouse. While the table is animating, a click or
+tap on an action button only finishes the animation, as Enter does; press
+again to play. The buttons change the moment a round starts, so a second
+press where Deal or Launch was never stands, hits, draws, cashes out or
+chooses for you: a different button that has just taken the pressed one's
+place ignores presses for the first 0.4 seconds. **Rules** shows how the game plays and
 pays. **Leave table** (or Escape) returns you to the floor, restores the
 city's previous speed and resumes Explore where you stood. Bets you have not
 played yet are simply returned. A round that has started must finish first,
@@ -181,7 +186,10 @@ The six additional resorts offer the shared games and six original signature gam
 
 - **Blackjack:** six decks; the dealer stands on all 17s; a two-card 21 pays
   3 to 2; double on any first two cards; split once (split aces get one card
-  each); no insurance or surrender.
+  each); no insurance or surrender. A double or a split puts up a second
+  stake the size of the bet and the round's total must stay within the
+  maximum, so a bet over half the maximum cannot double or split; the rules
+  sheet says so.
 - **Roulette:** single zero. A number pays 35 to 1; red/black, odd/even and
   low/high pay even money; dozens and columns pay 2 to 1. Bet on as many spots
   as you like; the table maximum applies to the total.
@@ -200,7 +208,9 @@ The six additional resorts offer the shared games and six original signature gam
   money, banker even money less 5%, tie 8 to 1.
 - **Trajectory:** launch, watch the multiplier climb, and cash out before the
   engine burns out. Cashing out returns the bet times the multiplier; burning
-  out loses it. You may set an automatic cash-out target before launch.
+  out loses it. You may set an automatic cash-out target before launch. The
+  climb stops at 1,000×, where any launch still flying burns out, so the
+  highest cash-out is 999.99×.
 
 ## The six original signature games
 

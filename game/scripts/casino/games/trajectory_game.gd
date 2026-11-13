@@ -11,7 +11,9 @@
 ## Spot: `stake`. Actions: `launch` (commits; optional {auto: float} cash-out
 ## target), then `advance` {multiplier} as the display climbs (settles with a
 ## crash once it reaches M) and `cash_out` {multiplier}. Reported multipliers
-## must be finite, at least 1.00 and never fall. Events: `launch` {auto},
+## must be finite, at least 1.00 and never fall; one at or past the highest
+## multiplier on the board is a burn-out, so every launch ends by then.
+## Events: `launch` {auto},
 ## `cash_out` {multiplier, seconds}, `crash` {multiplier, seconds}, `settle`.
 class_name TrajectoryGame
 extends CasinoGame
@@ -116,9 +118,11 @@ func _act(action: StringName, payload: Dictionary) -> Dictionary:
 			return _accept()
 		ADVANCE, CASH_OUT:
 			var m := float(payload.get("multiplier", -1.0))
-			if not is_finite(m) or m < 1.0 or m > CasinoParams.TRAJECTORY_MAX_MULTIPLIER:
+			if not is_finite(m) or m < 1.0:
 				return _refuse(CasinoLines.BAD_MULTIPLIER)
-			m = hundredths(m)
+			# No burn-out is drawn above the highest multiplier, so a report at
+			# or past it has reached the burn-out whatever was drawn.
+			m = hundredths(minf(m, CasinoParams.TRAJECTORY_MAX_MULTIPLIER))
 			if m < _current:
 				return _refuse(CasinoLines.MULTIPLIER_FALLS)
 			if m >= _burn_out:

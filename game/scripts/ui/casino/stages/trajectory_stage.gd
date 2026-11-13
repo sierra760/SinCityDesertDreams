@@ -119,7 +119,8 @@ func _advance_clock(delta: float) -> void:
 	if clock_held:
 		return
 	flight_seconds += delta
-	multiplier = TrajectoryGame.multiplier_at(flight_seconds)
+	# The climb stops at the highest multiplier, where the game burns out.
+	multiplier = minf(TrajectoryGame.multiplier_at(flight_seconds), CasinoParams.TRAJECTORY_MAX_MULTIPLIER)
 	if multiplier >= _reported + 0.0099:
 		_reported = multiplier
 		stage_action.emit(&"advance", {"multiplier": multiplier})
