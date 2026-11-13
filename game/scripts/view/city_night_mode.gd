@@ -14,6 +14,7 @@ extends Node
 const Globals := preload("res://scripts/view/city_night_globals.gd")
 const Signatures := preload("res://scripts/view/casino_night_signatures.gd")
 const SpheroidShow := preload("res://scripts/view/spheroid_night_show.gd")
+const DriveInShow := preload("res://scripts/view/drive_in_night_show.gd")
 const FADE_SECONDS := 1.5
 
 ## Material roles, found by material name in the authored models.
@@ -75,6 +76,8 @@ var _applied_amount := -1.0
 ## Neon, ground wash and searchlights on casinos while it is night.
 var casinos: CityCasinoLights3D
 var spheroid: Node3D
+## Films and parked cars at drive-in theaters while it is night.
+var drive_ins: DriveInNightShow
 var _casinos_dirty := false
 
 static var _window_texture: ImageTexture
@@ -135,6 +138,7 @@ func _process(delta: float) -> void:
 		# a casino or landmark lot itself rebuilds its lights.
 		_ensure_casinos().refresh()
 		_ensure_spheroid().refresh()
+		_ensure_drive_ins().refresh()
 	# Mods and Explore entry replace the camera environment; restate night.
 	var explore := _explore_environment()
 	if explore != null and explore != _applied_explore and (amount > 0.0 or _applied_explore != null):
@@ -155,12 +159,14 @@ func _set_amount(value: float) -> void:
 	if entering:
 		_ensure_casinos().rebuild()
 		_ensure_spheroid().rebuild()
+		_ensure_drive_ins().rebuild()
 	if amount == 0.0:
 		_restore_all()
 		_watch(false)
 		_casinos_dirty = false
 		if casinos != null and is_instance_valid(casinos): casinos.clear()
 		if is_instance_valid(spheroid): spheroid.clear()
+		if is_instance_valid(drive_ins): drive_ins.clear()
 	_applied_amount = amount
 
 ## Night-related lighting factors for RenderQuality.
@@ -189,6 +195,15 @@ func _ensure_spheroid() -> Node3D:
 		var world := _world()
 		if world != null: world.add_child(spheroid)
 	return spheroid
+
+func _ensure_drive_ins() -> DriveInNightShow:
+	if not is_instance_valid(drive_ins):
+		drive_ins = DriveInShow.new()
+		drive_ins.name = "DriveInNightShow"
+		drive_ins.bind(_view)
+		var world := _world()
+		if world != null: world.add_child(drive_ins)
+	return drive_ins
 
 func _world() -> Node:
 	return _view.world if _view != null and "world" in _view else null
@@ -289,7 +304,7 @@ func _watch(on: bool) -> void:
 
 func _node_added(node: Node) -> void:
 	if node is GeometryInstance3D: _pending.append(node)
-	elif node.has_meta("code") and (Signatures.has(int(node.get_meta("code"))) or int(node.get_meta("code"))==Buildings.NEON_DOME): _mark_casinos()
+	elif node.has_meta("code") and (Signatures.has(int(node.get_meta("code"))) or int(node.get_meta("code")) in [Buildings.NEON_DOME,DriveInShow.code()]): _mark_casinos()
 	set_process(true)
 
 func _prepare_pending() -> void:

@@ -1,0 +1,20 @@
+{
+  "films": {
+    "the-great-train-robbery.ogv": {
+      "bytes": 12411218,
+      "credits": "Written, produced, directed and photographed by Edwin S. Porter (1870-1941) for the Edison Manufacturing Company",
+      "encoding": "decoded to grayscale frames by ffmpeg and re-encoded with Godot's movie writer by tools/build_drive_in_film.py; picture unchanged apart from size and frame rate; silent, as released",
+      "file": "the-great-train-robbery.ogv",
+      "fps": 18,
+      "height": 240,
+      "sha256": "e490cd1c99aa3ce9f58a35d9bd9341305f440dbf8c3351ba65e46b7f0a426054",
+      "source": "https://archive.org/details/TheGreatTrainRobbery1903_201307",
+      "source_file": "The Great Train Robbery (1903).ogv",
+      "source_sha256": "45f21c8920a3083df92c78b53b7ed0fc8aabdb7ed61a653ca044f367c3c0f123",
+      "status": "Public domain worldwide: published in 1903; its maker died in 1941",
+      "title": "The Great Train Robbery",
+      "width": 320,
+      "year": 1903
+    }
+  }
+}

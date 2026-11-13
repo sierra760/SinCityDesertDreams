@@ -35,6 +35,9 @@ also shown under License and Credits.
 Real-world terrain and map data credits (Mapzen/Joerd terrain tiles, ESA
 WorldCover 2021 under CC BY 4.0, OpenStreetMap contributors under ODbL 1.0)
 are bundled in data/real_world_terrain_notices.txt.
+The drive-in theaters show The Great Train Robbery (1903), directed by
+Edwin S. Porter for the Edison Manufacturing Company, which is in the public
+domain.
 Player saves belong to their players. No third-party game content or trademark
 rights are granted. See LICENSING.md in the source repository for the full
 scope.

@@ -64,12 +64,16 @@ static func index_lot(lot: Node, cells: Dictionary, add: bool) -> void:
 ## Longest half-body plus reach is under one tile. Exactly nine cell lookups,
 ## independent of city size, service population and neighboring ordinary lots.
 static func nearest(buildings: CityBuildings3D, feet: Vector3, reach: float) -> Dictionary:
+	return nearest_in(buildings._parking_cells,feet,reach)
+
+## The same search over any slot index with this layout (Vehicle, Body).
+static func nearest_in(cells: Dictionary, feet: Vector3, reach: float) -> Dictionary:
 	var cell := Vector2i(floori(feet.x),floori(feet.z))
 	var best: Dictionary = {}
-	if buildings._parking_cells.is_empty(): return best
+	if cells.is_empty(): return best
 	for y in range(cell.y-1,cell.y+2):
 		for x in range(cell.x-1,cell.x+2):
-			for slot: Node3D in buildings._parking_cells.get(Vector2i(x,y),[]):
+			for slot: Node3D in cells.get(Vector2i(x,y),[]):
 				if slot.get_meta("claimed",false) or not slot.is_visible_in_tree(): continue
 				var collider := slot.get_node("Body").get_child(0) as CollisionShape3D
 				var size: Vector3 = (collider.shape as BoxShape3D).size

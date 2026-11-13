@@ -114,6 +114,12 @@ under `game/assets/fonts/`. Godot and its exported
 iOS template code are not relicensed by this project; retain their notices and
 those of their dependencies when distributing them.
 
+The film on the drive-in theater screens, The Great Train Robbery (1903) by
+Edwin S. Porter for the Edison Manufacturing Company, is in the public domain.
+It is not covered by this project's asset license. The re-encoded copy in
+`game/assets/drive-in/` and its source are recorded in
+`game/assets/drive-in/provenance.json`.
+
 Real-world terrain data keeps its providers' terms. Elevation comes from the
 Mapzen/Joerd terrain tiles, which credit USGS, NOAA and other national
 providers; water comes from ESA WorldCover 2021 under CC BY 4.0. The terrain

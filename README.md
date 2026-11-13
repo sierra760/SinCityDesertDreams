@@ -13,7 +13,9 @@ It runs on Godot 4.7.2 and is written in GDScript.
 
 Build and Explore show the same city, by day or under a full desert moon.
 **View → Night Mode** (`N`) fades the city to night: lit windows, neon signs,
-casino searchlights, street lamps and headlights.
+casino searchlights, street lamps and headlights. Drive-in theaters fill with
+parked cars and show The Great Train Robbery (1903); in Explore you can steal
+any of those cars.
 
 **Build:** the aerial view with the city tools.
 
@@ -82,7 +84,7 @@ The score, interface sounds and effects are made for this game; see `docs/design
 - Desert Transit rail halls and subway stations with furnished platforms,
   lobbies and elevators.
 - A full-moon night mode with lit windows, neon, searchlights, street lamps
-  and vehicle lights.
+  and vehicle lights, and a public domain Western at every drive-in.
 - A warm ivory, teal and brass interface with BioRhyme lettering.
 - **View → Street Names…** names road segments. The names appear on street
   blades and highway exit signs in Explore, and nearby train and subway

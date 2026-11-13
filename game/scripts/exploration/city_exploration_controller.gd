@@ -535,6 +535,7 @@ func _clear_actors() -> void:
 	if is_instance_valid(transit_service): transit_service.clear(false)
 	if is_instance_valid(resort_service): resort_service.clear()
 	if is_instance_valid(view): CityServiceParking.release(_service_claims,view.mesh_batches)
+	if _drive_ins() != null: _drive_ins().release_claims()
 	_casino_table = {}
 	for actor: CharacterBody3D in _actors():
 		if is_instance_valid(actor): actor.free()
@@ -1021,6 +1022,12 @@ func _vehicle_in_reach() -> Dictionary:
 	if not service.is_empty() and (best.is_empty() or float(service.gap) < gap):
 		best = service
 		gap = float(service.gap)
+	var drive_ins := _drive_ins()
+	if drive_ins != null:
+		var parked := drive_ins.nearest(feet,gap)
+		if not parked.is_empty() and (best.is_empty() or float(parked.gap) < gap):
+			best = parked
+			gap = float(parked.gap)
 	var traffic: Node3D = view.get("traffic") if is_instance_valid(view) else null
 	if traffic != null and traffic.has_method("nearest_vehicle_by_body"):
 		var ambient: Dictionary = traffic.nearest_vehicle_by_body(feet,gap)
@@ -1050,17 +1057,29 @@ func _enter_vehicle(target: Dictionary) -> bool:
 	_publish_status()
 	return true
 
+## Night show at drive-in theaters, while it exists.
+func _drive_ins() -> DriveInNightShow:
+	if not is_instance_valid(view) or not ("night" in view) or view.night == null: return null
+	return view.night.drive_ins if is_instance_valid(view.night.drive_ins) else null
+
+## A service vehicle at its station, or a moviegoer's car at a drive-in.
+func _set_parked_claimed(slot: Node3D, claimed: bool) -> void:
+	if slot.get_meta("drive_in",false):
+		var drive_ins := _drive_ins()
+		if drive_ins != null: drive_ins.set_claimed(slot,claimed)
+	else: CityServiceParking.set_claimed(slot,view.mesh_batches,claimed)
+
 func _board_service(slot: Node3D) -> bool:
 	if not is_instance_valid(slot) or slot.get_meta("claimed",false): return false
 	var at := slot.global_transform
 	# The static body must leave before the normal support/clearance query.
-	CityServiceParking.set_claimed(slot,view.mesh_batches,true)
+	_set_parked_claimed(slot,true)
 	var shape := BoxShape3D.new()
 	shape.size = CityTrafficCatalog.dimensions(slot.get_meta("kind"))
 	# The walker boarding it may be pressed against the vehicle.
 	var pose := _house_pose(at,shape,pedestrian)
 	if pose.is_empty():
-		CityServiceParking.set_claimed(slot,view.mesh_batches,false)
+		_set_parked_claimed(slot,false)
 		_message = "This parking space is obstructed."
 		_publish_status()
 		return false
@@ -1069,7 +1088,10 @@ func _board_service(slot: Node3D) -> bool:
 	actor.route_graph = view.traffic.graph
 	actor.driveway = _house
 	owned_vehicles.append(actor)
-	_service_claims.append(CityServiceParking.claim(slot,actor,view.mesh_batches))
+	if slot.get_meta("drive_in",false):
+		# The space stays empty until Explore ends; the car may leave the lot.
+		actor.service_driveway = _drive_ins().driveway(slot)
+	else: _service_claims.append(CityServiceParking.claim(slot,actor,view.mesh_batches))
 	_occupy(actor)
 	return true
 
@@ -1186,6 +1208,7 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 	if inside_resort: prompt = resort_service.prompt(pedestrian.global_position)
 	elif vehicle.has("actor") or bool(vehicle.get("traffic",{}).get("mod",false)): prompt = "F to enter nearby vehicle"
 	elif vehicle.has("traffic"): prompt = "F to enter "+CityTrafficCatalog.display_name(StringName(vehicle.traffic.kind))
+	elif vehicle.has("service") and vehicle.service.get_meta("drive_in",false): prompt = "F to steal the "+CityTrafficCatalog.display_name(vehicle.service.get_meta("kind"))
 	elif vehicle.has("service"): prompt = "F to enter "+CityTrafficCatalog.display_name(vehicle.service.get_meta("kind"))
 	elif not resort_door.is_empty(): prompt = CasinoLines.enter_prompt(ResortThemes.resort_name(resort_door.key))
 	elif mode == 0:
