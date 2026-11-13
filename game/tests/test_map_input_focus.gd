@@ -82,6 +82,15 @@ func _choose_with_mouse(tool: int) -> void:
 	await process_frame
 
 
+## A real click: the press and the release arrive on different frames.
+func _held_click(at: Vector2) -> void:
+	_move(at)
+	_button(at, MOUSE_BUTTON_LEFT, true)
+	for i in 3: await process_frame
+	_button(at, MOUSE_BUTTON_LEFT, false)
+	for i in 2: await process_frame
+
+
 func _chrome_focus() -> Control:
 	var focused := root.gui_get_focus_owner()
 	return focused if focused != null and host.toolbar.is_ancestor_of(focused) else null
@@ -118,6 +127,53 @@ func test_pointer_reaches_the_map_after_a_mouse_tool_choice() -> void:
 	root.push_input(drag)
 	_button(MAP_POINT + Vector2(40, 0), MOUSE_BUTTON_MIDDLE, false)
 	check(not view.center.is_equal_approx(center), "a middle drag pans")
+
+
+func test_a_click_held_across_frames_still_chooses_the_tool() -> void:
+	var button := _tool_button(Tools.Kind.ROAD)
+	await process_frame
+	await _held_click(button.get_global_rect().get_center())
+	check_eq(host.tool, Tools.Kind.ROAD, "a press and a later release choose the tool")
+	check(_chrome_focus() == null, "the toolbar gives the keyboard back once the click is over")
+	var size := host.city_view_3d.camera_size
+	_wheel(MAP_POINT)
+	check(host.city_view_3d.camera_size < size, "the wheel still zooms afterwards")
+	button = _tool_button(Tools.Kind.RAIL)
+	await process_frame
+	await _held_click(button.get_global_rect().get_center())
+	check_eq(host.tool, Tools.Kind.RAIL, "a second held click chooses another tool")
+
+
+func test_a_click_held_across_frames_founds_the_city() -> void:
+	host.session.begin_editing(flat_city(20000), {})
+	for i in 4: await process_frame
+	check_eq(host.stage, GameHost.Stage.EDITING, "the terrain editor is open")
+	var found := host.toolbar.found_button
+	check(found.is_visible_in_tree(), "Found City is on show")
+	var requests := [0]
+	host.toolbar.found_requested.connect(func() -> void: requests[0] += 1)
+	await process_frame
+	await _held_click(found.get_global_rect().get_center())
+	check_eq(requests[0], 1, "a press and a later release on Found City ask to found the city")
+	check(_chrome_focus() == null, "Found City gives the keyboard back once the click is over")
+
+
+func test_a_finger_held_across_frames_still_chooses_the_tool() -> void:
+	var button := _tool_button(Tools.Kind.ROAD)
+	await process_frame
+	var at := button.get_global_rect().get_center()
+	# A touch screen delivers the touch and the mouse press it stands for.
+	for pressed: bool in [true, false]:
+		var touch := InputEventScreenTouch.new()
+		touch.index = 0
+		touch.position = at
+		touch.pressed = pressed
+		root.push_input(touch)
+		if pressed: _move(at)
+		_button(at, MOUSE_BUTTON_LEFT, pressed)
+		for i in 3: await process_frame
+	check_eq(host.tool, Tools.Kind.ROAD, "a touch and a later lift choose the tool")
+	check(_chrome_focus() == null, "the toolbar gives the keyboard back once the finger lifts")
 
 
 func test_city_keys_work_after_a_mouse_tool_choice() -> void:

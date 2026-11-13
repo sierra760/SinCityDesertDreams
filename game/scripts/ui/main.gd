@@ -139,6 +139,10 @@ var _review_open := false
 ## True once the player presses with the mouse or a finger; Tab returns to
 ## keyboard navigation. Decides whether the city's own controls keep focus.
 var _pointer_navigation := false
+## The mouse buttons and fingers that are down now. A control keeps the focus
+## it took until they lift: a button that loses focus mid-press drops the click.
+var _mouse_held := false
+var _touches_held: Dictionary = {}
 
 
 func _init() -> void:
@@ -865,12 +869,26 @@ func _input(event: InputEvent) -> void:
 
 ## Remember whether the player is pointing or navigating with the keyboard.
 func _note_navigation_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch and event.pressed:
-		_pointer_navigation = true
-	elif event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
-		_pointer_navigation = true
+	var was_held := _pointer_held()
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_pointer_navigation = true
+			_touches_held[event.index] = true
+		else:
+			_touches_held.erase(event.index)
+	elif event is InputEventMouse:
+		_mouse_held = (event.button_mask & (MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE)) != 0
+		if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+			_pointer_navigation = true
+			_mouse_held = true
 	elif event is InputEventKey and event.pressed and (event.is_action(&"ui_focus_next") or event.is_action(&"ui_focus_prev")):
 		_pointer_navigation = false
+	# The press is over: the control it landed on has acted and can let go.
+	if was_held and not _pointer_held(): _release_pointer_focus.call_deferred()
+
+
+func _pointer_held() -> bool:
+	return _mouse_held or not _touches_held.is_empty()
 
 
 ## Tab with nothing focused starts keyboard navigation at the tools.
@@ -888,19 +906,21 @@ func _is_city_chrome(control: Control) -> bool:
 	return false
 
 
-## A press with the mouse or a finger acts at once and leaves the keyboard
-## with the city, so its keys (pause, rotate, zoom, pan) keep working: one of
-## the city's own controls that takes focus while the player is pointing gives
-## it up again. Focus reached with Tab stays for keyboard navigation.
+## A press with the mouse or a finger leaves the keyboard with the city, so
+## its keys (pause, rotate, zoom, pan) keep working: one of the city's own
+## controls that takes focus while the player is pointing gives it up again
+## once the press is over. It keeps focus while the button or finger is down,
+## because a button that loses focus mid-press never reports the click. Focus
+## reached with Tab stays for keyboard navigation.
 func _on_gui_focus_changed(control: Control) -> void:
-	if _pointer_navigation and _is_city_chrome(control):
-		_release_pointer_focus.call_deferred(weakref(control))
+	if _pointer_navigation and not _pointer_held() and _is_city_chrome(control):
+		_release_pointer_focus.call_deferred()
 
 
-func _release_pointer_focus(reference: WeakRef) -> void:
-	var control := reference.get_ref() as Control
-	if not _pointer_navigation or not is_instance_valid(control) or not is_inside_tree(): return
-	if get_viewport().gui_get_focus_owner() == control: control.release_focus()
+func _release_pointer_focus() -> void:
+	if not _pointer_navigation or _pointer_held() or not is_inside_tree(): return
+	var control := get_viewport().gui_get_focus_owner()
+	if _is_city_chrome(control): control.release_focus()
 
 
 ## Map controls retain their close shortcut; other focused controls own typing.
