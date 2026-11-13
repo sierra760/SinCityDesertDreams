@@ -235,9 +235,14 @@ func _structure_keys() -> Array[String]:
 	keys.sort()
 	return keys
 
+## Open nodes record the straight diagonal the road view draws through them:
+## every bend, and a junction whose bends confirm a diagonal (0 otherwise).
 func _add_node(cell: Vector2i, channel: StringName, mask: int) -> void:
 	var key := _node_key(cell,channel)
-	_nodes[key] = {"key":key,"cell":cell,"channel":channel,"mask":mask,"links":[],"ramp":false}
+	var diagonal := 0
+	if channel == &"open":
+		diagonal = mask if mask in [3,6,12,9] else CityNetworks3D.road_diagonal_mask(_graph.city,cell,mask)
+	_nodes[key] = {"key":key,"cell":cell,"channel":channel,"mask":mask,"diagonal":diagonal,"links":[],"ramp":false}
 
 ## The rendered road point at `offset` within a node's cell.
 func node_point(node: Dictionary, offset: Vector2 = Vector2(.5,.5)) -> Vector3:
@@ -248,18 +253,26 @@ func node_point(node: Dictionary, offset: Vector2 = Vector2(.5,.5)) -> Vector3:
 		return Vector3(cell.x+offset.x,lerpf(p.floor_start,p.floor_end,depth),cell.y+offset.y)
 	return _graph.point(cell,&"road",offset)
 
-## Each half follows the rendered bend's centerline and the exact surface grade.
+## Midpoint of the straight diagonal between a bend's two edge midpoints.
+const DIAGONAL_MIDPOINTS := {3:Vector2(.75,.25),6:Vector2(.75,.75),12:Vector2(.25,.75),9:Vector2(.25,.25)}
+
+## Each half follows the rendered centerline and the exact surface grade.
+## Bends and confirmed diagonal junctions are drawn as one straight diagonal
+## between edge midpoints (CityNetworks3D.diagonal_strip); a junction's side
+## arm meets that diagonal square-on through the tile center.
 func _half_points(node: Dictionary, direction: Vector2i) -> PackedVector3Array:
 	var result := PackedVector3Array()
 	var edge := Vector2(.5,.5) + Vector2(direction)*.5
-	var mask := int(node.mask)
-	if node.channel == &"open" and mask in [3,6,12,9]:
-		var pivot: Vector2 = {3:Vector2(1,0),6:Vector2(1,1),12:Vector2(0,1),9:Vector2(0,0)}[mask]
-		var center := (Vector2(.5,.5)-pivot).normalized()*.5
-		var angle := center.angle_to(edge-pivot)
-		for i: int in 5: result.append(node_point(node,pivot+center.rotated(angle*i/4.0)))
-	else:
-		for i: int in 5: result.append(node_point(node,Vector2(.5,.5).lerp(edge,i/4.0)))
+	var diagonal := int(node.get("diagonal",0))
+	if diagonal != 0:
+		var middle: Vector2 = DIAGONAL_MIDPOINTS[diagonal]
+		if diagonal & (1 << DIRECTIONS.find(direction)):
+			for i: int in 5: result.append(node_point(node,middle.lerp(edge,i/4.0)))
+			return result
+		result.append(node_point(node,middle))
+		for i: int in 4: result.append(node_point(node,Vector2(.5,.5).lerp(edge,i/3.0)))
+		return result
+	for i: int in 5: result.append(node_point(node,Vector2(.5,.5).lerp(edge,i/4.0)))
 	return result
 
 func _add_link(a_key: String, b_key: String, rank: int) -> void:
@@ -566,6 +579,15 @@ func _rebuild_incremental(city: City, structural: City, previous: Array, state: 
 		var bores := Tunnels.profiles(structural)
 		CityTrafficGraph.diff_keys(_bores, bores, dirty)
 		_bores = bores
+	# A junction's diagonal is confirmed by bends up to three cells away
+	# (CityNetworks3D.road_diagonal_mask), so a code change can redraw the
+	# centerline of a junction that did not change itself.
+	for at: int in changed:
+		var origin := Vector2i(at % City.WIDTH, at / City.WIDTH)
+		for dy: int in range(-3,4):
+			for dx: int in range(-3+absi(dy),4-absi(dy)):
+				var key := _node_key(origin+Vector2i(dx,dy),&"open")
+				if _nodes.has(key) and int(_nodes[key].mask) in [7,11,13,14,15]: dirty[origin+Vector2i(dx,dy)] = true
 	if dirty.is_empty(): return 0
 	var order := PackedInt32Array()
 	for cell: Vector2i in dirty:
