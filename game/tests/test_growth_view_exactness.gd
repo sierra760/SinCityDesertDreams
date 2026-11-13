@@ -143,15 +143,36 @@ static func _subtree(top: Node) -> Array:
 		if node is CollisionObject3D: row.append_array([node.collision_layer, node.collision_mask])
 		if node is CollisionShape3D: row.append(_shape(node.shape))
 		for meta: StringName in node.get_meta_list():
-			var value: Variant = node.get_meta(meta)
-			if value is WeakRef:
-				var target: Variant = value.get_ref()
-				value = ["weakref", _index_path(top, target) if target is Node else str(target)]
-			elif value is Object: value = ["object", value.get_class()]
-			row.append([meta, value])
+			row.append([meta, _meta_value(top, node.get_meta(meta))])
 		out.append(row)
 		for i: int in range(node.get_child_count() - 1, -1, -1): stack.append(node.get_child(i))
 	return out
+
+
+## A meta value with every object in it, however deeply nested, recorded by
+## kind. An object's identity differs from run to run; its kind does not.
+static func _meta_value(top: Node, value: Variant) -> Variant:
+	if value is WeakRef:
+		var target: Variant = value.get_ref()
+		return ["weakref", _index_path(top, target) if target is Node else str(target)]
+	if value is Object: return ["object", value.get_class()]
+	if value is Dictionary:
+		var out := {}
+		var replaced := false
+		for key: Variant in value:
+			var item: Variant = _meta_value(top, value[key])
+			replaced = replaced or not is_same(item, value[key])
+			out[key] = item
+		return out if replaced else value
+	if value is Array:
+		var out: Array = []
+		var replaced := false
+		for entry: Variant in value:
+			var item: Variant = _meta_value(top, entry)
+			replaced = replaced or not is_same(item, entry)
+			out.append(item)
+		return out if replaced else value
+	return value
 
 
 func _marinas(name: String, city: City, catalog: CityModelCatalog) -> void:

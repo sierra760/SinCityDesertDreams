@@ -48,9 +48,9 @@ const HASHES := {
 	"growth_lots/Grant Pass - Soledad": "641fcd2d0fb8d06e43c8724d6e6e29ed6dc1db2f62f8721d5ca3329df5400a52",
 	"growth_lots/Lawndale": "efddd3755d6c27ec6199a5f940985d0703f5b1ed984cf04623fa4a9cf990aba1",
 	"growth_lots/Salton Shores": "19c0580a659d90193b5e2e60fdc27d2dd1925698b621b1a17d12b5258fc0258e",
-	"growth_view/La Presa": "1944d04505468f14168bfd25c79ec50cbddd028afd763e1381acf6532c8a12bf",
-	"growth_view/Foothills Ranch": "1c93981ca3df88312d039b67f3c4d977246f96315b171b7ee5753a20a9b239c0",
-	"growth_view/Valle del Mar": "0e6e4d1db9d5e175e15488e50b0bde82b7fa492fe64f9a04c02e86fcd64daf96",
+	"growth_view/La Presa": "88295c7489b10ff78859fc1f915736b618a7e93359575b3ed47fbb548fc53056",
+	"growth_view/Foothills Ranch": "9c0c0fcd9e2fb0e45a47b5baba5c74d53feaf5a0532e9eccf0c6047e7f2e6fca",
+	"growth_view/Valle del Mar": "56fe98aba7fa48a0fc30bd92d12695967a7583ca22d613c0ea5d3aacc1a8f525",
 	"growth_batcher/synthetic": "8dcae3a61c329ba42deaede987e93462214ae1def30a8021b45d84d5a1d2e365",
 }
 
