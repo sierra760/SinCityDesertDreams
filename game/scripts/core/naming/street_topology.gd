@@ -110,6 +110,23 @@ static func link_key(a: Vector2i, a_channel: StringName, b: Vector2i, b_channel:
 		return _node_key(b,b_channel) + ">" + _node_key(a,a_channel)
 	return _node_key(a,a_channel) + ">" + _node_key(b,b_channel)
 
+## The city as the projection reads it: `city` itself, or a copy without its
+## temporary flood. The copy the last rebuild projected is returned while every
+## layer that ground, network and station readers consult still equals the
+## city's; otherwise a new copy is made.
+func flood_free(city: City) -> City:
+	if city == null or city.flood_overlay.is_empty(): return city
+	var held: City = _graph.city if _graph != null else null
+	if held != null and held != city and is_bound_to(city) and held.flood_overlay.is_empty() \
+			and held.terrain_surface == city.terrain_surface and held.sea_level == city.sea_level and held.rotation == city.rotation \
+			and held.terrain.data == city.terrain.data and held.altitude.data == city.altitude.data \
+			and held.building.data == city.building.data and held.zone.data == city.zone.data \
+			and held.flags.data == city.flags.data and held.underground.data == city.underground.data:
+		return held
+	var copy := city.duplicate_city()
+	copy.flood_overlay.clear()
+	return copy
+
 ## Returns whether the City binding, links, ramp terminals, or departures changed.
 ## Same-City geometry alone preserves selection tokens; points always refresh.
 func rebuild(city: City) -> bool:
@@ -124,7 +141,8 @@ func rebuild(city: City) -> bool:
 	if not binding_changed and state==_projection_state:
 		# Nothing relevant changed, so cached routes and corners stay valid. Point
 		# the graph at the flood-free copy so it never reads a flooded city.
-		_graph.city = structural
+		if _graph.city == null: _graph.city = structural
+		else: _graph.carry_on(structural)
 		return false
 	var previous_state := _projection_state
 	_projection_state = state
@@ -520,11 +538,14 @@ static func _merge_ranked(table: Dictionary, added: int, rank: Callable) -> Dict
 ## complete scan's order. Returns -1 to rebuild completely, -2 to rebuild
 ## completely with the already current graph, else whether the structure changed.
 func _rebuild_incremental(city: City, structural: City, previous: Array, state: Array) -> int:
-	if city == null or structural != city or _graph == null or _graph.city != city: return -1
+	if city == null or structural == null or _graph == null or _graph.city == null: return -1
 	if previous.size() != state.size() or state.size() != 7: return -1
 	for i: int in [0, 1, 5, 6]:
 		if previous[i] != state[i]: return -1
 	if not _owns_projection: _detach_projection()
+	# While the city is flooded the graph reads a fresh flood-free copy each
+	# time; it continues from the previous copy as it would on the city itself.
+	_graph.carry_on(structural)
 	_graph.refresh()
 	if _graph.last_change == CityTrafficGraph.CHANGE_FULL: return -2
 	var before_codes: PackedInt32Array = previous[2]

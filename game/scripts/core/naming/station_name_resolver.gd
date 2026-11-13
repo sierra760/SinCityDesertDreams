@@ -49,8 +49,8 @@ static func _stations(city: City) -> Array[Vector2i]:
 		anchors.append(anchor)
 	return anchors
 
-static func _candidate(city: City, topology: StreetTopology, anchor: Vector2i, metadata: Dictionary) -> Dictionary:
-	var neighbors := Access.neighbors(city,topology,anchor,metadata)
+static func _candidate(city: City, topology: StreetTopology, anchor: Vector2i, metadata: Dictionary, surface: City) -> Dictionary:
+	var neighbors := Access.neighbors(city,topology,anchor,metadata,surface)
 	var junctions: Dictionary = {}
 	for approach: Dictionary in neighbors:
 		if int(approach.degree)<3: continue
@@ -84,23 +84,27 @@ static func _record(candidate: Dictionary, suffix: int) -> Dictionary:
 	return {"source_street_ids":candidate.ids.duplicate(),"base_name":candidate.base,"suffix":suffix,"display_name":candidate.base if suffix==0 else candidate.base+" "+str(suffix)}
 
 static func reconcile(city: City, topology: StreetTopology, metadata: Dictionary) -> Dictionary:
-	# Station access samples the same ground repeatedly; one read-only sampling
-	# scope spans this synchronous call (an open scope for this city is reused).
+	# Every station reads the ground without its temporary flood: one view
+	# serves the whole pass. Station access samples the same ground repeatedly;
+	# one read-only sampling scope over that view spans this synchronous call
+	# (an open scope for it is reused).
+	var surface: City = city
+	if city != null and topology != null and topology.is_bound_to(city): surface = topology.flood_free(city)
 	var sampling: Dictionary = {}
-	if city != null and not CityGeometry3D.is_sampling_ground(city):
-		sampling = CityGeometry3D.begin_ground_sampling(city)
-	var result := _reconcile(city,topology,metadata)
+	if surface != null and not CityGeometry3D.is_sampling_ground(surface):
+		sampling = CityGeometry3D.begin_ground_sampling(surface)
+	var result := _reconcile(city,topology,metadata,surface)
 	if not sampling.is_empty(): CityGeometry3D.end_ground_sampling(sampling)
 	return result
 
-static func _reconcile(city: City, topology: StreetTopology, metadata: Dictionary) -> Dictionary:
+static func _reconcile(city: City, topology: StreetTopology, metadata: Dictionary, surface: City) -> Dictionary:
 	if city==null or topology==null or not topology.is_bound_to(city): return {"ok":false,"error":"Station naming requires the current city topology.","station_auto":{},"changed_anchors":[]}
 	var anchors := _stations(city)
 	var candidates: Dictionary = {}
 	var reserved: Dictionary = {}
 	var automatic: Dictionary = {}
 	for anchor: Vector2i in anchors:
-		var candidate := _candidate(city,topology,anchor,metadata)
+		var candidate := _candidate(city,topology,anchor,metadata,surface)
 		var custom := String(city.facilities.get(anchor,{}).get("name",""))
 		if not custom.is_empty(): reserved[_comparison(custom)] = true
 		elif candidate.ids.is_empty(): reserved[_comparison(_fallback(anchor,city.building.atv(anchor)==Buildings.SUBWAY_STATION))] = true

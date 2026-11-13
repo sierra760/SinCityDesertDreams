@@ -94,6 +94,17 @@ func bind_city(value: City) -> void:
 		developed = 0
 	refresh()
 
+## Continue this projection on `value`, another instance carrying the same
+## map: a flood-free copy of the projected city taken after later edits. The
+## next refresh compares its layers with the projected ones exactly as it
+## would for the previous instance, so the result does not depend on which
+## instance carries them.
+func carry_on(value: City) -> void:
+	if value == null or city == null or value == city: return
+	if _state_city_id == city.get_instance_id(): _state_city_id = value.get_instance_id()
+	city = value
+
+
 func refresh() -> bool:
 	last_change = CHANGE_NONE
 	if city == null: return false
@@ -724,17 +735,20 @@ static func _merge_row_major(nodes: Dictionary, added: int) -> Dictionary:
 	return merged
 
 
-## Patch the projection after construction, when the current state came from
-## this City and every terrain and water input is unchanged. Node entries are
-## projected again only within one cell of a changed code or axis bit, bridge
-## profile or highway route, and neighbor lists within one more cell: no other
-## entry, point or connection reads those inputs. Everything else is kept and
-## every table keeps the order a complete projection produces, so the result
-## equals a complete projection of the same raw inputs.
+## Patch the projection after construction or a change of flooded tiles, when
+## the current state came from this City and every height, terrain code and
+## lattice vertex is unchanged. Node entries are projected again only within
+## one cell of a changed code or axis bit, bridge profile, highway route or
+## flood-moved point (see _flood_seeds), and neighbor lists within one more
+## cell: no other entry, point or connection reads those inputs. Everything
+## else is kept and every table keeps the order a complete projection
+## produces, so the result equals a complete projection of the same raw inputs.
 func _refresh_structure(raw: Array) -> bool:
 	if _state_city_id != city.get_instance_id() or _state_inputs.size() != raw.size() or _nodes.size() != 4: return false
-	for i: int in [0, 1, 6, 7, 8]:
+	for i: int in [0, 1, 6, 8]:
 		if _state_inputs[i] != raw[i]: return false
+	var flood_seeds: Dictionary = {}
+	if not _flood_seeds(_state_inputs[7], raw[7], flood_seeds): return false
 	var old_codes: PackedInt32Array = _state_inputs[2]
 	var codes: PackedInt32Array = raw[2]
 	var old_flags: PackedByteArray = _state_inputs[3]
@@ -756,6 +770,11 @@ func _refresh_structure(raw: Array) -> bool:
 		var x := at % City.WIDTH
 		var y := at / City.WIDTH
 		if kinds[old_codes[at]] != 0 or kinds[codes[at]] != 0 or city.is_water(x, y): seeds[Vector2i(x, y)] = true
+	# Sampled ground and highway heights around a changed flood tile are stale.
+	for cell: Vector2i in flood_seeds:
+		seeds[cell] = true
+		_ground.erase(cell)
+		_highway_stencils.erase(cell)
 	var shared := CityNetworks3D.shared_bridge_profiles(city)
 	diff_keys(_decks, shared[0], seeds)
 	diff_keys(_approaches, shared[1], seeds)
@@ -931,6 +950,55 @@ func _refresh_structure(raw: Array) -> bool:
 	last_changed_codes = changed
 	_state_inputs = raw
 	return true
+
+
+## More flood-moved cells than this simply project the whole city again.
+const FLOOD_SEED_LIMIT := 2048
+## How far a flooded tile reaches on per-tile terrain. A dry corner is shared
+## with the tiles around it (one cell); a ramp also samples the road tile it
+## leaves, and a highway's height stencil the corners of the tiles beside it
+## (two cells). One more cell is allowed.
+const FLOOD_REACH := 3
+
+## Adds to `seeds` every cell whose entries or sampled points can differ
+## between two flood overlays over otherwise identical terrain. Returns false
+## when a complete projection is the better choice. Only whether a tile is
+## flooded matters, never how deep.
+##
+## A flooded tile is water: it gains or loses a water node at its own level.
+## On per-tile terrain it also stops sharing its dry corners, which moves the
+## ground, ramp and highway points within FLOOD_REACH cells. Lattice terrain
+## keeps its vertices; there a flooded tile can only move the shared plane of
+## a native standing-water patch it touches, anywhere along that patch, which
+## comparing the planes of both overlays finds exactly.
+func _flood_seeds(before: Dictionary, after: Dictionary, seeds: Dictionary) -> bool:
+	if before == after: return true
+	var changed: Array[Vector2i] = []
+	for cell: Vector2i in before:
+		if not after.has(cell): changed.append(cell)
+	for cell: Vector2i in after:
+		if not before.has(cell): changed.append(cell)
+	if changed.is_empty(): return true
+	if changed.size() > FLOOD_SEED_LIMIT: return false
+	if city.terrain_surface is TerrainSurface:
+		var beside_water := false
+		var terrain := city.terrain.data
+		for cell: Vector2i in changed:
+			seeds[cell] = true
+			for y: int in range(maxi(0, cell.y - 1), mini(City.HEIGHT, cell.y + 2)):
+				for x: int in range(maxi(0, cell.x - 1), mini(City.WIDTH, cell.x + 2)):
+					if terrain[y * City.WIDTH + x] >= Terrain.SUBMERGED: beside_water = true
+		if beside_water:
+			var earlier := city.duplicate_city()
+			earlier.flood_overlay = before
+			var old_planes := CityGeometry3D.standing_water_planes(earlier)
+			var planes := CityGeometry3D.standing_water_planes(city)
+			for at: int in _changed_indices(old_planes, planes): seeds[Vector2i(at % City.WIDTH, at / City.WIDTH)] = true
+	else:
+		for cell: Vector2i in changed:
+			for y: int in range(maxi(0, cell.y - FLOOD_REACH), mini(City.HEIGHT, cell.y + FLOOD_REACH + 1)):
+				for x: int in range(maxi(0, cell.x - FLOOD_REACH), mini(City.WIDTH, cell.x + FLOOD_REACH + 1)): seeds[Vector2i(x, y)] = true
+	return seeds.size() <= FLOOD_SEED_LIMIT
 
 
 ## The level deck profile covering `cell`, or {} off a bridge deck.

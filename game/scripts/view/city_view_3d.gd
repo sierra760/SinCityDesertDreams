@@ -389,7 +389,10 @@ func refresh(force_full: bool = false) -> void:
 	if full or not network_regions.is_empty():
 		_traversal_networks = {}
 		_traversal_networks_ready = false
+	# Batching skips hidden meshes: show every surface root until it is done,
+	# even while an overlay or the underground view hides the surface.
 	buildings.visible = true
+	agriculture.visible = true
 	networks.visible = true
 	var batch_regions: Array[Rect2i] = network_regions.duplicate()
 	batch_regions.append_array(lot_regions)
@@ -1383,6 +1386,10 @@ func _agriculture_changed(regions: Array[Rect2i]) -> void:
 	if _refreshing_agriculture:
 		_refresh_agriculture_regions.append_array(regions)
 		return
+	# As in refresh(): meshes hidden by an overlay would be left unbatched.
+	buildings.visible = true
+	agriculture.visible = true
+	networks.visible = true
 	mesh_batches.update_regions([buildings,agriculture,networks],regions)
 	_apply_analytics_visibility()
 	_geometry_revision += 1

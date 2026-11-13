@@ -200,7 +200,9 @@ func _load_compiled(code: int, shadows: bool) -> PackedScene:
 func _store_compiled(code: int, shadows: bool, compiled: PackedScene) -> void:
 	if not compiled_cache_enabled or Buildings.is_agricultural(code): return
 	# Night mode lights shared materials in place; never persist that state.
-	if CityNightMode.materials_modified(): return
+	# A model none of whose own materials is lit is in its day state, so a
+	# city opened at night still fills the cache.
+	if CityNightMode.materials_modified() and _carries_night_light(compiled): return
 	var path := compiled_cache_path(code, shadows)
 	var cache_dir := compiled_cache_dir()
 	if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(cache_dir)) != OK: return
@@ -222,6 +224,34 @@ func _store_compiled(code: int, shadows: bool, compiled: PackedScene) -> void:
 	if FileAccess.file_exists(path): DirAccess.remove_absolute(entry_file)
 	if DirAccess.rename_absolute(partial_file, entry_file) != OK:
 		DirAccess.remove_absolute(partial_file)
+
+
+## Whether any material the compiled scene draws with is lit for the night.
+static func _carries_night_light(compiled: PackedScene) -> bool:
+	var model: Node = compiled.instantiate() if compiled != null and compiled.can_instantiate() else null
+	if model == null: return true
+	var lit := _node_carries_night_light(model)
+	model.free()
+	return lit
+
+
+static func _node_carries_night_light(node: Node) -> bool:
+	var instance := node as GeometryInstance3D
+	if instance != null:
+		if CityNightMode.lights(instance.material_override) or CityNightMode.lights(instance.material_overlay): return true
+		var mesh: Mesh = null
+		if instance is MeshInstance3D:
+			mesh = (instance as MeshInstance3D).mesh
+			for surface: int in (instance as MeshInstance3D).get_surface_override_material_count():
+				if CityNightMode.lights((instance as MeshInstance3D).get_surface_override_material(surface)): return true
+		elif instance is MultiMeshInstance3D and (instance as MultiMeshInstance3D).multimesh != null:
+			mesh = (instance as MultiMeshInstance3D).multimesh.mesh
+		if mesh != null:
+			for surface: int in mesh.get_surface_count():
+				if CityNightMode.lights(mesh.surface_get_material(surface)): return true
+	for child: Node in node.get_children():
+		if _node_carries_night_light(child): return true
+	return false
 
 
 ## Imported shells cannot intercept terrain or building queries.

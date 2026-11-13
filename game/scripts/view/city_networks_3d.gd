@@ -80,6 +80,16 @@ var _node_specs: Array = []
 ## Root: incremented whenever the deck, approach or tunnel profiles that
 ## region layers read change content; layers record their build generation.
 var _profile_generation := 0
+## How many on-ramp tiles are drawn in full detail. A detailed ramp is a dense
+## curved grid with its slab, barriers and pier: about 8,700 triangles and two
+## megabytes. The largest included city has 140 ramp tiles. Ramp tiles past
+## this many, in row-major order, are drawn as a plain ribbon over the same
+## surface, so the cost of a map filled with ramps stays bounded.
+static var ramp_detail_budget := 384
+## Row-major index of the first ramp tile drawn plain: -1 until known, the
+## cell count while every ramp is detailed.
+var _ramp_plain_from := -1
+static var _onramp_table := PackedByteArray()
 var _built_generation := -1
 ## Observational: cells copied and emitted by the last region rebuilds.
 var reused_cells := 0
@@ -192,6 +202,7 @@ static func _network_mask_uncached(code: int, family: int) -> int:
 ## Remove the last projection, leaving city data untouched.
 func clear() -> void:
 	_profile_state = []
+	_ramp_plain_from = -1
 	for child: Node in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -236,6 +247,7 @@ func rebuild(city: City) -> void:
 	_vegetation_levels = VegetationZones.level_table(_vegetation)
 	_prepare_bridge_decks(city)
 	_road_tunnels = RoadTunnels.profiles(city)
+	_ramp_plain_from = _first_plain_ramp(city)
 	_build_region(city, Rect2i(0, 0, City.WIDTH, City.HEIGHT))
 	_update_tunnel_light()
 
@@ -475,9 +487,10 @@ func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) 
 			_road_tunnels = CityGeometry3D.road_tunnel_profiles(city).duplicate(true)
 			if _road_tunnels != old_tunnels: _profile_generation += 1
 		# Shared profiles reused exactly (same revision) keep this layer's
-		# copies; a cleared or fresh layer always prepares its own.
+		# copies; a cleared or fresh layer, or one given another City
+		# instance, always prepares its own.
 		shared_bridge_profiles(city)
-		if _profile_state.is_empty() or _deck_revision != _shared_profile_revision:
+		if _profile_state.is_empty() or _deck_revision != _shared_profile_revision or _profile_state[0] != next_profile_state[0]:
 			old_profiles = _deck_profiles.duplicate(true)
 			_deck_profiles.clear()
 			_prepare_bridge_decks(city)
@@ -485,6 +498,16 @@ func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) 
 		_profile_state = next_profile_state
 	var dirty: Dictionary = {}
 	var previous_inputs: Dictionary = {}
+	# Ramp tiles that moved across the detail budget are drawn again, whole.
+	var plain_from := _first_plain_ramp(city)
+	if _region_initialized and plain_from != _ramp_plain_from and _ramp_plain_from >= 0:
+		_profile_generation += 1
+		var codes := city.building.data
+		for at: int in range(mini(plain_from, _ramp_plain_from), mini(maxi(plain_from, _ramp_plain_from), codes.size())):
+			if not NetworkShapes.is_onramp(codes[at]): continue
+			var origin := Vector2i(at % City.WIDTH / chunk_size, at / City.WIDTH / chunk_size) * chunk_size
+			dirty[origin] = Rect2i(origin, Vector2i.ONE * chunk_size)
+	_ramp_plain_from = plain_from
 	for region: Rect2i in requested:
 		var inputs := _network_inputs(city, region, _vegetation_levels)
 		if _region_inputs.get(region.position, []) == inputs: continue
@@ -548,6 +571,7 @@ func update_regions(city: City, requested: Array[Rect2i], chunk_size: int = 16) 
 		region_layer._deck_profiles = _deck_profiles
 		region_layer._approach_profiles = _approach_profiles
 		region_layer._road_tunnels = _road_tunnels
+		region_layer._ramp_plain_from = _ramp_plain_from
 		# Mesh and material resources are shared across region chunks so
 		# the 32-cell GPU batcher can merge equivalent neighboring structures.
 		region_layer._box_meshes = _box_meshes
@@ -1557,7 +1581,50 @@ func _highway_supports(city: City, cell: Vector2i, code: int, center: Vector2 = 
 		_box(ground + Vector3(0, height / 2, 0), Vector3(0.10, height, 0.10), Color(0.57, 0.54, 0.49))
 
 
+## Row-major index of the first on-ramp tile past the detail budget, or the
+## cell count when the city's ramps fit within it.
+static func _first_plain_ramp(city: City) -> int:
+	if _onramp_table.is_empty():
+		_onramp_table.resize(Buildings.COUNT)
+		for code: int in Buildings.COUNT: _onramp_table[code] = 1 if NetworkShapes.is_onramp(code) else 0
+	var codes := city.building.data
+	var ramps: PackedInt32Array = preload("res://scripts/traffic/city_traffic_highways.gd").cells_with(codes, _onramp_table)
+	return ramps[ramp_detail_budget] if ramps.size() > ramp_detail_budget and ramp_detail_budget >= 0 else codes.size()
+
+
+## A ramp past the detail budget: one pavement ribbon, RAMP_PLAIN_STEPS long
+## and two strips wide, over samples of the surface a detailed ramp follows.
+## The ribbon is also the ramp's floor. It has no lane lines, slab, barriers
+## or pier.
+const RAMP_PLAIN_STEPS := 8
+func _plain_ramp(city: City, cell: Vector2i, code: int) -> void:
+	_physical_group = NetworkShapes.Family.HIGHWAY
+	_physical_depth = 0.095
+	var ends := NetworkShapes.onramp_endpoints(code, bool(city.flags.atv(cell) & RotationMapper.AXIS_FLAG), 0)
+	var road := Vector2(ends[0])
+	var high := Vector2(ends[1])
+	var pivot := Vector2(0.5, 0.5) + (road + high) * 0.5
+	var sweep := (-high).angle_to(-road)
+	var stencil := _highway_stencil(city, cell)
+	var columns: Array[PackedVector3Array] = []
+	for across: float in [-ROAD_WIDTH * 0.5, 0.0, ROAD_WIDTH * 0.5]:
+		var profile := HighwayHeight.ramp_profile(city,cell,road,high,.5+across,stencil,HIGHWAY_ELEVATION,HighwayGrades.ramp_endpoint(_approach_profiles,_deck_profiles,cell,road,high,.5+across))
+		var points := PackedVector3Array()
+		for i: int in RAMP_PLAIN_STEPS + 1:
+			var t := float(i) / RAMP_PLAIN_STEPS
+			var offset := pivot + (-high).rotated(sweep * t) * (0.5 + across)
+			points.append(Vector3(cell.x + offset.x, HighwayHeight.ramp_profile_height(profile, t), cell.y + offset.y))
+		columns.append(points)
+	for i: int in RAMP_PLAIN_STEPS:
+		for k: int in 2:
+			_world_quad(cell, columns[k][i], columns[k + 1][i], columns[k][i + 1], columns[k + 1][i + 1], Color(0.34, 0.38, 0.40), PhysicalRole.FLOOR)
+
+
 func _ramp(city: City, cell: Vector2i, code: int) -> void:
+	if _ramp_plain_from < 0: _ramp_plain_from = _first_plain_ramp(city)
+	if cell.y * City.WIDTH + cell.x >= _ramp_plain_from:
+		_plain_ramp(city, cell, code)
+		return
 	_physical_group = NetworkShapes.Family.HIGHWAY
 	_physical_depth = 0.095
 	var ends := NetworkShapes.onramp_endpoints(code, bool(city.flags.atv(cell) & RotationMapper.AXIS_FLAG), 0)
@@ -1807,27 +1874,82 @@ const PROFILE_REUSE_LIMIT := 64
 static var _shared_profile_inputs: Array = []
 static var _shared_deck_profiles: Dictionary = {}
 static var _shared_approach_profiles: Dictionary = {}
-## Incremented whenever the shared profiles are recomputed.
+## Identifies the current shared profiles: every recomputation issues a new
+## revision, and profiles set aside and brought back keep the one they had.
 static var _shared_profile_revision := 0
 ## Observational: recomputations and exact reuses after changed inputs.
 static var shared_profile_recomputes := 0
 static var shared_profile_reuses := 0
 ## Tests may disable reuse to compare with a fresh computation.
 static var profile_reuse := true
+## The profiles the current ones last replaced, as [inputs, decks, approaches,
+## revision]. Two projections of one map alternate while it is flooded: the
+## live city and the flood-free view that naming reads. A request the set-aside
+## profiles answer exactly swaps the two instead of recomputing either.
+static var _shared_profile_spare: Array = []
+## The last revision issued; each computed set of profiles keeps its own.
+static var _shared_profile_serial := 0
 static func shared_bridge_profiles(city: City) -> Array:
 	var inputs := _profile_inputs(city)
-	if _shared_profile_inputs.is_empty() or inputs != _shared_profile_inputs:
-		if not _shared_profile_inputs.is_empty() and profile_reuse and _profiles_reusable(_shared_profile_inputs, inputs, _shared_deck_profiles):
+	if _shared_profile_inputs.is_empty() or not _same_profile_inputs(inputs, _shared_profile_inputs):
+		if not _shared_profile_spare.is_empty() and _same_profile_inputs(inputs, _shared_profile_spare[0]):
+			_swap_shared_profiles()
+		elif not _shared_profile_inputs.is_empty() and profile_reuse and _same_profile_ground(inputs, _shared_profile_inputs) \
+				and _profiles_reusable(_shared_profile_inputs, _as_profile_carrier(inputs, _shared_profile_inputs), _shared_deck_profiles):
+			shared_profile_reuses += 1
+		elif not _shared_profile_spare.is_empty() and profile_reuse and _same_profile_ground(inputs, _shared_profile_spare[0]) \
+				and _profiles_reusable(_shared_profile_spare[0], _as_profile_carrier(inputs, _shared_profile_spare[0]), _shared_profile_spare[1]):
+			_swap_shared_profiles()
 			shared_profile_reuses += 1
 		else:
+			if not _shared_profile_inputs.is_empty():
+				_shared_profile_spare = [_shared_profile_inputs, _shared_deck_profiles, _shared_approach_profiles, _shared_profile_revision]
 			var decks: Dictionary = {}
 			var approaches := _build_bridge_profiles(city, decks)
 			_shared_deck_profiles = decks
 			_shared_approach_profiles = approaches
-			_shared_profile_revision += 1
+			_shared_profile_serial += 1
+			_shared_profile_revision = _shared_profile_serial
 			shared_profile_recomputes += 1
 		_shared_profile_inputs = inputs
 	return [_shared_deck_profiles, _shared_approach_profiles]
+
+
+## Whether two input snapshots hold the same layers. The profiles are a
+## function of those layers alone, so the City instance carrying them (entry 0)
+## does not matter: a detached copy of a city reads exactly as the city does.
+static func _same_profile_inputs(a: Array, b: Array) -> bool:
+	if a.size() != b.size(): return false
+	for i: int in range(1, a.size()):
+		if a[i] != b[i]: return false
+	return true
+
+
+## Whether `inputs` can be a later state of the map `old` describes: the same
+## City instance, or another instance on identical ground (heights, terrain,
+## lattice vertices and sea level), as a detached copy of that city is. Other
+## cities are not compared cell by cell.
+static func _same_profile_ground(inputs: Array, old: Array) -> bool:
+	if inputs[0] == old[0]: return true
+	return inputs[1] == old[1] and inputs[2] == old[2] and inputs[6] == old[6] and inputs[8] == old[8]
+
+
+## `inputs` presented as a later state of the City instance `old` came from,
+## so the two can be compared cell by cell whichever instance carries them.
+static func _as_profile_carrier(inputs: Array, old: Array) -> Array:
+	if inputs[0] == old[0]: return inputs
+	var same := inputs.duplicate()
+	same[0] = old[0]
+	return same
+
+
+static func _swap_shared_profiles() -> void:
+	var spare := _shared_profile_spare
+	_shared_profile_spare = [_shared_profile_inputs, _shared_deck_profiles, _shared_approach_profiles, _shared_profile_revision]
+	_shared_profile_inputs = spare[0]
+	_shared_deck_profiles = spare[1]
+	_shared_approach_profiles = spare[2]
+	_shared_profile_revision = spare[3]
 
 
 ## Changed cells between two _profile_inputs snapshots as index*4 + classes
@@ -2376,7 +2498,9 @@ func _resolve_physical() -> void:
 static var _profile_input_cache: Array = []
 static func _profile_inputs(city: City) -> Array:
 	var vertices: PackedByteArray = city.terrain_surface.vertices if city.terrain_surface is TerrainSurface else PackedByteArray()
-	if not _profile_input_cache.is_empty() and _profile_input_cache[0] == city.get_instance_id():
+	# Masking reads each raw byte alone, so the snapshot serves any City
+	# instance holding the same bytes (a detached copy as well as its source).
+	if not _profile_input_cache.is_empty():
 		var raw: Array = _profile_input_cache[1]
 		var masked: Array = _profile_input_cache[2]
 		var layers := [city.building.data, city.flags.data, city.zone.data]

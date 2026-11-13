@@ -86,6 +86,19 @@ static var _modified_count := 0
 static func materials_modified() -> bool:
 	return _modified_count > 0
 
+## How many views hold each of those materials, by instance id.
+static var _lit_materials: Dictionary = {}
+
+## Whether `material` currently carries night emission in any view. Every
+## other material is in its day state.
+static func lights(material: Material) -> bool:
+	return material != null and _lit_materials.has(material.get_instance_id())
+
+static func _note_lit(id: int, on: bool) -> void:
+	var count := int(_lit_materials.get(id,0)) + (1 if on else -1)
+	if count > 0: _lit_materials[id] = count
+	else: _lit_materials.erase(id)
+
 func bind(view: Node) -> void:
 	_view = view
 	Globals.ensure()
@@ -328,6 +341,7 @@ func _consider(material: Material, code: int = -1) -> void:
 			for key: String in existing.saved: base.set(key,existing.saved[key])
 			_prepared.erase(base.get_instance_id())
 			_modified_count -= 1
+			_note_lit(base.get_instance_id(),false)
 		return
 	if not existing.is_empty():
 		# A batch can reach a casino material before its lot does.
@@ -342,6 +356,7 @@ func _consider(material: Material, code: int = -1) -> void:
 	var record := {"material":base,"role":role,"saved":_save(base),"code":code if casino else -1}
 	_prepared[base.get_instance_id()] = record
 	_modified_count += 1
+	_note_lit(base.get_instance_id(),true)
 	_setup(base,role,record.saved,record.code)
 	_apply_material(record)
 
@@ -416,6 +431,7 @@ func _restore_all() -> void:
 		if not is_instance_valid(material): continue
 		for key: String in record.saved: material.set(key,record.saved[key])
 	_modified_count -= _prepared.size()
+	for id: int in _prepared: _note_lit(id,false)
 	_prepared.clear()
 	_casino_glass.clear()
 	_pending.clear()

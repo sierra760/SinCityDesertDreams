@@ -59,14 +59,13 @@ static func _passage(city: City, a: Vector2i, b: Vector2i) -> bool:
 		if absf(first.y-second.y)>STEP+.00001: return false
 	return true
 
-static func neighbors(city: City, topology: StreetTopology, anchor: Vector2i, metadata: Dictionary) -> Array[Dictionary]:
+## `surface` is the flood-free view of `city` (see StreetTopology.flood_free)
+## when the caller already holds one, so a pass over many stations shares it.
+static func neighbors(city: City, topology: StreetTopology, anchor: Vector2i, metadata: Dictionary, surface: City = null) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if city==null or not topology.is_bound_to(city): return result
 	# Temporary flooding is a closure, not a different permanent name source.
-	var surface_city := city
-	if not city.flood_overlay.is_empty():
-		surface_city = city.duplicate_city()
-		surface_city.flood_overlay.clear()
+	var surface_city := surface if surface != null else topology.flood_free(city)
 	var entrance := surface_entrance(surface_city,anchor)
 	var rect: Rect2i = entrance.footprint
 	var bounds := rect.grow(RADIUS)
