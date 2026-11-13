@@ -229,6 +229,15 @@ func touches_water(feet: Vector3) -> bool:
 		if feet.y<=float(region.top)+SKIN and Geometry2D.is_point_in_polygon(Vector2(feet.x,feet.z),region.polygon): return true
 	return false
 
+## Height of the water surface over `point`, or -INF where there is none.
+func water_top(point: Vector3) -> float:
+	var top := -INF
+	if not point.is_finite(): return top
+	var cell := Vector2i(floori(point.x),floori(point.z))
+	for region: Dictionary in _water.get(cell,[]):
+		if Geometry2D.is_point_in_polygon(Vector2(point.x,point.z),region.polygon): top = maxf(top,float(region.top))
+	return top
+
 ## Full ground footprint, including oblique shoreline contact between corners.
 ## Only the few covered cells are queried; bridges and dry bores retain their
 ## own physical height above/below the surface water column.

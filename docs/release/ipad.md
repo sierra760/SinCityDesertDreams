@@ -40,6 +40,9 @@ A touch that starts on a menu, toolbar or dialog stays with that control. A seco
 finger, interrupted gesture, modal, display change or focus loss cancels pending
 construction. Held controls are cleared and must be released before reuse.
 Changing orientation or the available display area suspends Explore; use Resume.
+A menu or status bar that only grows or shrinks (a status line that wraps) moves
+the Explore controls with it; fingers already down keep their stick and buttons,
+and a vehicle keeps moving.
 
 ## Files, saves and leaving the app
 

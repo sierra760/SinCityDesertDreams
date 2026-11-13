@@ -11,6 +11,16 @@ const GUIDANCE_RANGE := 1.0
 const GUIDANCE_HEIGHT := .25
 const RECOVER_MARGIN := .1
 const RECOVER_DROP := .5
+## A train stopped at the station the walker is heading for keeps its doors
+## open until the walker reaches the platform, for at most this many seconds.
+## The dwell then runs in full.
+const HOLD_LIMIT := 90.0
+## Cruising speed and acceleration, tiles per second (squared).
+const CRUISE := .75
+const ACCELERATION := .45
+## A train this many seconds from the walker's platform is announced as
+## approaching; before that the platform is told how long the wait is.
+const ARRIVAL_NOTICE := 20.0
 
 var network: ExploreTransitNetwork
 var world: ExploreTransitWorld3D
@@ -36,6 +46,11 @@ var names_revision := -1
 var _station_id := -1
 var _suspended := false
 var _door_fraction := 0.0
+## Seconds this stop has been held for a walker on the way, whether it is being
+## held now, and whether the walker has reached its platform or the carriage.
+var _hold := 0.0
+var _holding := false
+var _met := false
 var _elapsed := 0.0
 var _initial_preparation := true
 var _retry_at := 0.0
@@ -140,7 +155,8 @@ func _advance_service(dt: float) -> void:
 				_timer = 0
 		"boarding":
 			_apply_stop_destination()
-			_timer += dt
+			_holding = _awaiting_walker(dt)
+			if not _holding: _timer += dt
 			if _timer>=ExploreTransitTrain.DWELL and not obstructed: state = "closing"
 		"closing":
 			if obstructed:
@@ -155,7 +171,7 @@ func _advance_service(dt: float) -> void:
 		"approaching", "departing", "braking":
 			var target := float(route_data.stops[stop_index].distance)
 			var remaining := absf(target-distance)
-			var desired := minf(.75,sqrt(2.0*.45*remaining))
+			var desired := minf(CRUISE,sqrt(2.0*ACCELERATION*remaining))
 			# Unexpected track intrusion stops the vehicle before the pedestrian.
 			var riding := train.contains(walker.global_position)
 			if not riding and _track_intrusion(walker.global_position):
@@ -165,7 +181,7 @@ func _advance_service(dt: float) -> void:
 				# than the remaining gap after the carriage's front overhang.
 				speed = 0
 				_message = "Please stand behind the platform edge."
-			speed = move_toward(speed,desired,.45*dt)
+			speed = move_toward(speed,desired,ACCELERATION*dt)
 			var motion := minf(remaining,speed*dt)
 			distance += motion*direction
 			train.global_transform = ExploreTransitTrain.route_pose(route_data,distance)
@@ -176,6 +192,9 @@ func _advance_service(dt: float) -> void:
 				train.global_transform = ExploreTransitTrain.route_pose(route_data,distance)
 				state = "opening"
 				_timer = 0
+				_hold = 0
+				_holding = false
+				_met = false
 				_station_id = int(route_data.stops[stop_index].station)
 				_message = "Walk through the open doorway to board or leave."
 				_apply_stop_destination()
@@ -183,6 +202,65 @@ func _advance_service(dt: float) -> void:
 	train.set_doors(_door_fraction,current_station.normal)
 	train.sync_physics()
 	train.doors = state if state in ["opening","boarding","closing"] else "closed"
+
+## True while the stopped train should keep waiting: the walker is on the way
+## to this station and has not yet reached its platform or the carriage.
+func _awaiting_walker(dt: float) -> bool:
+	if _met or _hold>=HOLD_LIMIT: return false
+	var feet := walker.global_position
+	var here := int(route_data.stops[stop_index].station)
+	var platform: Vector3 = network.station_for_route(route_data,here).platform
+	if train.contains(feet) or _near_guidance_point(feet,platform):
+		_met = true
+		return false
+	if _nearest_station(feet)!=here: return false
+	_hold += dt
+	return true
+
+## The route stop whose platform (or subway entrance) the walker is at, or -1.
+func _waiting_stop() -> int:
+	var feet := walker.global_position
+	for index: int in route_data.stops.size():
+		var stop := network.station_for_route(route_data,int(route_data.stops[index].station))
+		var platform: Vector3 = stop.platform
+		if _near_guidance_point(feet,platform): return index
+		if bool(stop.get("subway",false)) and stop.has("anchor") and _near_guidance_point(feet,Vector3(stop.anchor.x+.5,stop.surface,stop.anchor.y+.5)): return index
+	return -1
+
+## Seconds until the train next stands at route stop `index`, following its
+## real timetable: each leg at cruising speed with one acceleration and one
+## braking, and a full door cycle at every stop on the way.
+func _seconds_until(index: int) -> float:
+	var stops: Array = route_data.stops
+	var seconds := 0.0
+	var at := distance
+	var cursor := stop_index
+	var heading := direction
+	if state in ["opening","boarding","closing"]:
+		if cursor==index: return 0.0
+		seconds += (1.0-_door_fraction if state=="opening" else 0.0)+(maxf(0.0,ExploreTransitTrain.DWELL-_timer) if state!="closing" else 0.0)+(_door_fraction if state=="closing" else 1.0)
+		if cursor==stops.size()-1: heading = -1
+		elif cursor==0: heading = 1
+		cursor += heading
+	for leg: int in stops.size()*2+2:
+		cursor = clampi(cursor,0,stops.size()-1)
+		var target := float(stops[cursor].distance)
+		var length := absf(target-at)
+		# Short legs never reach cruising speed.
+		var ramp := CRUISE*CRUISE/ACCELERATION
+		seconds += length/CRUISE+CRUISE/ACCELERATION if length>=ramp else 2.0*sqrt(length/ACCELERATION)
+		if cursor==index: return seconds
+		seconds += 2.0+ExploreTransitTrain.DWELL
+		at = target
+		if cursor==stops.size()-1: heading = -1
+		elif cursor==0: heading = 1
+		cursor += heading
+	return seconds
+
+static func _wait_text(seconds: float) -> String:
+	if seconds<55.0: return "about %d seconds" % (maxi(1,ceili(seconds/5.0))*5)
+	var minutes := maxi(1,roundi(seconds/60.0))
+	return "about %d minute%s" % [minutes,"" if minutes==1 else "s"]
 
 func _step_riders(dt: float) -> void:
 	if not is_instance_valid(riders): return
@@ -426,10 +504,21 @@ func status() -> Dictionary:
 	var message := _message
 	match state:
 		"opening": message="Doors opening. Wait until they are fully open."
-		"boarding": message="Walk through the open doorway to board or leave."
+		"boarding": message="The train is waiting at the platform." if _holding else "Walk through the open doorway to board or leave."
 		"closing": message="Doors closing. Please stand clear."
 		"departing": message="Train departing. Please wait behind the yellow edge."
 		"approaching", "braking": message="Train approaching. Wait behind the yellow edge."
+	# Someone waiting at another stop of this route hears where the train
+	# really is and how long until it is back.
+	if not passenger and state!="idle" and state!="driving" and not route_data.is_empty() and is_instance_valid(walker):
+		var here := _waiting_stop()
+		if here>=0 and not (stopped and here==stop_index):
+			var wait := _seconds_until(here)
+			var toward: String = network.station_for_route(route_data,int(route_data.stops[stop_index].station)).get("name","")
+			if here==stop_index:
+				message = "Train approaching. Wait behind the yellow edge." if wait<=ARRIVAL_NOTICE else "Next train here in %s. Wait behind the yellow edge." % _wait_text(wait)
+			elif stopped: message = "The train is at %s. Next train here in %s." % [toward,_wait_text(wait)]
+			else: message = "The train has departed for %s. Next train here in %s." % [toward,_wait_text(wait)]
 	if _message.contains("another platform") and stopped: message=_message
 	var occupied_lift := is_instance_valid(world) and is_instance_valid(walker) and world.in_elevator(walker.global_position)
 	var nearby := _guidance_nearby(passenger,occupied_lift)

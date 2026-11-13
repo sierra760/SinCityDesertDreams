@@ -15,6 +15,20 @@ func test_street_start_creates_only_the_walker_and_preserves_city() -> void:
 	session.leave()
 	check_eq(view.world.find_children("Explore*","CharacterBody3D",true,false).size(),0)
 
+func test_menu_says_plainly_that_a_city_without_the_house_has_no_helicopter() -> void:
+	if not _setup(): return
+	await physics_frame
+	check(session.enter(city,Vector3(22.5,GROUND,20.5)))
+	check(session.available_helicopter() == null,"no helicopter can be flown in this city")
+	session.suspend()
+	check(not session.select_vehicle(&"helicopter"))
+	check(session._message.contains("has no helicopter"),session._message)
+	check(session._message.contains("the city has none"),"the message does not send the player to a house that does not exist: "+session._message)
+	check(not session.select_vehicle(&"mayormobile"))
+	check(session._message.contains("this city has none"),session._message)
+	check(not session._message.contains("Walk to it"),"nothing to walk to: "+session._message)
+	check_eq(session.occupied,session.pedestrian)
+
 func _house_city(front: Vector2i = Vector2i.DOWN) -> City:
 	var result := flat_city()
 	result.stamp_building(20,20,Buildings.MAYORS_RESIDENCE)
@@ -112,6 +126,10 @@ func test_blocked_bay_is_skipped_without_relocating_its_vehicle() -> void:
 	check(session.car==null,"blocked Desert Cruiser is not moved elsewhere")
 	check(session.helicopter!=null)
 	check(session._message.contains("obstructed"))
+	check_eq(session.available_helicopter(),session.helicopter,"the house helicopter is the one to fly")
+	session.suspend()
+	check(not session.select_vehicle(&"mayormobile"))
+	check(session._message.contains("obstructed"),"a blocked bay is named as the reason: "+session._message)
 
 func test_house_aircraft_takes_off_lands_and_leaves_other_vehicles_unchanged() -> void:
 	if not _setup(_house_city()): return

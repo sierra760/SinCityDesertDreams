@@ -251,6 +251,44 @@ func test_disaster_loops_rest_while_the_city_is_frozen() -> void:
 	host.sim.set_speed(GameClock.Speed.PAUSED)
 
 
+# Guards against: footsteps and engines running on while Explore is paused.
+func test_explore_pause_silences_footsteps_and_engines() -> void:
+	var city := flat_city()
+	for x in range(4, 20): city.building.put(x, 10, 30)
+	host.begin_city(city, {}, 4242, CityStats.new())
+	host.sim.set_speed(GameClock.Speed.PAUSED)
+	host.city_view_3d.set_camera_state(Vector3(10.5, 4 * CityGeometry3D.HEIGHT, 10.5), 1, 12.0)
+	for i in 3: await physics_frame
+	check(host.enter_explore(), "Explore starts on the road")
+	if not host.is_exploring(): return
+	var explore := host.exploration
+	var audio := host.audio
+	var steps := func() -> bool: return audio.is_looping(&"footsteps_pavement_loop") or audio.is_looping(&"footsteps_sand_loop")
+	for i in 3: await physics_frame
+	explore._arming = false
+	explore.camera_rig.yaw = PI * .5
+	explore._held = {KEY_W: true}
+	for i in 60: await physics_frame
+	check(steps.call(), "walking has footsteps")
+	explore.pause()
+	for i in 20: await physics_frame
+	check(explore.is_suspended())
+	check(not steps.call(), "a paused walker makes no footsteps")
+	# The same holds for whatever was being driven or flown.
+	for status: Dictionary in [{"mode": 1, "vehicle": "car", "speed": .8}, {"mode": 2, "vehicle": "helicopter", "speed": 1.0}]:
+		audio._explore_status = status
+		audio._update_explore(.1)
+		for cue: StringName in [&"car_idle_loop", &"car_drive_loop", &"helicopter_loop"]:
+			check(not audio.is_looping(cue), "%s is silent while Explore is paused" % cue)
+	audio.played.clear()
+	audio._explore_status = {"mode": 1, "vehicle": "car", "speed": 0.0}
+	explore.resume()
+	audio._update_explore(.1)
+	check(audio.is_looping(&"car_idle_loop"), "the engine is heard again on resume")
+	check(&"tire_skid" not in audio.played, "resuming is not a skid")
+	host.return_to_build()
+
+
 # Guards against: the effects slider giving no sample of its level.
 func test_effects_volume_plays_a_sample() -> void:
 	host.audio.played.clear()

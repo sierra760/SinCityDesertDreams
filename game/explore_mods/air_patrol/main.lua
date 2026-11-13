@@ -12,6 +12,9 @@ local KINDS = {"medevac", "pursuit", "traffic", "charter"}
 local RANKS = {{0, "Student Pilot"}, {5, "Patrol Pilot"}, {15, "Senior Pilot"}, {30, "Flight Captain"}, {60, "Ace of the Mojave"}}
 local STAT_KEYS = {"calls", "points", "rescues", "arrests", "reports", "charters", "shifts", "best_shift"}
 local CAPTAIN = "Captain Dee Vance, Desert Air Patrol"
+local READY = "Talk to Captain Dee Vance at the Desert Air Patrol post to fly rescue, police, traffic and charter calls."
+local GROUNDED = "Desert Air Patrol has no helicopter to fly in this city. Helicopters are kept at the Mayor’s House: " ..
+  "build one, then explore again. Captain Dee Vance keeps your logbook."
 
 local requests, pending = {}, {}
 local captain, base
@@ -27,6 +30,9 @@ local queued
 local serial = 0
 local leaving = {}
 local finished, next_call
+-- "ready" or "grounded" while the captain's offer is the objective on screen.
+local offer_mode
+local heli_marked
 
 -- Helpers ------------------------------------------------------------------
 
@@ -134,9 +140,40 @@ local function reached(target, radius, dt)
   return false
 end
 
+-- Where the helicopter the player can fly is parked, from world.player.
+local function parked_helicopter()
+  return player and type(player.helicopter) == "table" and player.helicopter or nil
+end
+
+-- False only when the host has reported that this visit has no helicopter.
+local function can_fly()
+  return player == nil or flying() or parked_helicopter() ~= nil
+end
+
 local function board_hint()
   if flying() then return nil end
-  return "board a helicopter: visit the Mayor’s House or walk to a nearby parked aircraft"
+  local parked = parked_helicopter()
+  if parked then return "board the helicopter " .. guide.describe(player, parked) end
+  return "no helicopter to fly: ask Captain Vance to end the shift"
+end
+
+-- On foot during a shift, the parked helicopter is marked.
+local function mark_helicopter(api)
+  local parked = shift and not flying() and parked_helicopter() or nil
+  if parked then
+    if not heli_marked or guide.distance(heli_marked, parked) > 0.5 then
+      heli_marked = guide.point(parked)
+      api.marker.set("heli", {target = heli_marked, label = "Sky Ranger 7 · board here", icon = "vehicle"})
+    end
+  elseif heli_marked then
+    heli_marked = nil
+    api.marker.remove("heli")
+  end
+end
+
+local function show_offer(api)
+  offer_mode = can_fly() and "ready" or "grounded"
+  objective(api, offer_mode == "ready" and READY or GROUNDED)
 end
 
 -- Setup --------------------------------------------------------------------
@@ -146,9 +183,7 @@ local function offer(api, quiet)
   if offered or shift or not captain then return end
   offered = true
   api.interaction.register("patrol", {target = {id = captain}, label = "talk to Captain Dee Vance, Desert Air Patrol"})
-  if not quiet then
-    objective(api, "Talk to Captain Dee Vance at the Desert Air Patrol post to fly rescue, police, traffic and charter calls.")
-  end
+  if quiet then offer_mode = nil else show_offer(api) end
 end
 
 local function spawn_captain(api)
@@ -171,10 +206,20 @@ end
 
 local function offer_dialogue(api)
   local _, title = rank_of(stats.calls)
+  if not can_fly() then
+    say(api, "grounded", CAPTAIN,
+      "I'd put you on the roster in a heartbeat, but there is no helicopter to fly in this city. " ..
+      "Air Patrol helicopters are kept on the pad at the Mayor’s House, so the city needs a Mayor’s House " ..
+      "with a clear pad. Build one, come back to Explore and Sky Ranger 7 will be waiting there.",
+      {{key = "logbook", label = "Show my logbook"}, {key = "later", label = "Understood"}})
+    return
+  end
   local record = stats.calls == 0 and "New on the roster? Good. We've got calls stacking up."
     or ("Welcome back, " .. title .. ". " .. stats.calls .. " calls flown so far.")
+  local parked = not flying() and parked_helicopter() or nil
   say(api, "offer", CAPTAIN,
-    "Sky Ranger 7 is fueled and ready. Take a whole patrol shift and I'll radio calls as they come in, " ..
+    "Sky Ranger 7 is fueled and ready" .. (parked and (", parked " .. guide.describe(player, parked)) or "") ..
+    ". Take a whole patrol shift and I'll radio calls as they come in, " ..
     "or pick one job yourself. Medevacs need a gentle landing beside the patient, pursuits need your spotlight on " ..
     "the suspect, traffic reports need a steady hover and charter passengers need, well, patience.\n\n" .. record ..
     " Patrol points are bragging rights only; city funds never change.",
@@ -254,6 +299,11 @@ local function begin(api, kind)
   end
 end
 
+-- Every briefing can be turned down; the call goes to another crew.
+local function brief_choices(label)
+  return {{key = "go", label = label}, {key = "abandon", label = "Call it off"}}
+end
+
 local function radio_intro(api)
   local c = call.case
   if call.kind == "medevac" then
@@ -261,27 +311,27 @@ local function radio_intro(api)
     if call.sar then
       say(api, "brief", "Air Patrol dispatch", "Search and rescue! " .. c.story ..
         " The search area is " .. where .. ". Fly low over it; you'll spot them when you're close. " ..
-        "Land beside them or hover low to lower the ladder, then get them to the hospital.", {{key = "go", label = "On my way"}})
+        "Land beside them or hover low to lower the ladder, then get them to the hospital.", brief_choices("On my way"))
     else
       say(api, "brief", "Air Patrol dispatch", "Medevac! " .. c.story .. " They're " .. where ..
         ". Land beside them or hover low to lower the ladder, then get them to the hospital. Every second counts.",
-        {{key = "go", label = "On my way"}})
+        brief_choices("On my way"))
     end
   elseif call.kind == "pursuit" then
     say(api, "brief", "Air Patrol dispatch", c.crime .. " The suspect is in " .. c.what .. ", " ..
       (player and guide.describe(player, call.site) or "nearby") .. ". Get your spotlight on him (fly within 80 m) " ..
       "and stay on him until ground units box him in. Lose him for 15 seconds and he's gone.",
-      {{key = "go", label = "On my way"}})
+      brief_choices("On my way"))
   elseif call.kind == "traffic" then
     say(api, "brief", "Rita Ruiz, KDSD Traffic Desk", "We're on the air in a minute! I need eyes on " .. #call.spots ..
       (#call.spots == 1 and " jam" or " jams") .. " around town. Hover over each one, not too high, until I've got the " ..
-      "picture. You have " .. guide.clock(call.limit) .. " of air time.", {{key = "go", label = "Rolling"}})
+      "picture. You have " .. guide.clock(call.limit) .. " of air time.", brief_choices("Rolling"))
   else
     local rule = c.rule == "hurry" and " They're in a hurry, so the clock is running." or
       (c.rule == "nervous" and " They're a nervous flyer: take it easy on the throttle." or "")
     say(api, "brief", "Air Patrol dispatch", "Charter job: " .. c.who .. ", " .. c.ask .. ", is waiting " ..
       (player and guide.describe(player, call.site) or "nearby") .. ". Land beside them to pick them up." .. rule,
-      {{key = "go", label = "On my way"}})
+      brief_choices("On my way"))
   end
 end
 
@@ -316,7 +366,15 @@ local function end_shift(api)
     call = nil
   end
   if not shift then return end
-  if not shift.single then
+  -- Nothing left to say about the call that just ended.
+  queued = nil
+  api.interaction.unregister("stand_down")
+  if heli_marked then
+    heli_marked = nil
+    api.marker.remove("heli")
+  end
+  -- A shift called off before its first call is not logged.
+  if not shift.single and shift.done > 0 then
     stats.shifts = stats.shifts + 1
     if shift.points > stats.best_shift then stats.best_shift = shift.points end
   end
@@ -342,7 +400,10 @@ end
 local function start_shift(api, kind)
   shift = {anchor = base, done = 0, points = 0, single = kind ~= nil}
   offered = false
+  offer_mode = nil
   api.interaction.unregister("patrol")
+  -- The captain can end the shift at any time, mid-call included.
+  api.interaction.register("stand_down", {target = {id = captain}, label = "ask Captain Dee Vance to end your shift"})
   next_call(api, kind)
 end
 
@@ -583,6 +644,8 @@ local function on_player(api, data)
   player = data
   local dt = last_poll and math.min(0.5, now - last_poll) or 0
   last_poll = now
+  mark_helicopter(api)
+  if offer_mode and not shift and offer_mode ~= (can_fly() and "ready" or "grounded") then show_offer(api) end
   if not call then return end
   if call.kind == "medevac" then
     if call.phase == "inbound" or call.phase == "aboard" then
@@ -848,11 +911,20 @@ return {
     if entry then
       requests[event.request_id] = nil
       pending[entry.action] = nil
-      if entry.call == nil or (call and call.id == entry.call) then finished(api, entry.action, event.code, event.data) end
+      if entry.call == nil or (call and call.id == entry.call) then
+        finished(api, entry.action, event.code, event.data)
+      elseif entry.action == "actor" and event.code == "ok" and type(event.data) == "table" and event.data.id then
+        -- Someone placed for a call that has since been called off.
+        api.actor.remove(event.data.id)
+      end
       return
     end
     if event.kind == "interaction" and event.key == "patrol" and not shift then
       offer_dialogue(api)
+    elseif event.kind == "interaction" and event.key == "stand_down" and shift then
+      say(api, "stand_down", CAPTAIN,
+        "Calling it a day, Sky Ranger? I can hand the rest to another crew. Everything you've logged so far stays in your book.",
+        {{key = "end", label = "End the shift"}, {key = "keep", label = "Keep flying"}})
     elseif event.kind == "dialogue_choice" then
       local choice = event.data.choice
       if event.key == "offer" then
@@ -860,11 +932,15 @@ return {
         elseif choice == "medevac" or choice == "pursuit" or choice == "traffic" or choice == "charter" then
           start_shift(api, choice)
         elseif choice == "logbook" then logbook_dialogue(api) end
+      elseif event.key == "grounded" then
+        if choice == "logbook" then logbook_dialogue(api) end
+      elseif event.key == "stand_down" then
+        if choice == "end" and shift then end_shift(api) end
       elseif event.key == "logbook" then
         offer_dialogue(api)
       elseif event.key == "brief" then
-        next_refresh = 0
-      elseif event.key == "result" then
+        if choice == "abandon" then end_shift(api) else next_refresh = 0 end
+      elseif event.key == "result" and shift then
         if choice == "next" or (choice == "" and not shift.single and shift.done < SHIFT_CALLS) then
           next_call(api, nil)
         elseif choice == "again" then
@@ -872,7 +948,7 @@ return {
         else
           end_shift(api)
         end
-      elseif event.key == "stuck" then
+      elseif event.key == "stuck" and shift then
         if choice == "retry" then
           shift.anchor = base
           next_call(api, shift.single and shift.last_kind or nil)
@@ -886,8 +962,9 @@ return {
   end,
   on_tick = function(api, context)
     now = now + context.delta
-    if shift and not player_request and now >= next_poll then
-      next_poll = now + 0.2
+    -- Off duty the player is only watched for a helicopter to fly.
+    if not player_request and now >= next_poll then
+      next_poll = now + (shift and 0.2 or 1)
       local result = api.world.player()
       if result.request_id then player_request = result.request_id
       elseif result.ok then on_player(api, result.data) end

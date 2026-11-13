@@ -397,8 +397,12 @@ func test_water_contact_latches_but_flight_does_not() -> void:
 			await drive([{"ticks":90}])
 			check(reports.is_empty(),"airborne above water is safe")
 			await drive([{"ticks":180,"vertical":-1.0}])
-		else: await drive([{"ticks":60}])
-		check_eq(reports.size(),1,"actual wet feet request recovery once")
+			check_eq(reports.size(),0,"a descent is held above the water and never requests recovery")
+			check(not actor.call("landed"),"water is never a landing")
+			check(not fixture.get_node("traversal").call("touches_water",actor.call("feet_position")),"the skids stay dry")
+		else:
+			await drive([{"ticks":60}])
+			check_eq(reports.size(),1,"actual wet feet request recovery once")
 		check_eq(SaveFormat.encode_city(city),original,"contact never mutates city")
 		await after_each()
 

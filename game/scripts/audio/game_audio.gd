@@ -537,6 +537,15 @@ func _on_explore_active(on: bool) -> void:
 func _update_explore(delta: float) -> void:
 	if not _host.is_exploring() or _explore_status.is_empty():
 		return
+	# A paused Explore stands still: no footsteps, engines or lift hum. The
+	# last published status still shows the speed from before the pause.
+	if _host.exploration.is_suspended():
+		for cue: StringName in [&"footsteps_pavement_loop", &"footsteps_sand_loop", &"car_idle_loop",
+				&"car_drive_loop", &"helicopter_loop", &"boat_motor_loop", &"sailing_loop",
+				&"train_ride_loop", &"elevator_loop"]:
+			release_loop(cue)
+		_last_speed = 0.0
+		return
 	var status := _explore_status
 	var mode := int(status.get("mode", 0))
 	var speed := float(status.get("speed", 0.0))

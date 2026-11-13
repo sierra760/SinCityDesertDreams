@@ -164,7 +164,7 @@ func test_medevac_lands_beside_patient_and_flies_to_hospital() -> void:
 	var text := String(_objective(service,"air_patrol","patrol").get("text",""))
 	check(text.begins_with("Patient ") or text.begins_with("Search area "),"guidance leads with where to fly: "+text)
 	check(text.contains("condition"),"guidance tracks the patient's condition: "+text)
-	check(text.contains("board a helicopter"),"on foot, guidance says to board a helicopter: "+text)
+	check(text.contains("board the helicopter"),"on foot, guidance says where to board the helicopter: "+text)
 	# Hovering high above the patient is not a pickup.
 	_fly(_pose(patient)+Vector3(.5,3,0))
 	_run(service,40)
@@ -324,6 +324,110 @@ func test_patrol_shift_runs_three_different_calls() -> void:
 	check(not service.api.interactions._owned.get("air_patrol",{}).has("patrol"),"no new shift offer mid-shift")
 	service.leave("test")
 
+func _choice_keys(service: ExploreModService) -> Array:
+	var keys: Array = []
+	for choice: Dictionary in _dialogue(service).get("choices",[]): keys.append(choice.key)
+	return keys
+
+func test_air_patrol_without_a_helicopter_says_what_is_needed() -> void:
+	if not _setup(_loop_city()) or not await _enter(START): return
+	session.set_physics_process(false)
+	# A city with no Mayor's House parks no helicopter.
+	var craft: CharacterBody3D = session.get("helicopter")
+	session._last_safe.erase(craft.get_instance_id())
+	craft.free()
+	session.helicopter = null
+	check(session.available_helicopter() == null,"this visit has no helicopter")
+	var service := _service(["air_patrol"])
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	check(not service.queries.player.has("helicopter"),"the host reports no helicopter to fly")
+	var text := String(_objective(service,"air_patrol","patrol").get("text",""))
+	check(text.contains("Mayor’s House"),"the objective says what the city needs: "+text)
+	check(service.activate_interaction(),"Captain Vance still talks")
+	service.step(.1,false)
+	check_eq(_dialogue(service).get("key",""),"grounded")
+	check_eq(_choice_keys(service),["logbook","later"],"no shift or call is offered without a helicopter")
+	check(String(_dialogue(service).get("text","")).contains("Mayor’s House"),"the captain says what the city needs")
+	service.api.interactions.choose("logbook")
+	_run(service,2)
+	check_eq(_dialogue(service).get("key",""),"logbook","the logbook stays available")
+	service.api.interactions.choose("back")
+	_run(service,2)
+	check_eq(_dialogue(service).get("key",""),"grounded")
+	service.api.interactions.choose("later")
+	_run(service,3)
+	check(_owned(service,"air_patrol","person").is_empty() and _owned(service,"air_patrol","suspect").is_empty(),"no call starts")
+	check(service.api.interactions._owned.get("air_patrol",{}).has("patrol"),"the captain can be asked again")
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	service.leave("test")
+
+func test_air_patrol_reports_where_the_helicopter_is_parked() -> void:
+	if not _setup(_loop_city()) or not await _enter(START): return
+	session.set_physics_process(false)
+	var craft: CharacterBody3D = session.get("helicopter")
+	check_eq(session.available_helicopter(),craft)
+	var service := _air_call("charter")
+	var at: Dictionary = service.queries.player.get("helicopter",{})
+	check(not at.is_empty(),"the host reports the parked helicopter")
+	if not at.is_empty(): check_lt(_point(at).distance_to(craft.global_position),.01)
+	var text := String(_objective(service,"air_patrol","patrol").get("text",""))
+	check(text.contains("board the helicopter"),"on foot, the objective points at the helicopter: "+text)
+	check_eq(_marker(service,"air_patrol","heli").get("icon",""),"vehicle","the parked helicopter is marked")
+	_fly(craft.global_position+Vector3.UP)
+	_run(service,8)
+	check(_marker(service,"air_patrol","heli").is_empty(),"the mark goes once the pilot is aboard")
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	service.leave("test")
+
+func test_briefed_call_can_be_called_off() -> void:
+	if not _setup(_loop_city()) or not await _enter(START): return
+	session.set_physics_process(false)
+	var service := _service(["air_patrol"])
+	check(service.activate_interaction())
+	service.step(.1,false)
+	service.api.interactions.choose("medevac")
+	check(_until_dialogue(service,"brief"),"the call is briefed")
+	check_eq(_choice_keys(service),["go","abandon"],"the briefing can be turned down")
+	service.api.interactions.choose("abandon")
+	_run(service,40)
+	var patrol := _objective(service,"air_patrol","patrol")
+	check_eq(patrol.get("status",""),"completed")
+	check(String(patrol.get("text","")).begins_with("Off duty"),String(patrol.get("text","")))
+	check(_owned(service,"air_patrol","person").is_empty(),"the patient is handed to another crew")
+	for key in ["target","zone","dest","heli"]: check(_marker(service,"air_patrol",key).is_empty(),key+" marker is cleared")
+	check(service.api.interactions._owned.get("air_patrol",{}).has("patrol"),"the captain offers calls again")
+	check_eq(int(_state(service,"air_patrol").get("calls",0)),0,"a call that was called off is not logged")
+	check_eq(int(_state(service,"air_patrol").get("shifts",0)),0)
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	service.leave("test")
+
+func test_shift_can_be_ended_with_the_captain_mid_call() -> void:
+	if not _setup(_loop_city()) or not await _enter(START): return
+	session.set_physics_process(false)
+	var service := _air_call("pursuit")
+	check(not _owned(service,"air_patrol","suspect").is_empty(),"the call is under way")
+	check(service.api.interactions._owned.get("air_patrol",{}).has("stand_down"),"the captain can be asked to end the shift")
+	check(service.activate_interaction(),"the pilot walks up to the captain")
+	service.step(.1,false)
+	check_eq(_dialogue(service).get("key",""),"stand_down")
+	service.api.interactions.choose("keep")
+	_run(service,3)
+	check(not _owned(service,"air_patrol","suspect").is_empty(),"keeping the call changes nothing")
+	check(service.activate_interaction())
+	service.step(.1,false)
+	check_eq(_dialogue(service).get("key",""),"stand_down")
+	service.api.interactions.choose("end")
+	_run(service,40)
+	var patrol := _objective(service,"air_patrol","patrol")
+	check_eq(patrol.get("status",""),"completed")
+	check(String(patrol.get("text","")).begins_with("Off duty"),String(patrol.get("text","")))
+	check(_owned(service,"air_patrol","suspect").is_empty(),"the suspect car is taken away")
+	check(_marker(service,"air_patrol","target").is_empty())
+	var owned: Dictionary = service.api.interactions._owned.get("air_patrol",{})
+	check(owned.has("patrol") and not owned.has("stand_down"),"the captain offers calls again")
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	service.leave("test")
+
 func test_logbook_and_saved_progress() -> void:
 	if not _setup(_loop_city()) or not await _enter(START): return
 	session.set_physics_process(false)
@@ -359,6 +463,56 @@ func _courier(kind: String) -> ExploreModService:
 	check(_board(service,"silver_express","express_pickup"),"player boards the Silver State pickup")
 	_run(service,3)
 	return service
+
+## Refuses the nth doorstep the courier pack asks for, once, so the pack has to
+## try the next address along the street.
+class CrowdedDoorstep extends ExploreActorRegistry:
+	var refuse_at := 0
+	var asked := 0
+	func apply(command: Dictionary) -> Dictionary:
+		var args: Dictionary = command.get("args",{})
+		if command.get("kind","") == "actor.spawn" and String(args.get("options",{}).get("key","")).begins_with("stop"):
+			asked += 1
+			if asked == refuse_at: return completion(command,"no_route")
+		return super.apply(command)
+
+func test_retried_doorstep_keeps_the_long_haul_on_the_clock() -> void:
+	if not _setup(_loop_city()) or not await _enter(START): return
+	session.set_physics_process(false)
+	var service := ExploreModService.new()
+	var doorsteps := CrowdedDoorstep.new()
+	doorsteps.refuse_at = 2
+	service.actors = doorsteps
+	service.bind(session,[ExploreModPack.read("res://explore_mods/silver_express")],ExploreModProgress.new())
+	service.enter()
+	session.mod_service = service
+	_run(service,12)
+	check(service.activate_interaction(),"Hank offers jobs")
+	service.step(.1,false)
+	service.api.interactions.choose("rush")
+	check(_until_dialogue(service,"brief",300),"the job is briefed after the recipient's first doorstep is refused")
+	check_ge(doorsteps.asked,3,"the recipient was placed at another address")
+	service.api.interactions.choose("go")
+	_run(service,3)
+	check(_board(service,"silver_express","express_pickup"),"player boards the Silver State pickup")
+	_run(service,3)
+	var stops := _owned(service,"silver_express","stop")
+	check_eq(stops.size(),2,"a sender and a recipient")
+	if stops.size() != 2: return
+	var haul := Vector2(_pose(stops[0]).x-_pose(stops[1]).x,_pose(stops[0]).z-_pose(stops[1]).z).length()
+	check_gt(haul,6.0,"the fixture drop is a real haul from the pickup")
+	_drive_to(stops[0].record.cell)
+	_run(service,4)
+	var text := String(_objective(service,"silver_express","express").get("text",""))
+	var clock := RegEx.create_from_string("(\\d+):(\\d\\d) left").search(text)
+	check(clock != null,"loaded: the clock runs to the drop: "+text)
+	if clock == null: return
+	var seconds := int(clock.get_string(1))*60+int(clock.get_string(2))
+	# The clock allows for the road from pickup to drop, never less than the
+	# straight line between them.
+	check_ge(seconds+2,20+floori(haul/1.2*1.35),"the clock covers the whole haul, not only the last few doors: "+text)
+	check(service.runtime.diagnostics.is_empty(),str(service.runtime.diagnostics))
+	service.leave("test")
 
 func test_cross_town_rush_picks_up_then_delivers() -> void:
 	if not _setup(_loop_city()) or not await _enter(START): return

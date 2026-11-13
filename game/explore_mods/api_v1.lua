@@ -43,7 +43,9 @@
 -- api.actor.spawn(kind, options)                        -> {kind,options}
 -- world.player data adds mode (0 foot/1 road vehicle/2 air), vehicle (own
 -- handle or ""), speed (horizontal tiles/active second) and heading {x,z}
--- (camera level view direction; right of heading is {-z,x}).
+-- (camera level view direction; right of heading is {-z,x}), plus helicopter
+-- (copied point of the helicopter the player can fly this visit: the one
+-- being flown, else the nearest parked one; absent when there is none).
 -- world.find_landmark kinds road_destination/road/sidewalk/park/station/
 -- hospital/police_station/fire_station (the last five: a road cell beside one).
 -- options: kind (actor domain), from (supported start point, default player),

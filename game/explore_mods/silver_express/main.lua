@@ -538,8 +538,11 @@ finished = function(api, action, code, data)
       track(api, "search", far.request(api, job.search))
     elseif outcome == "done" then
       stop.found = guide.point(job.search.at)
-      stop.route = job.search.total
-      job.route = job.route + job.search.total
+      -- A retried doorstep adds its few doors to the haul already driven to
+      -- this street.
+      stop.route = (stop.haul or 0) + job.search.total
+      stop.haul = nil
+      job.route = job.route + stop.route
       serial = serial + 1
       track(api, "person", api.actor.spawn("pedestrian", {key = "stop" .. serial, position = stop.found,
         near_player = true, variant = "pedestrian_" .. stop.variant}))
@@ -551,9 +554,10 @@ finished = function(api, action, code, data)
       -- That doorstep is crowded: try the next address along the street.
       job.tries = job.tries + 1
       if job.tries > 4 then stuck(api) return end
+      stop.haul = stop.route or 0
+      job.route = job.route - stop.haul
       job.search = far.new({from = stop.found, hops = 1, reach = 2 + job.tries, vary = 2})
       track(api, "search", far.request(api, job.search))
-      job.route = job.route - (stop.route or 0)
       return
     end
     stop.actor = data.id

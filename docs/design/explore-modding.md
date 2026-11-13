@@ -112,7 +112,12 @@ request returns no_route.
 vehicle, 2 aircraft), `vehicle` (this pack's own handle when the player drives a
 vehicle it spawned, otherwise ""), `speed` (horizontal tiles per active second)
 and `heading` (`{x,z}`, the camera's level view direction). Compare a target's
-offset with heading to phrase guidance as ahead/left/right on screen.
+offset with heading to phrase guidance as ahead/left/right on screen. It also
+has `helicopter`, the copied point of the helicopter the player can fly during
+this visit: the one being flown, otherwise the nearest parked one. Helicopters
+are kept at the Mayor's House, so the field is absent in a city without one (or
+with its pad blocked) unless the player has boarded an aircraft some other way.
+A pack that needs flying should check it before offering work.
 
 Actor functions spawn, inspect, navigate, wait, wave and remove catalog actors.
 Interactions register proximity prompts. The nearest target wins; exact distance
@@ -219,8 +224,14 @@ show and totals are saved per city.
 
 Desert Air Patrol (`air_patrol`) flies helicopter calls. Captain Dee Vance
 offers a patrol shift (three radio calls) or a single call of one kind; every
-call is flown in the session helicopter (walk to it, or Explore menu → Choose a
-vehicle → Helicopter). A medevac sends you to a patient about 25–40 tiles out;
+call is flown in the helicopter parked at the Mayor's House (walk to it; the
+objective gives its distance and direction and a pin marks it while you are on
+foot). The pack reads `world.player().helicopter`: in a city with no helicopter
+to fly the captain offers no calls, explains that the city needs a Mayor's
+House and still shows the logbook. Any briefing can be turned down with "Call
+it off", and talking to the captain during a shift ends it; either way the
+call's people, cars and pins are removed and points already earned are kept.
+A medevac sends you to a patient about 25–40 tiles out;
 four in ten are search and rescue, with a search-area pin near the hiker and
 the hiker's own pin hidden beyond four tiles. Land within three tiles of them,
 or hover under 1.2 tiles up right over them for three seconds to lower the ladder,

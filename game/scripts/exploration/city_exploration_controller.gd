@@ -418,6 +418,8 @@ func _suspend(manual: bool, focus_resume: bool = true) -> void:
 		_manual_pause = true
 		_resume_when_unblocked = false
 	_reset_input()
+	# The stopped actor is what the HUD and sound hear while paused.
+	if not was_suspended: _publish_status()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# A repeated suspension (for example a modal over the paused panel) never
 	# takes keyboard focus from whatever opened.
@@ -633,8 +635,10 @@ func _physics_process(delta: float) -> void:
 		for key: int in controls.keys_for("Explore"):
 			if bool(keys.get(key,false)): released = false
 		_edges.clear()
-		if not released: return
-		_arming = false
+		# Keys held since before a boarding, pause or entry move nothing until
+		# every one is up; Explore itself keeps running meanwhile.
+		if released: _arming = false
+		else: keys = {}
 	var frame := ExploreInputFrame.from_keys(keys,_edges,controls)
 	if _touch_enabled:
 		if not _touch_hardware_quarantine.is_empty(): frame=ExploreInputFrame.idle()
@@ -666,6 +670,11 @@ func _physics_process(delta: float) -> void:
 	if occupied is ExploreHelicopter:
 		if occupied.landed(): _helicopter_in_flight = false
 		elif frame.vertical > 0: _helicopter_in_flight = true
+		if occupied.barrier == &"water":
+			# Held above water it is flying, even when it taxied off a shore.
+			if not occupied.landed(): _helicopter_in_flight = true
+			_message = "The helicopter cannot land on water."
+		elif occupied.barrier == &"edge": _message = "This is the edge of the city."
 	if not _valid_actor(occupied):
 		if not _recover_nearby(): return
 	elif occupied.landed(): _last_safe[occupied.get_instance_id()] = occupied.global_transform
@@ -1048,7 +1057,8 @@ func _board_service(slot: Node3D) -> bool:
 	CityServiceParking.set_claimed(slot,view.mesh_batches,true)
 	var shape := BoxShape3D.new()
 	shape.size = CityTrafficCatalog.dimensions(slot.get_meta("kind"))
-	var pose := _house_pose(at,shape)
+	# The walker boarding it may be pressed against the vehicle.
+	var pose := _house_pose(at,shape,pedestrian)
 	if pose.is_empty():
 		CityServiceParking.set_claimed(slot,view.mesh_batches,false)
 		_message = "This parking space is obstructed."
@@ -1242,6 +1252,22 @@ func select_vehicle(kind: StringName) -> bool:
 	if ok: resume()
 	return ok
 
+## The helicopter the player can fly this visit: the one being flown, otherwise
+## the nearest parked one. Null when this city offers none; helicopters are
+## kept at the Mayor's House.
+func available_helicopter() -> ExploreHelicopter:
+	if occupied is ExploreHelicopter: return occupied as ExploreHelicopter
+	var nearest: ExploreHelicopter
+	if not is_instance_valid(pedestrian): return nearest
+	var best := INF
+	for actor: CharacterBody3D in _vehicles():
+		if not actor is ExploreHelicopter: continue
+		var away := actor.global_position.distance_squared_to(pedestrian.global_position)
+		if away < best:
+			best = away
+			nearest = actor as ExploreHelicopter
+	return nearest
+
 ## Furthest a parked helicopter may be from the walker to be chosen in the
 ## Explore menu; other vehicles likewise appear on a route within this reach.
 const HELICOPTER_SELECT_REACH := 8.0
@@ -1303,12 +1329,15 @@ func _select_vehicle(kind: StringName, claim: Dictionary = {}, marina_route: Dic
 			return true
 	# A menu selection or synthetic claim can never create a second mayoral SUV.
 	if kind == &"mayormobile":
-		_message = "The Mayormobile is parked at the Mayor's House. Walk to it to get in."
+		if _house.is_empty(): _message = "The Mayormobile is kept at the Mayor's House, and this city has none."
+		elif not is_instance_valid(car): _message = "The Mayormobile's space at the Mayor's House is obstructed."
+		else: _message = "The Mayormobile is parked at the Mayor's House. Walk to it to get in."
 		_publish_status()
 		return false
 	if kind == &"helicopter":
 		if claim.is_empty():
-			_message = "No helicopter is available here. Walk to the Mayor's House or board a nearby helicopter."
+			if _house.is_empty(): _message = "This city has no helicopter. One is kept at the Mayor's House, and the city has none. A helicopter standing at an airport can be boarded on foot."
+			else: _message = "No helicopter is available. Its pad at the Mayor's House is obstructed."
 			_publish_status()
 			return false
 		var borrowed := _make_actor(2,Transform3D.IDENTITY) as ExploreHelicopter
@@ -1584,8 +1613,10 @@ func _actors() -> Array[CharacterBody3D]:
 	return result
 
 ## Exact authored slot, supported at lot grade. Never search roofs/other lots.
-func _house_pose(at: Transform3D, shape: Shape3D) -> Dictionary:
+## `boarding` is the walker about to get in, who never obstructs the space.
+func _house_pose(at: Transform3D, shape: Shape3D, boarding: CharacterBody3D = null) -> Dictionary:
 	var exclude: Array[RID] = []
+	if is_instance_valid(boarding): exclude.append(boarding.get_rid())
 	var support := traversal.support_near(at.origin,.004,.008,exclude)
 	if support.is_empty() or traversal.touches_water(support.position): return {}
 	at.origin = support.position+Vector3.UP*.002
@@ -1595,7 +1626,7 @@ func _house_pose(at: Transform3D, shape: Shape3D) -> Dictionary:
 	if not traversal.has_clearance(shape_pose,shape,exclude): return {}
 	var box := shape_pose*bounds
 	for actor: CharacterBody3D in _actors():
-		if actor.collision_layer == 0: continue
+		if actor.collision_layer == 0 or actor == boarding: continue
 		var existing := _actor_shape_pose(actor,actor.global_transform)*_actor_shape(actor).get_debug_mesh().get_aabb()
 		if box.grow(.003).intersects(existing): return {}
 	# Full footprint support prevents parked vehicles hanging over a lot edge.

@@ -55,6 +55,16 @@ const ROTOR_SPOOL_UP := .5
 const ROTOR_SPOOL_DOWN := 1.0
 ## Below this share of full speed a winding-down rotor stops.
 const ROTOR_REST := .02
+## The city limits and open water are barriers, not places to recover from.
+## The body stops EDGE_MARGIN inside the map and the skids hold WATER_HOVER
+## above a water surface. A surface up to WATER_STEP above low skids is
+## climbed over; a taller one is a wall.
+const EDGE_MARGIN := .002
+const WATER_HOVER := .012
+const WATER_STEP := .1
+## What stopped the last step: &"edge" at the city limits, &"water" when open
+## water held the helicopter up or back, otherwise empty.
+var barrier := &""
 var _world: CityTraversalWorld3D
 var _visual: ExploreActorVisual
 var _collider: CollisionShape3D
@@ -143,6 +153,7 @@ func has_support() -> bool:
 
 func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	if not is_instance_valid(_world) or not is_inside_tree(): return
+	barrier = &""
 	if not global_transform.is_finite() or not velocity.is_finite() or not frame.move.is_finite() or not is_finite(frame.vertical) or not is_finite(delta) or not is_finite(camera_yaw):
 		_request("nonfinite")
 		return
@@ -171,6 +182,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 		_request("unsupported")
 		return
 	_grounded = supported and velocity.y<=.001
+	var taxiing := _grounded
 	_stepped_frame = Engine.get_physics_frames()
 	set_process(true)
 	var input := frame.move.limit_length(1)
@@ -196,7 +208,9 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	if global_position.y+motion.y>ceiling:
 		motion.y = maxf(0.0,ceiling-global_position.y)
 		velocity.y = 0.0
+	var from := global_position
 	for iteration: int in 4:
+		motion = _inside_city(_above_water(motion,frame.vertical<0))
 		if motion.length_squared()<.0000000001: break
 		var hit := move_and_collide(motion,false,.001,true)
 		if hit==null: break
@@ -205,6 +219,7 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 			_grounded = true
 		velocity = velocity.slide(normal)
 		motion = hit.get_remainder().slide(normal)
+	if taxiing: _stay_ashore(from)
 	# Support is always local for landing. A separate downward altitude query
 	# measures the HUD height and never changes the actor's position or layer.
 	_grounded = has_support() and velocity.y<=.001
@@ -214,8 +229,10 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 		if velocity.y<0: velocity.y = 0
 		# The ground took the descent; none of it may linger into the next takeoff.
 		if _accel.y<0: _accel.y = 0
+	_leave_water(from)
 	var below := _support(32.0)
-	_altitude = 0.0 if _grounded else (maxf(0.0,global_position.y-float(below.position.y)) if not below.is_empty() else maxf(0.0,global_position.y))
+	var surface := maxf(float(below.position.y) if not below.is_empty() else 0.0,_world.water_top(global_position))
+	_altitude = 0.0 if _grounded else maxf(0.0,global_position.y-surface)
 	if not global_position.is_finite(): _request("nonfinite")
 	elif not _inside(): _request("bounds")
 	elif _world.touches_water(global_position): _request("water")
@@ -224,6 +241,65 @@ func step(frame: ExploreInputFrame, camera_yaw: float, delta: float) -> void:
 	_visual.rotor_rate = _rotor
 	_visual.set_motion(horizontal.length(),0.0,not _grounded)
 	_visual.advance_visual(dt)
+
+## Shorten `motion` so the whole body stays inside the city. Speed into the
+## limit is dropped; the rest carries on along it.
+func _inside_city(motion: Vector3) -> Vector3:
+	var bounds: AABB = _collider.global_transform*_local_collision_bounds
+	var low := Vector2(minf(EDGE_MARGIN-bounds.position.x,0.0),minf(EDGE_MARGIN-bounds.position.z,0.0))
+	var high := Vector2(maxf(float(City.WIDTH)-EDGE_MARGIN-bounds.end.x,0.0),maxf(float(City.HEIGHT)-EDGE_MARGIN-bounds.end.z,0.0))
+	if motion.x<low.x or motion.x>high.x:
+		motion.x = clampf(motion.x,low.x,high.x)
+		velocity.x = 0.0
+		_accel.x = 0.0
+		barrier = &"edge"
+	if motion.z<low.y or motion.z>high.y:
+		motion.z = clampf(motion.z,low.y,high.y)
+		velocity.z = 0.0
+		_accel.z = 0.0
+		barrier = &"edge"
+	return motion
+
+## A descent that would end in open water stops WATER_HOVER above its surface.
+func _above_water(motion: Vector3, descending: bool) -> Vector3:
+	if motion.y>=0: return motion
+	var floor_y := _world.water_top(global_position+motion)+WATER_HOVER
+	if global_position.y<floor_y or global_position.y+motion.y>=floor_y: return motion
+	motion.y = floor_y-global_position.y
+	velocity.y = 0.0
+	if _accel.y<0: _accel.y = 0.0
+	if descending: barrier = &"water"
+	return motion
+
+## On its skids the helicopter keeps to dry ground: a move that would put any
+## of its body over water at skid height is undone, as at any other barrier.
+func _stay_ashore(from: Vector3) -> void:
+	if velocity.y>.001: return
+	var body := _collider.global_transform
+	if not _world.touches_water_footprint(body,_local_collision_bounds.size): return
+	body.origin += from-global_position
+	if _world.touches_water_footprint(body,_local_collision_bounds.size): return
+	global_position = from
+	velocity = Vector3.ZERO
+	_accel = Vector3.ZERO
+	barrier = &"water"
+
+## Flying low into water whose surface is a little above the skids climbs over
+## it. Where that is not possible the water is a wall: the helicopter stays on
+## the near side, at `from`.
+func _leave_water(from: Vector3) -> void:
+	if not _world.touches_water(global_position): return
+	var rise := _world.water_top(global_position)+WATER_HOVER-global_position.y
+	if rise<=WATER_STEP: move_and_collide(Vector3.UP*rise,false,.001,true)
+	if not _world.touches_water(global_position):
+		if velocity.y<0: velocity.y = 0.0
+		barrier = &"water"
+		return
+	if _world.touches_water(from): return
+	global_position = from
+	velocity = Vector3.ZERO
+	_accel = Vector3.ZERO
+	barrier = &"water"
 
 ## Ease velocity toward the stick: a capped gap-closing acceleration that
 ## itself settles over ACCEL_LAG, separately across and up.

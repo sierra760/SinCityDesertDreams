@@ -110,6 +110,9 @@ Explore (`sfx/`, positional):
 | Station elevator | `elevator_loop`, `elevator_ding` |
 | Station fountain | `fountain_loop` |
 
+While Explore is paused (its menu, a window or a notice) the footstep, vehicle,
+train and elevator loops are silent; they return on Resume.
+
 ## Songs
 
 | Song | Style | Where it plays |

@@ -149,7 +149,10 @@ func test_wet_contact_never_authorizes_exit() -> void:
 	await descend(180)
 	check(not helicopter.landed(),"wet floor cannot count as a supported landing")
 	check(not bool(session.call("_valid_actor",helicopter)),"wet aircraft pose is invalid for session and exit")
-	check(reports.size()==1 and reports[0]=="water","water contact requests one bounded recovery")
+	var world: CityTraversalWorld3D = fixture.get_node("traversal")
+	check(not world.touches_water(helicopter.position),"the descent is held above the water surface")
+	check_lt(helicopter.position.y,world.water_top(helicopter.position)+.05,"the helicopter comes down to just above the water")
+	check(reports.is_empty(),"open water is a barrier and never requests a recovery")
 	await after_each()
 
 func test_actor_layer_top_is_not_a_world_landing() -> void:

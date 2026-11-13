@@ -121,6 +121,44 @@ func test_touch_display_change_stops_real_actor_and_old_fingers_stay_released() 
 	check(session.occupied.global_position.distance_to(at)<.005,"old movement finger cannot survive display change")
 	layout.free()
 
+func test_footer_height_change_keeps_touch_input_and_the_vehicle_moving() -> void:
+	if not _setup() or not _enable_touch() or not await _enter(): return
+	var layout := DisplayLayout.new()
+	layout.refresh_with_metrics(Vector2i(1024,768),1.0)
+	hud.bind_layout(layout)
+	hud.set_chrome_insets(44,48)
+	var car: ExploreCar = session.car
+	check(car != null,"the fixture parks a car")
+	if car == null: return
+	session.pedestrian.global_position = car.global_position+Vector3(.15,0,0)
+	check(session.request_interaction(),"the player gets into the car")
+	check_eq(session.occupied,car)
+	var controls: ExploreTouchControls = hud.touch_controls
+	var pad := controls.control_rect(&"move")
+	var center := pad.get_center()
+	session.handle_event(_touch(0,center,true))
+	session.handle_event(_touch_drag(0,center+Vector2(0,-48),Vector2(0,-48)))
+	for tick in 30: await physics_frame
+	var speed := absf(car.speed())
+	check_gt(speed,.05,"the thumb stick drives the car")
+	# The city status line wraps onto a second row while the thumb is down.
+	hud.set_chrome_insets(44,63)
+	check_ne(controls.control_rect(&"move"),pad,"the controls follow the taller footer")
+	check(not controls.is_waiting_for_release(),"the thumb keeps its stick")
+	check_gt(absf(car.speed()),speed*.95,"a footer height change does not stop the car")
+	check_eq(controls.sample_frame().move,Vector2(0,-1),"the stick still reads full throttle")
+	for tick in 20: await physics_frame
+	check_gt(absf(car.speed()),speed,"the car keeps accelerating")
+	# The same thumb still steers after the layout moved.
+	session.handle_event(_touch_drag(0,center+Vector2(48,0),Vector2(48,48)))
+	check_eq(controls.sample_frame().move,Vector2(1,0),"the stick stays where the thumb first touched it")
+	hud.set_chrome_insets(44,48)
+	check(not controls.is_waiting_for_release())
+	session.handle_event(_touch(0,center+Vector2(48,0),false))
+	for tick in 4: await physics_frame
+	check_eq(controls.sample_frame().move,Vector2.ZERO,"lifting the thumb releases the stick")
+	layout.free()
+
 func _touch(id: int, position: Vector2, pressed: bool) -> InputEventScreenTouch:
 	var event := InputEventScreenTouch.new()
 	event.index=id

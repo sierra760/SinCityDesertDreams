@@ -37,6 +37,9 @@ var _joystick: VirtualJoystick
 var _joystick_viewport: SubViewport
 var _joystick_display: TextureRect
 var _move_contact := -1
+## Where the pad stood when the movement finger went down. The stick is read
+## from here for as long as that finger stays down.
+var _move_anchor := Vector2.ZERO
 var _move_actions: Array[StringName] = []
 
 func _enter_tree() -> void:
@@ -107,7 +110,11 @@ func set_mode(value: int) -> void:
 func set_usable_rect(rect: Rect2) -> void:
 	if not rect.position.is_finite() or not rect.size.is_finite() or rect.size.x<=0 or rect.size.y<=0: return
 	if rect == _usable: return
-	clear_input()
+	# The same screen with taller or shorter bars above and below it moves the
+	# controls without changing their arrangement: fingers already down keep
+	# what they hold. Any other change starts again from fresh contacts.
+	var shifted := is_inside_tree() and rect.position.x==_usable.position.x and rect.size.x==_usable.size.x and (rect.size.y<360.0)==(_usable.size.y<360.0)
+	if not shifted: clear_input()
 	_usable=rect
 	_refresh()
 
@@ -170,6 +177,7 @@ func handle_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 		if role in [&"jump",&"interact",&"attack",&"weapon"]: _edges[role]=true
 		if role==&"move":
 			_move_contact=contact.index
+			_move_anchor=control_rect(&"move").position
 			_route_joystick(contact)
 		_sync_action_feedback()
 		queue_redraw()
@@ -299,7 +307,7 @@ func _build_joystick() -> void:
 
 func _route_joystick(event: InputEvent) -> void:
 	var local := event.duplicate() as InputEvent
-	local.position=event.position-control_rect(&"move").position
+	local.position=event.position-_move_anchor
 	_joystick_viewport.push_input(local,true)
 	_move=Vector2(Input.get_axis(_move_actions[0],_move_actions[1]),Input.get_axis(_move_actions[2],_move_actions[3])).limit_length(1.0)
 	if _move.length()<DEAD_ZONE: _move=Vector2.ZERO
@@ -311,6 +319,7 @@ func _release_joystick() -> void:
 		release.position=Vector2(_joystick_viewport.size)*.5
 		_joystick_viewport.push_input(release,true)
 	_move_contact=-1
+	if is_instance_valid(_joystick_display) and _rects.has(&"move"): _joystick_display.position=control_rect(&"move").position
 	for action: StringName in _move_actions:
 		if InputMap.has_action(action): Input.action_release(action)
 
@@ -340,7 +349,8 @@ func _refresh() -> void:
 		_joystick.size=Vector2(_pad_size,_pad_size)
 		_joystick.joystick_size=_pad_size
 		_joystick.clampzone_ratio=2.0*_pad_radius/_pad_size
-		_joystick_display.position=control_rect(&"move").position
+		# A held stick is drawn where its finger found it.
+		_joystick_display.position=_move_anchor if _move_contact>=0 else control_rect(&"move").position
 		_joystick_display.size=Vector2(_pad_size,_pad_size)
 		_joystick_display.visible=not _suspended
 		_joystick_viewport.render_target_update_mode=SubViewport.UPDATE_WHEN_VISIBLE if visible and not _suspended else SubViewport.UPDATE_DISABLED

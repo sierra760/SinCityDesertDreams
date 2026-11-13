@@ -143,6 +143,78 @@ func test_service_approach_doors_dwell_and_obstruction() -> void:
 	service.step(.1,walker)
 	check_eq(service.state,"opening","obstruction reopens closing doors")
 
+func test_stopped_train_waits_for_a_walker_still_on_the_way() -> void:
+	await _setup()
+	var station := service.network.station_for_route(service.route_data,int(service.route_data.stops[0].station))
+	# Near enough for the service to be prepared, too far to have reached the platform.
+	walker.global_position = station.platform+Vector3(0,.002,2.4)
+	check_eq(service._nearest_station(walker.global_position),int(service.route_data.stops[0].station),"this is the walker's station")
+	check(_wait_boarding())
+	for i: int in 300: service.step(.1,walker)
+	check_eq(service.state,"boarding","the train keeps its doors open for a walker on the way")
+	check_eq(service.stop_index,0)
+	walker.global_position = station.platform+Vector3(0,.002,.3)
+	for i: int in 79: service.step(.1,walker)
+	check_eq(service.state,"boarding","a full dwell starts once the walker reaches the platform")
+	for i: int in 3: service.step(.1,walker)
+	check_eq(service.state,"closing","the train then leaves on time")
+
+func test_waiting_train_leaves_after_a_bounded_hold_or_when_the_walker_goes() -> void:
+	await _setup()
+	var station := service.network.station_for_route(service.route_data,int(service.route_data.stops[0].station))
+	walker.global_position = station.platform+Vector3(0,.002,2.4)
+	check(_wait_boarding())
+	for i: int in int((Service.HOLD_LIMIT+ExploreTransitTrain.DWELL)*10.0)+5: service.step(.1,walker)
+	check(service.state != "boarding","the hold is bounded")
+	await after_each()
+	await _setup()
+	station = service.network.station_for_route(service.route_data,int(service.route_data.stops[0].station))
+	walker.global_position = station.platform+Vector3(0,.002,2.4)
+	check(_wait_boarding())
+	for i: int in 100: service.step(.1,walker)
+	check_eq(service.state,"boarding")
+	# Walking right away from every station releases the train.
+	walker.global_position = station.platform+Vector3(0,.002,9)
+	check_eq(service._nearest_station(walker.global_position),-1)
+	for i: int in 82: service.step(.1,walker)
+	check_eq(service.state,"closing","a walker who leaves no longer holds the train")
+
+func test_platform_guidance_says_where_an_absent_train_is() -> void:
+	await _setup()
+	check(_wait_boarding())
+	var first := int(service.route_data.stops[0].station)
+	var origin := service.network.station_for_route(service.route_data,first)
+	walker.global_position = origin.platform+Vector3(0,.002,.3)
+	for i: int in 110: service.step(.1,walker)
+	check_eq(service.state,"departing")
+	check_eq(service.stop_index,1)
+	var bound := service.network.station_for_route(service.route_data,int(service.route_data.stops[1].station))
+	var message := String(service.status().message)
+	check(message.contains(String(bound.name)),"the platform says where the train went: "+message)
+	check(message.contains("Next train here in about"),"and when the next one is due: "+message)
+	check(not message.contains("approaching"),message)
+	var estimate := service._seconds_until(0)
+	# Ride the clock until the train stands at the far stop.
+	var steps := 0
+	while not (service.state == "boarding" and service.stop_index != 0) and steps < 6000:
+		service.step(.1,walker)
+		steps += 1
+	check(service.state == "boarding" and service.stop_index != 0,"the train reaches the far stop")
+	message = String(service.status().message)
+	check(not message.contains("open doorway"),"no boarding invitation for a train standing elsewhere: "+message)
+	check(message.contains("The train is at "),message)
+	check(message.contains("Next train here in about"),message)
+	# And until it is back with its doors open here.
+	var back := 0
+	while not (service.state == "boarding" and service.stop_index == 0) and back < 12000:
+		service.step(.1,walker)
+		back += 1
+		if service.stop_index == 0 and service.state in ["departing","braking"] and service._seconds_until(0) < 5.0:
+			check(String(service.status().message).contains("approaching"),"the returning train is announced as it arrives")
+	check(service.state == "boarding" and service.stop_index == 0,"the train comes back")
+	check_lt(absf(float(steps+back)*.1-estimate),maxf(8.0,estimate*.15),"the announced wait matches the real one")
+	check(String(service.status().message).contains("open doorway"),"boarding is invited once the train is really here")
+
 func test_pause_network_edit_and_city_immutability() -> void:
 	await _setup()
 	var bytes := SaveFormat.encode_city(view.city)

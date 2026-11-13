@@ -60,6 +60,10 @@ func _update_context() -> void:
 		queries.player["speed"] = Vector2(velocity.x,velocity.z).length()
 		if is_instance_valid(controller.camera_rig):
 			queries.player["heading"] = {"x":-sin(controller.camera_rig.yaw),"z":-cos(controller.camera_rig.yaw)}
+		# Where the helicopter the player can fly stands; absent when this
+		# visit has none.
+		var craft := controller.available_helicopter()
+		if craft != null: queries.player["helicopter"] = ExploreWorldQueries.copied_point(craft.feet_position(),queries.graph.revision)
 		if not controller._traffic_claim.is_empty():
 			for id: String in actors._actors:
 				if actors._actors[id].record.id == controller._traffic_claim.id: queries.player["vehicle"] = id

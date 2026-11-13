@@ -120,6 +120,78 @@ func test_obstructed_slot_refuses_boarding_and_restores_its_static_body() -> voi
 	check_eq((slot.get_node("Body") as StaticBody3D).collision_layer,4)
 	check(not slot.get_meta("claimed",false))
 
+func test_walker_pressed_against_a_parked_vehicle_can_board_it() -> void:
+	for code in [209,210,211]:
+		if not _setup(_service_city(code)): return
+		view.buildings.rebuild(city,view.catalog)
+		await physics_frame
+		check(session.enter(city,Vector3(21.5,GROUND,23.5)))
+		session.set_physics_process(false)
+		var slots := _slots()
+		check(not slots.is_empty())
+		if slots.is_empty(): return
+		var slot: Node3D = slots[0]
+		for side: float in [1.0,-1.0]:
+			# Start beside the vehicle and walk straight into its flank.
+			session.pedestrian.place(Transform3D(Basis.IDENTITY,slot.global_position+slot.global_basis.x*.16*side))
+			await physics_frame
+			var frame := ExploreInputFrame.idle()
+			var toward: Vector3 = -slot.global_basis.x*side
+			frame.move = Vector2(toward.x,toward.z)
+			for tick in 90:
+				session.pedestrian.step(frame,0.0,1.0/60.0)
+				await physics_frame
+			var found := CityServiceParking.nearest(view.buildings,session.pedestrian.global_position,.25)
+			check(not found.is_empty(),"the walker reached the vehicle")
+			if found.is_empty(): return
+			check_lt(float(found.gap),.004,"the walker is touching the vehicle")
+			check(session.request_interaction(),"a walker touching the vehicle is not its obstruction")
+			check(session.occupied is ExploreCar)
+			if not session.occupied is ExploreCar: return
+			check_eq(session.occupied.global_transform,slot.global_transform,"boarding keeps the parked pose")
+			check(session.request_interaction(),"the driver can step out again")
+			check_eq(session.occupied,session.pedestrian)
+			if side > 0:
+				# Hand the vehicle back so the other flank is tried from static parking.
+				session.leave()
+				await physics_frame
+				check(session.enter(city,Vector3(21.5,GROUND,23.5)))
+				session.set_physics_process(false)
+		await after_each()
+
+func test_boarding_with_a_movement_key_held_keeps_explore_running() -> void:
+	if not _setup(_service_city(210)): return
+	view.buildings.rebuild(city,view.catalog)
+	await physics_frame
+	check(session.enter(city,Vector3(21.5,GROUND,23.5)))
+	var slots := _slots()
+	check(not slots.is_empty())
+	if slots.is_empty(): return
+	var slot: Node3D = slots[0]
+	for tick in 3: await physics_frame
+	session.pedestrian.place(Transform3D(Basis.IDENTITY,slot.global_position+slot.global_basis.x*.22))
+	await _physical_key(KEY_W,true)
+	session.handle_event(_key(KEY_W,true))
+	check(session.request_interaction(),"boards with the walking key still down")
+	var vehicle := session.occupied as ExploreCar
+	check(vehicle != null)
+	if vehicle == null: return
+	var parked := vehicle.global_position
+	var published: Array[int] = [0]
+	session.status_changed.connect(func(_status: Dictionary) -> void: published[0] += 1)
+	var camera_before: Transform3D = session.camera_rig.camera.global_transform
+	for tick in 12: await physics_frame
+	check_gt(published[0],8,"Explore keeps running while the key is still down")
+	check(not session.camera_rig.camera.global_transform.is_equal_approx(camera_before),"the camera settles behind the vehicle")
+	check_lt(vehicle.global_position.distance_to(parked),.002,"the key held since before boarding does not drive the vehicle")
+	await _physical_key(KEY_W,false)
+	session.handle_event(_key(KEY_W,false))
+	for tick in 3: await physics_frame
+	await _physical_key(KEY_W,true)
+	session.handle_event(_key(KEY_W,true))
+	for tick in 40: await physics_frame
+	check_gt(vehicle.global_position.distance_to(parked),.02,"a fresh press drives")
+
 func test_incremental_replacement_moves_interaction_to_the_new_lot_only() -> void:
 	if not _setup(_service_city(210)): return
 	view.buildings.rebuild(city,view.catalog)

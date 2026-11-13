@@ -107,10 +107,15 @@ func handle_touch_event(event: InputEvent, ui_blocked: bool = false) -> bool:
 func set_chrome_insets(top: float, bottom: float) -> void:
 	var next_top := maxf(0.0, top) if is_finite(top) else 0.0
 	var next_bottom := maxf(0.0, bottom) if is_finite(bottom) else 0.0
-	if _touch_enabled and (next_top!=_chrome_top or next_bottom!=_chrome_bottom): touch_input_canceled.emit()
+	var changed := next_top!=_chrome_top or next_bottom!=_chrome_bottom
 	_chrome_top = next_top
 	_chrome_bottom = next_bottom
+	var waiting := is_instance_valid(touch_controls) and touch_controls.is_waiting_for_release()
 	_reflow()
+	# A taller or shorter menu or footer only moves the controls, and fingers
+	# keep what they hold. Input is cancelled only when the controls had to
+	# drop their contacts for the new layout.
+	if _touch_enabled and changed and not waiting and is_instance_valid(touch_controls) and touch_controls.is_waiting_for_release(): touch_input_canceled.emit()
 
 func show_session(on: bool) -> void:
 	visible = on

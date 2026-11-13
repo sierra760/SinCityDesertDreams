@@ -14,8 +14,9 @@ jumps. With a keyboard, a short controls hint appears on entering and whenever
 you switch between walking, driving, flying and riding. **F** enters a nearby
 drivable vehicle: one whose body is within about 4 m (a quarter tile) of the
 walker, measured to the vehicle itself rather than its centre, so a bus and a
-compact are equally easy to get into. The session car and helicopter park within
-that reach when Explore starts. Outdoors, a vehicle in reach is entered before a
+compact are equally easy to get into. The Mayormobile and the helicopter are
+kept at the Mayor's House (see explore-spawns.md); a city without one has
+neither, and the Explore menu says so. Outdoors, a vehicle in reach is entered before a
 resort door, station lift or marina beside it, so an entrance never stops you
 getting in; a mod interaction keeps its precedence. Indoors (lifts, stations,
 casino floors) no vehicle answers F. **Escape** opens the Explore menu,
@@ -23,7 +24,10 @@ including the vehicle selector, Resume, Recover and Return to Build. All 17
 non-airplane catalog types are available when their route and clearance
 requirements are met. Road vehicles steer freely on safe support; trains follow
 connected tracks; boats remain on navigable water; the helicopter flies and must
-land before exit. Boat exits require clear dry shore.
+land before exit. The helicopter may fly over water but cannot land on it: a
+descent stops just above the surface, and on its skids a shoreline stops it. It
+stops at the city limits and slides along them. None of these moves it back to
+where it last landed. Boat exits require clear dry shore.
 
 To ride as a passenger, approach a usable rail or subway station. Surface rail
 platforms, approach steps and safety railings are permanent parts of the station
@@ -40,7 +44,12 @@ travels. Nearby diagonal track is reached by an enclosed pedestrian passage.
 Wait behind the yellow edge and **walk through an open door**; no interaction
 key or attachment prompt is needed. Walk inside the cabin while
 it moves, then walk through an open door at a stop to leave. Doors stay fully
-open for eight seconds and reopen if occupied. Connected branch destinations
+open for eight seconds and reopen if occupied. A train standing at the station
+you are walking to (within three tiles) keeps its doors open until you reach the
+platform, for up to 90 seconds, and the eight seconds start then. When the
+train is elsewhere the platform says so: where it is or where it has left for,
+and about how long until the next one is here; "Train approaching" appears only
+in its last 20 seconds. Connected branch destinations
 are selectable in the Explore menu. A station with unusable track/access
 reports why service is unavailable.
 
