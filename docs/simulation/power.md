@@ -136,7 +136,8 @@ still apply. Zoned line tiles can develop into buildings through normal growth.
    the plant retires:
    - If disasters are disabled and `city.funds` covers the plant's build cost,
      the cost is debited, the age returns to zero, `warned` clears and
-     `plant_replaced` is reported.
+     `plant_replaced` is reported. The budget settles the year first, so the
+     treasury tested here already holds the year's income.
    - Otherwise the footprint is cleared: rubble on flat tiles, bare ground on
      slopes, power and water service bits cleared, underground pipes kept, the
      record removed, `plant_retired` reported and noticed, and the rect marked
@@ -167,9 +168,12 @@ still apply. Zoned line tiles can develop into buildings through normal growth.
 
 ## Save state
 
-`save()` returns `{"shortage": bool, "consumed": int}`. Plant ages live in
-`city.facilities` and the service bits in the `flags` layer, both saved with
-the city.
+`save()` returns `{"shortage": bool, "consumed": int, "conservation": bool}`.
+`conservation` is the energy conservation setting the last scheduled pass
+used, so construction after a load redistributes with the same budget as
+before it. A save without the field takes it from the restored ordinances.
+Plant ages live in `city.facilities` and the service bits in the `flags`
+layer, both saved with the city.
 
 ## Agricultural power
 

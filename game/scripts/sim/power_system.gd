@@ -150,12 +150,23 @@ func yearly(ctx: SimContext) -> void:
 
 
 func save() -> Dictionary:
-	return {"shortage": _shortage, "consumed": _consumed}
+	return {"shortage": _shortage, "consumed": _consumed, "conservation": _conservation}
 
 
 func load(data: Dictionary) -> void:
 	_shortage = bool(data.get("shortage", false))
 	_consumed = int(data.get("consumed", 0))
+	if data.has("conservation"):
+		_conservation = bool(data["conservation"])
+
+
+## The saved stats arrive after setup. Keep the conservation policy the last
+## scheduled pass used; a save written before it was stored takes it from the
+## restored ordinances. No power is redistributed.
+func finish_restore(ctx: SimContext, data: Dictionary) -> void:
+	_conservation = bool(data.get("conservation", ctx.stats.ordinances.get(Params.CONSERVATION_ORDINANCE, false)))
+	if _has_supply_state:
+		_available_capacity = _saved_available_capacity(ctx.city.flags.data)
 
 
 # ── Public getters ───────────────────────────────────────────────────────

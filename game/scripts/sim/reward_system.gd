@@ -53,6 +53,10 @@ func daily(ctx: SimContext) -> void:
 
 func monthly(ctx: SimContext, _phase: int = 0) -> void:
 	_reconcile_rewards(ctx)
+	if _awaiting_military_site(ctx):
+		# One offer a month: a base proposed now delays the next gift.
+		if _offer_military(ctx):
+			return
 	_check_milestone(ctx)
 
 
@@ -92,8 +96,7 @@ func unlock_for_cheat() -> void:
 			_ctx.stats.rewards_offered[k] = true
 			_propose_military(_ctx)
 			if military_offer().pending:
-				_ctx.events.notify(&"reward_offered", {"key": k, "kind": _military.kind,
-					"site": _rect_to_array(_military.site), "sites": _rects_to_array(_military.sites)})
+				_notify_military(_ctx)
 		else:
 			_ctx.stats.rewards_offered[k] = true
 
@@ -123,17 +126,43 @@ func _check_milestone(ctx: SimContext) -> void:
 	_milestones_passed += 1
 	var k: StringName = next.key
 	ctx.stats.rewards_offered[k] = true
-	ctx.events.report(&"city_milestone", {"key": k, "population": needed}, 2)
 	if k == RewardParams.MILITARY_KEY:
-		_propose_military(ctx)
-		ctx.events.notify(&"reward_offered", {
-			"key": k,
-			"kind": _military.kind,
-			"site": _rect_to_array(_military.site),
-			"sites": _rects_to_array(_military.sites),
-		})
-	else:
-		ctx.events.notify(&"reward_offered", {"key": k})
+		# With nowhere to put a base the proposal waits for a later month.
+		_offer_military(ctx)
+		return
+	ctx.events.report(&"city_milestone", {"key": k, "population": needed}, 2)
+	ctx.events.notify(&"reward_offered", {"key": k})
+
+
+## The base milestone has passed but the search found nowhere to put a base,
+## so no proposal has been made. A refused or accepted proposal keeps its kind
+## and a standing base is recorded as built, so neither waits.
+func _awaiting_military_site(ctx: SimContext) -> bool:
+	var k := RewardParams.MILITARY_KEY
+	return ctx.stats.rewards_offered.get(k, false) and not ctx.stats.rewards_built.get(k, false) \
+			and _military.kind == KIND_NONE and _military.answered and not _military.accepted
+
+
+## Look for a site and, when one exists, put the proposal to the city.
+func _offer_military(ctx: SimContext) -> bool:
+	_propose_military(ctx)
+	if not military_offer().pending:
+		return false
+	var k := RewardParams.MILITARY_KEY
+	for milestone in RewardParams.MILESTONES:
+		if milestone.key == k:
+			ctx.events.report(&"city_milestone", {"key": k, "population": int(milestone.population)}, 2)
+	_notify_military(ctx)
+	return true
+
+
+func _notify_military(ctx: SimContext) -> void:
+	ctx.events.notify(&"reward_offered", {
+		"key": RewardParams.MILITARY_KEY,
+		"kind": _military.kind,
+		"site": _rect_to_array(_military.site),
+		"sites": _rects_to_array(_military.sites),
+	})
 
 
 ## Standing imported rewards were already earned. Keep civic gifts replaceable
@@ -202,15 +231,18 @@ static func _military_ids() -> PackedInt32Array:
 
 # ── Military base ────────────────────────────────────────────────────────
 
-## The current proposal. `pending` is true while the city has not answered.
+## The current proposal. `pending` is true while the city has not answered;
+## `searching` while the milestone has passed and no site has been found yet.
 func military_offer() -> Dictionary:
 	var sites: Array[Rect2i] = []
 	for r in _military.sites:
 		sites.append(r)
+	var searching := _ctx != null and _awaiting_military_site(_ctx)
 	return {
 		"kind": _military.kind,
 		"pending": not _military.answered and _military.kind != KIND_NONE,
-		"answered": _military.answered,
+		"searching": searching,
+		"answered": _military.answered and not searching,
 		"accepted": _military.accepted,
 		"site": _military.site,
 		"sites": sites,
@@ -288,6 +320,7 @@ func _propose_military(ctx: SimContext) -> void:
 			_military.kind = KIND_MISSILE
 			_military.sites = silos
 	if _military.kind == KIND_NONE:
+		# Nothing to answer. Saved this way, the search resumes in later months.
 		_military.answered = true
 
 

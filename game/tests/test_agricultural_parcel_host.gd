@@ -23,7 +23,16 @@ func paint(tool: int, a: Vector2i, b := Vector2i(-1,-1)) -> void:
 	var result := host.handle_drag(a,a if b.x < 0 else b)
 	check(result.get("applied",false),"real toolbar tool %d: %s" % [tool,result])
 
+## Farm work follows residents and trade. This city has no residents, so a
+## road at each border, found by the monthly neighbor scan, carries the farm
+## jobs grown here.
+func trade_links() -> void:
+	var last := City.WIDTH - 1
+	for tile: Vector2i in [Vector2i(64,0),Vector2i(last,64),Vector2i(64,last),Vector2i(0,64)]:
+		host.sim.city.building.put(tile.x,tile.y,Buildings.ROAD_FIRST)
+
 func build_serviced_land(farmland := true) -> void:
+	trade_links()
 	paint(Tools.Kind.COAL_PLANT,Vector2i(32,36))
 	paint(Tools.Kind.POWER_LINE,Vector2i(36,37),Vector2i(62,37))
 	paint(Tools.Kind.WATER_PUMP,Vector2i(38,38))

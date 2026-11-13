@@ -15,8 +15,30 @@ static func land_reason(city: City, record: Dictionary) -> String:
 		if city.flags.has_bits(p.x,p.y,TileFlags.LANDMARK): return "Protected land."
 		var id := city.building_at(p.x,p.y)
 		if id == Buildings.id_of(&"contamination"): return "Contaminated ground."
-		if id != Buildings.NONE and city.agricultural_parcels.id_at(p) != record.id: return "Occupied land."
+		if not is_ground_cover(id) and city.agricultural_parcels.id_at(p) != record.id: return "Occupied land."
 	return ""
+
+## Bare ground, trees and rubble: what a new parcel member may stand on.
+static func is_ground_cover(id: int) -> bool:
+	return id == Buildings.NONE or Buildings.is_tree(id) or (id >= Buildings.RUBBLE_1 and id <= Buildings.RUBBLE_4)
+
+## Store a new or enlarged parcel, clearing trees and rubble from the tiles it
+## takes. A refused parcel leaves the ground as it was.
+static func put_parcel(city: City, value: Dictionary) -> Error:
+	var bld := city.building.data
+	var cleared := {}
+	for i: int in value.members:
+		if bld[i] != Buildings.NONE and is_ground_cover(bld[i]) and city.agricultural_parcels.id_at(AgriculturalParcels.tile(i)) == 0:
+			cleared[i] = bld[i]
+	for i: int in cleared:
+		var p := AgriculturalParcels.tile(i)
+		city.building.put(p.x,p.y,Buildings.NONE)
+	var error := city.agricultural_parcels.put(city,value)
+	if error != OK:
+		for i: int in cleared:
+			var p := AgriculturalParcels.tile(i)
+			city.building.put(p.x,p.y,cleared[i])
+	return error
 
 static func has_access(city: City, members: PackedInt32Array) -> bool:
 	for i in members:
@@ -69,7 +91,7 @@ static func detached_copy(source: City, values: Array) -> City:
 
 static func apply_value(city: City, value: Dictionary) -> bool:
 	if value.has("members"):
-		return city.agricultural_parcels.put(city,value) == OK
+		return put_parcel(city,value) == OK
 	city.stamp_building(value.anchor.x,value.anchor.y,AgricultureParams.building_id(value.archetype),value.zone_kind)
 	return true
 

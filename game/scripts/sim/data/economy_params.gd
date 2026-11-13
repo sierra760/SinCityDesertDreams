@@ -19,6 +19,10 @@ const NATION_POPULATION_CAP := 5000000
 const NATION_PRODUCT_CAP := 3500000
 ## One national review per this many months on average.
 const REVIEW_CHANCE := 10
+## In a month without a review the product also swings up or down by up to
+## PRODUCT_SWING × (REVIEW_CHANCE / 2 − 1) per GROWTH_SCALE of itself, so the
+## nation wanders through every band instead of settling between two.
+const PRODUCT_SWING := 12
 ## Reviews per phase re-evaluation on average.
 const PHASE_CHANGE_CHANCE := 3
 ## Product-per-head bands: below RATIO_SLOW is recession, below RATIO_GROWTH

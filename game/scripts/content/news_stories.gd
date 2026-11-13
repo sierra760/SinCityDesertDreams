@@ -552,11 +552,11 @@ const STORIES: Dictionary = {
 		"headlines": [
 			"{kind} Over; {city} Counts The Cost",
 			"All Clear Sounded After {kind}",
-			"Crews Stand Down As {kind} Ends",
+			"Crews Stand Down After {kind}",
 			"{city} Begins Cleanup From {kind}",
 		],
 		"body": [
-			"The {kind} that struck {city} is over. Crews have stood down and residents are picking through what is left, which in places is not much.",
+			"{city} has come through the {kind}. Crews have stood down and residents are picking through what is left, which in places is not much.",
 			"Rebuilding will take money the council may or may not have. Mayor {mayor} has promised a plan.",
 		],
 	},
@@ -753,6 +753,42 @@ const STORIES: Dictionary = {
 			"A ribbon was cut at the county line. It was a windy day and the ribbon is now in {place}.",
 		],
 	},
+	&"neighbor_connection_rail": {
+		"priority": NOTABLE, "decay": SLOW,
+		"headlines": [
+			"Rail Line Now Runs Through To {place}",
+			"{city} And {place} Joined By Rail",
+			"First Train Crosses The County Line Toward {place}",
+		],
+		"body": [
+			"A rail line now carries trains between {city} and {place}. Freight, passengers and gossip are expected to travel in both directions.",
+			"A ribbon was cut at the county line. The first locomotive cut it again.",
+		],
+	},
+	&"neighbor_connection_power": {
+		"priority": NOTABLE, "decay": SLOW,
+		"headlines": [
+			"Power Line Now Reaches {place}",
+			"{city} And {place} Joined By Power Line",
+			"Power Line Crosses The County Line Toward {place}",
+		],
+		"body": [
+			"A power line now joins the grids of {city} and {place}. Spare capacity on this side of the line has somewhere to go, at a price both councils still describe as fair.",
+			"A switch was thrown at the county line. Nothing visible happened, which the engineers said was the idea.",
+		],
+	},
+	&"neighbor_connection_water": {
+		"priority": NOTABLE, "decay": SLOW,
+		"headlines": [
+			"Water Pipe Now Reaches {place}",
+			"{city} And {place} Joined By Water Pipe",
+			"Water Pipe Crosses The County Line Toward {place}",
+		],
+		"body": [
+			"A water pipe now joins the mains of {city} and {place}. Spare water on this side of the line has somewhere to go, at a price both councils still describe as fair.",
+			"A valve was opened at the county line. Officials from both towns watched a gauge and applauded it.",
+		],
+	},
 	&"water_shortage": {
 		"priority": MAJOR, "decay": FAST,
 		"headlines": [
@@ -865,6 +901,31 @@ const STORIES: Dictionary = {
 		"body": [
 			"The {kind} near {place} has stopped operating. Whether for want of power, water or customers, nothing is moving through it and the gates are chained.",
 			"The chamber of commerce called it temporary. The weeds called it home.",
+		],
+	},
+	&"base_opened": {
+		"priority": NOTABLE, "decay": FAST,
+		"headlines": [
+			"{kind} Stands Up Near {place}",
+			"Flag Raised Over New {kind}",
+			"{city} Gets Its {kind}; Barbers Rejoice",
+			"New {kind} Draws Crowd, Dust, Salutes",
+		],
+		"body": [
+			"The new {kind} near {place} went on duty this month. Uniforms, trucks and the occasional lost recruit are now a regular sight in {city}.",
+			"Local business expects the payroll to follow. Local dogs have already learned reveille.",
+		],
+	},
+	&"base_closed": {
+		"priority": NOTABLE, "decay": FAST,
+		"headlines": [
+			"{kind} Near {place} Falls Silent",
+			"No One On Duty At {city} {kind}; Gates Locked",
+			"{kind} Stands Down; Weeds Move In",
+		],
+		"body": [
+			"The {kind} near {place} has stopped operating. Whether for want of power or water, the parade ground is empty and the gates are chained.",
+			"The garrison called it temporary. The weeds called it home.",
 		],
 	},
 	&"plant_aging": {
@@ -1033,11 +1094,24 @@ static func template_key(kind: StringName, args: Dictionary = {}) -> StringName:
 			return specific
 	if kind == &"military_base":
 		return &"military_base_accepted" if bool(args.get("accepted", false)) else &"military_base_declined"
+	if kind == &"neighbor_connection":
+		# A road link keeps the plain story; rail, power and water have their own.
+		var link := StringName("neighbor_connection_" + String(args.get("kind", "")))
+		if STORIES.has(link):
+			return link
+	if kind in [&"port_opened", &"port_closed"] and _is_military_port(args):
+		return &"base_opened" if kind == &"port_opened" else &"base_closed"
 	if STORIES.has(kind):
 		return kind
 	if ALIASES.has(kind):
 		return ALIASES[kind]
 	return GENERIC
+
+
+## A port report whose zone kind is the military base, not an airport or seaport.
+static func _is_military_port(args: Dictionary) -> bool:
+	var v: Variant = args.get("kind")
+	return typeof(v) in [TYPE_INT, TYPE_FLOAT] and int(v) == Zones.MILITARY
 
 
 static func priority_of(kind: StringName, args: Dictionary = {}) -> int:
@@ -1162,6 +1236,8 @@ static func kind_text(kind: StringName, args: Dictionary) -> String:
 			continue
 		var v: Variant = args[k]
 		if k == "kind" and kind in [&"port_opened", &"port_closed"] and typeof(v) in [TYPE_INT, TYPE_FLOAT]:
+			if int(v) == Zones.MILITARY:
+				return "Military Base"
 			return String(Zones.NAMES.get(int(v), "Port"))
 		if k == "name" and typeof(v) == TYPE_STRING:
 			return String(v)
@@ -1197,11 +1273,51 @@ static func place_name(p: Vector2i) -> String:
 	return DISTRICTS[row * 3 + col]
 
 
+## Templates are written for a count of several. For a count of exactly one
+## these phrases replace their plural forms, most specific first.
+const SINGULAR: Array[Array] = [
+	["{count} Buildings Stand Empty", "{count} Building Stands Empty"],
+	["Another {count} buildings around {place} were left empty", "One more building around {place} was left empty"],
+	["{count} Stretches Of Road Crumble", "{count} Stretch Of Road Crumbles"],
+	["{count} stretches of road around {place} have crumbled", "{count} stretch of road around {place} has crumbled"],
+	["{count} New Lots Break Ground", "{count} New Lot Breaks Ground"],
+	["{count} Inmates Walk Away", "{count} Inmate Walks Away"],
+	["{count} Families Pack Up And Head Out", "{count} Family Packs Up And Heads Out"],
+	["Some {count} families left", "One family left"],
+	["{count} Tourists Depart", "{count} Tourist Departs"],
+	["{count} New Residents Arrive", "{count} New Resident Arrives"],
+	["{count} Sections Of Track", "{count} Section Of Track"],
+	["{count} sections of track", "{count} section of track"],
+	["{count} Buildings", "{count} Building"],
+	["{count} buildings", "{count} building"],
+	["{count} new lots", "{count} new lot"],
+	["{count} Inmates", "{count} Inmate"],
+	["{count} inmates", "{count} inmate"],
+	["{count} tourists", "{count} tourist"],
+	["{count} Residents", "{count} Resident"],
+	["{count} residents", "{count} resident"],
+	["{count} Births", "{count} Birth"],
+	["{count} births", "{count} birth"],
+	["{count} Years Old", "{count} Year Old"],
+	["{count} years", "{count} year"],
+]
+
+
+## `text` reworded for a count of exactly one.
+static func singular(text: String) -> String:
+	var out := text
+	for pair: Array in SINGULAR:
+		out = out.replace(String(pair[0]), String(pair[1]))
+	return out
+
+
 ## Replace every known placeholder; unknown braces are left in place so tests
 ## can catch them. Headlines are Title Case, so filled districts and the
 ## "several" stand-in are capitalised there too.
 static func fill(text: String, values: Dictionary, headline: bool = false) -> String:
 	var out := text
+	if String(values.get("count", "")) == "1":
+		out = singular(out)
 	if values.has("mayor") and is_unnamed_mayor(String(values["mayor"])):
 		out = without_mayor_name(out, headline)
 	for key in PLACEHOLDERS:

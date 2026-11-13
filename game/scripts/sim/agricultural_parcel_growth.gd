@@ -34,7 +34,8 @@ func prepare(city: City, fires: Array = []) -> void:
 	candidates.sort()
 	for i in candidates:
 		# Heights are read only for eligible cells (_available/candidate).
-		if bld[i] != Buildings.NONE: continue
+		# Trees and rubble give way to a parcel; anything else keeps the tile.
+		if not AgriculturalParcelService.is_ground_cover(bld[i]): continue
 		var p := AgriculturalParcels.tile(i)
 		if p.x < 2 or p.y < 2 or p.x >= 126 or p.y >= 126: continue
 		if city.agricultural_parcels.id_at(p) != 0 or burning.has(p): continue

@@ -340,7 +340,12 @@ func _advance_nation(ctx: SimContext) -> void:
 	var phase := clampi(stats.economy_phase, 0, EconomyParams.PHASE_NAMES.size() - 1)
 	_nation_population = _grow(_nation_population, phase, EconomyParams.NATION_POPULATION_CAP)
 	_nation_product = _grow(_nation_product, EconomyParams.PRODUCT_RATE[phase], EconomyParams.NATION_PRODUCT_CAP)
-	if ctx.rng.below(EconomyParams.REVIEW_CHANCE) != 0:
+	var draw := ctx.rng.below(EconomyParams.REVIEW_CHANCE)
+	if draw != 0:
+		# No review this month. The same draw is the month's fortune: the
+		# product swings a little either way around its steady drift.
+		var swing := (draw - EconomyParams.REVIEW_CHANCE / 2) * EconomyParams.PRODUCT_SWING
+		_nation_product = maxi(0, _nation_product + _nation_product * swing / EconomyParams.GROWTH_SCALE)
 		return
 	var ratio := 100 * _nation_product / (_nation_population + 1)
 	if ctx.rng.below(EconomyParams.PHASE_CHANGE_CHANCE) != 0:

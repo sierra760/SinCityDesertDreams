@@ -71,6 +71,8 @@ func test_all_ten_archetypes_reachable() -> void:
 		for seed_value in range(1, 30):
 			var f := fixture(kind, 3, seed_value)
 			if f.is_empty(): return
+			# Enough residents to want every farm this block can hold.
+			f.ctx.stats.population = 8000
 			month(f)
 			var novel := false
 			for lot in f.ag.current_lots():

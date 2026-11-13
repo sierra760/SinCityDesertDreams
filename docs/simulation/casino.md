@@ -184,7 +184,10 @@ baccarat (Boulder Crown) and a launch game called trajectory (Desert Orbit).
 
 `save()` returns `ledgers` (resort key → ledger), `debut` (bool), and `recall` (visit accounting, election date, result and independent random state). `load()`
 fills missing resorts and fields with zeros, so saves made before the casino
-existed load with empty ledgers. Nothing about a round in progress is saved:
+existed load with empty ledgers. A save without the recall's random state
+derives it from the city's restored seed, so every load of that save plays
+out the same election. The saved day of the next monthly campaign story is
+kept between the day the recall was called and election day. Nothing about a round in progress is saved:
 a city that closes during a committed round refunds the stake first.
 
 ## Public interface

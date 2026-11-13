@@ -433,6 +433,8 @@ static func reward_lock_reason(tool: int, reason: String, rewards: SimSystem = n
 	var key := Tools.reward_key(tool)
 	if key == RewardParams.MILITARY_KEY and rewards != null and rewards.has_method("military_offer"):
 		var offer: Dictionary = rewards.call("military_offer")
+		if bool(offer.get("searching", false)):
+			return "the military has not found a site for a base yet"
 		if bool(offer.get("answered", false)) and not bool(offer.get("accepted", false)):
 			if StringName(offer.get("kind", &"")) == &"none":
 				return "the military found no site for a base"

@@ -144,7 +144,8 @@ single day stalls the frame:
 
 `monthly(ctx, phase)` runs on each day listed for that system; `phase` is 0 on
 the first listed day and 1 on the second, which is how zone growth splits the
-map. `yearly(ctx)` runs on the last day of December before the budget review.
+map. `yearly(ctx)` runs on the last day of December before the budget review;
+the budget system's runs first, so the year is settled before the others spend.
 
 ### `SimContext`
 
@@ -181,7 +182,10 @@ input sequence. They draw randomness only from `ctx.rng`.
 A small queue on `SimContext`. Systems push `report(kind, args, priority)` and
 `notify(kind, payload)`; the `Simulation` drains the queue after each day and
 emits the corresponding signals. The newspaper system turns news events into
-stories using `content/`.
+stories using `content/`. Entries queued between days (a bond issued from the
+Budget window, a neighbor link accepted, a shortage caused by construction)
+stay queued and are drained with the next day's. Entries queued while a city
+is set up or loaded are discarded.
 
 ## Construction (`core/builder.gd`, class `Builder`)
 

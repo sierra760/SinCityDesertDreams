@@ -73,6 +73,13 @@ func networks_changed(ctx: SimContext, _rect: Rect2i) -> void:
 	_service_map = null
 	if _reconcile() == OK: _publish()
 
+## Publish jobs and farm counts for the farms standing now. Reads the map and
+## changes no farm.
+func refresh_census() -> void:
+	if _ctx == null or _migration_error != OK: return
+	_reconcile(false)
+	_publish()
+
 ## Mutation adapter: topology and all lifecycle state publish together, after
 ## detached service validation. No live utility rerolls or getters repair maps.
 func repair_parcels(cells: PackedInt32Array) -> Dictionary:
@@ -209,6 +216,7 @@ func inspect_tile(tile: Vector2i) -> Dictionary:
 	if not _lots.has(anchor) and owned.is_empty():
 		var rect := Rect2i(tile, Vector2i.ONE)
 		var reason := _land_reason(rect, kind)
+		if reason.is_empty() and not Builder._clearable(city.building_at(tile.x, tile.y)): reason = "Occupied land."
 		if reason.is_empty() and not ZoneSystem.has_access(city, rect): reason = "Needs road or station access within three tiles."
 		if reason.is_empty() and _emergency(): reason = "Development waits until the emergency ends."
 		if reason.is_empty(): reason = "Waiting for positive agricultural demand." if _raw <= 0 else "Waiting for monthly preparation."
@@ -223,8 +231,11 @@ func inspect_tile(tile: Vector2i) -> Dictionary:
 	if not owned.is_empty() and owned.state != &"active" and owned.archetype in [&"cattle_range", &"sheep_pasture"]:
 		var layout := AgriculturalParcelGeometry.plan(owned)
 		if not layout.ok: lot.blocked_reason = layout.error
-	if lot.blocked_reason.is_empty() and (_raw < 0 or (_raw == 0 and lot.state != &"active")):
-		lot.blocked_reason = "Waiting for positive agricultural demand."
+	if lot.blocked_reason.is_empty():
+		if lot.state == &"active":
+			if _closing_lots().has(_lot_key(lot)): lot.blocked_reason = "Waiting for positive agricultural demand."
+		elif _raw <= 0: lot.blocked_reason = "Waiting for positive agricultural demand."
+		elif _jobs() >= _target_jobs(): lot.blocked_reason = "The city has enough farm work for now."
 	lot["jobs"] = parcel_jobs().get(lot.parcel_id,0) if lot.has("parcel_id") else (Params.jobs_of(lot.building_id) if lot.state == &"active" else 0)
 	lot["parcel_id"] = int(lot.get("parcel_id",0))
 	lot["mode"] = lot.get("mode",&"legacy")
@@ -272,6 +283,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 	var lifecycle: Array[Dictionary] = []
 	for lot: Dictionary in _lots.values(): lifecycle.append(lot)
 	for r in current_parcels(): lifecycle.append(_parcel_lot(r))
+	var closing := _closing_lots()
 	# Evaluate every existing active load against a single unchanged allocation.
 	for lot in lifecycle:
 		var lot_phase: int = lot.get("phase",0 if lot.anchor.x < City.HALF else 1)
@@ -287,7 +299,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			waiting.append(lot)
 		else:
 			var service := _service(lot)
-			lot.failed_months = 0 if service.blocked_reason.is_empty() and _raw >= 0 else mini(Params.FAILURE_MONTHS,int(lot.failed_months)+1)
+			lot.failed_months = 0 if service.blocked_reason.is_empty() and not closing.has(_lot_key(lot)) else mini(Params.FAILURE_MONTHS,int(lot.failed_months)+1)
 			if lot.failed_months >= Params.FAILURE_MONTHS: declining.append(lot)
 			elif lot.get("mode",&"legacy") != &"legacy" and lot.failed_months == 0:
 				extending.append(lot)
@@ -313,10 +325,15 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 	# Reserve one action for formation and, when present, one for extensions.
 	# Failed waiting service checks must not monopolize the shared phase budget.
 	_trials_open = true
+	# Farms open and extend only while the city is short of farm work. Accepted
+	# proposals count at once, so one phase cannot overshoot by a whole batch.
+	var wanted_units := (_target_jobs() - _jobs()) * AgriculturalParcelParams.AREA_DENOMINATOR
+	var proposed_units := 0
 	if _raw > 0 and not _emergency():
 		var waiting_budget := DEVELOPMENT_BUDGET - (2 if not extending.is_empty() else 1)
 		var first := (month*waiting_budget)%waiting.size() if not waiting.is_empty() else 0
 		for offset in mini(waiting.size(),waiting_budget):
+			if proposed_units >= wanted_units: break
 			var lot: Dictionary = waiting[(first+offset)%waiting.size()]
 			_counts.actions += 1
 			var value := _activation(lot)
@@ -325,7 +342,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 				if AgriculturalParcelService.land_reason(ctx.city,remnant).is_empty() and AgriculturalParcelService.has_access(ctx.city,remnant.members):
 					var recovery := grow.extension(ctx.city,remnant,_rng)
 					_count_shape(recovery)
-					if recovery.ok and ctx.city.agricultural_parcels.put(ctx.city,recovery.record) == OK:
+					if recovery.ok and AgriculturalParcelService.put_parcel(ctx.city,recovery.record) == OK:
 						# Recovery may need several passes. Waiting acreage retains
 						# its state/history/tokens; only a safe supplied final plan
 						# enters the existing joint active-allocation transaction.
@@ -336,9 +353,11 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			var trial := proposals.duplicate()
 			trial.append(value)
 			var projected := _project_values(trial)
-			if _proposal_served(value,projected): _accept_trial(proposals,value,projected)
+			if _proposal_served(value,projected):
+				_accept_trial(proposals,value,projected)
+				proposed_units += _job_units(value)
 		for offset in extending.size():
-			if _counts.actions >= DEVELOPMENT_BUDGET - 1: break
+			if _counts.actions >= DEVELOPMENT_BUDGET - 1 or proposed_units >= wanted_units: break
 			# The saved month rotates first choice without drawing shared RNG.
 			var lot: Dictionary = extending[(month+offset)%extending.size()]
 			var current := ctx.city.agricultural_parcels.record(lot.parcel_id)
@@ -350,7 +369,9 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 			var trial := proposals.duplicate()
 			trial.append(extended.record)
 			var projected := _project_values(trial)
-			if _proposal_served(extended.record,projected): _accept_trial(proposals,extended.record,projected)
+			if _proposal_served(extended.record,projected):
+				_accept_trial(proposals,extended.record,projected)
+				proposed_units += _job_units(extended.record) - _job_units(current)
 	_trials_open = false
 	# Reserve proposed extension members without publishing their occupancy.
 	for value in proposals:
@@ -381,7 +402,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 						if not shape.ok: continue
 						var parcel := _new_parcel(shape,archetype,at,month)
 						if parcel.is_empty(): continue
-						if ctx.city.agricultural_parcels.put(ctx.city,parcel) == OK:
+						if AgriculturalParcelService.put_parcel(ctx.city,parcel) == OK:
 							dirty = _merge(dirty,AgriculturalParcels.bounds(parcel.members))
 						continue
 					if kind != Zones.AGR_HIGH or touched.has(at): continue
@@ -418,7 +439,7 @@ func monthly(ctx: SimContext, phase: int = 0) -> void:
 	_clear_trials()
 	for value in proposals:
 		if value.has("members"):
-			if ctx.city.agricultural_parcels.put(ctx.city,value) != OK: continue
+			if AgriculturalParcelService.put_parcel(ctx.city,value) != OK: continue
 			dirty = _merge(dirty,AgriculturalParcels.bounds(value.members))
 		else:
 			if _change(value,&"active",month) != OK: return
@@ -582,15 +603,83 @@ static func _check_projection(cached: City, fresh: City, what: String) -> void:
 	if cached.facilities != fresh.facilities or cached.imported_power_links != fresh.imported_power_links:
 		projection_cache_mismatches.append("%s: facilities" % what)
 
-func _update_demand() -> void:
+func _target_jobs() -> int:
 	var links := 0
 	var neighbors := _ctx.system(&"neighbors")
 	if neighbors != null and neighbors.has_method("link_count"): links = int(neighbors.call("link_count"))
 	@warning_ignore("integer_division")
-	var target := clampi(Params.TARGET_BASE_JOBS + _ctx.stats.population / Params.RESIDENTS_PER_TARGET_JOB + links * Params.TARGET_JOBS_PER_CITY_LINK, Params.TARGET_BASE_JOBS, Params.TARGET_JOBS_LIMIT)
-	var change := clampi((target - _jobs()) * Params.DEMAND_GAIN, -Params.DEMAND_MONTHLY_LIMIT, Params.DEMAND_MONTHLY_LIMIT)
+	return clampi(Params.TARGET_BASE_JOBS + _ctx.stats.population / Params.RESIDENTS_PER_TARGET_JOB + links * Params.TARGET_JOBS_PER_CITY_LINK, Params.TARGET_BASE_JOBS, Params.TARGET_JOBS_LIMIT)
+
+func _update_demand() -> void:
+	var target := _target_jobs()
+	var jobs := _jobs()
+	var gap := target - jobs
+	if gap < 0:
+		# A surplus smaller than the next farm to close is tolerated: closing
+		# that farm would leave the city short of farm work.
+		var next := 0
+		for entry: Dictionary in _closing_order():
+			if entry.jobs > 0:
+				next = entry.jobs
+				break
+		if next == 0 or jobs - next < target: gap = 0
+	var change := clampi(gap * Params.DEMAND_GAIN, -Params.DEMAND_MONTHLY_LIMIT, Params.DEMAND_MONTHLY_LIMIT)
+	# A surplus takes demand just below zero and no further, so only the
+	# surplus closes. Taxes alone can push demand lower.
+	if gap < 0: change = maxi(change, mini(0, -1 - _raw))
 	change += ZoneParams.tax_pressure(clampi(_ctx.stats.tax_agricultural, Params.TAX_MIN, Params.TAX_MAX))
 	_raw = clampi(_raw + change, -Params.DEMAND_RAW_LIMIT, Params.DEMAND_RAW_LIMIT)
+
+## Farm jobs the city supports this month: the target while demand is not
+## negative, shrinking to none as demand falls to its floor.
+func _supported_jobs() -> int:
+	var target := _target_jobs()
+	if _raw >= 0: return target
+	@warning_ignore("integer_division")
+	return target * (Params.DEMAND_RAW_LIMIT + _raw) / Params.DEMAND_RAW_LIMIT
+
+static func _lot_key(lot: Dictionary) -> Variant:
+	return int(lot.parcel_id) if int(lot.get("parcel_id",0)) != 0 else lot.anchor
+
+## Active farms in the order they close: the newest parcel first, then
+## high-density lots from the far corner of the map.
+func _closing_order() -> Array[Dictionary]:
+	var order: Array[Dictionary] = []
+	var records := current_parcels()
+	var by_id: Dictionary = AgriculturalParcelCapacity.allocate(records).by_id
+	for i in range(records.size()-1,-1,-1):
+		if records[i].state == &"active": order.append({"key":int(records[i].id),"jobs":int(by_id.get(records[i].id,0))})
+	var anchors := _lots.keys()
+	anchors.reverse()
+	for at: Vector2i in anchors:
+		if _lots[at].state == &"active": order.append({"key":at,"jobs":Params.jobs_of(_lots[at].building_id)})
+	return order
+
+## Farms that count a failed month for demand. While demand is negative these
+## are the newest farms whose closing still leaves the supported jobs filled,
+## so farms close a few at a time. At the demand floor every farm counts.
+func _closing_lots() -> Dictionary:
+	var closing := {}
+	if _raw >= 0: return closing
+	var absent := _raw <= -Params.DEMAND_RAW_LIMIT
+	var supported := _supported_jobs()
+	var jobs := _jobs()
+	for entry: Dictionary in _closing_order():
+		if not absent:
+			# A farm without assigned jobs adds nothing to the surplus.
+			if entry.jobs == 0: continue
+			if jobs - entry.jobs < supported: break
+		closing[entry.key] = true
+		jobs -= entry.jobs
+	return closing
+
+## Area-scaled job units a farm adds while active.
+static func _job_units(value: Dictionary) -> int:
+	if not value.has("members"):
+		return Params.jobs_of(Params.building_id(value.archetype)) * AgriculturalParcelParams.AREA_DENOMINATOR
+	if value.mode == &"legacy":
+		return Params.jobs_of(Params.building_id(value.archetype)) * AgriculturalParcelParams.AREA_DENOMINATOR
+	return AgriculturalParcelParams.job_units(value.archetype,value.members.size())
 
 func _publish() -> void:
 	if _ctx == null or _migration_error != OK: return

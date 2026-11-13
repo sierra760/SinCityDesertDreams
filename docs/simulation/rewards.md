@@ -109,8 +109,14 @@ Events:
    - If no square site is found, up to `MILITARY_MISSILE_SITES` separate
      `MILITARY_MISSILE_SITE_SIZE`-squares of usable, level ground are collected
      for a `missile` base; at least one must be found.
-   - If nothing suits, the offer is withdrawn (`kind = "none"`) and the
-     milestone still counts as passed.
+   - If nothing suits, no proposal, notice or milestone story is made. The
+     milestone still counts as passed, so later gifts are not held up, and the
+     search is repeated on each later monthly job until a site is found;
+     `military_offer().searching` is true meanwhile. The proposal and its
+     milestone story then arrive together, in place of that month's gift
+     check. The wait is stored as `kind = "none"` with `answered` set and
+     `accepted` clear, which is also how earlier versions recorded a search
+     that found nothing, so those cities receive their proposal as well.
 4. **Answering.** `accept_military(rect)` zones every usable tile inside
    `rect` as `Zones.MILITARY` (an empty `rect` uses the proposed site or
    sites), records the base kind and marks the offer answered. The port
@@ -170,7 +176,7 @@ same map reconciliation before the toolbar is refreshed.
 ```
 available() -> Array[StringName]
 mark_built(key: StringName) -> void
-military_offer() -> Dictionary        # {kind, pending, answered, accepted, site, sites}
+military_offer() -> Dictionary        # {kind, pending, searching, answered, accepted, site, sites}
 military_kind() -> StringName         # "" until a base is accepted
 accept_military(rect: Rect2i = Rect2i()) -> bool
 decline_military() -> void

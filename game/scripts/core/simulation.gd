@@ -172,6 +172,8 @@ func setup(new_city: City, seed_value: int = -1, restored_stats: CityStats = nul
 	_last_funds = -1
 	if restored_snapshot.is_empty():
 		tourism().finish_restore({})
+		# What the systems report while a city is set up is not news.
+		events.clear()
 		_ready_to_run = true
 		_emit_scalars()
 
@@ -210,7 +212,10 @@ func toggle_pause() -> void:
 func advance_day() -> void:
 	if city == null or not _ready_to_run or budget_review_pending or is_mayor_dismissed():
 		return
-	events.clear()
+	# Reports and notices raised since the last day (a bond issued, a neighbor
+	# link accepted, a shortage caused by construction) stay queued and are
+	# published with this day's.
+	var emergency := _is_emergency()
 	for s in systems:
 		s.daily(_ctx)
 	# Later daily systems can change fire/service state before scheduled consumers.
@@ -224,10 +229,19 @@ func advance_day() -> void:
 		s.monthly(_ctx, _phase_of(k, dom))
 		tourism().reconcile_now()
 	if clock.is_year_end():
+		# The books close first: what the other yearly jobs spend (a worn-out
+		# plant replaced while disasters are off) comes out of a treasury that
+		# already holds the year's income.
+		var budget: SimSystem = _system_index.get(&"budget", null)
+		if budget != null:
+			budget.yearly(_ctx)
 		for s in systems:
-			s.yearly(_ctx)
+			if s != budget:
+				s.yearly(_ctx)
 	if casino() != null: casino().recall.advance(_ctx)
 	if is_mayor_dismissed(): set_speed(GameClock.Speed.PAUSED)
+	if emergency or _is_emergency():
+		_refresh_farm_census()
 	_drain_events()
 	var y := clock.year()
 	var m := clock.month()
@@ -290,6 +304,7 @@ func request_disaster(kind: StringName, at: Vector2i = Vector2i(-1, -1)) -> bool
 		return false
 	var ok: bool = d.call("request", _ctx, kind, at)
 	tourism().reconcile_now()
+	_refresh_farm_census()
 	_emit_scalars()
 	_drain_events()
 	return ok
@@ -301,6 +316,7 @@ func redeem_cheat(code: String) -> Dictionary:
 	var cheats := preload("res://scripts/core/cheat_codes.gd")
 	var result: Dictionary = cheats.redeem(_ctx, code)
 	if city != null:
+		_refresh_farm_census()
 		_emit_scalars()
 		_drain_events()
 	return result
@@ -370,6 +386,21 @@ func adjust_funds(delta: int) -> void:
 
 
 # ── Events ───────────────────────────────────────────────────────────────
+
+func _is_emergency() -> bool:
+	var d := get_system(&"disasters")
+	return d != null and d.has_method("is_emergency") and bool(d.call("is_emergency"))
+
+
+## Disaster damage can remove farms between their monthly passes. When the map
+## changed, bring the published farm jobs and farm count up to date.
+func _refresh_farm_census() -> void:
+	if events.map_dirty.size == Vector2i.ZERO:
+		return
+	var farms := get_system(&"agriculture") as AgricultureSystem
+	if farms != null:
+		farms.refresh_census()
+
 
 func _drain_events() -> void:
 	var paper: SimSystem = _system_index.get(&"newspaper", null)
@@ -451,13 +482,30 @@ func restore(data: Dictionary) -> Error:
 			s.load(sys[String(s.key)])
 		elif s.key == &"agriculture":
 			s.load({})
+	var power := get_system(&"power") as PowerSystem
+	if power != null:
+		power.finish_restore(_ctx, sys.get("power", {}))
+	if casino() != null and not _has_recall_draw(sys):
+		# A city saved before recall elections kept their own draw takes it
+		# from the restored seed, so every load plays out the same way.
+		casino().recall.setup(_ctx)
 	var normalized := tourism().finish_restore(data)
 	if normalized != OK:
 		return normalized
+	# What the systems report while a city is loaded is not news.
+	events.clear()
 	_ready_to_run = true
 	set_speed(int(data.get("speed", GameClock.Speed.PAUSED)))
 	_emit_scalars()
 	return OK
+
+
+static func _has_recall_draw(saved_systems: Dictionary) -> bool:
+	var saved_casino: Variant = saved_systems.get("casino", {})
+	if typeof(saved_casino) != TYPE_DICTIONARY:
+		return false
+	var saved_recall: Variant = (saved_casino as Dictionary).get("recall", {})
+	return typeof(saved_recall) == TYPE_DICTIONARY and (saved_recall as Dictionary).has("rng_state")
 
 
 func date_text() -> String:

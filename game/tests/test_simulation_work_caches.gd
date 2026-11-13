@@ -41,6 +41,8 @@ func farm_fixture() -> Dictionary:
 	for x in range(15, 21): c.stamp_building(x, 10, Buildings.WATER_PUMP)
 	c.sea_level = 30
 	var ctx := make_context(c, 11)
+	# Enough residents to want every farm these bands can hold.
+	ctx.stats.population = 40000
 	var power := PowerSystem.new()
 	var water := WaterSystem.new()
 	var ag := AgricultureSystem.new()

@@ -30,8 +30,17 @@ func services() -> void:
 		paint(Tools.Kind.POWER_LINE,Vector2i(x,38),Vector2i(x,39))
 	paint(Tools.Kind.ROAD,Vector2i(39,43),Vector2i(55,43))
 
+## Farm work follows residents and trade. This city has no residents, so a
+## road at each border, found by the monthly neighbor scan, carries the farm
+## jobs grown here.
+func trade_links() -> void:
+	var last := City.WIDTH - 1
+	for tile: Vector2i in [Vector2i(64,0),Vector2i(last,64),Vector2i(64,last),Vector2i(0,64)]:
+		host.sim.city.building.put(tile.x,tile.y,Buildings.ROAD_FIRST)
+
 func test_tool_zoning_services_growth_tax_save_loss_recovery_demolition() -> void:
 	services()
+	trade_links()
 	for x in [40,44,48,52]:
 		paint(Tools.Kind.ZONE_AGR_LOW if x < 48 else Tools.Kind.ZONE_AGR_HIGH,Vector2i(x,40),Vector2i(x+2,42))
 	var ag := host.sim.get_system(&"agriculture")

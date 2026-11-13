@@ -78,7 +78,9 @@ func advance(ctx: SimContext) -> void:
 		ctx.events.report(&"recall_removed" if dismissed else &"recall_survived", result.duplicate())
 	elif ctx.clock.day >= next_update:
 		ctx.events.report(&"recall_update", _args(ctx))
-		while next_update <= ctx.clock.day: next_update += GameClock.DAYS_PER_MONTH
+		# The first monthly step after today, however far behind the update is.
+		@warning_ignore("integer_division")
+		next_update += ((ctx.clock.day - next_update) / GameClock.DAYS_PER_MONTH + 1) * GameClock.DAYS_PER_MONTH
 
 func _args(ctx: SimContext) -> Dictionary:
 	var approval := clampi(ctx.stats.approval, 0, 100)
@@ -104,6 +106,8 @@ func load(data: Dictionary) -> void:
 	visit_prosecuted = bool(data.get("visit_prosecuted", false))
 	due_day = maxi(-1, int(data.get("due_day", -1)))
 	next_update = int(data.get("next_update", due_day))
+	# Updates run from the day the recall was called to election day.
+	next_update = clampi(next_update, due_day - DELAY, due_day) if due_day >= 0 else -1
 	dismissed = bool(data.get("dismissed", false))
 	result = (data.get("result", {}) as Dictionary).duplicate(true)
 	# JSON numbers arrive as floats; retain the resolved election's integer fields.

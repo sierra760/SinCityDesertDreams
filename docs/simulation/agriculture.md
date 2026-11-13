@@ -29,6 +29,9 @@ need at least four connected tiles and a safe connected animal enclosure.
 Roads, rail, buildings, water, protected or contaminated land, fire, density
 changes and height changes stop growth; touching at a corner does not connect
 two members. Holes inside a parcel's bounds remain ordinary city land.
+Trees and rubble do not stop it: a low-density parcel clears them from the
+tiles it takes, as a high-density lot does. Inspect reports "Occupied land."
+for a zoned tile holding anything else.
 
 | Density | Archetype | Footprint | Jobs | Water/tile | Power/tile |
 | --- | --- | --- | --- | --- | --- |
@@ -63,9 +66,23 @@ capacity without changing live networks, storage, facility output or RNG.
 On days 5 and 6, after RCI growth, eligible land prepares and develops as
 parcels. Some parcels use the original square form where it fits; others grow
 around obstacles within the size limits. Development waits during emergencies
-and when demand is not positive. An active farm tolerates two consecutive failed
-months and becomes dormant on the third; service recovery allows it to
-prepare and reactivate. Inspect gives the current land/access/service reason.
+and when demand is not positive. Waiting farms open, and healthy parcels
+extend, only while active farm jobs are below the month's target jobs;
+proposals accepted earlier in the same phase count at once. Inspect reports
+"The city has enough farm work for now." for a farm kept waiting this way.
+An active farm tolerates two consecutive failed months and becomes dormant on
+the third; service recovery allows it to prepare and reactivate. Inspect gives
+the current land/access/service reason.
+
+A month fails for a farm when its land, access or service fails, or when
+demand is negative and the farm is one of those closing. Farms close newest
+first (parcels by descending ID, then high-density lots from the far corner
+of the map), and only while closing the next one still leaves the supported
+jobs filled. Supported jobs are the target while demand is not negative and
+`target_jobs * (2000 + raw) / 2000` below that, so a surplus or a heavy tax
+closes farms a few at a time and the others reset their failed months. A farm
+with no assigned jobs is not counted. At the demand floor (−2000) every farm
+counts a failed month.
 
 Each half-city phase shares at most 16 development attempts. One attempt is
 reserved for new preparation and, when healthy flexible farms are available,
@@ -82,6 +99,10 @@ are `clamp(20 + ordinary_population / 40 + connected_city_links * 40, 20, 2000)`
 Once per month, demand changes by
 `clamp((target_jobs - active_agricultural_jobs) * 8, -400, 400)` plus the
 existing tax-pressure curve evaluated at the independent agricultural rate.
+A surplus smaller than the next farm to close counts as no difference, and a
+surplus never takes demand below −1 by itself; only the tax term can push it
+lower. Farm employment therefore settles between the target and the target
+plus one farm instead of overshooting and collapsing.
 Display demand is `raw * 999 / 2000`, truncated toward zero. Saved RCI demand
 remains a three-component value; the fourth display bar reads a separate
 scalar. Farm growth uses a private saved RNG and never draws shared simulation
@@ -95,6 +116,11 @@ to its single assigned job capacity, including disconnected road approaches.
 They do not become industrial labor or sector output. Each active
 job assesses $100 for the independent tax account; income follows the ordinary
 monthly accrual and annual settlement. Prepared/dormant farms have no income.
+
+Published farm jobs and the count of active farms are refreshed on any day
+of an emergency in which the map changed, and after a requested disaster, so
+farms lost to damage leave the totals that day instead of at the next
+monthly pass.
 
 Each new or migrated low-density parcel has a stable positive ID and an exact
 set of member cells. The city saves those members, lifecycle state, stock

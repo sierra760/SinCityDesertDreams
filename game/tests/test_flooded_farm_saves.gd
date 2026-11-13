@@ -75,8 +75,12 @@ func test_city_saves_on_every_day_of_a_flood_over_farmland() -> void:
 	check_eq(save_now(), OK, "the city saves on the day the flood starts")
 	var failed := 0
 	var reached_farmland := false
+	var farmed_least := farmed_before
 	for day in 70:
 		host.sim.advance_days(1)
+		var farmed_now := 0
+		for r in ag.current_parcels(): farmed_now += r.members.size()
+		farmed_least = mini(farmed_least, farmed_now)
 		for t: Vector2i in host.sim.city.flood_overlay:
 			if t.x >= 40 and t.x <= 60 and t.y >= 40 and t.y <= 42: reached_farmland = true
 		check_eq(owned_tiles_under_water(), 0, "no parcel keeps a member under water")
@@ -84,6 +88,5 @@ func test_city_saves_on_every_day_of_a_flood_over_farmland() -> void:
 	check(reached_farmland, "the flood reached the farmland")
 	check_eq(failed, 0, "the city saves on every day of the flood")
 	check_eq(host.sim.city.flood_overlay.size(), 0, "the flood receded")
-	var farmed_after := 0
-	for r in ag.current_parcels(): farmed_after += r.members.size()
-	check_lt(farmed_after, farmed_before, "flooded cells left their parcels")
+	# Farming may return to the rubble once the water is gone.
+	check_lt(farmed_least, farmed_before, "flooded cells left their parcels")

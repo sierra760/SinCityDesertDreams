@@ -79,6 +79,14 @@ Getters for other systems and the UI:
    the phase becomes the band the ratio falls in: below `RATIO_SLOW` is
    recession, below `RATIO_GROWTH` is slow growth, below `RATIO_BOOM` is growth,
    otherwise boom. A changed phase is reported as `&"economy_shift"`.
+   In every other month the same draw (1 to `REVIEW_CHANCE − 1`) is the
+   month's fortune: the product changes by
+   `(draw − REVIEW_CHANCE / 2) × PRODUCT_SWING / GROWTH_SCALE` of itself, up or
+   down with equal chance. The steady rates of rule 1 pull the ratio toward
+   the line between slow growth and growth; the swings carry it across the
+   other bands. Over many centuries a nation spends roughly a tenth of its
+   months in recession, a tenth in boom and the rest in the two middle
+   phases, and a phase lasts five to seven years on average.
 3. A city founded later starts with a larger nation:
    `NATION_START_POPULATION` by founding era. The product starts at the middle
    of the current phase's ratio band so the phase holds for a while.
@@ -175,6 +183,7 @@ Getters for other systems and the UI:
 | `NATION_POPULATION_CAP`, `NATION_PRODUCT_CAP` | 5,000,000; 3,500,000 | where growth turns to shrinkage |
 | `REVIEW_CHANCE` | 10 | one review per this many months on average |
 | `PHASE_CHANGE_CHANCE` | 3 | reviews per phase re-evaluation on average |
+| `PRODUCT_SWING` | 12 | size of the monthly product swing, per draw step |
 | `RATIO_SLOW`, `RATIO_GROWTH`, `RATIO_BOOM` | 45, 60, 75 | product-per-head bands |
 | `NATION_START_POPULATION` | by founding era | starting national population |
 | `ERA_START`, `ERA_LENGTH` | 1900, 50 | first row year and years per row |
