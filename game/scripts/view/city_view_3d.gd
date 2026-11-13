@@ -1030,8 +1030,11 @@ func _touch_blocked() -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton or event is InputEventMouseMotion) and event.device == InputEvent.DEVICE_ID_EMULATION:
 		return
-	if _blocked():
+	# A control with keyboard focus owns typing, not the pointer over the map.
+	if _touch_blocked():
 		_panning = false
+		return
+	if event is InputEventKey and _blocked():
 		return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_MIDDLE:

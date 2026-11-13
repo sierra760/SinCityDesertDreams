@@ -31,7 +31,8 @@ corner for action buttons; returning to Build restores the saved minimap choice.
 Use **Settings → Controls** for camera sensitivity and invert Y. Its keyboard
 assignments appear only when a hardware keyboard is attached; see the
 [controls guide](controls.md) for changing keys and restoring defaults.
-The Speed menu controls city time independently of walking/driving/flying. Held
+The city waits while you walk, drive or fly; a speed chosen from the Speed menu
+there applies when you return to Build. Held
 actions show their pressed state; movement/look captions have contrasting backing.
 Report numbers use separate minus, typed value and plus controls.
 
@@ -72,7 +73,9 @@ Named cities live in `saves/`. Annual backups and `recovery/suspended.sc2d` are
 separate. Leaving the app pauses city time and movement and attempts a verified
 suspension recovery save. **Load City** lists it as **Recovery copy (saved when the app
 went to the background)**. Loading it clears the manual save target; use **City → Save City
-As** to keep a named copy. This does not replace a named save or the annual
+As** to keep a named copy. A recovered city that was never saved under a name
+stays unsaved, so leaving it asks first, and its recovery copy is kept until
+you save the city. This does not replace a named save or the annual
 backup. Unfounded maps keep their editing stage and generator settings. A
 recovery-write failure is reported upon return.
 

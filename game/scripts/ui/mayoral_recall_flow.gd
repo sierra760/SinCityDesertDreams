@@ -79,7 +79,7 @@ func answer(choice: StringName) -> void:
 		&"title":
 			if not _host.files.finish_cloud_session(): return
 			reset()
-			_host.sim.set_process(false)
+			# The removed mayor's city is paused for good; no later city inherits a stopped clock.
 			_host.in_game = false
 			_host.stage = GameHost.Stage.NONE
 			_host._show_title()

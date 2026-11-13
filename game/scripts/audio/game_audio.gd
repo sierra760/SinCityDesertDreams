@@ -456,9 +456,11 @@ func _process(delta: float) -> void:
 	_update_explore(delta)
 
 
-## True while city time stands still: paused, or held by a modal window.
+## True while city time stands still: paused, held by a modal window, or
+## held while the game is in the background (no disaster or weather sound
+## starts over another application).
 func is_city_frozen() -> bool:
-	return _host != null and _host.sim != null and (_host.sim.speed == GameClock.Speed.PAUSED or _host.modal_depth > 0)
+	return _host != null and _host.sim != null and (_host.sim.speed == GameClock.Speed.PAUSED or _host.modal_depth > 0 or is_sound_paused())
 
 
 func _update_disasters(step: float) -> void:

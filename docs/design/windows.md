@@ -21,9 +21,12 @@ code and headless-safe. The host relies on these members:
 | `close()` | `hide()` then emits `closed`. The X button, the Done button and the Escape key all go through `close()`. |
 | `signal closed` | Emitted once per close. |
 
-Escape is handled in `_unhandled_key_input` while the window is visible and
-marks the event handled, so one press closes one window. No window awaits
-anything; every rebuild is synchronous.
+A window shown on its own handles Escape in `_unhandled_key_input` while it is
+visible and marks the event handled. A window shown by the game host leaves
+Escape to the host (`WindowManager.host_owns_escape`), which closes whatever is
+in front (a dialog, then the front window) so one press closes one thing and a
+report behind Help or Settings stays open. No window awaits anything; every
+rebuild is synchronous.
 
 Controls that carry state (number fields, sliders, check boxes) are created once
 in `_ready` and synchronized in `refresh()` behind a `_syncing` flag, so

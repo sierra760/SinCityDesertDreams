@@ -123,6 +123,13 @@ func window(window_name: String) -> Control:
 	return w
 
 
+## True when a host shows `w`. The host then decides what Escape closes, front
+## to back (a dialog, Help or Settings before the report behind it), so the
+## window leaves the key to it. A window shown on its own answers Escape itself.
+static func host_owns_escape(w: Control) -> bool:
+	return bool(w.get_meta("nonmodal_window", false))
+
+
 ## Report links reuse existing windows and preserve Budget's annual-review hold.
 func _open_report(window_name: String, page: String) -> void:
 	var target := open(window_name)

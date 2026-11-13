@@ -69,6 +69,10 @@ const VERTEX_BYTES := TerrainSurface.VERTS_X * TerrainSurface.VERTS_Y
 ## and modification time match the cached copy. Callers get a deep copy of the
 ## cached header, so editing it cannot corrupt the cache.
 const HEADER_CACHE_LIMIT := 64
+## Largest number a save header may carry (every whole number below it is
+## exact in JSON), and the latest save time listed (the end of the year 9999).
+const HEADER_NUMBER_LIMIT := 9.0e15
+const HEADER_SAVED_AT_LIMIT := 253402300799.0
 const HEADER_CACHE_BYTES := 8 * 1024 * 1024
 static var _header_cache: Dictionary = {}
 static var _header_cache_bytes := 0
@@ -760,6 +764,13 @@ static func read_header(path: String) -> Dictionary:
 	# Wrong-typed fields make this not a save, like any other unreadable header.
 	if _field_problem(h, ["name", "stage"], ["saved_at", "population", "year", "day", "funds"]) != "":
 		return {}
+	# So do numbers no city holds: converted as they stand they would list a
+	# nonsense date, population or treasury.
+	for field: String in ["saved_at", "population", "year", "day", "funds"]:
+		if h.has(field) and absf(float(h[field])) > HEADER_NUMBER_LIMIT:
+			return {}
+	if float(h.get("saved_at", 0)) < 0.0 or float(h.get("saved_at", 0)) > HEADER_SAVED_AT_LIMIT or float(h.get("population", 0)) < 0.0:
+		return {}
 	var saved_at := int(h.get("saved_at", modified_time))
 	var result := {
 		"path": path,
@@ -781,7 +792,7 @@ static func read_header(path: String) -> Dictionary:
 	if counts.count_schema == 0:
 		# A new explicit header is usable even when a lightweight document has
 		# no snapshot. Old combined counts remain visibly identified as legacy.
-		if h.get("count_schema", 0) == 1 and TourismState._integer(h.get("tourists"), 0, TourismState.MAX_INSTANCE):
+		if _is_whole(h.get("count_schema", 0)) and float(h.get("count_schema", 0)) == 1.0 and TourismState._integer(h.get("tourists"), 0, TourismState.MAX_INSTANCE):
 			counts = {"population": result.population, "tourists": int(h.tourists), "count_schema": 1}
 		else:
 			counts.population = result.population

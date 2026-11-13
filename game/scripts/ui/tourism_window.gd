@@ -136,7 +136,7 @@ func close() -> void:
 	closed.emit()
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if visible and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+	if visible and not WindowManager.host_owns_escape(self) and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		close()
 		get_viewport().set_input_as_handled()
 

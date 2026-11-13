@@ -106,6 +106,12 @@ var modal_depth := 0
 ## Speed to restore when the last modal closes.
 ## Frame cap while a desktop window is in the background.
 const BACKGROUND_MAX_FPS := 15
+## Menu choices that wait for the January budget review to be finished.
+const REVIEW_HELD_ACTIONS: Array[StringName] = [&"city_new", &"city_load", &"city_import", &"city_share",
+	&"explore", &"street_names", &"cheats", &"disaster", &"go_to_emergency"]
+const REVIEW_HELD_MESSAGE := "Finish the budget review first: choose Done in the Budget window."
+## Shown when a city speed key is pressed in Explore, where the city waits.
+const EXPLORE_HELD_MESSAGE := "The city waits while you explore. Its clock resumes when you return to Build."
 var speed_before_modal: int = GameClock.Speed.SLOW
 ## The speed Pause returns to: the last speed the city actually ran at.
 var _last_running_speed: int = GameClock.Speed.SLOW
@@ -128,6 +134,11 @@ var _application_suspended := false
 var _cloud_foreground_requested := false
 var _window_in_foreground := true
 var _background_save_error: Error = OK
+## True while the January budget review holds the city.
+var _review_open := false
+## True once the player presses with the mouse or a finger; Tab returns to
+## keyboard navigation. Decides whether the city's own controls keep focus.
+var _pointer_navigation := false
 
 
 func _init() -> void:
@@ -255,6 +266,7 @@ func _ready() -> void:
 	shell.apply_popups(ui_layer)
 	shell.apply_popups(modal_layer)
 	shell.apply_metrics(display_layout.metrics)
+	get_viewport().gui_focus_changed.connect(_on_gui_focus_changed)
 	_show_title()
 
 
@@ -545,8 +557,9 @@ func resume_from_background() -> void:
 		if not casino_note.is_empty(): show_message(casino_note)
 	elif is_instance_valid(sim) and sim.city != null and stage == Stage.PLAY:
 		show_message(("%s " % casino_note if not casino_note.is_empty() else "") + "Paused while you were away. Choose a speed to continue.")
-	# The app came back, so the recovery copy written on the way out is not needed.
-	if _background_save_error == OK and is_instance_valid(files): files.discard_recovery_copy()
+	# The app came back, so the recovery copy written on the way out is not
+	# needed, unless it is the only copy of a recovered city never saved by name.
+	if _background_save_error == OK and is_instance_valid(files) and not files.keeps_recovery_until_saved(sim.city): files.discard_recovery_copy()
 	_background_save_error = OK
 
 
@@ -684,9 +697,20 @@ func show_message(text: String) -> void:
 	message_seconds_left = MESSAGE_SECONDS
 
 
+## True where a keyboard is in use: a desktop, or a phone or tablet with one
+## attached. Captions and hints name keys only then.
+func key_hints_shown() -> bool:
+	var environment: Dictionary = menu_bar.key_hint_environment if is_instance_valid(menu_bar) else {}
+	return not Platform.uses_touch(environment) or Platform.has_keyboard(environment)
+
+
 ## Bring the toolbar, emergency action and street menus up to date with the city.
 func refresh_toolbar() -> void:
 	refresh_street_menus()
+	# A keyboard can be attached or removed while the app runs.
+	var key_hints := key_hints_shown()
+	toolbar.set_key_hints(key_hints)
+	status_bar.set_key_hints(key_hints)
 	if sim.city == null:
 		return
 	if stage == Stage.EDITING and editing_params.get("source") == "real_world":
@@ -820,6 +844,7 @@ func _input(event: InputEvent) -> void:
 		escape()
 		get_viewport().set_input_as_handled()
 		return
+	_note_navigation_input(event)
 	if is_instance_valid(exploration): exploration.note_pointer_event(event)
 	if is_exploring() and event is InputEventKey and not is_input_blocked() and window_manager.front() == null and _navigation_shortcut_available() and exploration.handle_navigation_key(event):
 		get_viewport().set_input_as_handled()
@@ -836,6 +861,46 @@ func _input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 	if event is InputEventKey and not event.pressed and controls.matches(event,&"bulldoze"):
 		restore_temporary_bulldoze(true)
+
+
+## Remember whether the player is pointing or navigating with the keyboard.
+func _note_navigation_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch and event.pressed:
+		_pointer_navigation = true
+	elif event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+		_pointer_navigation = true
+	elif event is InputEventKey and event.pressed and (event.is_action(&"ui_focus_next") or event.is_action(&"ui_focus_prev")):
+		_pointer_navigation = false
+
+
+## Tab with nothing focused starts keyboard navigation at the tools.
+func _begin_keyboard_navigation() -> bool:
+	if not in_game or is_exploring() or is_input_blocked() or get_viewport().gui_get_focus_owner() != null: return false
+	return toolbar.focus_tools()
+
+
+## True for the city's own controls: the toolbar, footer, menu bar, city name
+## and inspector. Windows, dialogs and text fields are not among them.
+func _is_city_chrome(control: Control) -> bool:
+	if control == null or _is_text_field(control): return false
+	for owner: Control in [toolbar, status_bar, menu_bar, query_panel, shell.city_name_button]:
+		if is_instance_valid(owner) and (owner == control or owner.is_ancestor_of(control)): return true
+	return false
+
+
+## A press with the mouse or a finger acts at once and leaves the keyboard
+## with the city, so its keys (pause, rotate, zoom, pan) keep working: one of
+## the city's own controls that takes focus while the player is pointing gives
+## it up again. Focus reached with Tab stays for keyboard navigation.
+func _on_gui_focus_changed(control: Control) -> void:
+	if _pointer_navigation and _is_city_chrome(control):
+		_release_pointer_focus.call_deferred(weakref(control))
+
+
+func _release_pointer_focus(reference: WeakRef) -> void:
+	var control := reference.get_ref() as Control
+	if not _pointer_navigation or not is_instance_valid(control) or not is_inside_tree(): return
+	if get_viewport().gui_get_focus_owner() == control: control.release_focus()
 
 
 ## Map controls retain their close shortcut; other focused controls own typing.
@@ -904,6 +969,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		escape()
 		get_viewport().set_input_as_handled()
 		return
+	if (key.is_action(&"ui_focus_next") or key.is_action(&"ui_focus_prev")) and _begin_keyboard_navigation():
+		get_viewport().set_input_as_handled()
+		return
 	if is_camera_input_blocked():
 		return
 	if controls.matches(key,&"fullscreen"):
@@ -915,6 +983,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if stage != Stage.PLAY:
+		return
+	if is_exploring() and (controls.matches(key,&"pause") or controls.matches(key,&"faster") or controls.matches(key,&"slower")):
+		# Explore holds the city: its speed keys change nothing, and say so.
+		show_message(EXPLORE_HELD_MESSAGE)
+		get_viewport().set_input_as_handled()
 		return
 	if controls.matches(key,&"pause"): sim.set_speed(_last_running_speed if sim.speed == GameClock.Speed.PAUSED else GameClock.Speed.PAUSED)
 	elif controls.matches(key,&"faster"): sim.set_speed(sim.speed + 1)
@@ -989,14 +1062,21 @@ func toggle_underground() -> void:
 func _on_menu_action(action: StringName, value: Variant) -> void:
 	if in_game and sim.is_mayor_dismissed(): return
 	if loading_screen.visible: return
-	if action in [&"zoom_in", &"zoom_out", &"zoom", &"rotate", &"recenter", &"underground", &"overlay"] and (is_exploring() or is_input_blocked() or WindowDrag.is_dragging()):
+	var view_action := action in [&"zoom_in", &"zoom_out", &"zoom", &"rotate", &"recenter", &"underground", &"overlay"]
+	# The January review keeps its reports, saving and Settings; anything that
+	# needs the map or another city says why it waits instead of doing nothing.
+	var review := _review_alone_holds_input()
+	if review and (view_action or action in REVIEW_HELD_ACTIONS):
+		show_message(REVIEW_HELD_MESSAGE)
+		if not view_action: return
+	if view_action and (is_exploring() or is_input_blocked() or WindowDrag.is_dragging()):
 		menu_bar.set_checked(&"zoom", true, city_view_3d.zoom_level())
 		menu_bar.set_checked(&"underground", presentation.is_underground())
 		menu_bar.set_checked(&"overlay", true, presentation.get_overlay())
 		return
 	if street_names.is_active() and action in [&"underground",&"overlay",&"explore"]: return
 	# Keyboard accelerators reach the menu even while a dialog has the input.
-	if action in [&"city_new",&"city_load",&"city_save",&"city_save_as",&"options"] and (is_input_blocked() or WindowDrag.is_dragging()): return
+	if action in [&"city_new",&"city_load",&"city_save",&"city_save_as",&"options"] and ((is_input_blocked() and not review) or WindowDrag.is_dragging()): return
 	match action:
 		&"street_names": street_names.enter()
 		&"vegetation": window_manager.open("vegetation")
@@ -1013,7 +1093,13 @@ func _on_menu_action(action: StringName, value: Variant) -> void:
 			if stage == Stage.EDITING:
 				show_message("Found the city to start the clock.")
 			else:
-				sim.set_speed(int(value))
+				var chosen := clampi(int(value), GameClock.Speed.PAUSED, GameClock.Speed.FASTEST)
+				# A speed chosen during the January review, Pause included, is the
+				# speed the city has when the review closes.
+				if _review_open: speed_before_modal = chosen
+				sim.set_speed(chosen)
+				if is_exploring():
+					show_message("The city waits while you explore. %s applies when you return to Build." % String(GameClock.SPEED_NAMES.get(chosen, "That speed")))
 		&"zoom_in": city_view_3d.zoom_in()
 		&"zoom_out": city_view_3d.zoom_out()
 		&"zoom": city_view_3d.set_zoom_level(int(value))
@@ -1217,9 +1303,21 @@ func sync_help_sources_hold() -> void:
 
 
 func is_input_blocked() -> bool:
-	return sim.is_mayor_dismissed() or is_casino_open() or _help_sources_open() or _application_suspended or loading_screen.visible or not in_game or modal_depth > 0 or title_screen.visible or share_dialog.is_open() or notice_dialog.is_open() \
+	return modal_depth > 0 or _dialog_holds_input()
+
+
+## Everything that holds input apart from the count of open modals.
+func _dialog_holds_input() -> bool:
+	return sim.is_mayor_dismissed() or is_casino_open() or _help_sources_open() or _application_suspended or loading_screen.visible or not in_game or title_screen.visible or share_dialog.is_open() or notice_dialog.is_open() \
 		or choice_dialog.is_open() or new_city_dialog.is_open() or load_dialog.is_open() or save_dialog.is_open() \
 		or files.picker_modal or (files.import_dialog != null and files.import_dialog.visible)
+
+
+## True while the January review is the only thing holding the city. Its
+## window is an ordinary report: saving, Settings and Help stay available
+## beside it, and a dialog opened on top blocks them as usual.
+func _review_alone_holds_input() -> bool:
+	return _review_open and modal_depth == 1 and not _dialog_holds_input()
 
 
 ## Contact ownership is determined from geometry, not the single emulated
@@ -1273,7 +1371,8 @@ func _on_speed_changed(speed: int) -> void:
 ## The footer shows the city paused while Explore holds it; a speed chosen
 ## meanwhile is kept and takes effect on return to Build.
 func sync_status_speed() -> void:
-	status_bar.set_speed(GameClock.Speed.PAUSED if is_exploring() else sim.speed)
+	status_bar.set_city_held(is_exploring())
+	status_bar.set_speed(sim.speed)
 
 
 ## Named holds that stop simulation processing until every holder releases.
@@ -1289,6 +1388,13 @@ func release_sim_process_hold(owner: StringName) -> void:
 	if not _sim_process_holds.has(owner): return
 	_sim_process_holds.erase(owner)
 	if _sim_process_holds.is_empty(): sim.set_process(_sim_process_before_holds)
+
+
+## A newly bound city's clock runs once every hold is released, whatever the
+## city before it left behind.
+func restore_sim_processing() -> void:
+	_sim_process_before_holds = true
+	if _sim_process_holds.is_empty(): sim.set_process(true)
 
 
 # ── Time ─────────────────────────────────────────────────────────────────
@@ -1332,6 +1438,7 @@ func present_budget_review() -> void:
 		sim.finish_budget_review()
 		return
 	push_modal()
+	_review_open = true
 	var w := window_manager.window("budget")
 	(w as BudgetWindow).begin_review()
 	window_manager.open("budget")
@@ -1340,6 +1447,7 @@ func present_budget_review() -> void:
 
 
 func _finish_budget_review() -> void:
+	_review_open = false
 	sim.finish_budget_review()
 	pop_modal()
 	status_bar.refresh(sim)
@@ -1516,6 +1624,7 @@ func save_preferences() -> void:
 
 func _exit_tree() -> void:
 	if cloud_saves != null: cloud_saves.shutdown()
+	if get_viewport().gui_focus_changed.is_connected(_on_gui_focus_changed): get_viewport().gui_focus_changed.disconnect(_on_gui_focus_changed)
 	if get_window().close_requested.is_connected(files.quit_game): get_window().close_requested.disconnect(files.quit_game)
 	get_tree().auto_accept_quit = _previous_auto_accept_quit
 	explore_switch.dispose()

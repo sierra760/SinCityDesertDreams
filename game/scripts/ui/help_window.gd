@@ -20,7 +20,7 @@ const ROWS: Array = [
 	["Build a neighborhood", "Zone level land; provide power, water and road access. Watch demand and review your budget."],
 	["Choose a speed", "Cities open paused. Pick a speed from the Speed menu; {pause} pauses and resumes at the same speed. Fastest runs as quickly as your device allows.", "desktop"],
 	["Choose a speed", "Cities open paused. Pick a speed from {speed_menu}. Fastest runs as quickly as your device allows.", "touch"],
-	["Save and recover", "Save your city or an unfounded map from {city_menu}{save_key}. Load City also lists yearly automatic backups and recovery copies; save a recovered city under a name to keep it."],
+	["Save and recover", "Save your city or an unfounded map from {city_menu}{save_key}. Load City also lists yearly automatic backups and recovery copies; save a recovered city under a name to keep it. A city opened with Load City → Browse joins your saved cities the first time you save it."],
 	["#Agriculture"],
 	["Zone a farm", "Choose low-density ($2/tile) or high-density Agriculture ($5/tile) on dry, level land near a road or station. Low-density farmland forms fields and pastures automatically. Each parcel stays on one flat ground height and spans at most 12 tiles in either direction; a pasture needs at least four connected tiles with room for its animals. Olive shades identify both densities on the maps."],
 	["Edit farmland", "Bulldozing or building a road on one cell of a new field or pasture removes that cell. Its remaining pieces may become separate parcels. Older square farms keep their original whole-lot demolition behavior."],

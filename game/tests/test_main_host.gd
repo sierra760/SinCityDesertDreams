@@ -183,6 +183,8 @@ func test_save_then_load_keeps_the_city() -> void:
 	check(not host.load_city("user://saves/does-not-exist.sc2d"), "missing file is refused")
 	check(host.notice_dialog.is_open(), "the refusal is explained")
 	host.notice_dialog.dismiss()
+	# Leave no save behind for suites that count the saved cities.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func test_windows_open_by_name_and_close_on_escape() -> void:

@@ -238,7 +238,11 @@ static func header_counts(snapshot: Dictionary, facilities: Dictionary) -> Dicti
 		var rows := TourismState._validate_rows(systems.tourism.state.records, true, int(systems.tourism.state.schema) == 1)
 		for row: Dictionary in rows.rows:
 			var facility: Variant = facilities.get(row.anchor, facilities.get(SimSystem.tile_key(row.anchor), {}))
-			if facility is Dictionary and facility.get("tourism_instance", 0) == row.instance and StringName(facility.get("key", "")) == row.key:
+			if not facility is Dictionary: continue
+			# A shared file is untrusted: compare only values of the stored kinds.
+			var instance: Variant = facility.get("tourism_instance", 0)
+			var kind: Variant = facility.get("key", "")
+			if typeof(instance) in [TYPE_INT, TYPE_FLOAT] and instance == row.instance and (kind is String or kind is StringName) and StringName(kind) == row.key:
 				result.tourists += int(row.guests) + int(row.day_visitors)
 	else:
 		var rewards: Variant = systems.get("rewards", {}) if systems is Dictionary else {}

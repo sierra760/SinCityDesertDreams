@@ -17,7 +17,9 @@ extends RefCounted
 
 ## Imported and included cities open paused; use the player's real controls.
 func paused_hint() -> String:
-	var route := "Menu → Speed" if DisplayLayout.is_phone(_host.display_layout.metrics) else "Speed menu or " + _host.controls.caption(&"pause")
+	var route := "Menu → Speed" if DisplayLayout.is_phone(_host.display_layout.metrics) else "Speed menu"
+	# A key is named only where there is a keyboard to press it on.
+	if route == "Speed menu" and _host.key_hints_shown(): route += " or " + _host.controls.caption(&"pause")
 	return "Paused — choose a speed (%s) to start." % route
 
 
@@ -276,6 +278,9 @@ func load_city(path: String, personal: bool = true) -> bool:
 		_host.files.mark_saved()
 		if personal and _host.cloud_saves != null: _host.cloud_saves.begin_session(path)
 		if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(city, path)
+		if _keep_unsaved_recovery(path, city):
+			_host.show_message("Recovered the unfounded map %s. Save it to keep it." % city.name)
+			return true
 		_host.show_message("Loaded the unfounded map %s." % city.name)
 		return true
 	var snapshot: Dictionary = result["snapshot"]
@@ -286,19 +291,51 @@ func load_city(path: String, personal: bool = true) -> bool:
 	_host.files.mark_saved()
 	if personal and _host.cloud_saves != null: _host.cloud_saves.begin_session(path)
 	if CityFileFlow.is_application_recovery_path(path): _host.files.note_recovery_copy(sim.city, path)
+	var recovered := _keep_unsaved_recovery(path, sim.city)
 	loaded_speed = sim.speed
-	if sim.budget_review_pending:
+	if sim.budget_review_pending and not sim.stats.auto_budget:
 		# Saved during the January review: reopen it, or time never resumes.
 		# Closing it continues at the saved speed, as finishing it would have.
 		_host.speed_before_modal = sim.speed
 		_host.show_message("Loaded %s." % city.name)
 		_host.present_budget_review()
 		return true
+	# With automatic budgeting there is no review to reopen (the yearly backup
+	# is written at that moment): the year settles and the city opens paused.
+	if sim.budget_review_pending: sim.finish_budget_review()
 	# Saved cities open paused like imported and included ones. Restoring the
 	# snapshot already reported its running speed, so P resumes that speed.
 	sim.set_speed(GameClock.Speed.PAUSED)
 	_host.speed_before_modal = GameClock.Speed.PAUSED
-	_host.show_message("Loaded %s. %s" % [city.name, paused_hint()])
+	_host.show_message(("Recovered %s. Save it to keep it. %s" if recovered else "Loaded %s. %s") % [city.name, paused_hint()])
+	return true
+
+
+## A city recovered from the copy written when the app left the foreground,
+## and never saved under a name, has only that copy on disk. It stays unsaved
+## (leaving it asks first) and its copy is kept until the city is saved.
+func _keep_unsaved_recovery(path: String, city: City) -> bool:
+	if not CityFileFlow.is_application_recovery_path(path) or not _host.save_path.is_empty(): return false
+	_host.files.forget_saved()
+	_host.files.keep_recovery_until_saved(city)
+	return true
+
+
+## Open a city file the player picked from outside the game's saved cities.
+## It opens as that city, unchanged, but the picked file is not its save
+## destination: the first Save asks for a name and writes into the game's own
+## saved cities, where Load City lists it. A file picked from the saved cities
+## folder itself opens as an ordinary load.
+func open_browsed_city(path: String) -> bool:
+	if CloudSaveStore.personal_path(path) or CityFileFlow.is_managed_recovery_path(path):
+		return load_city(path)
+	if not load_city(path, false):
+		return false
+	var sim := _host.sim
+	_host.save_path = ""
+	if _host.cloud_saves != null: _host.cloud_saves.begin_session()
+	var note := "Opened %s. Save it to keep it with your saved cities." % sim.city.name
+	_host.show_message(note if _host.stage == GameHost.Stage.EDITING or _host.modal_depth > 0 else "%s %s" % [note, paused_hint()])
 	return true
 
 
@@ -369,6 +406,7 @@ func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CitySt
 	host.notice_dialog.dismiss()
 	host.choice_dialog.cancel()
 	sim.set_speed(GameClock.Speed.PAUSED)
+	host.restore_sim_processing()
 	sim.setup(city, seed_value, stats, snapshot)
 	if not snapshot.is_empty():
 		sim.restore(snapshot)
@@ -399,6 +437,7 @@ func begin_city(city: City, snapshot: Dictionary, seed_value: int, stats: CitySt
 	host.title_screen.close()
 	host.shell.set_chrome_visible(true)
 	host.select_tool(Tools.Kind.QUERY)
+	host.sync_status_speed()
 	host.status_bar.refresh(sim)
 	host.refresh_toolbar()
 	host.menu_bar.set_checked(&"speed", true, sim.speed)

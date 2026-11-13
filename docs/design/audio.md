@@ -136,6 +136,10 @@ It listens to the toolbar, simulation signals (disasters, newspaper stories),
 the Explore status, the casino table's `event_played` signal and every button
 in the tree; construction results and notices call it directly. Each quarter
 second it polls active disasters, the weather and the city size for loops.
+A city whose time stands still is quiet: while it is paused, held by a dialog
+or the January review, or held because the desktop window is in the background
+with "Pause while in the background" on, disaster and weather loops fade, no
+disaster or thunder sound starts, and the city bed drops low.
 Under the Dummy audio driver (headless tests) it records cues without starting
 players.
 

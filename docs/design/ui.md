@@ -176,7 +176,25 @@ Tree protests and approval milestones are flavor and appear on the status
 line without pausing. Modal dialogs and
 notices pause the simulation and preserve its speed restoration rules. Focused
 text, controls, popups, window dragging or an inactive window block city keyboard
-input; a valid map click gives keyboard input back to the city.
+input; a valid map click gives keyboard input back to the city. Focus never
+blocks the pointer: the wheel, a pinch, a two-finger scroll and a middle drag
+over the map work whatever has keyboard focus, and only dialogs, popups, a
+window drag or an inactive window stop them.
+
+A press with the mouse or a finger on the city's own controls (toolbar, footer,
+menu bar, city name, inspector) acts and leaves the keyboard with the city, so
+the city keys below keep working after a tool is chosen. Tab starts keyboard
+navigation at the selected tool when nothing has focus; Tab and the arrow keys
+then move between controls, Enter or Space presses the focused one, and focus
+stays there until the map is clicked. Report windows, dialogs and text fields
+keep the focus a press gives them.
+
+During the January budget review the Budget window stays an ordinary report:
+other reports, Help, Settings, Save City and Save City As work beside it. New
+City, Load City, Import, Share, Explore, Street Names, disasters, secret codes
+and the View controls wait and say so on the status line ("Finish the budget
+review first…"). A speed chosen from the Speed menu during the review, Pause
+included, is the speed the city has when the review closes.
 
 | Control | Action |
 | --- | --- |
@@ -186,7 +204,7 @@ input; a valid map click gives keyboard input back to the city.
 | Q / right-click | Inspect tool / inspect site |
 | U | Surface / underground |
 | B held | Temporary bulldoze |
-| P / + / − | Pause or resume at the previous speed / speed |
+| P / + / − | Pause or resume at the previous speed / speed. In Explore the city waits: these keys change nothing and the status line says why |
 | Ctrl+Cmd+F (macOS) / F11 (other desktops) | Fullscreen |
 | Cmd/Ctrl+N / O / S / Shift+S / , | New City / Load City / Save City / Save City As / Settings |
 | Escape | Close front dialog/window, cancel a drag, drop the tool, then exit fullscreen; in Explore it opens and closes the Explore menu |
@@ -225,8 +243,13 @@ and restore its prior speed on cancellation. Autosave failure is reported.
 Transient feedback stays visible for seven seconds, independent of simulation
 speed. An open inspector refreshes after coalesced simulation updates, keeping
 its scroll position for the same tile. Reopening an information window makes it
-the next Escape target. Toolbar keyboard focus follows scrolling; selected speed
-and tool cost remain visible. Modal keyboard focus stays inside the active dialog.
+the next Escape target. Escape closes one thing at a time, front to back: Help,
+Settings, Privacy or License in front of a report closes first, and never
+finishes the January review behind it. Toolbar keyboard focus follows
+scrolling; selected speed and tool cost remain visible. Modal keyboard focus
+stays inside the active dialog. While Explore holds the city the footer reads
+Paused; a speed picked from the Speed menu there is kept for the return to
+Build and the status line says so.
 
 Shared fields, lists, scrollbars, popups and tooltips use the same ivory/teal
 palette and readable focus/hover states. Action rows can wrap, while window bodies
@@ -240,6 +263,11 @@ Load City keeps concise rows and a wrapping selected-save summary containing
 filename, saved date, stage, year and population. Identically named cities can
 be distinguished before loading. Browse opens native `.sc2d` saves outside the
 default save directory; an empty list disables Load and explains the next step.
+A browsed city opens unchanged but the picked file is never its save
+destination: the first Save asks for a name, as Save City As does, and writes
+into the game's saved cities, where Load City then lists it. Nothing is
+written beside the picked file. A file picked from the saved cities folder
+itself opens as an ordinary load.
 
 ## Tool identity
 
@@ -301,7 +329,11 @@ Explicit tool choices and city/Explore transitions clear stale held state.
 
 Automatic backups use `user://autosaves/autosave.sc2d`, separate from named saves.
 Load lists the managed backup with recovery guidance; recovery leaves the manual
-save target unset so Save asks for a name. Legacy `saves/autosave.sc2d` remains a
+save target unset so Save asks for a name. A yearly backup opens paused like
+every loaded city, with or without Auto budget. A recovered city that was never
+saved under a name counts as unsaved (leaving it asks first) and its recovery
+copy is kept, also across later trips to the background, until the city is
+saved. Legacy `saves/autosave.sc2d` remains a
 normal save. Save As accepts a pasted .sc2d suffix once and shows the actual save
 folder: `%APPDATA%\...` on Windows, `~/...` on macOS and its Files app location
 (On My iPhone or iPad → SC2D) on iOS. Load City shows saved dates in local time
@@ -312,8 +344,10 @@ without seconds. File pickers keep their task title.
 Text names the keys of the platform that shows it: Cmd and Option on macOS,
 Ctrl and Alt elsewhere. On a touch device without a hardware keyboard, menus omit
 key captions and Cmd/Ctrl accelerators, casino rules omit key lists, and the
-large-bet confirmation asks for a second tap. Attaching a keyboard restores them
-the next time a menu opens. Help separates iPhone rows (Menu → Speed, the Tools
+large-bet confirmation asks for a second tap. The selected-tool line and tool
+captions drop "[Q]" and "[hold B]", and the paused hint names only the Speed
+menu. Attaching a keyboard restores them the next time a menu opens or the
+toolbar refreshes. Help separates iPhone rows (Menu → Speed, the Tools
 drawer) from iPad rows (the Speed and City menus). The phone Details panel shows
 every alert, the whole status message and the city summary that desktop players
 read in the population tooltip: class, employment, approval, rain and wind, and

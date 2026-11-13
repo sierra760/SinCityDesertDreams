@@ -43,6 +43,10 @@ var emergency_button: Button
 var _metrics_row: HFlowContainer
 var _column: VBoxContainer
 var _editing := false
+## True while Explore holds the city.
+var _city_held := false
+## False on a touch device with no keyboard: hints then name no keys.
+var key_hints := true
 ## True while no tool is selected ("Tool: None").
 var _no_tool := true
 var _phone := false
@@ -466,16 +470,29 @@ func set_agricultural_demand(value: int) -> void:
 	demand_meter.set_agricultural_demand(value)
 
 
+## While Explore holds the city the bar reads Paused, whatever speed is kept
+## for the return to Build.
+func set_city_held(on: bool) -> void:
+	_city_held = on
+
+
 func set_speed(speed: int) -> void:
+	if _city_held: speed = GameClock.Speed.PAUSED
 	speed_label.text = "Stopped" if _editing else String(GameClock.SPEED_NAMES.get(speed, "Paused"))
 	_sync_speed_hint()
 	_sync_phone_summary()
+
+
+func set_key_hints(on: bool) -> void:
+	key_hints = on
+	_sync_speed_hint()
 
 
 func _sync_speed_hint() -> void:
 	if speed_label == null: return
 	if _editing: speed_label.tooltip_text = "Found City to start the simulation clock."
 	elif _phone: speed_label.tooltip_text = "Simulation speed. Change it from Menu → Speed."
+	elif not key_hints: speed_label.tooltip_text = "Simulation speed. Change it from the Speed menu."
 	else: speed_label.tooltip_text = "Simulation speed. Change it from the Speed menu; %s pauses or resumes." % controls.caption(&"pause")
 
 

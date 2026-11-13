@@ -37,6 +37,9 @@ var _failed_save_name := ""
 ## (possibly newer) copy of a city with the same name is never deleted.
 var _recovery_city: WeakRef = null
 var _recovery_path := ""
+## A recovered city that has never been saved under a name: its recovery copy
+## is the only one on disk and is kept until the city is saved.
+var _unsaved_recovery_city: WeakRef = null
 var _cloud_load_intent: Dictionary = {}
 var _cloud_refresh_queued := false
 var _last_sync_rows_key: Array = []
@@ -273,7 +276,7 @@ func open_native_load_dialog() -> void:
 		native_load_dialog.file_selected.connect(func(path: String) -> void:
 			_browse_from_load = false
 			_end_file_picker()
-			_host.run_loading("Loading city…",path.get_file(),_host.session.load_city.bind(path)))
+			_host.run_loading("Loading city…",path.get_file(),_host.session.open_browsed_city.bind(path)))
 		native_load_dialog.canceled.connect(_return_to_load_list)
 	_host.push_modal()
 	picker_modal = true
@@ -703,6 +706,7 @@ func retire_fallback_recovery() -> void:
 ## came back cleanly, or the city it holds was saved under a name.
 func discard_recovery_copy() -> void:
 	_recovery_city = null
+	_unsaved_recovery_city = null
 	var path := _recovery_path
 	_recovery_path = ""
 	if path.is_empty(): return
@@ -716,6 +720,17 @@ func discard_recovery_copy() -> void:
 func note_recovery_copy(city: City, path: String = "") -> void:
 	_recovery_city = weakref(city) if city != null else null
 	_recovery_path = application_recovery_path() if path.is_empty() else path
+
+
+## Keep the recovery copy `city` was loaded from until the city is saved
+## under a name; returning to the foreground does not remove it.
+func keep_recovery_until_saved(city: City) -> void:
+	_unsaved_recovery_city = weakref(city) if city != null else null
+
+
+## True while `city` is a recovered, never-saved city whose copy must stay.
+func keeps_recovery_until_saved(city: City) -> bool:
+	return city != null and _unsaved_recovery_city != null and _unsaved_recovery_city.get_ref() == city
 
 
 ## True when the background recovery copy holds this session's `city`.

@@ -17,6 +17,8 @@ class_name Toolbar
 extends PanelContainer
 
 var controls := ControlBindings.new()
+## False on a touch device with no keyboard: captions then name no keys.
+var key_hints := true
 
 signal tool_selected(tool: int)
 signal found_requested
@@ -168,6 +170,8 @@ var _grids: Dictionary = {}
 var _action_blocks: Dictionary = {}
 var _action_grids: Dictionary = {}
 var _reveal_pending := false
+## The tool button pressed last, until the next reveal has run.
+var _pressed_button: WeakRef = null
 var _lock_info_buttons: Dictionary = {}
 var _lock_details: PanelContainer
 var _lock_identity: Label
@@ -382,7 +386,7 @@ func _make_button(tool: int) -> Button:
 	if icon != null:
 		b.icon = icon
 
-	b.tooltip_text = tooltip_for(tool, "", false, controls)
+	b.tooltip_text = tooltip_for(tool, "", false, controls, key_hints)
 	b.pressed.connect(_on_button_pressed.bind(tool))
 	# The construction button stays disabled. Its transparent child
 	# only explains the lock, including on touch where hover is unavailable.
@@ -413,12 +417,14 @@ static func _icon_texture(icon: StringName) -> Texture2D:
 
 ## "Road — $10" plus the lock reason on a second line when locked. `free`
 ## overrides the price (terrain tools before founding).
-static func tooltip_for(tool: int, reason: String, free: bool = false, bindings: ControlBindings = null) -> String:
+## `key_hints` is false on a touch device with no keyboard, where naming a
+## key helps no one.
+static func tooltip_for(tool: int, reason: String, free: bool = false, bindings: ControlBindings = null, key_hints: bool = true) -> String:
 	var price := 0 if free else Tools.cost(tool)
 	var text := "%s — %s" % [Tools.display_name(tool), "free" if price <= 0 else "$" + UIFactory.commafy(price)]
 	var input := bindings if bindings != null else ControlBindings.new()
-	if tool == Tools.Kind.QUERY: text += " [%s]" % input.caption(&"query")
-	elif tool == Tools.Kind.BULLDOZE: text += " [hold %s]" % input.caption(&"bulldoze")
+	if key_hints and tool == Tools.Kind.QUERY: text += " [%s]" % input.caption(&"query")
+	elif key_hints and tool == Tools.Kind.BULLDOZE: text += " [hold %s]" % input.caption(&"bulldoze")
 	if Tools.is_immediate(tool): text += " · applies on press"
 	if not reason.is_empty():
 		text += "\n" + ConstructionFlow.sentence(reason)
@@ -455,13 +461,15 @@ func _on_button_pressed(tool: int) -> void:
 		_show_lock_details(tool)
 		return
 	_close_lock_details()
+	# A pressed button stays in view even when it gives up keyboard focus.
+	_pressed_button = weakref(buttons[tool])
 	tool_selected.emit(tool)
 
 
 func _show_lock_details(tool: int) -> void:
 	if not is_locked(tool) or not is_shown(tool): return
 	_explained_tool = tool
-	_lock_identity.text = tooltip_for(tool,"",is_free(tool),controls).get_slice("\n",0)
+	_lock_identity.text = tooltip_for(tool,"",is_free(tool),controls,key_hints).get_slice("\n",0)
 	_lock_reason.text = ConstructionFlow.sentence(String(lock_reasons[tool]))
 	_lock_details.show()
 	_reveal_focused_tool()
@@ -498,6 +506,27 @@ func _jump_to_section(index: int) -> void:
 	scroll.scroll_vertical = int((_headers[group] as Control).position.y)
 
 
+## Give the keyboard to the selected tool's button, or to the first tool that
+## can take it, so Tab and the arrow keys move through the tools. Returns false
+## when no tool is on show.
+func focus_tools() -> bool:
+	if not is_visible_in_tree(): return false
+	var order: Array[int] = [active_tool]
+	for group: int in GROUP_ORDER:
+		if not _grids.has(group): continue
+		for child: Node in (_grids[group] as Node).get_children():
+			var tool: Variant = buttons.find_key(child)
+			if tool != null: order.append(int(tool))
+	for tool: int in order:
+		if not buttons.has(tool) or not is_shown(tool): continue
+		var target: Button = _lock_info_buttons[tool] if is_locked(tool) else buttons[tool]
+		if not target.is_visible_in_tree(): continue
+		target.grab_focus()
+		_reveal_focused_tool()
+		return true
+	return false
+
+
 func _reveal_focused_tool() -> void:
 	# Selected identity and status text can wrap after a press and resize the
 	# scroll viewport without changing focus. Keep that same button reachable.
@@ -518,8 +547,12 @@ func _reveal_after_layout(frames_left: int) -> void:
 		return
 	_reveal_pending = false
 	var focused := get_viewport().gui_get_focus_owner()
+	var pressed := _pressed_button.get_ref() as Control if _pressed_button != null else null
+	_pressed_button = null
 	if focused != null and (buttons.values().has(focused) or _lock_info_buttons.values().has(focused)):
 		(get_node("Shell/Scroll") as ScrollContainer).ensure_control_visible(focused)
+	elif focused == null and is_instance_valid(pressed) and pressed.is_visible_in_tree():
+		(get_node("Shell/Scroll") as ScrollContainer).ensure_control_visible(pressed)
 
 
 ## Highlight `tool` (or nothing when negative).
@@ -543,7 +576,7 @@ func set_active(tool: int) -> void:
 
 
 func _update_selected_identity() -> void:
-	var identity := tooltip_for(active_tool, String(lock_reasons.get(active_tool,"")), is_free(active_tool),controls) if buttons.has(active_tool) else "None"
+	var identity := tooltip_for(active_tool, String(lock_reasons.get(active_tool,"")), is_free(active_tool),controls,key_hints) if buttons.has(active_tool) else "None"
 	var text := "Tool: " + identity.get_slice("\n",0)
 	var changed := text != selected_label.text
 	selected_label.text = text
@@ -581,7 +614,7 @@ func refresh(city: City, stats: CityStats, disasters: SimSystem = null, rewards:
 		lock_reasons[tool] = reason
 		var b: Button = buttons[tool]
 		b.disabled = not reason.is_empty()
-		b.tooltip_text = tooltip_for(tool, reason, is_free(tool), controls)
+		b.tooltip_text = tooltip_for(tool, reason, is_free(tool), controls, key_hints)
 		var info: Button = _lock_info_buttons[tool]
 		info.visible = b.disabled
 		info.tooltip_text = b.tooltip_text
@@ -619,7 +652,18 @@ func set_stage(new_stage: int) -> void:
 				any = any or b.visible
 			(_action_blocks[g] as Control).visible = shown and any
 	for tool in buttons:
-		(buttons[tool] as Button).tooltip_text = tooltip_for(tool, String(lock_reasons.get(tool, "")), is_free(tool), controls)
+		(buttons[tool] as Button).tooltip_text = tooltip_for(tool, String(lock_reasons.get(tool, "")), is_free(tool), controls, key_hints)
+	_update_selected_identity()
+
+
+## Show or drop the key names in the tool captions (see `tooltip_for`).
+func set_key_hints(on: bool) -> void:
+	if key_hints == on: return
+	key_hints = on
+	for tool: int in buttons:
+		var tip := tooltip_for(tool, String(lock_reasons.get(tool, "")), is_free(tool), controls, key_hints)
+		(buttons[tool] as Button).tooltip_text = tip
+		(_lock_info_buttons[tool] as Button).tooltip_text = tip
 	_update_selected_identity()
 
 

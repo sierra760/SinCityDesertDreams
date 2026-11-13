@@ -144,7 +144,7 @@ func _fit_below_menu() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not visible:
+	if not visible or WindowManager.host_owns_escape(self):
 		return
 	var key_event := event as InputEventKey
 	if key_event != null and key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
