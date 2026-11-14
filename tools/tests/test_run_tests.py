@@ -74,39 +74,47 @@ class ClassificationTests(unittest.TestCase):
 
 
 class EngineSelectionTests(unittest.TestCase):
-    def test_initial_minor_stable_uses_an_implicit_zero_patch(self):
+    def engine(self, directory, version):
+        engine = Path(directory) / "godot"
+        engine.write_text(f"#!/bin/sh\nprintf '%s\\n' '{version}'\n")
+        engine.chmod(0o755)
+        return engine
+
+    def assert_usable(self, version):
         with tempfile.TemporaryDirectory() as temporary:
-            engine = Path(temporary) / "godot"
-            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.8.stable.official.current'\n")
-            engine.chmod(0o755)
+            engine = self.engine(temporary, version)
             with patch.dict(os.environ, {"GODOT": str(engine)}):
                 self.assertEqual(runner.find_godot(), str(engine))
 
-    def test_prerelease_is_not_selected_for_the_stable_upgrade(self):
+    def assert_refused(self, version):
         with tempfile.TemporaryDirectory() as temporary:
-            engine = Path(temporary) / "godot"
-            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.8.dev6.official.preview'\n")
-            engine.chmod(0o755)
+            engine = self.engine(temporary, version)
             with patch.dict(os.environ, {"GODOT": str(engine)}):
-                with self.assertRaisesRegex(SystemExit, "4.7.2"):
+                with self.assertRaisesRegex(SystemExit, "4.8 beta 3"):
                     runner.find_godot()
 
-    def test_explicit_engine_rejects_versions_without_native_joystick(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            engine = Path(temporary) / "godot"
-            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.6.1.stable.official.old'\n")
-            engine.chmod(0o755)
-            with patch.dict(os.environ, {"GODOT": str(engine)}):
-                with self.assertRaisesRegex(SystemExit, "4.7.2"):
-                    runner.find_godot()
+    def test_first_supported_beta_is_usable(self):
+        self.assert_usable("4.8.beta3.official.c51ff06e8")
 
-    def test_explicit_stable_engine_is_usable(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            engine = Path(temporary) / "godot"
-            engine.write_text("#!/bin/sh\nprintf '%s\\n' '4.7.2.stable.official.current'\n")
-            engine.chmod(0o755)
-            with patch.dict(os.environ, {"GODOT": str(engine)}):
-                self.assertEqual(runner.find_godot(), str(engine))
+    def test_release_candidate_and_stable_rank_above_betas(self):
+        self.assert_usable("4.8.rc1.official.preview")
+        self.assert_usable("4.8.stable.official.current")
+        self.assert_usable("4.8.1.stable.official.current")
+        self.assert_usable("4.9.beta1.official.preview")
+
+    def test_earlier_beta_is_refused(self):
+        self.assert_refused("4.8.beta2.official.preview")
+
+    def test_development_snapshot_is_refused(self):
+        self.assert_refused("4.8.dev6.official.preview")
+
+    def test_previous_stable_engines_are_refused(self):
+        # 4.7.2 rewrites every import sidecar and fails the 4.8 casino bake.
+        self.assert_refused("4.7.2.stable.official.ed1daf0bf")
+        self.assert_refused("4.6.1.stable.official.old")
+
+    def test_unrecognised_version_is_refused(self):
+        self.assert_refused("custom build")
 
 
 class IsolatedProjectTests(unittest.TestCase):

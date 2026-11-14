@@ -1,6 +1,6 @@
 # iPhone and iPad controls and device builds
 
-The Godot 4.7.2 project includes touch input, iPad display and lifecycle
+The Godot 4.8 project includes touch input, iPad display and lifecycle
 handling, and an **iOS** export preset. It has not yet been tested as a signed
 build on a physical iPhone or iPad. See the [iPhone interface guide](iphone.md)
 for the compact phone controls.
@@ -113,7 +113,7 @@ background.
 
 ## Creating a device build
 
-To make a device build, install matching Godot 4.7.2 export templates
+To make a device build, install matching Godot 4.8 export templates
 and Xcode on macOS. Open `game/project.godot`, select **Project → Export → iOS**,
 set your Apple Team ID, and verify the bundle identifier against that
 account. The preset exports to `releases/SC2D-ios-v0.7.0/SC2D.xcodeproj` beside `game/`

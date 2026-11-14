@@ -82,4 +82,4 @@ tools/model_art/livestock.py:31
 tools/blender_exploration/build_agriculture.py:29
 
 # Godot's official release checksum list is named for its SHA-512 algorithm.
-tools/ci/setup_godot.py:33
+tools/ci/setup_godot.py:35

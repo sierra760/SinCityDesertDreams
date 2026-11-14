@@ -6,6 +6,7 @@ import importlib.util
 import plistlib
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 TOOLS = Path(__file__).parents[1]
@@ -20,6 +21,7 @@ def load(name):
 
 presets = load("prepare_export_presets")
 smoke = load("smoke_export")
+setup = load("setup_godot")
 
 
 class ExportPresetTests(unittest.TestCase):
@@ -79,6 +81,32 @@ class SmokeExportTests(unittest.TestCase):
             with self.subTest(output=output, code=code), tempfile.TemporaryDirectory() as directory:
                 game = self.fake_game(directory, output, code)
                 self.assertEqual(smoke.main([str(game), "--log", str(Path(directory) / "smoke.log")]), 1)
+
+
+
+class GodotReleaseNameTests(unittest.TestCase):
+    def test_stable_and_preview_release_names(self):
+        self.assertEqual(setup.release_tag("4.7.2"), "4.7.2-stable")
+        self.assertEqual(setup.engine_name("4.7.2"), "4.7.2.stable")
+        self.assertEqual(setup.release_tag("4.8-beta3"), "4.8-beta3")
+        self.assertEqual(setup.engine_name("4.8-beta3"), "4.8.beta3")
+        self.assertEqual(setup.template_directory("4.8-beta3").name, "4.8.beta3")
+
+    def test_macos_editor_follows_the_published_archives(self):
+        with patch.object(setup.sys, "platform", "darwin"):
+            universal = {"Godot_v4.7.2-stable_macos.universal.zip"}
+            self.assertEqual(setup.host_editor("4.7.2", universal)[0], "Godot_v4.7.2-stable_macos.universal.zip")
+            split = {"Godot_v4.8-beta3_macos.arm64.zip", "Godot_v4.8-beta3_macos.x86_64.zip"}
+            with patch.object(setup.platform, "machine", return_value="arm64"):
+                self.assertEqual(setup.host_editor("4.8-beta3", split)[0], "Godot_v4.8-beta3_macos.arm64.zip")
+            with patch.object(setup.platform, "machine", return_value="x86_64"):
+                self.assertEqual(setup.host_editor("4.8-beta3", split)[0], "Godot_v4.8-beta3_macos.x86_64.zip")
+
+    def test_other_hosts_use_the_release_tag(self):
+        with patch.object(setup.sys, "platform", "linux"):
+            self.assertEqual(setup.host_editor("4.8-beta3")[0], "Godot_v4.8-beta3_linux.x86_64.zip")
+        with patch.object(setup.sys, "platform", "win32"):
+            self.assertEqual(setup.host_editor("4.8-beta3"), ("Godot_v4.8-beta3_win64.exe.zip", "Godot_v4.8-beta3_win64_console.exe"))
 
 
 if __name__ == "__main__":

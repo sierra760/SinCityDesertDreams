@@ -7,7 +7,7 @@ fly, sail or ride the train through the city you built.
 
 Sin City - Desert Dreams (SC2D) is a free, open-source city builder that plays like SimCity 2000.
 Every model, icon, illustration, line of writing and line of code is its own.
-It runs on Godot 4.7.2 and is written in GDScript.
+It runs on Godot 4.8 (beta 3 or newer) and is written in GDScript.
 
 ## Build and Explore, Day and Night
 
@@ -175,8 +175,8 @@ See the [performance notes](docs/design/performance.md).
 
 ## Playing from source
 
-Install the standard build of [Godot 4.7.2](https://godotengine.org/download/archive/4.7.2-stable/)
-(no .NET needed), then open `game/project.godot` and press Play, or run:
+Install the standard build of [Godot 4.8 beta 3](https://godotengine.org/article/dev-snapshot-godot-4-8-beta-3/)
+or newer (no .NET needed), then open `game/project.godot` and press Play, or run:
 
 ```sh
 godot --path game

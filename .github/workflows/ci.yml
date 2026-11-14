@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  GODOT_VERSION: "4.7.2"
+  GODOT_VERSION: "4.8-beta3"
   PYTHON_VERSION: "3.12"
   PYTHONUTF8: "1"
   PYTHONUNBUFFERED: "1"
@@ -165,7 +165,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
-      # Godot 4.7's iOS template links against the iOS 26 SDK, newer than the
+      # Godot 4.8's iOS template links against the iOS 26.5 SDK, newer than the
       # runner's default Xcode; use the newest Xcode 26 installed.
       - name: Select Xcode 26
         run: |

@@ -1,10 +1,10 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://co04j4be47mkw"]
 
-[ext_resource type="Script" path="res://scripts/exploration/explore_actor_visual.gd" id="1_visual"]
-[ext_resource type="PackedScene" path="res://assets/desert-dreams-exploration/mayormobile.glb" id="2_model"]
+[ext_resource type="Script" uid="uid://dv8w4ymvgm7x5" path="res://scripts/exploration/explore_actor_visual.gd" id="1_visual"]
+[ext_resource type="PackedScene" uid="uid://dwnkp1uu02h8b" path="res://assets/desert-dreams-exploration/mayormobile.glb" id="2_model"]
 
-[node name="Mayormobile" type="Node3D"]
+[node name="Mayormobile" type="Node3D" unique_id=915021999]
 script = ExtResource("1_visual")
 
-[node name="ImportedModel" parent="." instance=ExtResource("2_model")]
-scale = Vector3(0.0625, 0.0625, 0.0625)
+[node name="ImportedModel" parent="." unique_id=103909290 instance=ExtResource("2_model")]
+transform = Transform3D(0.0625, 0, 0, 0, 0.0625, 0, 0, 0, 0.0625, 0, 0, 0)

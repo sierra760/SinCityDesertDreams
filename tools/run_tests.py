@@ -134,6 +134,23 @@ def lock_exclusive(lock) -> None:
             continue
 
 
+# The project's imports and baked night geometry follow Godot 4.8. Beta 3 is the
+# first build used; release candidates and stable releases rank above betas.
+# Development snapshots are never selected.
+MINIMUM_ENGINE = (4, 8, 0, 1, 3)
+MINIMUM_ENGINE_NAME = "4.8 beta 3"
+RELEASE_STATUS = {"beta": 1, "rc": 2, "stable": 3}
+
+
+def engine_release(version: str) -> tuple[int, ...]:
+    """Order a `godot --version` string; unrecognised builds sort first."""
+    match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?\.(beta|rc|stable)(\d*)\.", version)
+    if match is None:
+        return (0,)
+    major, minor, patch, status, number = match.groups()
+    return (int(major), int(minor), int(patch or 0), RELEASE_STATUS[status], int(number or 0))
+
+
 def find_godot() -> str:
     def usable(path: str) -> bool:
         try:
@@ -142,14 +159,13 @@ def find_godot() -> str:
             version = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=60)
         except (OSError, subprocess.TimeoutExpired):
             return False
-        match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?\.stable\.", version.stdout.strip())
-        return version.returncode == 0 and match is not None and tuple(int(part or 0) for part in match.groups()) >= (4, 7, 2)
+        return version.returncode == 0 and engine_release(version.stdout.strip()) >= MINIMUM_ENGINE
 
     env = os.environ.get("GODOT")
     if env:
         if usable(env):
             return env
-        sys.exit("Godot 4.7.2 or newer stable is required; GODOT points to an incompatible or unavailable engine")
+        sys.exit(f"Godot {MINIMUM_ENGINE_NAME} or newer is required; GODOT points to an incompatible or unavailable engine")
     for name in ("godot", "godot4", "Godot"):
         path = shutil.which(name)
         if path and usable(path):
@@ -157,7 +173,7 @@ def find_godot() -> str:
     mac = "/Applications/Godot.app/Contents/MacOS/Godot"
     if Path(mac).exists() and usable(mac):
         return mac
-    sys.exit("Godot 4.7.2 or newer stable not found; set GODOT=/path/to/godot")
+    sys.exit(f"Godot {MINIMUM_ENGINE_NAME} or newer not found; set GODOT=/path/to/godot")
 
 
 def refresh_class_cache(godot: str) -> None:

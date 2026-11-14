@@ -43,9 +43,13 @@ func test_clean_touch_toggles_and_second_finger_cancels() -> void:
 		touch(0,true,point)
 		touch(0,false,point)
 		check(s.selected_links().is_empty(),"second tap toggles off")
+		# Inert status-bar chrome: a second finger on a menu title would open
+		# that menu (Godot 4.8 MenuBar accepts direct touches) and hold input.
+		var ui_point := host.status_bar.get_global_rect().get_center()
+		check(host.touch_ui_owned(ui_point),"second finger lands on interface chrome")
 		touch(0,true,point)
-		touch(1,true,Vector2(10,10))
-		touch(1,false,Vector2(10,10))
+		touch(1,true,ui_point)
+		touch(1,false,ui_point)
 		touch(0,false,point)
 		check(s.selected_links().is_empty(),"UI second finger cancels selection")
 	check_eq(SaveFormat.encode_city(host.sim.city),before,"selection is transient and free")

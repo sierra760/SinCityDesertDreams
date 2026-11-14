@@ -4,8 +4,8 @@ description: >-
   between runs, and export its path as GODOT.
 inputs:
   version:
-    description: Godot stable version.
-    default: "4.7.2"
+    description: godot-builds release name, for example "4.7.2" (stable) or "4.8-beta3".
+    default: "4.8-beta3"
   templates:
     description: Space-separated export template file names from the .tpz, for example "macos.zip".
     default: ""
