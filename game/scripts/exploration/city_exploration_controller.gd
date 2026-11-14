@@ -85,8 +85,12 @@ var _helicopter_in_flight := false
 var _message := ""
 ## Transient feedback clears after this much active (unpaused) play.
 const MESSAGE_SECONDS := 4.0
+## How long a zoo plaque's text stays on screen.
+const PLAQUE_SECONDS := 9.0
 var _aged_message := ""
 var _message_age := 0.0
+var _message_limit := MESSAGE_SECONDS
+var _message_hold := 0.0
 ## Why Explore ended, for the host to show after returning to Build.
 var _exit_message := ""
 ## A pause the player asked for (Escape or Menu) never resumes by itself.
@@ -485,10 +489,13 @@ func _tick_message(delta: float) -> void:
 	if _message != _aged_message:
 		_aged_message = _message
 		_message_age = 0.0
+		# A zoo plaque is longer than a status line; it stays up longer.
+		_message_limit = _message_hold if _message_hold > 0.0 else MESSAGE_SECONDS
+		_message_hold = 0.0
 		return
 	if _message.is_empty(): return
 	_message_age += delta
-	if _message_age >= MESSAGE_SECONDS:
+	if _message_age >= _message_limit:
 		_message = ""
 		_aged_message = ""
 
@@ -934,6 +941,12 @@ func request_interaction() -> bool:
 		if not marina.is_empty(): return _board_marina(&"sailboat",marina)
 		if mod_service != null and mod_service.activate_interaction(): return true
 		if not vehicle.is_empty(): return _enter_vehicle(vehicle)
+		var exhibit := _zoo_exhibit()
+		if not exhibit.is_empty():
+			_message = view.zoo.perform(exhibit)
+			_message_hold = PLAQUE_SECONDS
+			_publish_status()
+			return true
 		_message = "Walk closer to a vehicle, or choose one from the Explore menu (%s)." % ("Menu" if _touch_enabled else "Esc")
 		_publish_status()
 		return false
@@ -1056,6 +1069,11 @@ func _enter_vehicle(target: Dictionary) -> bool:
 	_sync_traffic_collision()
 	_publish_status()
 	return true
+
+## The zoo plaque a walking visitor can read, or {}.
+func _zoo_exhibit() -> Dictionary:
+	if mode != 0 or not is_instance_valid(view) or not ("zoo" in view) or view.zoo == null or not is_instance_valid(pedestrian): return {}
+	return view.zoo.nearest_exhibit(pedestrian.global_position)
 
 ## Night show at drive-in theaters, while it exists.
 func _drive_ins() -> DriveInNightShow:
@@ -1214,6 +1232,9 @@ func _publish_status(transit_status: Dictionary = {}) -> void:
 	elif mode == 0:
 		var marina := MarinaAccess.nearby(view.city,pedestrian.global_position)
 		if not marina.is_empty(): prompt="F to board a boat at the marina"
+		else:
+			var exhibit := _zoo_exhibit()
+			if not exhibit.is_empty(): prompt = "F to read about the "+String(exhibit.name)
 	if transit_status.is_empty() and is_instance_valid(transit_service): transit_status=transit_service.status()
 	if mode==0 and not inside_resort and vehicle.is_empty() and not String(transit_status.get("elevator_prompt","")).is_empty(): prompt=String(transit_status.elevator_prompt)
 	var status := {"vehicle":str(occupied.get("kind")) if occupied == selected_vehicle or occupied is ExploreCar else "","mode":mode,"speed":occupied.velocity.length(),"altitude":float(occupied.altitude()) if mode == 2 else 0.0,"prompt":prompt,"message":_message}

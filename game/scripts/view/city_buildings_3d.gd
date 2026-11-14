@@ -29,6 +29,10 @@ var _lot_buckets: Dictionary = {}
 var _parking_cells: Dictionary = {}
 var _lot_count := 0
 var _missing_lots := 0
+## Zoo lots by instance id. zoo_revision changes whenever one is added or
+## removed, so the zoo's animals can follow without walking every lot.
+var zoo_lots: Dictionary = {}
+var zoo_revision := 0
 
 
 ## Resolve adjacent and rotated lots through City's shared footprint contract.
@@ -129,6 +133,9 @@ func clear() -> void:
 	_parking_cells.clear()
 	_lot_count = 0
 	_missing_lots = 0
+	if not zoo_lots.is_empty():
+		zoo_lots.clear()
+		zoo_revision += 1
 	for child: Node in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -231,6 +238,9 @@ func _register_lot(model: Node3D) -> void:
 		_lot_buckets[bucket][id] = model
 	_lot_count += 1
 	if model.get_meta("missing_model", false): _missing_lots += 1
+	elif int(model.get_meta("code",-1)) == Buildings.ZOO:
+		zoo_lots[id] = model
+		zoo_revision += 1
 
 
 func _unregister_lot(model: Node) -> void:
@@ -242,6 +252,7 @@ func _unregister_lot(model: Node) -> void:
 		if members.erase(id): listed = true
 		if members.is_empty(): _lot_buckets.erase(bucket)
 	if not listed: return
+	if zoo_lots.erase(id): zoo_revision += 1
 	_lot_count -= 1
 	if model.get_meta("missing_model", false): _missing_lots -= 1
 
@@ -365,7 +376,7 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 		_fit_marina(city, rect, model, str(catalog.entries[code].get("glb_sha256", "")) if catalog != null and catalog.entries.has(code) else "")
 	elif code in [Buildings.RAIL_STATION, Buildings.SUBWAY_STATION]:
 		model.rotation.y = _station_yaw(city, rect, code)
-	elif Buildings.is_arcology(code) or code == Buildings.MAYORS_RESIDENCE or CityServiceParking.LAYOUTS.has(code):
+	elif Buildings.is_arcology(code) or code in [Buildings.MAYORS_RESIDENCE,Buildings.ZOO] or CityServiceParking.LAYOUTS.has(code):
 		model.rotation.y = resort_yaw(city, rect)
 	if not missing_model: CityServiceParking.add_to(model,city,rect,code)
 	if code in [Buildings.SUBWAY_STATION,Buildings.RAIL_STATION] and not missing_model:
@@ -376,7 +387,7 @@ func _add_record(city: City, catalog: CityModelCatalog, record: Dictionary) -> v
 	if code == Buildings.RAIL_STATION:
 		ExploreTransitWorld3D.add_rail_platforms(model,city,rect)
 	# Retain the authored metre transform before the compiler removes meshes.
-	if Buildings.is_agricultural(code) and not missing_model:
+	if (Buildings.is_agricultural(code) or code == Buildings.ZOO) and not missing_model:
 		model.set_meta("authored_transform", model.transform * (model.get_child(0) as Node3D).transform)
 	model.set_meta("batch_region", rect)
 	model.set_meta("missing_model", missing_model)

@@ -80,6 +80,15 @@ records. Editable masters are retained locally outside the public package.
 The original 144 building models retain their identities. Walkable themed
 halls are separate Explore assets; see [Resort interiors](resort-interiors.md).
 
+## Walk-through zoo
+
+Building 218 is the Mirage Menagerie, rebuilt by
+`tools/blender_exploration/build_zoo.py` as a walled garden with an open
+street gate, a promenade and four railed pens. Its four fictional animals are
+separate jointed GLBs in `game/assets/desert-dreams-zoo/`, animated at run time.
+The lot reuses existing shared surface images; see
+[the zoo design](../design/zoo.md) and the [art record](zoo.json).
+
 ## Texture wrapping
 
 Godot's standard material has no mirrored texture wrap, so a glTF sampler set to

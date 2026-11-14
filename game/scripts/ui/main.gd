@@ -1626,6 +1626,7 @@ func _process(delta: float) -> void:
 	var player_world := Vector3.INF
 	if is_exploring() and is_instance_valid(exploration.occupied): player_world = exploration.occupied.global_position
 	presentation.sync_livestock(delta,agriculture,livestock_paused(),player_world)
+	presentation.sync_zoo(delta,livestock_paused(),player_world)
 	# Explore holds the city, so its records (crews, aircraft, incidents) stay
 	# where the last simulated day left them while Explore's own traffic moves
 	# on Explore's clock.

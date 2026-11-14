@@ -396,5 +396,12 @@ func sync_livestock(delta: float, source: AgricultureSystem, paused: bool, playe
 	view.livestock.advance(delta,camera,paused,player_world)
 
 
+
+## The zoo's animals share the livestock clock and pause.
+func sync_zoo(delta: float, paused: bool, player_world: Vector3 = Vector3.INF) -> void:
+	if view == null or view.zoo == null: return
+	var camera: Camera3D = view.exploration_camera() if is_instance_valid(view.exploration_camera()) else view.camera
+	view.zoo.advance(delta,camera,paused,player_world)
+
 func invalidate_livestock_source() -> void:
 	if view != null and view.livestock != null: view.livestock.invalidate_source()

@@ -1,0 +1,228 @@
+{
+  "title": "Mirage Menagerie animals",
+  "provenance": "Original procedural Blender geometry authored for Sin City: Desert Dreams; fictional species; no external assets.",
+  "units": "metres, +Y up, +Z forward, feet on y=0; parts pivot at their joints",
+  "lot": {
+    "code": 218,
+    "name": "mirage-menagerie-walkthrough-zoo",
+    "master_blend_sha256": "b879c2037b487d056009a39d29e9ab4720bc16371fdda72c8f90e677b84b7a30",
+    "standalone_glb_sha256": "b6d15ad4729e2493e4893cb391f3c7c88b3cb4955d564fa53edd9bcfe468c5df",
+    "runtime_glb_sha256": "6b46747f502ba2e39407c7308c569ffce95c652fd8eaea66f5fc9dad9ee2b59d",
+    "textured_materials": 5,
+    "runtime_bytes": 608592
+  },
+  "animals": [
+    {
+      "species": "saguaroo",
+      "path": "res://assets/desert-dreams-zoo/saguaroo.glb",
+      "parts": [
+        "ArmL",
+        "ArmR",
+        "Body",
+        "Head",
+        "LegL",
+        "LegR",
+        "Tail"
+      ],
+      "triangles": 2444,
+      "master_blend_sha256": "a05cd715db63a4cdbf2973e810c49ceb29959400c9f4cc36af18fd1d8dd50b53",
+      "glb_sha256": "3bc7d84839183edc0f625de7fe8bf5807864d4c71b310128b686f414ce26c873",
+      "pivots": {
+        "Body": [
+          0.0,
+          1.0,
+          -0.1
+        ],
+        "Head": [
+          0.0,
+          2.06,
+          0.32
+        ],
+        "ArmL": [
+          -0.33,
+          1.72,
+          0.24
+        ],
+        "LegL": [
+          -0.27,
+          1.0,
+          -0.15
+        ],
+        "ArmR": [
+          0.33,
+          1.72,
+          0.24
+        ],
+        "LegR": [
+          0.27,
+          1.0,
+          -0.15
+        ],
+        "Tail": [
+          0.0,
+          0.98,
+          -0.48
+        ]
+      }
+    },
+    {
+      "species": "flamingoat",
+      "path": "res://assets/desert-dreams-zoo/flamingoat.glb",
+      "parts": [
+        "Body",
+        "Head",
+        "LegL",
+        "LegR",
+        "Neck",
+        "ShinL",
+        "ShinR",
+        "Tail"
+      ],
+      "triangles": 2108,
+      "master_blend_sha256": "584a91cf6a228979122d5427019e2a317764f0c8131cbba2452b79b6edd78998",
+      "glb_sha256": "9bd490a27dfa53520be5e412c10c913394fce2669cf0332b0300a49e48b48611",
+      "pivots": {
+        "Body": [
+          0.0,
+          1.55,
+          0.0
+        ],
+        "Neck": [
+          0.0,
+          1.72,
+          0.42
+        ],
+        "Head": [
+          0.0,
+          2.1,
+          0.62
+        ],
+        "Tail": [
+          0.0,
+          1.62,
+          -0.55
+        ],
+        "LegL": [
+          -0.12,
+          1.34,
+          0.05
+        ],
+        "ShinL": [
+          -0.12,
+          0.72,
+          0.05
+        ],
+        "LegR": [
+          0.12,
+          1.34,
+          0.05
+        ],
+        "ShinR": [
+          0.12,
+          0.72,
+          0.05
+        ]
+      }
+    },
+    {
+      "species": "periscope_tortoise",
+      "path": "res://assets/desert-dreams-zoo/periscope_tortoise.glb",
+      "parts": [
+        "Head",
+        "Leg0",
+        "Leg1",
+        "Leg2",
+        "Leg3",
+        "NeckA",
+        "NeckB",
+        "NeckC",
+        "Shell",
+        "Tail"
+      ],
+      "triangles": 2672,
+      "master_blend_sha256": "f7a41ee768c9c5052bef19f83779e817181e96005f858ec95f3d4c075628c138",
+      "glb_sha256": "515d17508ddb24756065efb3049fe2c50c65655303b34b4a642dd0865c02811b",
+      "pivots": {
+        "Shell": [
+          0.0,
+          0.28,
+          0.0
+        ],
+        "Leg0": [
+          0.55,
+          0.22,
+          0.48
+        ],
+        "Leg1": [
+          -0.55,
+          0.22,
+          0.48
+        ],
+        "Leg2": [
+          0.55,
+          0.22,
+          -0.48
+        ],
+        "Leg3": [
+          -0.55,
+          0.22,
+          -0.48
+        ],
+        "Tail": [
+          0.0,
+          0.22,
+          -0.92
+        ],
+        "NeckA": [
+          0.0,
+          0.55,
+          0.78
+        ],
+        "NeckB": [
+          0.0,
+          1.1,
+          0.78
+        ],
+        "NeckC": [
+          0.0,
+          1.65,
+          0.78
+        ],
+        "Head": [
+          0.0,
+          2.27,
+          0.78
+        ]
+      }
+    },
+    {
+      "species": "tumbleweasel",
+      "path": "res://assets/desert-dreams-zoo/tumbleweasel.glb",
+      "parts": [
+        "Ball",
+        "Head",
+        "Tail"
+      ],
+      "triangles": 1944,
+      "master_blend_sha256": "bab3bf48c58e1a5b000f0dfeaed8156ca6bd928ed650c7c2f6a2a3fc5c5a2de3",
+      "glb_sha256": "838c4f02b2dd5b1aa80a2b47192860d4fa038fe61a451de2ad93ed6f3d0f0785",
+      "pivots": {
+        "Ball": [
+          0.0,
+          0.55,
+          0.0
+        ],
+        "Head": [
+          0.0,
+          0.86,
+          0.36
+        ],
+        "Tail": [
+          0.0,
+          0.7,
+          -0.48
+        ]
+      }
+    }
+  ]
+}

@@ -959,12 +959,12 @@
     },
     {
       "code": 218,
-      "name": "three-adobe-hut-zoo-garden-enclosures",
-      "master_blend_sha256": "1a862a4cf09ec116ffc44595899356354a109072fbbdf9b6dde25ecdd276a28b",
-      "standalone_glb_sha256": "dc691719e4692fc6a0db6608c28cf7dd9ad2de8594923830651f39897d33660b",
-      "runtime_glb_sha256": "fd7780218c11d5dd489c70421db91366927607e02dcbc22b0adcf3c13c89a1f1",
-      "textured_materials": 4,
-      "runtime_bytes": 1247508
+      "name": "mirage-menagerie-walkthrough-zoo",
+      "master_blend_sha256": "b879c2037b487d056009a39d29e9ab4720bc16371fdda72c8f90e677b84b7a30",
+      "standalone_glb_sha256": "b6d15ad4729e2493e4893cb391f3c7c88b3cb4955d564fa53edd9bcfe468c5df",
+      "runtime_glb_sha256": "6b46747f502ba2e39407c7308c569ffce95c652fd8eaea66f5fc9dad9ee2b59d",
+      "textured_materials": 5,
+      "runtime_bytes": 608592
     },
     {
       "code": 219,

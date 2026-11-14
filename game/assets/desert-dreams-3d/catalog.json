@@ -2132,14 +2132,14 @@
         0
       ],
       "yaw": 0,
-      "height": 1.0356249809265137,
+      "height": 0.5537499785423279,
       "footprint": [
         4,
         4
       ],
-      "triangles": 13087,
+      "triangles": 16651,
       "source_kind": "authored_blender",
-      "glb_sha256": "fd7780218c11d5dd489c70421db91366927607e02dcbc22b0adcf3c13c89a1f1",
+      "glb_sha256": "6b46747f502ba2e39407c7308c569ffce95c652fd8eaea66f5fc9dad9ee2b59d",
       "meters_per_tile": 16
     },
     {

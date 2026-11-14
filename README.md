@@ -98,6 +98,8 @@ Choose **View → Explore at Street Level** to leave the aerial view:
 - Drive any of 17 vehicle types, from sedans and buses to fire engines, or fly
   the helicopter.
 - Board a sailboat or harbor ship at a marina.
+- Walk through the zoo, the Mirage Menagerie, and read the pen plaques to
+  make its four fictional animals show off.
 - Take an elevator down to a subway platform, walk aboard a train through its
   open doors, and ride along connected track.
 - Drive through road tunnels and over bridges, and find your city's streets
@@ -153,7 +155,7 @@ last only for the session.
 | Drive | W or Up accelerates; S or Down brakes, then reverses; A/D or Left/Right steer; Space is the handbrake. |
 | Fly | WASD moves; Q climbs; E descends. Release the keys to hover. |
 | Boat | Drive controls. Stop beside a berth or clear shoreline to leave. |
-| Enter or leave | `F` near a vehicle, marina, elevator, call button, resort door or casino table. Stop or land first. |
+| Enter or leave | `F` near a vehicle, marina, elevator, call button, resort door or casino table. Stop or land first. `F` at a zoo plaque reads it. |
 | Menu | `Escape` opens and closes the Explore menu: Resume, vehicle choice, Recover, Return to Build. |
 
 Game controllers are not supported; play with a keyboard and mouse or
@@ -205,7 +207,8 @@ Further reading:
 - [Simulation rules](docs/simulation/) and [architecture](docs/design/architecture.md)
 - [3D art and models](docs/art/3d-models.md) and [content provenance](docs/design/provenance-policy.md)
 - [Traffic and passenger transit](docs/design/traffic-and-passenger-transit.md),
-  [street names](docs/design/street-names.md) and [marina boats](docs/release/marina-boats.md)
+  [street names](docs/design/street-names.md), [marina boats](docs/release/marina-boats.md)
+  and the [walk-through zoo](docs/design/zoo.md)
 - [File formats](docs/design/file-formats.md) and the [roadmap](docs/design/roadmap.md)
 - An iPhone and iPad build exists. CI exports and compiles it unsigned, and
   the touch interface is tested on the desktop with simulated screen sizes and

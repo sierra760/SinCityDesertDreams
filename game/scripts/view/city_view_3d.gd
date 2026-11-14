@@ -47,6 +47,7 @@ var query_feedback: CityQueryFeedback3D
 var ramp_highlight: CityRampHighlight3D
 var feedback: CityFeedback3D
 var livestock: CityLivestock3D
+var zoo: CityZoo3D
 var traffic: CityTraffic3D
 ## Night mode lighting and street lamps; presentation only.
 var night: CityNightMode
@@ -206,6 +207,10 @@ func _ready() -> void:
 	world.add_child(livestock)
 	livestock.bind_city(city)
 	geometry_rebuilt.connect(func(_revision: int) -> void: livestock.invalidate_source())
+	zoo = CityZoo3D.new()
+	zoo.name = "CityZoo"
+	zoo.buildings = buildings
+	world.add_child(zoo)
 	traffic = CityTraffic3D.new()
 	traffic.name = "CityTraffic"
 	world.add_child(traffic)
@@ -1343,6 +1348,8 @@ func _apply_analytics_visibility() -> void:
 		mesh_batches.set_domain_visible(&"networks", surface_visible)
 	if livestock != null:
 		livestock.visible = surface_visible
+	if zoo != null:
+		zoo.visible = surface_visible
 	if traffic != null:
 		traffic.visible = surface_visible
 	if street_lamps != null:
