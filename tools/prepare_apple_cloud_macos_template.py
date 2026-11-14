@@ -6,7 +6,8 @@
 Accepts exactly one executable layout: Godot 4.7's two universal executables, or
 Godot 4.8's four per-architecture executables (the 4.8 exporter joins them into
 one universal binary). Never launch the intermediate executables: their old
-signatures are stale.
+signatures are stale. With --verify, check a template whose executables were
+built with CloudKit already linked; nothing is changed and only a manifest is written.
 No installed template, project setting, entitlement or signing identity is edited.
 """
 import argparse
@@ -18,6 +19,7 @@ from pathlib import Path, PurePosixPath
 import re
 import stat
 import struct
+import sys
 import tempfile
 import zipfile
 
@@ -264,18 +266,55 @@ def _zip_directory_bound(raw):
     require(position == end, 'ZIP directory count/length mismatch')
 
 
+def _snapshot(source, expected_sha256):
+    require(re.fullmatch('[0-9a-fA-F]{64}', expected_sha256) is not None, 'Explicit input SHA-256 required')
+    require(source.is_file() and source.stat().st_size <= MAX_ZIP_BYTES, 'Input ZIP exceeds bound or is missing')
+    # One bounded snapshot binds validation (and any transformation), even if source changes later.
+    with source.open('rb') as stream: raw = stream.read(MAX_ZIP_BYTES + 1)
+    require(len(raw) <= MAX_ZIP_BYTES and digest(raw) == expected_sha256.lower(), 'Input ZIP SHA-256 mismatch')
+    _zip_directory_bound(raw)
+    return raw
+
+
+def verify(source, expected_sha256, manifest):
+    """Check, without changing anything, that every executable already links CloudKit strongly."""
+    source, manifest = map(Path, (source, manifest))
+    require(source.resolve() != manifest.resolve(), 'Input/manifest must be separate paths')
+    require(not manifest.exists() and not manifest.is_symlink(), 'Manifest already exists')
+    raw = _snapshot(source, expected_sha256)
+    import io
+    report = dict(format_version=2, tool='prepare_apple_cloud_macos_template', mode='verify', input_sha256=digest(raw), entries=[])
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            infos, layout, executables = _zip_entries(z, len(raw))
+            report['template_layout'] = layout
+            for info in infos:
+                with z.open(info) as stream: data = stream.read(info.file_size + 1)  # also checks every CRC
+                require(len(data) == info.file_size, 'ZIP member size mismatch')
+                if info.filename in executables:
+                    report['entries'].append(dict(name=info.filename, sha256=digest(data),
+                                                  architectures=inspect_macos_main(data, executables[info.filename])))
+    except (zipfile.BadZipFile, RuntimeError, OSError, struct.error) as error:
+        raise ValueError('Template verification failed: ' + str(error)) from error
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.cloud-manifest-', dir=manifest.parent) as manifest_temp:
+        staged = Path(manifest_temp) / 'manifest.json'
+        staged.write_text(json.dumps(report, sort_keys=True, indent=2) + '\n')
+        try:
+            os.link(staged, manifest)  # exclusive: never replaces a racing writer
+        except OSError as error:
+            raise ValueError('Manifest publication failed: ' + str(error)) from error
+    return report
+
+
 def prepare(source, expected_sha256, output, manifest):
     source, output, manifest = map(Path, (source, output, manifest))
     require(re.fullmatch('[0-9a-fA-F]{64}', expected_sha256) is not None, 'Explicit input SHA-256 required')
     require(len({p.resolve() for p in (source, output, manifest)}) == 3, 'Input/output/manifest must be separate paths')
     require(not output.exists() and not output.is_symlink() and not manifest.exists() and not manifest.is_symlink(), 'Output/manifest already exists')
-    require(source.is_file() and source.stat().st_size <= MAX_ZIP_BYTES, 'Input ZIP exceeds bound or is missing')
-    # One bounded snapshot binds validation and transformation, even if source changes later.
-    with source.open('rb') as stream: raw = stream.read(MAX_ZIP_BYTES + 1)
-    require(len(raw) <= MAX_ZIP_BYTES and digest(raw) == expected_sha256.lower(), 'Input ZIP SHA-256 mismatch')
-    _zip_directory_bound(raw)
+    raw = _snapshot(source, expected_sha256)
     import io
-    report = dict(format_version=2, tool='prepare_apple_cloud_macos_template', input_sha256=digest(raw),
+    report = dict(format_version=2, tool='prepare_apple_cloud_macos_template', mode='prepare', input_sha256=digest(raw),
                   warning='Intermediate executable signatures are stale; never launch. Godot must sign the final export.', entries=[])
     output.parent.mkdir(parents=True, exist_ok=True); manifest.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.cloud-template-', dir=output.parent) as temporary:
@@ -315,19 +354,29 @@ def prepare(source, expected_sha256, output, manifest):
     return report
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--input', required=True, type=Path)
     parser.add_argument('--input-sha256', required=True)
-    parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--output', type=Path)
     parser.add_argument('--manifest', required=True, type=Path)
-    args = parser.parse_args()
+    parser.add_argument('--verify', action='store_true', help='check a template built with CloudKit; write only the manifest')
+    args = parser.parse_args(argv)
+    if args.verify == (args.output is not None):
+        parser.error('use --output to prepare, or --verify without --output')
     try:
-        prepare(args.input, args.input_sha256, args.output, args.manifest)
+        if args.verify:
+            report = verify(args.input, args.input_sha256, args.manifest)
+        else:
+            prepare(args.input, args.input_sha256, args.output, args.manifest)
     except ValueError as error:
         parser.exit(1, f'FAIL: {error}\n')
-    print('Prepared private template; signatures are stale. Export and sign with Godot before use.')
+    if args.verify:
+        print(f"Verified {report['template_layout']} template: strong CloudKit dependency in every executable.")
+    else:
+        print('Prepared private template; signatures are stale. Export and sign with Godot before use.')
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

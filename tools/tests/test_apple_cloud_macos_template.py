@@ -58,9 +58,10 @@ def thin_binary(arch, extra=b'', section_offset=1024):
     return thin(0x100000c, extra, section_offset)
 
 
-def archive(path, binary=None, extra=None, layout='universal'):
+def archive(path, binary=None, extra=None, layout='universal', thin_extra=None):
+    thin_extra = thin_extra or {}
     if layout == 'universal': members = [(x, binary or universal()) for x in ENTRIES]
-    else: members = [(name, thin_binary(arch)) for name, arch in THIN_ENTRIES.items()]
+    else: members = [(name, thin_binary(arch, thin_extra.get(name, b''))) for name, arch in THIN_ENTRIES.items()]
     with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as z:
         for name, value in members + [('macos_template.app/Contents/Info.plist', b'unchanged plist')]+list(extra or []):
             info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)); info.create_system = 3
@@ -185,6 +186,47 @@ class TemplateTests(unittest.TestCase):
                 for name,arch in list(THIN_ENTRIES.items())[:3]:
                     i=zipfile.ZipInfo(name);i.create_system=3;i.external_attr=(stat.S_IFREG|0o755)<<16;z.writestr(i,thin_binary(arch))
             with self.assertRaises(ValueError):self.tool.prepare(source,hashlib.sha256(source.read_bytes()).hexdigest(),t/'out',t/'manifest')
+
+    def test_verify_accepts_a_template_built_with_cloudkit_and_writes_only_a_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            t=Path(temp);source=t/'macos.zip'
+            archive(source,layout='thin',thin_extra={name:dylib() for name in THIN_ENTRIES})
+            before=source.read_bytes();digest=hashlib.sha256(before).hexdigest()
+            report=self.tool.verify(source,digest,t/'manifest.json')
+            self.assertEqual(before,source.read_bytes());self.assertEqual(['macos.zip','manifest.json'],sorted(p.name for p in t.iterdir()))
+            saved=json.loads((t/'manifest.json').read_text());self.assertEqual(report,saved)
+            self.assertEqual(('verify','per-architecture',digest),(saved['mode'],saved['template_layout'],saved['input_sha256']))
+            checked={e['name']:e for e in saved['entries']}
+            self.assertEqual(set(THIN_ENTRIES),set(checked))
+            for name,arch in THIN_ENTRIES.items():
+                self.assertEqual([arch],checked[name]['architectures'])
+                with zipfile.ZipFile(source) as z:self.assertEqual(hashlib.sha256(z.read(name)).hexdigest(),checked[name]['sha256'])
+            with self.assertRaises(ValueError):self.tool.verify(source,digest,t/'manifest.json')  # never overwrites
+            universal_source=t/'universal.zip';archive(universal_source,binary=universal((dylib(),dylib())))
+            u=self.tool.verify(universal_source,hashlib.sha256(universal_source.read_bytes()).hexdigest(),t/'u.json')
+            self.assertEqual('universal',u['template_layout'])
+
+    def test_verify_rejects_missing_weak_or_extra_cloudkit_in_any_executable(self):
+        name=list(THIN_ENTRIES)[3]
+        for bad in [b'',dylib(command=0x80000018),dylib()+dylib(),dylib('@rpath/CloudKit.framework/CloudKit')]:
+            with self.subTest(size=len(bad)),tempfile.TemporaryDirectory() as temp:
+                t=Path(temp);source=t/'macos.zip';extra={n:dylib() for n in THIN_ENTRIES};extra[name]=bad
+                archive(source,layout='thin',thin_extra=extra)
+                with self.assertRaises(ValueError):self.tool.verify(source,hashlib.sha256(source.read_bytes()).hexdigest(),t/'manifest.json')
+                self.assertFalse((t/'manifest.json').exists())
+        with tempfile.TemporaryDirectory() as temp:
+            t=Path(temp);source=t/'macos.zip';archive(source,layout='thin',thin_extra={n:dylib() for n in THIN_ENTRIES})
+            for args in [(source,'0'*64,t/'m.json'),(source,hashlib.sha256(source.read_bytes()).hexdigest(),source)]:
+                with self.assertRaises(ValueError):self.tool.verify(*args)
+
+    def test_command_line_verify_mode_takes_no_output(self):
+        with tempfile.TemporaryDirectory() as temp:
+            t=Path(temp);source=t/'macos.zip';archive(source,layout='thin',thin_extra={n:dylib() for n in THIN_ENTRIES})
+            digest=hashlib.sha256(source.read_bytes()).hexdigest();base=['--input',str(source),'--input-sha256',digest]
+            self.assertEqual(0,self.tool.main(base+['--verify','--manifest',str(t/'m.json')]))
+            for extra in [['--verify','--output',str(t/'o.zip'),'--manifest',str(t/'n.json')],['--manifest',str(t/'p.json')]]:
+                with self.subTest(extra=extra),self.assertRaises(SystemExit):self.tool.main(base+extra)
+            self.assertFalse((t/'o.zip').exists())
 
     def test_archive_refuses_wrong_digest_alias_overwrite_and_signing_inputs(self):
         with tempfile.TemporaryDirectory() as temp:

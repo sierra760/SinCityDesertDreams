@@ -66,9 +66,11 @@ tools/build_neighborhood_resort_icons.py:13
 tools/blender_exploration/build_neighborhood_resorts.py:521
 tools/blender_exploration/check_neighborhood_resorts.py:157
 
-# A placeholder for the verified template hash and an Apple technote number.
+# Placeholders for the verified official and custom template hashes, and an
+# Apple technote number.
 docs/release/apple-cloud-saves.md:194
-docs/release/apple-cloud-saves.md:272
+docs/release/apple-cloud-saves.md:257
+docs/release/apple-cloud-saves.md:324
 tools/check_apple_cloud_export.py:47
 
 # Agriculture enclosure checksum constant (a SHA-256 name, not an address)

@@ -221,6 +221,58 @@ whose executables already link CloudKit or were linked with enough header
 padding. Its x86_64 executables also carry the `CPU_SUBTYPE_LIB64` capability
 bit, which the preparer and checker accept.
 
+#### Custom 4.8 beta 3 template with CloudKit linked
+
+Build the four template executables locally with CloudKit linked by the
+linker itself, so nothing is patched. Verify every download against the
+SHA-256 its release publishes:
+
+- engine source: `godot-4.8-beta3.tar.xz` from the godot-builds `4.8-beta3`
+  release (its `.git/HEAD` is `c51ff06e8`);
+- MoltenVK v1.4.2 `MoltenVK-macos.tar` (the version in the official template;
+  Homebrew's MoltenVK is arm64-only and cannot build x86_64);
+- ANGLE `chromium/8118` arm64 and x86_64 macOS static libraries and AccessKit
+  C 0.23.1, the versions 4.8's ANGLE and AccessKit install scripts pin.
+
+Use the official build options, but Apple's linker instead of LLD:
+
+```sh
+GODOT_VERSION_STATUS=beta3 scons platform=macos arch=arm64 target=template_release \
+  production=yes use_volk=no debug_symbols=yes separate_debug_symbols=yes \
+  vulkan_sdk_path=DEPS/MoltenVK/MoltenVK/static/MoltenVK.xcframework \
+  angle_libs=DEPS/angle accesskit_sdk_path=DEPS/accesskit-c-0.23.1 \
+  linkflags=-Wl,-framework,CloudKit
+```
+
+Repeat for `x86_64` and for `template_debug`. ANGLE goes in
+`DEPS/angle-arm64-macos` and `DEPS/angle-x86_64-macos`. Check the log says
+`MoltenVK found at:` your path; the build otherwise falls back to Homebrew.
+Package the engine source's own `macos_template.app` skeleton with the four
+executables renamed `Contents/MacOS/godot_macos_<debug|release>.<arm64|x86_64>`,
+mode 0755, then check the ZIP without changing it:
+
+```sh
+python3 tools/prepare_apple_cloud_macos_template.py --verify \
+  --input /private/export-inputs/custom-macos.zip \
+  --input-sha256 EXPECTED_CUSTOM_MACOS_ZIP_SHA256 \
+  --manifest /private/export-inputs/custom-macos-verify.json
+```
+
+`--verify` applies the same ZIP and Mach-O bounds, requires a strong CloudKit
+dependency in every executable and writes only the manifest. Never install the
+custom ZIP over the official `export_templates` folder; use it through
+`custom_template/debug|release` in the private preset. Keep the dSYMs privately
+for crash reports.
+
+Compared with the official template, the November 13, 2026 build links the
+same libraries plus CloudKit, keeps minimum macOS 13.0 (arm64) and 11.0
+(x86_64), and has the same renderer, accessibility, physics, XR and media
+features. It differs in the linker (Apple's, not LLD), the SDK (Xcode 27.0, not
+26.5), a newer ANGLE without its old OpenGL backend, and the engine version
+string (`custom_build`). Scratch exports ran on Metal (arm64) and on Vulkan via
+MoltenVK (x86_64 under Rosetta), and the product checker's CloudKit check
+passed. Rebuild for every engine update.
+
 The tool bounds compressed/expanded bytes, entries, paths and Mach-O structures;
 rejects traversal, duplicates, links, signing inputs, unsupported architectures
 or layouts, existing/weak/ambiguous CloudKit dependencies and insufficient zero
