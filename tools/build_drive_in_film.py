@@ -9,7 +9,8 @@ The drive-ins play an Ogg Theora film on their screens at night. This script
 takes the film as published by the Internet Archive, decodes it to grayscale
 still frames with ffmpeg at the size and frame rate the screens need, then
 shows those frames one per tick in a throwaway Godot project recorded by
-Godot's own movie writer. No Theora encoder beyond Godot is required.
+Godot's own movie writer, then copies the picture alone into the game. No
+Theora encoder beyond Godot is required.
 
 The recording window opens briefly on the desktop: the movie writer needs a
 real renderer, so it cannot run headless.
@@ -18,7 +19,7 @@ Usage:
     python3 tools/build_drive_in_film.py SOURCE.ogv
     python3 tools/build_drive_in_film.py SOURCE.ogv --godot /path/to/Godot
 
-Requires ffmpeg (decoding only) and Godot 4.5 or later.
+Requires ffmpeg (decoding and stream copy only) and Godot 4.5 or later.
 
 Writes game/assets/drive-in/the-great-train-robbery.ogv and updates
 game/assets/drive-in/provenance.json.
@@ -153,12 +154,19 @@ def main() -> None:
                         "--disable-vsync"], check=True)
         if not recording.exists() or recording.stat().st_size == 0:
             sys.exit("Godot wrote no recording")
-        shutil.copyfile(recording, out)
+        # The movie writer always records a soundtrack; the film is silent,
+        # so drop it (a stream copy, the picture is untouched). A video-only
+        # file spares the game a Vorbis decoder and an audio mix every frame.
+        subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", str(recording),
+                        "-map", "0:v", "-c", "copy", str(out)], check=True)
     record = dict(FILM)
     record.update({"width": WIDTH, "height": HEIGHT, "fps": FPS,
-                   "encoding": "decoded to grayscale frames by ffmpeg and re-encoded with Godot's movie writer by tools/build_drive_in_film.py; picture unchanged apart from size and frame rate; silent, as released",
+                   "encoding": "decoded to grayscale frames by ffmpeg and re-encoded with Godot's movie writer by tools/build_drive_in_film.py; picture unchanged apart from size and frame rate; silent, as released, with no audio track",
                    "bytes": out.stat().st_size, "sha256": sha256(out)})
-    PROVENANCE.write_text(json.dumps({"films": {FILM["file"]: record}}, indent=2, sort_keys=True) + "\n")
+    # Keep the other records (the baked audience) and replace only the film.
+    existing = json.loads(PROVENANCE.read_text()) if PROVENANCE.exists() else {}
+    existing["films"] = {FILM["file"]: record}
+    PROVENANCE.write_text(json.dumps(existing, indent=2, sort_keys=True) + "\n")
     print(f"wrote {out.relative_to(ROOT)} ({out.stat().st_size} bytes)")
 
 

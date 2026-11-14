@@ -74,7 +74,7 @@ func test_night_fills_the_rows_and_projects_the_film_on_the_screen() -> void:
 		kinds[slot.get_meta("kind")] = true
 		# Vehicle meshes face -Z; the screen stands at the lot's -Z end.
 		check_gt(slot.global_basis.z.dot(Vector3.BACK),.99,"cars face the screen")
-		var local := lot.global_transform.affine_inverse()*slot.global_position*16.0
+		var local := (lot.global_transform.affine_inverse()*slot.global_position)*16.0
 		check_between(local.z,-14.5,10.0,"cars park between the screen and the snack bar")
 		check_eq((slot.get_node("Body") as StaticBody3D).collision_layer,CityModelCatalog.SHELL_LAYER,"parked cars are solid")
 	check_gt(kinds.size(),1,"moviegoers drive different cars")
@@ -109,7 +109,7 @@ func test_parked_cars_keep_their_lamps_off() -> void:
 	await process_frame
 	var lamps := 0
 	for slot: Node3D in slots:
-		var mesh := (slot.get_node("Vehicle") as MeshInstance3D).mesh
+		var mesh := DriveInNightShow.parked_mesh(slot.get_meta("kind"))
 		var source := CityTrafficCatalog.mesh_for(slot.get_meta("kind"))
 		check(mesh != source,"parked cars use their own lamp materials")
 		for surface: int in mesh.get_surface_count():
@@ -147,7 +147,7 @@ func test_explore_steals_a_parked_car_and_drives_it_off_the_lot() -> void:
 	check(actor != null,"the player now drives it")
 	if actor == null: return
 	check_eq(actor.kind,kind,"the same make of car")
-	check(slot.get_meta("claimed",false) and not (slot.get_node("Vehicle") as Node3D).visible,"its space is empty")
+	check(slot.get_meta("claimed",false) and not show.car_drawn(slot),"its space is empty")
 	check_eq((slot.get_node("Body") as StaticBody3D).collision_layer,0)
 	check(actor.on_drivable_ground(),"the car may move on the drive-in lot")
 	var parked := actor.global_transform
@@ -171,26 +171,105 @@ func test_explore_steals_a_parked_car_and_drives_it_off_the_lot() -> void:
 	var again: Node3D = null
 	for candidate: Node3D in show.parked_slots():
 		if candidate.get_meta("index") == index: again = candidate
-	check(again != null and again.get_meta("claimed",false) and not (again.get_node("Vehicle") as Node3D).visible,"a rebuilt show keeps the space empty")
+	check(again != null and again.get_meta("claimed",false) and not show.car_drawn(again),"a rebuilt show keeps the space empty")
 	session.leave()
 	for candidate: Node3D in show.parked_slots():
-		check(not candidate.get_meta("claimed",false),"leaving Explore parks the car again")
+		check(not candidate.get_meta("claimed",false) and show.car_drawn(candidate),"leaving Explore parks the car again")
 	await after_each()
 
-func test_hidden_buildings_hide_the_show_and_pause_the_film() -> void:
+func test_the_film_decodes_only_while_a_screen_is_on_camera() -> void:
 	if not _setup(_drive_in_city()): return
 	view.buildings.rebuild(city,view.catalog)
 	view.set_night_mode(true,true)
 	var show := _show()
 	if show == null: return
 	await process_frame
-	check(show.is_playing(),"the film plays at night")
+	var notifier := show.find_child("OnCamera",true,false) as VisibleOnScreenNotifier3D
+	check(notifier != null,"each screen watches whether a camera sees it")
+	if notifier == null: return
+	check(not show.is_playing(),"no decoding while no screen is in view")
+	notifier.screen_entered.emit()
+	check(show.is_playing(),"the film runs once its screen is seen")
 	view.buildings.visible = false
 	check(not show.visible and not show.is_playing(),"no film while buildings are hidden")
 	check(show.nearest(show.parked_slots()[0].global_position,.5).is_empty(),"and no car to take")
 	view.buildings.visible = true
 	check(show.visible and show.is_playing())
+	notifier.screen_exited.emit()
+	check(not show.is_playing(),"looking away stops the decoder again")
 	await after_each()
+
+func test_moviegoers_sit_in_the_chairs_facing_the_screen() -> void:
+	if not _setup(_drive_in_city()): return
+	view.buildings.rebuild(city,view.catalog)
+	view.set_night_mode(true,true)
+	var show := _show()
+	if show == null: return
+	var lot := _lot()
+	var seated := show.audience_count()
+	check_between(seated,6,20,"a good part of the 24 chairs are taken, never all of them")
+	for i in 240:
+		if show.seated_drawn() == seated: break
+		await process_frame
+	check_eq(show.seated_drawn(),seated,"every moviegoer is drawn once the posed figures load")
+	# One batch per car make and per figure; no per-car or per-person nodes.
+	var kinds := {}
+	for slot: Node3D in show.parked_slots(): kinds[slot.get_meta("kind")] = true
+	var batches := show.find_children("*","MultiMeshInstance3D",false,false)
+	check_eq(show.find_children("*","MeshInstance3D",true,false).size(),1,"only the screen is a plain mesh")
+	var figures := 0
+	for batch: MultiMeshInstance3D in batches:
+		if batch.name.begins_with("Moviegoers_"):
+			figures += 1
+			check_eq(batch.cast_shadow,GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"seated people cast no shadow maps")
+	check_eq(batches.size(),kinds.size()+figures,"one draw per make and per figure")
+	# Each person sits on an authored chair, just above the cushion.
+	var chairs: Array[Vector2] = []
+	for row: float in DriveInNightShow.CHAIR_ROWS:
+		for column: float in DriveInNightShow.CHAIR_COLUMNS: chairs.append(Vector2(column,row))
+	var places := show.audience_places()
+	check_eq(places.size(),seated)
+	var taken := {}
+	for place: Transform3D in places:
+		var local := (lot.global_transform.affine_inverse()*place.origin)*16.0
+		var nearest := -1
+		for c: int in chairs.size():
+			if Vector2(local.x,local.z).distance_to(chairs[c]) < .1: nearest = c
+		check(nearest >= 0,"on a chair")
+		check(not taken.has(nearest),"one person per chair")
+		taken[nearest] = true
+		check_between(local.y,DriveInNightShow.SEAT_TOP,DriveInNightShow.SEAT_TOP+.2,"seated on the cushion")
+		check_gt(place.basis.z.dot(lot.global_basis.z),.99,"facing the screen")
+	await after_each()
+
+func test_a_seated_figure_has_its_legs_forward() -> void:
+	var host := Node.new()
+	root.add_child(host)
+	var mesh := DriveInNightShow.seated_mesh(2,host) as ArrayMesh
+	check(mesh != null,"the crowd figure poses sitting without a renderer")
+	if mesh == null:
+		host.free()
+		return
+	var box := Transform3D(Basis.IDENTITY.scaled(Vector3.ONE*16.0),Vector3.ZERO)*mesh.get_aabb()
+	check_lt(box.size.y,1.45,"shorter than a standing figure")
+	check_lt(box.position.z,-.35,"knees forward, toward the screen")
+	check_between(box.position.y,-.75,-.3,"shins hang below the seat")
+	check_gt(box.end.y,.5,"torso and head above the pelvis")
+	check(DriveInNightShow.seated_mesh(2,host) == mesh,"posed once per figure for the session")
+	# The shipped library holds exactly these poses (re-bake it when they change).
+	var library := load(DriveInNightShow.AUDIENCE_LIBRARY) as MeshLibrary
+	check(library != null,"the posed audience ships with the game")
+	if library != null:
+		check_eq(library.get_item_list().size(),CityTrafficCatalog.pedestrian_variants(),"every crowd figure has a seated pose")
+		for figure: int in CityTrafficCatalog.pedestrian_variants():
+			var shipped := library.get_item_mesh(figure)
+			var posed := DriveInNightShow.seated_mesh(figure,host)
+			check(shipped != null and posed != null,"figure %d" % figure)
+			if shipped == null or posed == null: continue
+			check_eq(shipped.get_surface_count(),posed.get_surface_count(),"figure %d surfaces" % figure)
+			check_lt(shipped.get_aabb().position.distance_to(posed.get_aabb().position)+shipped.get_aabb().size.distance_to(posed.get_aabb().size),.0005,"figure %d matches its current pose" % figure)
+	host.free()
+	await process_frame
 
 func test_a_drive_in_built_at_night_joins_the_reel_already_showing() -> void:
 	if not _setup(_drive_in_city()): return

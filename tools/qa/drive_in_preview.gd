@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # See LICENSE and LICENSING.md in the repository root.
 ## Native night views of a drive-in theater through the actual CityView3D: the
-## film on the screen and the parked cars, from above and from the rows, with
+## film on the screen, the parked cars and the seated audience, with
 ## two captures a few seconds apart to show the picture moving. Run only in an
 ## isolated project copy with private user data:
 ## DRIVE_IN_EVIDENCE=<dir> godot --path <copy> --script res://tools/qa/drive_in_preview.gd
@@ -45,7 +45,7 @@ func _run() -> void:
 	for candidate: Node in view.buildings.get_children():
 		if candidate.get_meta("cell",Vector2i(-1,-1)) == anchor and int(candidate.get_meta("code",-1)) == DriveInNightShow.code(): lot = candidate
 	if show == null or lot == null: printerr("no show"); quit(4); return
-	print("DRIVE_IN_SCREENS ",show.screen_count()," CARS ",show.parked_slots().size())
+	print("DRIVE_IN_SCREENS ",show.screen_count()," CARS ",show.parked_slots().size()," AUDIENCE ",show.audience_count())
 	var centre := lot.global_position
 	view.set_camera_state(centre,2,8.0)
 	if not await _capture(view,view.camera,output,"aerial-close",1.0): return
@@ -60,6 +60,8 @@ func _run() -> void:
 		"rows-toward-screen": [frame*Vector3(0,.32,1.25),frame*Vector3(0,.8,-1.0)],
 		"rows-oblique": [frame*Vector3(1.3,.45,1.4),frame*Vector3(-.2,.35,-.4)],
 		"from-the-street": [frame*Vector3(.6,.18,2.2),frame*Vector3(0,.5,-.9)],
+		"chairs-close": [frame*Vector3(.42,.09,.62),frame*Vector3(.6,.05,-.3)],
+		"audience-side": [frame*Vector3(-.15,.1,-.42),frame*Vector3(-.65,.04,-.1)],
 	}
 	for name: String in poses:
 		camera.position = poses[name][0]

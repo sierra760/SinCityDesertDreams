@@ -1,13 +1,22 @@
 {
+  "audience": {
+    "moviegoers.res": {
+      "bytes": 2954103,
+      "figures": 16,
+      "license": "CC-BY-NC-SA-4.0",
+      "method": "the project's own street-crowd figures (game/assets/desert-dreams-traffic/pedestrian_NN_detail.glb) posed sitting and given distance detail levels by game/tools/bake_drive_in_audience.gd",
+      "sha256": "da85d6e8d20f28712d9086ed93d66c9d4a1604571cfbd0fd533444080da22a17"
+    }
+  },
   "films": {
     "the-great-train-robbery.ogv": {
-      "bytes": 12411218,
+      "bytes": 12264976,
       "credits": "Written, produced, directed and photographed by Edwin S. Porter (1870-1941) for the Edison Manufacturing Company",
-      "encoding": "decoded to grayscale frames by ffmpeg and re-encoded with Godot's movie writer by tools/build_drive_in_film.py; picture unchanged apart from size and frame rate; silent, as released",
+      "encoding": "decoded to grayscale frames by ffmpeg and re-encoded with Godot's movie writer by tools/build_drive_in_film.py; picture unchanged apart from size and frame rate; silent, as released, with no audio track",
       "file": "the-great-train-robbery.ogv",
       "fps": 18,
       "height": 240,
-      "sha256": "e490cd1c99aa3ce9f58a35d9bd9341305f440dbf8c3351ba65e46b7f0a426054",
+      "sha256": "522ce2c73cacbdef202a43bdf0426d3f33d22d480ab24299601e0d8894e40508",
       "source": "https://archive.org/details/TheGreatTrainRobbery1903_201307",
       "source_file": "The Great Train Robbery (1903).ogv",
       "source_sha256": "45f21c8920a3083df92c78b53b7ed0fc8aabdb7ed61a653ca044f367c3c0f123",
