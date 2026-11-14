@@ -202,13 +202,13 @@ def cloud_settings(data):
 
 
 def inspect_pack(path, require_enabled=True, executable_path=None):
-    """Read the actual unencrypted standalone Godot 4.7 pack, without launching it.
+    """Read the actual unencrypted standalone Godot 4.7/4.8 pack, without launching it.
 
     Layout: Godot core/io/file_access_pack.cpp and core/config/project_settings.cpp.
     Unsupported encryption, patches, sparse packs and settings overrides fail closed.
     """
     errors = []; entries = {}; ranges = []; size = path.stat().st_size
-    # Godot 4.7.2 _setup loads override.cfg beside an explicit main pack,
+    # Godot 4.7.2 and 4.8 (identical _setup) load override.cfg beside an explicit main pack,
     # or from the PCK and executable directory during ordinary app startup.
     override_locations = {path.parent / 'override.cfg'}
     if executable_path is not None:

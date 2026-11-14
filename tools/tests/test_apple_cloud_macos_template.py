@@ -16,6 +16,10 @@ import warnings
 ROOT = Path(__file__).resolve().parents[2]
 CLOUDKIT = '/System/Library/Frameworks/CloudKit.framework/Versions/A/CloudKit'
 ENTRIES = ['macos_template.app/Contents/MacOS/godot_macos_' + kind + '.universal' for kind in ['debug', 'release']]
+# Godot 4.8 ships one thin executable per architecture; its exporter joins them.
+THIN_ENTRIES = {'macos_template.app/Contents/MacOS/godot_macos_' + kind + '.' + arch: arch
+                for kind in ['debug', 'release'] for arch in ['arm64', 'x86_64']}
+LIB64 = 0x80000000  # capability bit LLD sets on x86_64 executables
 
 
 def dylib(name=CLOUDKIT, command=12):
@@ -24,7 +28,7 @@ def dylib(name=CLOUDKIT, command=12):
     return struct.pack('<6I', command, size, 24, 0, 0, 0) + raw + bytes(size - 24 - len(raw))
 
 
-def thin(cpu, extra=b'', section_offset=1024):
+def thin(cpu, extra=b'', section_offset=1024, subtype=None):
     payload = b'UNMODIFIED SECTION BYTES' * 4
     size = section_offset + len(payload)
     seg = struct.pack('<II16sQQQQiiII', 0x19, 152, b'__TEXT', 0x100000000, size, 0, size, 7, 5, 1, 0)
@@ -33,26 +37,34 @@ def thin(cpu, extra=b'', section_offset=1024):
     count = 1; pos = 0
     while pos < len(extra):
         count += 1; pos += struct.unpack_from('<I', extra, pos + 4)[0]
-    head = struct.pack('<8I', 0xfeedfacf, cpu, 3 if cpu == 0x1000007 else 0, 2, count, len(commands), 0, 0)
+    if subtype is None: subtype = 3 if cpu == 0x1000007 else 0
+    head = struct.pack('<8I', 0xfeedfacf, cpu, subtype, 2, count, len(commands), 0, 0)
     return head + commands + bytes(section_offset - len(head) - len(commands)) + payload
 
 
-def universal(extras=(b'', b'')):
-    bodies = [thin(cpu, extra) for cpu, extra in zip([0x1000007, 0x100000c], extras)]
+def universal(extras=(b'', b''), x86_subtype=3):
+    bodies = [thin(cpu, extra, subtype=x86_subtype if cpu == 0x1000007 else None) for cpu, extra in zip([0x1000007, 0x100000c], extras)]
     data = bytearray(12288)
     struct.pack_into('>II', data, 0, 0xcafebabe, 2)
     for i, body in enumerate(bodies):
         start = 4096 * (i + 1)
-        struct.pack_into('>5I', data, 8 + i * 20, 0x1000007 if i == 0 else 0x100000c, 3 if i == 0 else 0, start, len(body), 12)
+        struct.pack_into('>5I', data, 8 + i * 20, 0x1000007 if i == 0 else 0x100000c, x86_subtype if i == 0 else 0, start, len(body), 12)
         data[start:start + len(body)] = body
     return bytes(data)
 
 
-def archive(path, binary=None, extra=None):
+def thin_binary(arch, extra=b'', section_offset=1024):
+    if arch == 'x86_64': return thin(0x1000007, extra, section_offset, subtype=3 | LIB64)
+    return thin(0x100000c, extra, section_offset)
+
+
+def archive(path, binary=None, extra=None, layout='universal'):
+    if layout == 'universal': members = [(x, binary or universal()) for x in ENTRIES]
+    else: members = [(name, thin_binary(arch)) for name, arch in THIN_ENTRIES.items()]
     with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as z:
-        for name, value in [(x, binary or universal()) for x in ENTRIES] + [('macos_template.app/Contents/Info.plist', b'unchanged plist')]+list(extra or []):
+        for name, value in members + [('macos_template.app/Contents/Info.plist', b'unchanged plist')]+list(extra or []):
             info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)); info.create_system = 3
-            info.external_attr = (stat.S_IFREG | (0o755 if name in ENTRIES else 0o644)) << 16
+            info.external_attr = (stat.S_IFREG | (0o755 if name in ENTRIES or name in THIN_ENTRIES else 0o644)) << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore', message='Duplicate name:')
@@ -81,6 +93,33 @@ class TemplateTests(unittest.TestCase):
         differences = {i for i, pair in enumerate(zip(original, changed)) if pair[0] != pair[1]}
         self.assertTrue(differences); self.assertTrue(differences <= allowed)
         with self.assertRaises(ValueError): self.tool.patch_macos_main(changed)
+
+    def test_thin_executables_patch_independently_and_keep_capability_bits(self):
+        for arch in ['arm64', 'x86_64']:
+            with self.subTest(arch=arch):
+                original = thin_binary(arch, dylib('/usr/lib/libSystem.B.dylib'))
+                changed, manifest = self.tool.patch_macos_main(original, arch)
+                self.assertEqual(len(original), len(changed)); self.assertEqual([arch], self.tool.inspect_macos_main(changed, arch))
+                self.assertEqual(original[8:12], changed[8:12])  # cpusubtype, including capability bits
+                end = 32 + manifest[0]['old_sizeofcmds']
+                differences = {i for i, pair in enumerate(zip(original, changed)) if pair[0] != pair[1]}
+                self.assertTrue(differences <= set(range(16, 24)) | set(range(end, end + len(dylib()))))
+                with self.assertRaises(ValueError): self.tool.patch_macos_main(changed, arch)
+                other = 'x86_64' if arch == 'arm64' else 'arm64'
+                with self.assertRaises(ValueError): self.tool.patch_macos_main(original, other)
+                with self.assertRaises(ValueError): self.tool.inspect_macos_main(changed)  # a thin file never passes as the shipped binary
+
+    def test_universal_capability_subtype_is_accepted_but_other_subtypes_are_not(self):
+        # Godot 4.8's own lipo copies x86_64 0x80000003 into the FAT table.
+        self.assertEqual({'arm64', 'x86_64'}, set(self.tool.inspect_macos_main(universal((dylib(), dylib()), x86_subtype=3 | LIB64))))
+        for subtype in [4, 8 | LIB64]:
+            with self.subTest(subtype=subtype), self.assertRaises(ValueError): self.tool.inspect_macos_main(universal((dylib(), dylib()), x86_subtype=subtype))
+
+    def test_insufficient_padding_reports_the_architecture_and_byte_counts(self):
+        # Godot 4.8-beta3 official executables (LLD) leave 32 bytes after their load commands.
+        tight = thin_binary('arm64', section_offset=32 + 152 + 32)
+        with self.assertRaisesRegex(ValueError, r'arm64: insufficient unused header padding \(32 bytes free, 96 needed\)'):
+            self.tool.patch_macos_main(tight, 'arm64')
 
     def test_main_inspection_requires_strong_exact_dependency_in_both_architectures(self):
         self.assertEqual({'arm64', 'x86_64'}, set(self.tool.inspect_macos_main(universal((dylib(), dylib())))))
@@ -115,6 +154,37 @@ class TemplateTests(unittest.TestCase):
                     self.assertEqual(info.external_attr,new.getinfo(info.filename).external_attr)
                     if info.filename not in ENTRIES:self.assertEqual(old.read(info),new.read(info.filename))
                     else:self.tool.inspect_macos_main(new.read(info.filename))
+
+    def test_per_architecture_archive_patches_all_four_and_records_layout(self):
+        with tempfile.TemporaryDirectory() as temp:
+            t=Path(temp);source=t/'macos.zip';archive(source,layout='thin');digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            for i in [1,2]: self.tool.prepare(source, digest, t/f'prepared{i}.zip', t/f'manifest{i}.json')
+            self.assertEqual((t/'prepared1.zip').read_bytes(),(t/'prepared2.zip').read_bytes())
+            report=json.loads((t/'manifest1.json').read_text());self.assertEqual('per-architecture',report['template_layout'])
+            patched={e['name'] for e in report['entries'] if e['slices']};self.assertEqual(set(THIN_ENTRIES),patched)
+            with zipfile.ZipFile(source) as old,zipfile.ZipFile(t/'prepared1.zip') as new:
+                self.assertEqual(old.namelist(),new.namelist())
+                for info in old.infolist():
+                    self.assertEqual(info.external_attr,new.getinfo(info.filename).external_attr)
+                    if info.filename in THIN_ENTRIES:self.tool.inspect_macos_main(new.read(info.filename),THIN_ENTRIES[info.filename])
+                    else:self.assertEqual(old.read(info),new.read(info.filename))
+
+    def test_archive_refuses_mixed_partial_or_extra_engine_layouts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            t=Path(temp);source=t/'macos.zip';first=next(iter(THIN_ENTRIES))
+            cases=[('universal',[(first,thin_binary('arm64'))]),
+                   ('thin',[(ENTRIES[0],universal())]),
+                   ('thin',[('macos_template.app/Contents/MacOS/godot_macos_debug.arm64e',thin_binary('arm64'))]),
+                   ('universal',[('macos_template.app/Contents/MacOS/godot_macos_release.universal.bak',b'old')])]
+            for n,(layout,extra) in enumerate(cases):
+                with self.subTest(case=n):
+                    archive(source,extra=extra,layout=layout);digest=hashlib.sha256(source.read_bytes()).hexdigest()
+                    with self.assertRaises(ValueError):self.tool.prepare(source,digest,t/'out',t/'manifest')
+                    self.assertFalse((t/'out').exists());self.assertFalse((t/'manifest').exists())
+            with zipfile.ZipFile(source,'w') as z:
+                for name,arch in list(THIN_ENTRIES.items())[:3]:
+                    i=zipfile.ZipInfo(name);i.create_system=3;i.external_attr=(stat.S_IFREG|0o755)<<16;z.writestr(i,thin_binary(arch))
+            with self.assertRaises(ValueError):self.tool.prepare(source,hashlib.sha256(source.read_bytes()).hexdigest(),t/'out',t/'manifest')
 
     def test_archive_refuses_wrong_digest_alias_overwrite_and_signing_inputs(self):
         with tempfile.TemporaryDirectory() as temp:

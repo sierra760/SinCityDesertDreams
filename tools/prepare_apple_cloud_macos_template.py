@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 Bristlecone Artists LLC
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Prepare a private Godot 4.7.2 macOS ZIP before normal export/signing.
+"""Prepare a private Godot macOS template ZIP before normal export/signing.
 
-Never launch the intermediate executables: their old signatures are stale.
+Accepts exactly one executable layout: Godot 4.7's two universal executables, or
+Godot 4.8's four per-architecture executables (the 4.8 exporter joins them into
+one universal binary). Never launch the intermediate executables: their old
+signatures are stale.
 No installed template, project setting, entitlement or signing identity is edited.
 """
 import argparse
@@ -19,13 +22,19 @@ import tempfile
 import zipfile
 
 CLOUDKIT = '/System/Library/Frameworks/CloudKit.framework/Versions/A/CloudKit'
-EXECUTABLES = tuple('macos_template.app/Contents/MacOS/godot_macos_' + kind + '.universal' for kind in ('debug', 'release'))
+MACOS_DIR = 'macos_template.app/Contents/MacOS/'
+# The 4.8 exporter treats every Contents/MacOS/godot_* member as an engine binary.
+ENGINE_PREFIX = MACOS_DIR + 'godot_'
+UNIVERSAL_EXECUTABLES = {MACOS_DIR + 'godot_macos_' + kind + '.universal': None for kind in ('debug', 'release')}
+THIN_EXECUTABLES = {MACOS_DIR + 'godot_macos_' + kind + '.' + arch: arch for kind in ('debug', 'release') for arch in ('arm64', 'x86_64')}
+LAYOUTS = {'universal': UNIVERSAL_EXECUTABLES, 'per-architecture': THIN_EXECUTABLES}
 MAX_ZIP_BYTES = 256 * 1024 * 1024
 MAX_ENTRY_BYTES = 256 * 1024 * 1024
 MAX_TOTAL_BYTES = 512 * 1024 * 1024
 MAX_ENTRIES = 128
 MAX_COMMAND_BYTES = 65536
 ARCHES = {0x01000007: ('x86_64', 3), 0x0100000c: ('arm64', 0)}
+CPU_SUBTYPE_MASK = 0xff000000  # capability bits, e.g. LLD's x86_64 CPU_SUBTYPE_LIB64
 DYLIB_COMMANDS = {0xc, 0x80000018, 0x8000001f, 0x20, 0x80000023}
 
 
@@ -48,32 +57,36 @@ def _cstring(command, offset):
         raise ValueError('Invalid load-command string encoding') from error
 
 
-def _slices(data):
+def _slices(data, architecture=None):
     require(48 <= len(data) <= MAX_ENTRY_BYTES, 'Invalid bounded main executable size')
+    if architecture is not None:
+        cpu = next(key for key, value in ARCHES.items() if value[0] == architecture)
+        require(struct.unpack_from('<II', data) == (0xfeedfacf, cpu), f'Expected thin little-endian {architecture} executable')
+        return [(cpu, ARCHES[cpu][1], 0, len(data))]
     require(struct.unpack_from('>II', data) == (0xcafebabe, 2), 'Expected two-slice FAT32 universal executable')
     result = []; seen = set()
     for i in range(2):
         cpu, subtype, offset, size, align = struct.unpack_from('>5I', data, 8 + i * 20)
-        require(cpu in ARCHES and cpu not in seen and subtype == ARCHES[cpu][1], 'Unexpected/duplicate architecture or subtype')
+        require(cpu in ARCHES and cpu not in seen and subtype & ~CPU_SUBTYPE_MASK == ARCHES[cpu][1], 'Unexpected/duplicate architecture or subtype')
         require(0 <= align <= 20 and offset >= 48 and offset % (1 << align) == 0, 'Invalid FAT alignment/header overlap')
         require(size >= 32 and offset + size <= len(data), 'Truncated FAT slice')
-        seen.add(cpu); result.append((cpu, subtype, offset, size))
+        seen.add(cpu); result.append((cpu, ARCHES[cpu][1], offset, size))
     ordered = sorted(result, key=lambda x: x[2])
     require(ordered[0][2] + ordered[0][3] <= ordered[1][2], 'Overlapping FAT slices')
     return result
 
 
-def _inspect(data):
+def _inspect(data, architecture=None):
     """Parse only known 64-bit executable layouts; every file-backed range is bounded.
 
     Returned header space ends at the earliest section or load-command data.
     Zero bytes alone never establish unused padding.
     """
     result = []
-    for cpu, subtype, start, size in _slices(data):
+    for cpu, subtype, start, size in _slices(data, architecture):
         image = memoryview(data)[start:start + size]
         magic, actual_cpu, actual_sub, filetype, count, command_size, flags, reserved = struct.unpack_from('<8I', image)
-        require((magic, actual_cpu, actual_sub, filetype, reserved) == (0xfeedfacf, cpu, subtype, 2, 0), 'Expected matching little-endian MH_EXECUTE slice')
+        require((magic, actual_cpu, actual_sub & ~CPU_SUBTYPE_MASK, filetype, reserved) == (0xfeedfacf, cpu, subtype, 2, 0), 'Expected matching little-endian MH_EXECUTE slice')
         require(1 <= count <= 512 and count * 8 <= command_size <= MAX_COMMAND_BYTES and 32 + command_size <= size, 'Invalid load-command bounds')
         end = 32 + command_size; position = 32
         segments = []; sections = []; occupied = []; libraries = []; text_segments = []
@@ -161,22 +174,27 @@ def _inspect(data):
     return result
 
 
-def inspect_macos_main(data):
-    """Require a direct strong CloudKit dependency independently in both slices."""
-    slices = _inspect(data)
+def inspect_macos_main(data, architecture=None):
+    """Require a direct strong CloudKit dependency in every slice.
+
+    Without an architecture, require the two-slice universal binary that ships.
+    """
+    slices = _inspect(data, architecture)
     for item in slices:
         require(item['cloudkit'] == [(0xc, CLOUDKIT)], item['architecture'] + ': missing, weak or ambiguous main CloudKit dependency')
     return [item['architecture'] for item in slices]
 
 
-def patch_macos_main(data):
-    slices = _inspect(data); changed = bytearray(data); report = []
+def patch_macos_main(data, architecture=None):
+    slices = _inspect(data, architecture); changed = bytearray(data); report = []
     raw = CLOUDKIT.encode() + b'\0'; length = (24 + len(raw) + 7) & ~7
     command = struct.pack('<6I', 0xc, length, 24, 0, 0, 0) + raw + bytes(length - 24 - len(raw))
     for item in slices:
         require(not item['cloudkit'], 'Template already has a strong, weak or ambiguous CloudKit dependency')
         start = item['slice_offset']; end = start + 32 + item['old_sizeofcmds']
-        require(end + length <= start + item['first_data_offset'], 'Insufficient unused header padding')
+        free = item['first_data_offset'] - 32 - item['old_sizeofcmds']
+        require(end + length <= start + item['first_data_offset'],
+                f"{item['architecture']}: insufficient unused header padding ({free} bytes free, {length} needed)")
         require(not any(data[end:end + length]), 'Header padding is not zero')
         before = bytes(changed[start + 16:start + 24])
         struct.pack_into('<II', changed, start + 16, item['old_ncmds'] + 1, item['old_sizeofcmds'] + length)
@@ -185,7 +203,7 @@ def patch_macos_main(data):
         entry['changes'] = [dict(offset=start + 16, before_hex=before.hex(), after_hex=bytes(changed[start + 16:start + 24]).hex()),
                             dict(offset=end, before_hex=data[end:end + length].hex(), after_hex=command.hex())]
         report.append(entry)
-    result = bytes(changed); inspect_macos_main(result)
+    result = bytes(changed); inspect_macos_main(result, architecture)
     return result, report
 
 
@@ -216,10 +234,13 @@ def _zip_entries(z, archive_size):
         ranges.append((info.header_offset, data_start + info.compress_size))
     ordered = sorted(ranges)
     require(all(a[1] <= z[0] for a, z in zip(ordered, ordered[1:])), 'Overlapping ZIP entries')
-    require(all(name in z.namelist() for name in EXECUTABLES), 'Missing debug/release universal template')
-    for name in EXECUTABLES:
+    engines = {info.filename for info in infos if info.filename.startswith(ENGINE_PREFIX)}
+    layout = [name for name, members in LAYOUTS.items() if engines == set(members)]
+    require(len(layout) == 1, 'Expected exactly the universal (4.7) or per-architecture (4.8) debug/release templates, unmixed')
+    executables = LAYOUTS[layout[0]]
+    for name in executables:
         require((z.getinfo(name).external_attr >> 16) & 0o111, 'Main template lacks executable permissions')
-    return infos
+    return infos, layout[0], executables
 
 
 def _zip_directory_bound(raw):
@@ -254,21 +275,22 @@ def prepare(source, expected_sha256, output, manifest):
     require(len(raw) <= MAX_ZIP_BYTES and digest(raw) == expected_sha256.lower(), 'Input ZIP SHA-256 mismatch')
     _zip_directory_bound(raw)
     import io
-    report = dict(format_version=1, tool='prepare_apple_cloud_macos_template', input_sha256=digest(raw),
+    report = dict(format_version=2, tool='prepare_apple_cloud_macos_template', input_sha256=digest(raw),
                   warning='Intermediate executable signatures are stale; never launch. Godot must sign the final export.', entries=[])
     output.parent.mkdir(parents=True, exist_ok=True); manifest.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.cloud-template-', dir=output.parent) as temporary:
         zip_path = Path(temporary) / 'prepared.zip'
         try:
             with zipfile.ZipFile(io.BytesIO(raw)) as old:
-                infos = _zip_entries(old, len(raw))
+                infos, layout, executables = _zip_entries(old, len(raw))
+                report['template_layout'] = layout
                 with zipfile.ZipFile(zip_path, 'w', allowZip64=False, compression=zipfile.ZIP_DEFLATED, compresslevel=9) as new:
                     new.comment = old.comment
                     for info in infos:
                         with old.open(info) as stream: data = stream.read(info.file_size + 1)
                         require(len(data) == info.file_size, 'ZIP member size mismatch')
                         before = digest(data); changes = []
-                        if info.filename in EXECUTABLES: data, changes = patch_macos_main(data)
+                        if info.filename in executables: data, changes = patch_macos_main(data, executables[info.filename])
                         new.writestr(copy.copy(info), data)
                         report['entries'].append(dict(name=info.filename, size=len(data), external_attr=info.external_attr,
                                                       before_sha256=before, after_sha256=digest(data), slices=changes))

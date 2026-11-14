@@ -18,7 +18,7 @@ func _export_begin(features: PackedStringArray, _debug: bool, _path: String, _fl
 	else:
 		add_shared_object("res://addons/apple_cloud/bin/libSCDDAppleCloud.dylib",PackedStringArray(["macos"]),"")
 
-		# Godot 4.7.2 auto-embeds profiles only for App Store. For Developer ID,
+		# Godot (4.7.2 and 4.8) auto-embeds profiles only for App Store. For Developer ID,
 		# copy a private prevalidated profile into Contents BEFORE bundle signing.
 		# Never put signing profiles in ProjectSettings or the PCK.
 		var profile := OS.get_environment("SCDD_APPLE_CLOUD_PROFILE")

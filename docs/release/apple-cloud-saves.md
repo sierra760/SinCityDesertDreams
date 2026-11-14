@@ -119,9 +119,9 @@ Preserve preset `macOS`, `export/distribution_type=1`, universal architecture,
 Developer ID Application signing and notarization. Copy the selected
 `platform/apple-cloud/developer-id.entitlements` to a disposable private file
 outside the project. Point `codesign/entitlements/custom_file` at that copy.
-Never point it at the tracked template: Godot 4.7.2's unsandboxed helper cleanup
-can delete the referenced custom file. Retain the original private template
-and recreate the disposable copy for **every** export.
+Never point it at the tracked template: Godot's unsandboxed helper cleanup (4.7.2
+and 4.8) deletes the referenced custom file after export. Retain the original
+private template and recreate the disposable copy for **every** export.
 
 The engine auto-embeds `codesign/provisioning_profile` only for distribution 2.
 For Developer ID, copy the validated matching profile into a private directory
@@ -182,10 +182,10 @@ native bridge is insufficient for App Sandbox's CloudKit service access. See
 [Apple DTS's framework-linkage explanation](https://developer.apple.com/forums/thread/835400).
 The product checker now verifies this independently of native-bridge linkage.
 
-For the official Godot4.7.2 Mac template, prepare a **separate private ZIP before
-export**, then let Godot perform its normal final signing. Keep installed
-templates and tracked project/preset flags unchanged. Obtain and verify the
-official template archive first; the explicit SHA below must be the expected
+Prepare a **separate private ZIP before export** from the Mac template, then let
+Godot perform its normal final signing. Keep installed templates and tracked
+project/preset flags unchanged. Obtain and verify the official template archive
+first; the explicit SHA below must be the expected
 digest of its verified `macos.zip`, not a hash taken from an unknown download.
 
 ```sh
@@ -197,20 +197,38 @@ python3 tools/prepare_apple_cloud_macos_template.py \
 ```
 
 In the **private** Mac export preset, set both `custom_template/debug` and
-`custom_template/release` to that output ZIP. Godot's
-[4.7.2 Mac exporter](https://github.com/godotengine/godot/blob/4.7.2-stable/platform/macos/export/export_plugin.cpp)
-selects the corresponding executable from the ZIP. The preparer requires
-`macos_template.app/Contents/MacOS/godot_macos_debug.universal` and
-`macos_template.app/Contents/MacOS/godot_macos_release.universal`.
+`custom_template/release` to that output ZIP. The preparer accepts exactly one
+executable layout and patches every executable in it:
+
+- Godot 4.7: `macos_template.app/Contents/MacOS/godot_macos_debug.universal` and
+  `godot_macos_release.universal`.
+- Godot 4.8: `godot_macos_debug.arm64`, `godot_macos_debug.x86_64`,
+  `godot_macos_release.arm64` and `godot_macos_release.x86_64` in the same folder.
+  For a universal export, `export_project` in the
+  [4.8 Mac exporter](https://github.com/godotengine/godot/blob/c51ff06e8836a70ea905701c081bf94124dcd6ce/platform/macos/export/export_plugin.cpp)
+  takes every `godot_macos_<debug|release>.*` member and joins the thin Mach-O
+  files into one universal executable with `LipO::create_file`, so the preparer
+  rejects mixed layouts and any other `godot_*` member. (godotengine/godot has no tag for 4.8 beta 3; these
+  links use its build commit, `c51ff06e8`, the one the editor reports.)
+
+**The official 4.8 beta 3 template cannot be prepared.** Its executables are
+linked with LLD and leave only 32 (arm64) and 16 (x86_64) bytes after the load
+commands; the CloudKit command needs 96. The preparer stops with
+`insufficient unused header padding` and writes nothing. (4.7.2's Apple-linker
+template had several kilobytes.) Header space cannot be added after linking
+without moving code, so a CloudKit-enabled Mac build on 4.8 needs a template
+whose executables already link CloudKit or were linked with enough header
+padding. Its x86_64 executables also carry the `CPU_SUBTYPE_LIB64` capability
+bit, which the preparer and checker accept.
 
 The tool bounds compressed/expanded bytes, entries, paths and Mach-O structures;
 rejects traversal, duplicates, links, signing inputs, unsupported architectures
 or layouts, existing/weak/ambiguous CloudKit dependencies and insufficient zero
-header padding. It appends one `LC_LOAD_DYLIB` per slice for
+header padding. It appends one `LC_LOAD_DYLIB` per slice or thin executable for
 `/System/Library/Frameworks/CloudKit.framework/Versions/A/CloudKit`, changing only
 the command counters and previously unused header bytes. Existing command order,
 dylib ordinals, sections, other member contents and permissions are preserved.
-The manifest records exact before/after byte ranges and hashes. Repeating with
+The manifest records the layout and exact before/after byte ranges and hashes. Repeating with
 the same input and Python/zlib runtime produces identical ZIP/manifest bytes;
 existing outputs are never overwritten. For a changed upstream layout, stop and
 review it rather than removing these guards.
@@ -239,7 +257,8 @@ matching enabled/container values; it rejects native/signing inputs inside the
 pack. It also rejects packed `override.cfg`, `override.cfg` beside the executable
 or PCK, and every nonempty `application/config/project_settings_override`
 selector (including feature-qualified variants). This fail-closed packaging
-policy follows the [Godot 4.7.2 settings loader](https://github.com/godotengine/godot/blob/4.7.2-stable/core/config/project_settings.cpp#L638-L813):
+policy follows the [Godot 4.8 settings loader](https://github.com/godotengine/godot/blob/c51ff06e8836a70ea905701c081bf94124dcd6ce/core/config/project_settings.cpp#L693-L917)
+(unchanged from 4.7.2):
 override files can otherwise change effective settings after `project.binary`.
 The checker does not execute or read custom override targets and does not alter
 the game's global override behavior. This is independent of Info.plist. Unsupported encrypted/sparse packs
