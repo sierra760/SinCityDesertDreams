@@ -58,6 +58,7 @@ const REASON_BEFORE_FOUNDING := "the sea level is set before the city is founded
 const REASON_NO_EMERGENCY := "crews go out only during an emergency"
 const REASON_NO_CREWS := "no crews available"
 const REASON_FLOODED := "the land is flooded"
+const REASON_SEA := "the bulldozer cannot clear the sea"
 ## Level Land on a tile already at the target height whose slope is set by
 ## higher land next to it.
 const REASON_SLOPE_STAYS := "the slope here follows the higher land beside it"
@@ -1431,6 +1432,11 @@ func _plan_bulldoze(price: int, from: Vector2i, to: Vector2i, underground: bool 
 		if Buildings.is_tree(id):
 			trees += 1
 		if id == Buildings.NONE:
+			if city.is_sea_water(p.x, p.y):
+				# The bulldozer clears what stands on the sea, never the sea.
+				if refused.is_empty():
+					refused = REASON_SEA
+				continue
 			if Terrain.is_water(city.terrain.atv(p)):
 				tiles.append(p)
 				seen[p] = true

@@ -705,6 +705,8 @@ func test_surface_water_can_be_deleted_after_founding_without_moving_ground() ->
 		for tool: int in [Tools.Kind.PLACE_WATER, Tools.Kind.BULLDOZE]:
 			var b := _lattice_builder() if lattice else _builder()
 			var c := b.city
+			# A brackish pond standing on ground at the sea level, not the sea.
+			c.sea_level = 4
 			var cell := Vector2i(50, 50)
 			if lattice:
 				(c.terrain_surface as TerrainSurface).set_water(50, 50, 5, true)
@@ -757,6 +759,148 @@ func test_water_deletion_respects_structures_protection_and_funds() -> void:
 	c.funds = 1000
 	check(not b.apply(Tools.Kind.PLACE_WATER, Vector2i(60, 60))["ok"], "a temporary flood is handled by the disaster system")
 	check(c.flood_overlay.has(Vector2i(60, 60)))
+
+
+## A native city with a 6×6 bay whose ground lies one level below the sea.
+func _sea_builder() -> Builder:
+	var b := _lattice_builder()
+	var c := b.city
+	var s: TerrainSurface = c.terrain_surface
+	c.sea_level = 4
+	for vy in range(40, 47):
+		for vx in range(40, 47):
+			s.set_vertex(vx, vy, 3)
+	for y in range(40, 46):
+		for x in range(40, 46):
+			s.set_water(x, y, 4, true)
+	s.project(c)
+	return b
+
+
+func _sea_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for y in range(40, 46):
+		for x in range(40, 46):
+			out.append(Vector2i(x, y))
+	return out
+
+
+func _check_sea_intact(c: City, message: String) -> void:
+	for p in _sea_cells():
+		if not c.is_sea_water(p.x, p.y):
+			check(false, "%s: (%d, %d) stays sea" % [message, p.x, p.y])
+			return
+	check(true, message)
+
+
+func test_sea_water_is_told_apart_from_surface_water() -> void:
+	var b := _sea_builder()
+	var c := b.city
+	var s: TerrainSurface = c.terrain_surface
+	check(c.is_sea_water(42, 42), "standing water below the sea level is the sea")
+	check(not c.is_sea_water(30, 30), "dry land is not the sea")
+	s.set_water(60, 60, 5, true)
+	s.set_water(70, 70, 4, false, TerrainSurface.Feature.STREAM)
+	s.project(c)
+	check(not c.is_sea_water(60, 60), "a brackish pond above the sea level is surface water")
+	check(not c.is_sea_water(70, 70), "a stream is a river, not the sea")
+	c.flood_overlay[Vector2i(80, 80)] = 1
+	check(not c.is_sea_water(80, 80), "temporary flood water is not the sea")
+	var imported := _builder().city
+	_water_row(imported, 50, 50, 51)
+	imported.set_flag(50, 50, TileFlags.SALT_WATER, true)
+	check(imported.is_sea_water(50, 50), "an imported city's salt water is its sea")
+	check(not imported.is_sea_water(51, 50), "an imported city's fresh water is surface water")
+	var generated := TerrainGenerator.new().generate({"coast": "west", "river": true, "water": 50}, SimRng.new(7))
+	var salt := 0
+	var outside := 0
+	for y in City.HEIGHT:
+		for x in City.WIDTH:
+			if generated.is_salt_water(x, y):
+				salt += 1
+				if not generated.is_sea_water(x, y):
+					outside += 1
+	check(salt > 0, "the generated coast has a sea")
+	check_eq(outside, 0, "every generated salt-water tile is sea water")
+
+
+func test_bulldozer_never_drains_the_sea() -> void:
+	var b := _sea_builder()
+	var c := b.city
+	var funds := c.funds
+	var terrain := c.terrain.data.duplicate()
+	var altitude := c.altitude.data.duplicate()
+	var quote := b.preview(Tools.Kind.BULLDOZE, Vector2i(42, 42))
+	check(not quote["ok"], "bulldozing the sea is refused in the preview")
+	check_eq(String(quote["reason"]), Builder.REASON_SEA)
+	var one := b.apply(Tools.Kind.BULLDOZE, Vector2i(42, 42))
+	check(not one["ok"] and not one.get("applied", false))
+	var area := b.apply(Tools.Kind.BULLDOZE, Vector2i(40, 40), Vector2i(45, 45))
+	check(not area["ok"], "a drag over open sea clears nothing")
+	check_eq(String(area["reason"]), Builder.REASON_SEA)
+	check_eq(c.funds, funds, "nothing charged")
+	check_eq(c.terrain.data, terrain, "terrain untouched")
+	check_eq(c.altitude.data, altitude, "water heights untouched")
+	_check_sea_intact(c, "refused bulldozing keeps the sea")
+	# A drag across the coast still clears what stands on land and on the sea.
+	c.building.put(38, 42, Buildings.TREES_1)
+	c.building.put(42, 42, Buildings.id_of(&"bridge_causeway_pylon"))
+	var coast := b.apply(Tools.Kind.BULLDOZE, Vector2i(37, 42), Vector2i(44, 42))
+	check(coast["ok"], coast["reason"])
+	check_eq(coast["cost"], 2, "only the tree and the structure are paid for")
+	check_eq(c.building_at(38, 42), Buildings.NONE)
+	check_eq(c.building_at(42, 42), Buildings.NONE, "the structure over the sea is removed")
+	_check_sea_intact(c, "the sea under and beside the structure stays")
+	var again := b.apply(Tools.Kind.BULLDOZE, Vector2i(42, 42))
+	check(not again["ok"], "a second pass does not drain the cleared tile")
+	_check_sea_intact(c, "the sea survives repeated bulldozing")
+	var restored: City = SaveFormat.decode_city(SaveFormat.encode_city(c)).city
+	check(restored.is_sea_water(42, 42), "the sea is still there after save and load")
+
+
+func test_imported_salt_water_survives_the_bulldozer() -> void:
+	for tool: int in [Tools.Kind.BULLDOZE]:
+		var b := _builder()
+		var c := b.city
+		_water_row(c, 50, 50, 52)
+		for x: int in range(50, 53):
+			c.set_flag(x, 50, TileFlags.SALT_WATER, true)
+		var funds := c.funds
+		var r := b.apply(tool, Vector2i(50, 50), Vector2i(52, 50))
+		check(not r["ok"], "imported salt water refuses %s" % Tools.display_name(tool))
+		check_eq(String(r["reason"]), Builder.REASON_SEA)
+		check_eq(c.funds, funds)
+		for x: int in range(50, 53):
+			check(c.is_water(x, 50) and c.is_salt_water(x, 50), "imported sea stays")
+
+
+func test_terrain_tools_still_reshape_the_sea_after_founding() -> void:
+	# The water tool drains the sea, on native and imported terrain.
+	var b := _sea_builder()
+	var c := b.city
+	var funds := c.funds
+	var drained := b.apply(Tools.Kind.PLACE_WATER, Vector2i(43, 43))
+	check(drained["ok"], drained["reason"])
+	check(not c.is_water(43, 43), "the water tool drains a sea tile")
+	check_eq(c.funds, funds - Tools.cost(Tools.Kind.PLACE_WATER))
+	var imported := _builder()
+	_water_row(imported.city, 50, 50, 50)
+	imported.city.set_flag(50, 50, TileFlags.SALT_WATER, true)
+	var salt := imported.apply(Tools.Kind.PLACE_WATER, Vector2i(50, 50))
+	check(salt["ok"], salt["reason"])
+	check(not imported.city.is_water(50, 50), "the water tool drains an imported sea")
+	# Raising the shore may pull the sea floor up out of the water.
+	var raise := _sea_builder()
+	var shore := Vector2i(39, 42)
+	for i in 2:
+		var r := raise.apply(Tools.Kind.RAISE_LAND, shore)
+		check(r["ok"], r["reason"])
+	check(not raise.city.is_water(40, 42), "raising the shore reclaims the sea beside it")
+	# Lowering the shore lets the sea in.
+	var low := _sea_builder()
+	var lowered := low.apply(Tools.Kind.LOWER_LAND, shore)
+	check(lowered["ok"], lowered["reason"])
+	check(low.city.is_sea_water(shore.x, shore.y), "the lowered shore joins the sea")
 
 
 func test_draining_imported_streams_and_waterfalls_does_not_invent_land_slopes() -> void:

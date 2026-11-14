@@ -222,6 +222,28 @@ func is_salt_water(x: int, y: int) -> bool:
 	return flags.has_bits(x, y, TileFlags.SALT_WATER)
 
 
+## Water that belongs to the sea, which the bulldozer leaves alone. With
+## a sea level, that is standing water whose ground lies below it; streams
+## and waterfalls are rivers. An imported city has no sea level, so its salt
+## water is the sea. Temporary flood water is never the sea.
+func is_sea_water(x: int, y: int) -> bool:
+	if not in_bounds(x, y):
+		return false
+	var code := terrain.at(x, y)
+	if not Terrain.is_water(code):
+		return false
+	if sea_level < 0:
+		return is_salt_water(x, y)
+	if terrain_surface is TerrainSurface:
+		var s: TerrainSurface = terrain_surface
+		return s.has_water(x, y) and s.feature_at(x, y) == TerrainSurface.Feature.NONE \
+				and s.tile_base(x, y) < sea_level
+	var kind := Terrain.water_kind(code)
+	if kind == Terrain.STREAM or kind == Terrain.WATERFALL:
+		return false
+	return ground_height(x, y) < sea_level
+
+
 # ── Buildings and footprints ─────────────────────────────────────────────
 
 func building_at(x: int, y: int) -> int:
