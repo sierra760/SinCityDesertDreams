@@ -93,9 +93,19 @@ static func presentation_defaults(environment: Dictionary = {}) -> Dictionary:
 		return {"render_quality":"balanced","render_scale":75}
 	var os_name := String(environment.get("os_name",OS.get_name()))
 	var backing := float(environment["backing_scale"]) if environment.has("backing_scale") else DisplayLayout.screen_backing(DisplayServer.window_get_current_screen())
-	var adapter := int(environment["video_adapter_type"]) if environment.has("video_adapter_type") else int(RenderingServer.get_video_adapter_type())
-	var integrated := os_name in ["Windows","Linux","FreeBSD","NetBSD","OpenBSD","BSD"] and adapter == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU
+	var adapter := int(environment["video_adapter_type"]) if environment.has("video_adapter_type") else video_adapter_type()
+	var integrated := os_name in ["Windows","Linux","FreeBSD","NetBSD","OpenBSD","BSD"] and adapter == INTEGRATED_GPU
 	return {"render_quality":"balanced" if integrated else "high","render_scale":75 if is_finite(backing) and backing >= 2.0 else 100}
+
+## RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU. Godot 4.8 Web builds omit both
+## RenderingDevice and RenderingServer.get_video_adapter_type, and a script that
+## names either fails to compile there, so neither is referenced directly.
+const INTEGRATED_GPU := 1
+
+## The adapter type, or 0 (other) where the engine cannot report one.
+static func video_adapter_type() -> int:
+	if not RenderingServer.has_method("get_video_adapter_type"): return 0
+	return int(RenderingServer.call("get_video_adapter_type"))
 
 ## Only absent presentation preferences receive platform defaults. Explicit
 ## player quality/resolution choices survive subsequent launches unchanged.

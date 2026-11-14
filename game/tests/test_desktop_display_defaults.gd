@@ -80,6 +80,18 @@ func test_desktop_first_run_graphics_defaults() -> void:
 	check_eq(Platform.presentation_defaults({"os_name":"Linux","backing_scale":1.0,"video_adapter_type":discrete}),{"render_quality":"high","render_scale":100})
 	check_eq(Platform.presentation_defaults({"os_name":"iOS","backing_scale":1.0,"video_adapter_type":discrete}),{"render_quality":"balanced","render_scale":75},"mobile defaults unchanged")
 
+func test_adapter_lookup_compiles_without_rendering_device() -> void:
+	# Godot 4.8 Web builds lack RenderingDevice; naming it stops main.gd loading.
+	check_eq(Platform.INTEGRATED_GPU,RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU)
+	check_eq(Platform.video_adapter_type(),int(RenderingServer.get_video_adapter_type()))
+	var source := FileAccess.get_file_as_string("res://scripts/platform/mobile_platform.gd")
+	var code := ""
+	for line: String in source.split("\n"):
+		var stripped := line.strip_edges()
+		if not stripped.begins_with("#"): code += line.get_slice("#",0) + "\n"
+	check(not code.contains("RenderingDevice"),"platform script never names RenderingDevice")
+	check(not code.contains("RenderingServer.get_video_adapter_type"),"adapter type is looked up dynamically")
+
 func test_desktop_defaults_apply_only_to_absent_keys() -> void:
 	var environment := {"os_name":"Windows","backing_scale":2.0,"video_adapter_type":RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU}
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PREFS))
