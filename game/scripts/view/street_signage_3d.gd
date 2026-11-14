@@ -357,6 +357,10 @@ static func _add_text(parent: Node3D, mount: Transform3D, layout: Dictionary) ->
 		var instance:=MeshInstance3D.new()
 		instance.mesh=record.mesh
 		instance.transform=mount*record.transform
+		# The raised legend lies inside its board's silhouette, so the board
+		# already casts its shadow. Lettering is about 16 million triangles
+		# city-wide; drawing it into every shadow cascade cost several ms.
+		instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		instance.set_meta("complete_text",record.text)
 		parent.add_child(instance)
 

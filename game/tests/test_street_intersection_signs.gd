@@ -184,7 +184,11 @@ func test_four_named_arms_complete_faces_and_no_grade_separated_junction() -> vo
 		for node: Node in assembly.find_children("*","MeshInstance3D",true,false):
 			var mesh_node:=node as MeshInstance3D
 			check(bounds.grow(.000001).encloses(mesh_node.global_transform*mesh_node.mesh.get_aabb()),"every actual blade/face/post stays in safe envelope")
-			if node.has_meta("complete_text"): lettering+=1
+			if node.has_meta("complete_text"):
+				lettering+=1
+				# The blade casts the sign's shadow; the dense glyph meshes stay out of the shadow maps.
+				check_eq(mesh_node.cast_shadow,GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"lettering casts no shadow of its own")
+			else: check_ne(mesh_node.cast_shadow,GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"blades, posts and faces keep casting the sign's shadow")
 		check_ge(lettering,8,"all four names appear on both operational faces")
 		_check_on_junction_tile(assembly,Vector2i(8,8))
 	_dispose(s)
