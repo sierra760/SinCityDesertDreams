@@ -59,7 +59,9 @@ incremental result with a full resolution after every edit, on both paths.
 
 Requires Xcode on macOS, MinGW-w64 for the Windows DLL (`brew install
 mingw-w64`) and the pinned official godot-cpp checkout at `godot-4.5-stable`
-(commit `e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77`, compatible with Godot 4.7.2)
+(commit `e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77`, the newest tagged bindings
+release; the descriptor's `compatibility_minimum` is 4.5 and the libraries load
+unchanged in Godot 4.8)
 with its `template_release` static libraries built using
 `native/apple-share/build_profile.json` (Windows with `use_mingw=yes`). Run
 from the repository root:
@@ -82,13 +84,13 @@ Matching output has been verified on arm64 macOS and on the x86_64 macOS
 engine under Rosetta (the same SSE float32 arithmetic the Windows engine uses).
 CI runs the full suite, including both kernel suites, on Windows with this DLL.
 To check it by hand on Windows, use `tools/run_tests.py` with
-`GODOT` set to the Godot 4.7.2 console executable, or run the two suites
+`GODOT` set to the Godot 4.8 console executable, or run the two suites
 directly from a copy of the `game` folder:
 
 ```bat
-Godot_v4.7.2-stable_win64_console.exe --headless --path game --import
-Godot_v4.7.2-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_native_network_physics.gd
-Godot_v4.7.2-stable_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_network_physics_incremental.gd
+Godot_v4.8-beta3_win64_console.exe --headless --path game --import
+Godot_v4.8-beta3_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_native_network_physics.gd
+Godot_v4.8-beta3_win64_console.exe --headless --audio-driver Dummy --path game -s res://tests/test_network_physics_incremental.gd
 ```
 
 Each must end with `Results: N passed, 0 failed`, and the first must not print
@@ -102,7 +104,7 @@ HTML/JavaScript/engine modules, and includes the explicit geometry descriptor
 and license notice in the PCK. The same release kernel serves both debug and
 release Web templates. Other native binaries are not rebuilt or included.
 
-Activate **Emscripten 4.0.20**, matching the official Godot 4.7.2 Web templates,
+Activate **Emscripten 6.0.12**, matching the official Godot 4.8 Web templates,
 and use a clean checkout of the pinned godot-cpp revision above. From the
 repository root:
 
@@ -113,10 +115,12 @@ python3 native/geometry-kernel/build.py --godot-cpp /path/to/godot-cpp --platfor
 The build tool creates the bindings with `platform=web`, `arch=wasm32`,
 `target=template_release` and `threads=no` if their archive is missing. Keep
 binding build directories separate for different SDK versions. The module
-uses the Web side-module ABI, WebAssembly BigInt, wasm longjmp and the same
-`-ffp-contract=off` math contract as the native kernel. A failed build leaves
-any previous Wasm artifact intact. The default build still selects only the
-three existing native platforms; Web is opt-in.
+uses the Web side-module ABI, wasm longjmp, no C++ exceptions and the same
+`-ffp-contract=off` math contract as the native kernel. WebAssembly BigInt is
+always on from Emscripten 6, so the deprecated `-sWASM_BIGINT` setting is no
+longer passed. A failed build leaves any previous Wasm artifact intact. The
+default build still selects only the three existing native platforms; Web is
+opt-in.
 
 Use the matching Godot `web_dlink_nothreads` template when exporting. Deploy
 all generated files, including the engine's `.side.wasm` and the geometry

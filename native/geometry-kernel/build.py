@@ -21,8 +21,10 @@ import re
 import shutil
 import subprocess
 
+# godot-4.5-stable is the newest tagged bindings release; extensions built against
+# its API (compatibility_minimum 4.5) load unchanged in Godot 4.8.
 GODOT_CPP_REVISION = 'e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77'  # godot-4.5-stable
-WEB_EMSCRIPTEN_VERSION = '4.0.20'  # Official Godot 4.7.2 Web templates.
+WEB_EMSCRIPTEN_VERSION = '6.0.12'  # Official Godot 4.8 Web templates.
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--godot-cpp', type=pathlib.Path, required=True)
@@ -99,7 +101,7 @@ if 'web' in platforms:
     version = subprocess.check_output([compiler, '--version'], text=True)
     found = re.search(r'\b(\d+\.\d+\.\d+)\b', version)
     if found is None or found.group(1) != WEB_EMSCRIPTEN_VERSION:
-        raise SystemExit(f'WebAssembly requires Emscripten {WEB_EMSCRIPTEN_VERSION} to match the Godot 4.7.2 templates.')
+        raise SystemExit(f'WebAssembly requires Emscripten {WEB_EMSCRIPTEN_VERSION} to match the Godot 4.8 templates.')
     library = cpp / 'bin' / 'libgodot-cpp.web.template_release.wasm32.nothreads.a'
     if not library.exists():
         if not args.scons:
@@ -111,8 +113,7 @@ if 'web' in platforms:
     temporary = target.with_name(target.stem + '.tmp.wasm')
     try:
         subprocess.run([compiler, '-std=c++17', '-O3', '-ffp-contract=off', '-fno-exceptions',
-                        '-fvisibility=hidden', '-sSIDE_MODULE=1', '-sWASM_BIGINT',
-                        '-sSUPPORT_LONGJMP=wasm', *prefix_maps, *includes,
+                        '-fvisibility=hidden', '-sSIDE_MODULE=1', '-sSUPPORT_LONGJMP=wasm', *prefix_maps, *includes,
                         str(source / 'geometry_kernel.cpp'), str(library), '-o', str(temporary)], check=True)
         with temporary.open('rb') as artifact:
             if artifact.read(8) != b'\0asm\x01\0\0\0':

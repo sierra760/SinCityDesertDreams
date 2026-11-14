@@ -39,7 +39,7 @@ class WebGeometryBuildTests(unittest.TestCase):
         self.tool('git', 'print(os.environ["FAKE_REVISION"])\n')
         self.tool('em++', '''
 if '--version' in sys.argv:
-    print('emcc (Emscripten gcc/clang-like replacement) '+os.environ.get('EMSCRIPTEN_VERSION', '4.0.20'))
+    print('emcc (Emscripten gcc/clang-like replacement) '+os.environ.get('EMSCRIPTEN_VERSION', '6.0.12'))
     sys.exit(0)
 with open(os.environ['BUILD_CALLS'], 'a') as f: f.write(json.dumps(sys.argv)+'\\n')
 output = pathlib.Path(sys.argv[sys.argv.index('-o')+1])
@@ -74,8 +74,10 @@ base = pathlib.Path(sys.argv[sys.argv.index('-C')+1])
         self.assertEqual(0, result.returncode, result.stdout+result.stderr)
         self.assertEqual(b'\0asm\x01\0\0\0', self.target.read_bytes())
         command = self.commands()[-1]
-        for flag in ['-ffp-contract=off', '-sSIDE_MODULE=1', '-sWASM_BIGINT', '-sSUPPORT_LONGJMP=wasm']:
+        for flag in ['-ffp-contract=off', '-sSIDE_MODULE=1', '-sSUPPORT_LONGJMP=wasm']:
             self.assertIn(flag, command)
+        # BigInt is always on from Emscripten 6; the setting is deprecated there.
+        self.assertNotIn('-sWASM_BIGINT', command)
         self.assertIn(str(self.library.resolve()), command)
         self.assertFalse(any('PTHREAD' in arg or 'USE_PTHREADS' in arg for arg in command))
         self.assertEqual(b'preserve existing native artifact', self.desktop.read_bytes())
@@ -113,10 +115,10 @@ base = pathlib.Path(sys.argv[sys.argv.index('-C')+1])
 
     def test_wrong_sdk_is_rejected_before_replacing_the_previous_artifact(self):
         self.target.write_bytes(b'previous reviewed wasm')
-        self.env['EMSCRIPTEN_VERSION'] = '3.1.64'
+        self.env['EMSCRIPTEN_VERSION'] = '4.0.20'
         result = self.run_build()
         self.assertNotEqual(0, result.returncode)
-        self.assertIn('4.0.20', result.stdout+result.stderr)
+        self.assertIn('6.0.12', result.stdout+result.stderr)
         self.assertFalse(self.calls.exists())
         self.assertEqual(b'previous reviewed wasm', self.target.read_bytes())
 
